@@ -118,3 +118,11 @@ class GmailConnectStartResponse(BaseModel):
     account_id: str
     connect_url: str
     expires_at: datetime
+
+
+class GmailOAuthCallbackResponse(BaseModel):
+    provider_id: str
+    account_id: str
+    status: str
+    granted_scopes: list[str] = Field(default_factory=list)
+    expires_at: datetime | None = None

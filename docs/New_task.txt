@@ -47,33 +47,6 @@ Do not edit above this line:
 
 # Email Node — Phase 2 Tasks
 
-[TODO] Task 043: Add Gmail OAuth callback endpoint
-- Create route:
-  - GET /providers/gmail/oauth/callback
-- Validate:
-  - state exists
-  - state not expired
-  - state not consumed
-  - required query parameters present
-- Handle provider-side OAuth errors cleanly
-- Route valid auth code into token exchange service
-
----
-
-[TODO] Task 044: Implement Gmail token exchange client
-- Add token exchange logic against Google OAuth token endpoint
-- Exchange authorization code for:
-  - access token
-  - refresh token
-  - token type
-  - expiry metadata
-  - granted scope metadata if available
-- Normalize token response into GmailTokenRecord
-- Fail clearly on invalid_grant and related provider errors
-- Do not log raw tokens
-
----
-
 [TODO] Task 045: Implement Gmail token storage
 - Create src/email_node/providers/gmail/token_store.py
 - Store token records per account

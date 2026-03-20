@@ -13,6 +13,7 @@ from core_client import CoreApiClient, FinalizeResponse, OnboardingSessionReques
 from logging_utils import get_logger
 from models import (
     GmailConnectStartResponse,
+    GmailOAuthCallbackResponse,
     OnboardingStatusResponse,
     OperatorConfig,
     OperatorConfigInput,
@@ -24,6 +25,7 @@ from models import (
 )
 from providers.gmail.config_store import GmailProviderConfigError, GmailProviderConfigStore
 from providers.gmail.oauth import GmailOAuthSessionManager
+from providers.gmail.token_client import GmailTokenExchangeClient, GmailTokenExchangeError
 from mqtt import MQTTManager
 from providers.registry import ProviderRegistry
 from state_store import OperatorConfigStore, RuntimeStateStore, StateCorruptionError, TrustMaterialStore
@@ -41,6 +43,7 @@ class NodeService:
         *,
         core_client: CoreApiClient | None = None,
         mqtt_manager: MQTTManager | None = None,
+        gmail_token_client: GmailTokenExchangeClient | None = None,
     ) -> None:
         self.config = config
         self.state_store = RuntimeStateStore(config.state_file)
@@ -53,6 +56,7 @@ class NodeService:
         )
         self.gmail_config_store = GmailProviderConfigStore(config.runtime_dir)
         self.gmail_oauth_manager = GmailOAuthSessionManager(config.runtime_dir)
+        self.gmail_token_client = gmail_token_client or GmailTokenExchangeClient()
         self.provider_registry = ProviderRegistry(config)
         self.operator_config = OperatorConfig(core_base_url=config.core_base_url, node_name=config.node_name)
         self.state = RuntimeState()
@@ -97,6 +101,7 @@ class NodeService:
             with contextlib.suppress(asyncio.CancelledError):
                 await self.polling_task
         self.mqtt_manager.disconnect()
+        await self.gmail_token_client.aclose()
         await self.core_client.aclose()
 
     def required_inputs(self) -> list[str]:
@@ -451,4 +456,56 @@ class NodeService:
             account_id=account_id,
             connect_url=session.authorization_url or "",
             expires_at=session.expires_at,
+        )
+
+    async def handle_gmail_oauth_callback(
+        self,
+        *,
+        state: str | None,
+        code: str | None,
+        error: str | None,
+        error_description: str | None,
+        correlation_id: str | None = None,
+    ) -> GmailOAuthCallbackResponse:
+        if error:
+            message = error_description or error
+            raise ValueError(f"gmail oauth failed: {message}")
+
+        missing = [name for name, value in (("state", state), ("code", code)) if not value]
+        if missing:
+            raise ValueError(f"missing required query parameters: {', '.join(missing)}")
+
+        try:
+            oauth_config = self.gmail_config_store.load()
+            session = self.gmail_oauth_manager.validate_callback_state(state or "")
+            token_record = await self.gmail_token_client.exchange_authorization_code(
+                oauth_config,
+                account_id=session.account_id,
+                code=code or "",
+                correlation_id=correlation_id,
+            )
+            self.gmail_oauth_manager.consume_session(session.state)
+        except GmailProviderConfigError as exc:
+            raise ValueError(str(exc)) from exc
+        except GmailTokenExchangeError as exc:
+            raise ValueError(str(exc)) from exc
+        except RuntimeError as exc:
+            raise ValueError(str(exc)) from exc
+
+        LOGGER.info(
+            "Gmail oauth callback accepted",
+            extra={
+                "event_data": {
+                    "provider_id": "gmail",
+                    "account_id": token_record.account_id,
+                    "granted_scopes": token_record.granted_scopes,
+                }
+            },
+        )
+        return GmailOAuthCallbackResponse(
+            provider_id="gmail",
+            account_id=token_record.account_id,
+            status="token_exchanged",
+            granted_scopes=token_record.granted_scopes,
+            expires_at=token_record.expires_at,
         )

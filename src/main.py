@@ -79,4 +79,23 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    @app.get("/providers/gmail/oauth/callback")
+    async def gmail_oauth_callback(
+        request: Request,
+        state: str | None = None,
+        code: str | None = None,
+        error: str | None = None,
+        error_description: str | None = None,
+    ):
+        try:
+            return await node_service.handle_gmail_oauth_callback(
+                state=state,
+                code=code,
+                error=error,
+                error_description=error_description,
+                correlation_id=request.headers.get("X-Correlation-Id"),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     return app
