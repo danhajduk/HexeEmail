@@ -2,19 +2,24 @@
 
 ## Purpose
 
-Phase 2 activates Gmail as the first provider for the Email Node. The initial OAuth scope strategy must stay intentionally narrow so the node only requests access that is required for the first deliverable.
+Phase 2 activates Gmail as the first provider for the Email Node. The initial OAuth scope strategy must stay intentionally narrow so the node only requests access that is required for the first classification-first deliverable.
 
 ## Initial Scope Set
 
-The minimum required scope for first activation is:
+The minimum required scope for the current implementation is:
 
 - `https://www.googleapis.com/auth/gmail.send`
 
-This scope is the recommended first slice because it enables outbound email capability without immediately requesting broad mailbox access.
+This remains the implemented scope in the codebase today because it is the narrowest working first slice.
+
+Architecture note:
+
+- the long-term classification-first direction will likely require carefully scoped read access later
+- when that happens, scope changes should be introduced deliberately and documented as a new architecture step
 
 ## Why `gmail.send` First
 
-- it supports the first practical Gmail capability we want to unlock
+- it supports the first practical Gmail provider handshake we want to unlock
 - it avoids unnecessary read access to mailbox contents
 - it reduces operator concern during OAuth consent review
 - it keeps the activation surface aligned with least-privilege design
@@ -51,6 +56,7 @@ New Gmail scopes should only be added when:
 - a specific node capability requires them
 - the capability is documented in the architecture and runbook
 - the provider health and declaration logic are updated to match the broader access model
+- the classification-first ingest/routing path explicitly needs the additional mailbox access
 
 Scope growth should be additive and justified, not speculative.
 

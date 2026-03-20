@@ -4,12 +4,21 @@
 
 Validate the trusted Email Node plus Gmail provider activation flow end to end.
 
+This acceptance path should confirm:
+
+- Core trust onboarding is already complete
+- Gmail authorization happens through Google OAuth Web Application flow
+- Email Node handles ingress/provider activation
+- AI work remains delegated to AI Node
+
 ## Preconditions
 
 - Core onboarding is already complete
 - the node is trusted
 - Gmail OAuth config is present and valid
 - the callback endpoint is reachable from the browser flow
+- the local development callback reference is:
+  `http://localhost:8092/providers/gmail/oauth/callback`
 
 ## Acceptance Steps
 
@@ -21,8 +30,8 @@ Validate the trusted Email Node plus Gmail provider activation flow end to end.
    `POST /providers/gmail/accounts/primary/connect/start`
 6. Open the returned Google OAuth URL.
 7. Complete Google consent.
-8. Confirm the callback succeeds at:
-   `GET /providers/gmail/oauth/callback?...`
+8. Confirm Google redirects to the Email Node callback endpoint and the callback succeeds at:
+   `http://localhost:8092/providers/gmail/oauth/callback?...`
 9. Confirm `GET /providers/gmail/accounts/primary` reports connected health.
 10. Confirm `GET /providers` lists:
    - `supported_providers` includes `gmail`
@@ -38,9 +47,11 @@ Validate the trusted Email Node plus Gmail provider activation flow end to end.
 - Gmail token stored securely
 - Gmail account identity persisted
 - Gmail provider state connected
+- normalized email ingress/provider path ready
 - capability declaration updated after activation
 - governance fetched successfully
 - node operational readiness true
+- AI delegation boundary remains explicit in the architecture and runbook
 
 ## Failure Notes
 

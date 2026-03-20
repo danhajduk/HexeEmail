@@ -60,3 +60,6 @@ Task 059: Add telemetry/logging for provider activation lifecycle
 Task 060: Add automated tests for Gmail provider activation
 Task 061: Add Phase 2 operator runbook
 Task 062: Add manual Phase 2 acceptance test
+Task 063: Migrate Gmail authentication design to Google OAuth Web Application flow
+Task 064: Refactor Gmail provider tasks and docs to match classification-first architecture
+Task 065: Create Gmail OAuth setup guide for Google Cloud and Google Auth Platform
