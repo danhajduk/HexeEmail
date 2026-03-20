@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 
 import httpx
 
+from logging_utils import get_logger
 from providers.gmail.account_store import GmailAccountStore
 from providers.gmail.models import GmailTokenRecord
 from providers.models import ProviderAccountRecord, ProviderId
@@ -11,6 +12,9 @@ from providers.models import ProviderAccountRecord, ProviderId
 
 class GmailIdentityProbeError(RuntimeError):
     pass
+
+
+LOGGER = get_logger(__name__)
 
 
 class GmailIdentityProbeClient:
@@ -42,10 +46,15 @@ class GmailIdentityProbeClient:
             raise GmailIdentityProbeError("gmail identity probe returned invalid JSON") from exc
 
         if response.is_error or not isinstance(payload, dict):
+            LOGGER.warning("Gmail identity probe failed", extra={"event_data": {"account_id": token_record.account_id}})
             raise GmailIdentityProbeError("gmail identity probe failed")
 
         email = payload.get("email")
         if not isinstance(email, str) or not email:
+            LOGGER.warning(
+                "Gmail identity probe missing email",
+                extra={"event_data": {"account_id": token_record.account_id}},
+            )
             raise GmailIdentityProbeError("gmail identity probe did not return an email address")
 
         external_account_id = payload.get("id")
@@ -62,6 +71,10 @@ class GmailIdentityProbeClient:
             updated_at=datetime.now(UTC).replace(tzinfo=None),
         )
         self.account_store.save_account(record)
+        LOGGER.info(
+            "Gmail identity probe succeeded",
+            extra={"event_data": {"account_id": token_record.account_id, "email_address": email}},
+        )
         return record
 
     async def aclose(self) -> None:

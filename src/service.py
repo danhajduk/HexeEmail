@@ -496,6 +496,10 @@ class NodeService:
         error_description: str | None,
         correlation_id: str | None = None,
     ) -> GmailOAuthCallbackResponse:
+        LOGGER.info(
+            "Gmail oauth callback received",
+            extra={"event_data": {"has_state": bool(state), "has_code": bool(code), "has_error": bool(error)}},
+        )
         if error:
             message = error_description or error
             raise ValueError(f"gmail oauth failed: {message}")

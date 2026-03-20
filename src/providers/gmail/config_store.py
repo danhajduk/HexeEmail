@@ -6,6 +6,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
+from logging_utils import get_logger
 from providers.gmail.models import GmailOAuthConfig
 from providers.gmail.runtime import GmailRuntimeLayout
 from providers.models import ProviderValidationResult
@@ -13,6 +14,9 @@ from providers.models import ProviderValidationResult
 
 class GmailProviderConfigError(RuntimeError):
     pass
+
+
+LOGGER = get_logger(__name__)
 
 
 class GmailProviderConfigStore:
@@ -27,14 +31,23 @@ class GmailProviderConfigStore:
             raise GmailProviderConfigError(f"gmail provider config is malformed: {exc}") from exc
 
         try:
-            return GmailOAuthConfig.model_validate(payload)
+            config = GmailOAuthConfig.model_validate(payload)
         except ValidationError as exc:
             raise GmailProviderConfigError(f"gmail provider config is invalid: {exc}") from exc
+        LOGGER.info(
+            "Gmail provider config loaded",
+            extra={"event_data": {"enabled": config.enabled, "has_client_id": bool(config.client_id)}},
+        )
+        return config
 
     def save(self, config: GmailOAuthConfig) -> GmailOAuthConfig:
         payload = config.model_dump(mode="json")
         self.layout.provider_config_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         self._set_mode(self.layout.provider_config_path, 0o600)
+        LOGGER.info(
+            "Gmail provider config saved",
+            extra={"event_data": {"enabled": config.enabled, "has_client_id": bool(config.client_id)}},
+        )
         return config
 
     def validate(self, config: GmailOAuthConfig) -> ProviderValidationResult:
@@ -54,6 +67,10 @@ class GmailProviderConfigStore:
         messages: list[str] = []
         if missing_fields:
             messages.append("Gmail OAuth configuration is incomplete.")
+        LOGGER.info(
+            "Gmail provider config validated",
+            extra={"event_data": {"ok": not missing_fields, "missing_fields": missing_fields}},
+        )
 
         return ProviderValidationResult(
             ok=not missing_fields,

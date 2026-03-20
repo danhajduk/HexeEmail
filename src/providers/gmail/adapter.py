@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from logging_utils import get_logger
 from providers.base import EmailProviderAdapter
 from providers.gmail.account_store import GmailAccountStore
 from providers.gmail.config_store import GmailProviderConfigError, GmailProviderConfigStore
@@ -11,6 +12,9 @@ from providers.gmail.state_machine import GmailAccountStateMachine
 from providers.gmail.token_client import GmailTokenExchangeClient
 from providers.gmail.token_store import GmailTokenStore
 from providers.models import ProviderAccountRecord, ProviderHealth, ProviderId, ProviderState, ProviderValidationResult
+
+
+LOGGER = get_logger(__name__)
 
 
 class GmailProviderAdapter(EmailProviderAdapter):
@@ -99,7 +103,12 @@ class GmailProviderAdapter(EmailProviderAdapter):
     async def start_account_connect(self, account_id: str) -> ProviderAccountRecord:
         record = self.state_machine.ensure_account(account_id)
         if record.status in {"not_configured", "revoked"}:
-            return self.state_machine.transition(account_id, "oauth_pending")
+            updated = self.state_machine.transition(account_id, "oauth_pending")
+            LOGGER.info(
+                "Gmail account entered oauth_pending",
+                extra={"event_data": {"account_id": account_id, "status": updated.status}},
+            )
+            return updated
         return record
 
     async def complete_oauth_callback(self, account_id: str, code: str, *, correlation_id: str | None = None) -> ProviderAccountRecord:
@@ -119,5 +128,9 @@ class GmailProviderAdapter(EmailProviderAdapter):
         elif self.account_store.load_account(account_id).status == "oauth_pending":
             self.state_machine.transition(account_id, "token_exchanged")
         identity_record = await self.identity_client.probe_identity(token_record, correlation_id=correlation_id)
-        self.state_machine.transition(account_id, "connected")
+        connected = self.state_machine.transition(account_id, "connected")
+        LOGGER.info(
+            "Gmail account connected",
+            extra={"event_data": {"account_id": account_id, "status": connected.status}},
+        )
         return self.account_store.load_account(identity_record.account_id) or identity_record

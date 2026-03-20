@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 
+from logging_utils import get_logger
 from providers.gmail.account_store import GmailAccountStore
 from providers.gmail.models import GmailOAuthConfig, GmailTokenRecord
 from providers.gmail.state_machine import GmailAccountStateMachine
@@ -13,6 +14,9 @@ from providers.gmail.token_store import GmailTokenStore
 
 class GmailTokenExchangeError(RuntimeError):
     pass
+
+
+LOGGER = get_logger(__name__)
 
 
 class GmailTokenExchangeClient:
@@ -54,6 +58,10 @@ class GmailTokenExchangeClient:
         if response.is_error:
             error = payload.get("error") if isinstance(payload, dict) else None
             description = payload.get("error_description") if isinstance(payload, dict) else None
+            LOGGER.warning(
+                "Gmail token exchange failed",
+                extra={"event_data": {"error": error, "status_code": response.status_code}},
+            )
             if error == "invalid_grant":
                 raise GmailTokenExchangeError(description or "gmail token exchange rejected the authorization code")
             raise GmailTokenExchangeError(description or f"gmail token exchange failed with status {response.status_code}")
@@ -75,7 +83,7 @@ class GmailTokenExchangeClient:
 
         refresh_token = payload.get("refresh_token")
         token_type = payload.get("token_type")
-        return GmailTokenRecord(
+        token_record = GmailTokenRecord(
             account_id=account_id,
             access_token=access_token,
             refresh_token=refresh_token if isinstance(refresh_token, str) else None,
@@ -83,6 +91,11 @@ class GmailTokenExchangeClient:
             expires_at=expires_at,
             granted_scopes=granted_scopes,
         )
+        LOGGER.info(
+            "Gmail token exchange succeeded",
+            extra={"event_data": {"account_id": account_id, "granted_scopes": granted_scopes}},
+        )
+        return token_record
 
     async def refresh_access_token(
         self,
@@ -116,13 +129,22 @@ class GmailTokenExchangeClient:
         if response.is_error:
             error = payload.get("error") if isinstance(payload, dict) else None
             description = payload.get("error_description") if isinstance(payload, dict) else None
+            LOGGER.warning(
+                "Gmail token refresh failed",
+                extra={"event_data": {"error": error, "status_code": response.status_code, "account_id": account_id}},
+            )
             if error == "invalid_grant":
                 raise GmailTokenExchangeError(
                     f"invalid_grant: {description}" if description else "gmail refresh token is invalid or revoked"
                 )
             raise GmailTokenExchangeError(description or f"gmail token refresh failed with status {response.status_code}")
 
-        return self._normalize_token_payload(payload, account_id=account_id, fallback_refresh_token=refresh_token)
+        refreshed = self._normalize_token_payload(payload, account_id=account_id, fallback_refresh_token=refresh_token)
+        LOGGER.info(
+            "Gmail token refresh succeeded",
+            extra={"event_data": {"account_id": account_id, "granted_scopes": refreshed.granted_scopes}},
+        )
+        return refreshed
 
     async def refresh_if_needed(
         self,

@@ -56,3 +56,7 @@ Task 055: Update capability declaration after Gmail activation
 Task 056: Implement governance fetch client
 Task 057: Implement operational readiness evaluator
 Task 058: Update /status and /health/ready for Phase 2 state
+Task 059: Add telemetry/logging for provider activation lifecycle
+Task 060: Add automated tests for Gmail provider activation
+Task 061: Add Phase 2 operator runbook
+Task 062: Add manual Phase 2 acceptance test
