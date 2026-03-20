@@ -447,7 +447,13 @@ class NodeService:
             can_start_onboarding=not required_inputs and self.state.trust_state != "trusted",
         )
 
-    async def start_gmail_connect(self, account_id: str, *, correlation_id: str | None = None) -> GmailConnectStartResponse:
+    async def start_gmail_connect(
+        self,
+        account_id: str,
+        redirect_uri: str,
+        *,
+        correlation_id: str | None = None,
+    ) -> GmailConnectStartResponse:
         if self.state.trust_state != "trusted":
             raise ValueError("gmail provider activation requires a trusted node")
 
@@ -461,10 +467,12 @@ class NodeService:
             raise ValueError(f"gmail provider configuration is incomplete: {', '.join(validation.missing_fields)}")
         if not oauth_config.enabled:
             raise ValueError("gmail provider is disabled")
+        normalized_redirect_uri = self._normalize_operator_redirect_uri(redirect_uri)
 
         session = self.gmail_oauth_manager.create_connect_session(
             account_id,
             oauth_config,
+            normalized_redirect_uri,
             correlation_id=correlation_id,
         )
         gmail_adapter = self.provider_registry.get_provider("gmail")
@@ -485,29 +493,25 @@ class NodeService:
             provider_id="gmail",
             account_id=account_id,
             connect_url=session.authorization_url or "",
+            redirect_uri=session.redirect_uri,
+            state=session.state,
             expires_at=session.expires_at,
         )
 
-    async def handle_gmail_oauth_callback(
+    async def complete_gmail_oauth(
         self,
         *,
         state: str | None,
         code: str | None,
-        error: str | None,
-        error_description: str | None,
         correlation_id: str | None = None,
     ) -> GmailOAuthCallbackResponse:
         LOGGER.info(
-            "Gmail oauth callback received",
-            extra={"event_data": {"has_state": bool(state), "has_code": bool(code), "has_error": bool(error)}},
+            "Gmail oauth completion received",
+            extra={"event_data": {"has_state": bool(state), "has_code": bool(code)}},
         )
-        if error:
-            message = error_description or error
-            raise ValueError(f"gmail oauth failed: {message}")
-
         missing = [name for name, value in (("state", state), ("code", code)) if not value]
         if missing:
-            raise ValueError(f"missing required query parameters: {', '.join(missing)}")
+            raise ValueError(f"missing required completion fields: {', '.join(missing)}")
 
         try:
             session = self.gmail_oauth_manager.validate_callback_state(state or "")
@@ -517,6 +521,8 @@ class NodeService:
             account_record = await gmail_adapter.complete_oauth_callback(
                 session.account_id,
                 code or "",
+                redirect_uri=session.redirect_uri,
+                code_verifier=session.code_verifier,
                 correlation_id=correlation_id,
             )
             self.gmail_oauth_manager.consume_session(session.state)
@@ -546,6 +552,17 @@ class NodeService:
             granted_scopes=(token_record.granted_scopes if token_record is not None else []),
             expires_at=(token_record.expires_at if token_record is not None else None),
         )
+
+    def _normalize_operator_redirect_uri(self, redirect_uri: str) -> str:
+        value = (redirect_uri or "").strip()
+        parsed = urlparse(value)
+        if parsed.scheme != "http":
+            raise ValueError("desktop Gmail OAuth requires an http loopback redirect URI")
+        if parsed.hostname not in {"127.0.0.1", "localhost", "::1"}:
+            raise ValueError("desktop Gmail OAuth redirect URI must use a loopback host")
+        if not parsed.port:
+            raise ValueError("desktop Gmail OAuth redirect URI must include a local port")
+        return value
 
     def gmail_token_store(self):
         return self.provider_registry.get_provider("gmail").token_store

@@ -10,7 +10,6 @@ def build_config() -> GmailOAuthConfig:
         enabled=True,
         client_id="client-id",
         client_secret_ref="env:GMAIL_CLIENT_SECRET",
-        redirect_uri="http://127.0.0.1:9003/providers/gmail/oauth/callback",
     )
 
 

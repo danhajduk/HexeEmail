@@ -54,10 +54,15 @@ async def test_gmail_token_client_normalizes_google_token_response(monkeypatch):
         enabled=True,
         client_id="client-id",
         client_secret_ref="env:GMAIL_CLIENT_SECRET",
-        redirect_uri="http://127.0.0.1:9003/providers/gmail/oauth/callback",
     )
 
-    token = await client.exchange_authorization_code(oauth_config, account_id="primary", code="auth-code")
+    token = await client.exchange_authorization_code(
+        oauth_config,
+        account_id="primary",
+        code="auth-code",
+        redirect_uri="http://127.0.0.1:8765/oauth2callback",
+        code_verifier="verifier",
+    )
     await client.aclose()
 
     assert token.account_id == "primary"
@@ -76,11 +81,16 @@ async def test_gmail_token_client_surfaces_invalid_grant(monkeypatch):
         enabled=True,
         client_id="client-id",
         client_secret_ref="env:GMAIL_CLIENT_SECRET",
-        redirect_uri="http://127.0.0.1:9003/providers/gmail/oauth/callback",
     )
 
     with pytest.raises(GmailTokenExchangeError):
-        await client.exchange_authorization_code(oauth_config, account_id="primary", code="bad-code")
+        await client.exchange_authorization_code(
+            oauth_config,
+            account_id="primary",
+            code="bad-code",
+            redirect_uri="http://127.0.0.1:8765/oauth2callback",
+            code_verifier="verifier",
+        )
 
     await client.aclose()
 
@@ -94,7 +104,6 @@ async def test_gmail_token_client_refreshes_and_persists_near_expiry_token(monke
         enabled=True,
         client_id="client-id",
         client_secret_ref="env:GMAIL_CLIENT_SECRET",
-        redirect_uri="http://127.0.0.1:9003/providers/gmail/oauth/callback",
     )
     token_store = GmailTokenStore(tmp_path)
     account_store = GmailAccountStore(tmp_path)
@@ -134,7 +143,6 @@ async def test_gmail_token_client_marks_account_revoked_on_invalid_refresh(monke
         enabled=True,
         client_id="client-id",
         client_secret_ref="env:GMAIL_CLIENT_SECRET",
-        redirect_uri="http://127.0.0.1:9003/providers/gmail/oauth/callback",
     )
     token_store = GmailTokenStore(tmp_path)
     account_store = GmailAccountStore(tmp_path)

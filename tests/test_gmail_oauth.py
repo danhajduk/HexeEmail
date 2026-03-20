@@ -13,17 +13,19 @@ from providers.gmail.oauth import GmailOAuthSessionManager, GmailOAuthStateError
 def test_gmail_oauth_session_manager_creates_and_persists_session(tmp_path):
     manager = GmailOAuthSessionManager(tmp_path)
 
-    session = manager.create_session("primary", correlation_id="corr-123")
+    session = manager.create_session("primary", "http://127.0.0.1:8765/oauth2callback", correlation_id="corr-123")
     loaded = manager.load_session(session.state)
 
     assert loaded.account_id == "primary"
+    assert loaded.redirect_uri == "http://127.0.0.1:8765/oauth2callback"
     assert loaded.correlation_id == "corr-123"
     assert loaded.consumed_at is None
+    assert loaded.code_verifier
 
 
 def test_gmail_oauth_session_manager_rejects_consumed_state(tmp_path):
     manager = GmailOAuthSessionManager(tmp_path)
-    session = manager.create_session("primary")
+    session = manager.create_session("primary", "http://127.0.0.1:8765/oauth2callback")
 
     manager.consume_session(session.state)
 
@@ -36,6 +38,8 @@ def test_gmail_oauth_session_manager_rejects_expired_state(tmp_path):
     session = GmailOAuthSessionState(
         state="expired-state",
         account_id="primary",
+        redirect_uri="http://127.0.0.1:8765/oauth2callback",
+        code_verifier="verifier",
         expires_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=1),
     )
     manager.save_session(session)
@@ -49,11 +53,15 @@ def test_gmail_oauth_session_manager_expires_stale_sessions(tmp_path):
     stale = GmailOAuthSessionState(
         state="stale-state",
         account_id="primary",
+        redirect_uri="http://127.0.0.1:8765/oauth2callback",
+        code_verifier="verifier",
         expires_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=1),
     )
     fresh = GmailOAuthSessionState(
         state="fresh-state",
         account_id="primary",
+        redirect_uri="http://127.0.0.1:8765/oauth2callback",
+        code_verifier="verifier",
         expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(minutes=5),
     )
     manager.save_session(stale)
@@ -72,18 +80,23 @@ def test_gmail_oauth_session_manager_builds_google_connect_url(tmp_path):
         enabled=True,
         client_id="client-id",
         client_secret_ref="env:GMAIL_CLIENT_SECRET",
-        redirect_uri="http://127.0.0.1:9003/providers/gmail/oauth/callback",
     )
 
-    session = manager.create_connect_session("primary", oauth_config, correlation_id="corr-123")
+    session = manager.create_connect_session(
+        "primary",
+        oauth_config,
+        "http://127.0.0.1:8765/oauth2callback",
+        correlation_id="corr-123",
+    )
     parsed = urlparse(session.authorization_url or "")
     query = parse_qs(parsed.query)
 
     assert parsed.scheme == "https"
     assert parsed.netloc == "accounts.google.com"
     assert query["client_id"] == ["client-id"]
-    assert query["redirect_uri"] == ["http://127.0.0.1:9003/providers/gmail/oauth/callback"]
+    assert query["redirect_uri"] == ["http://127.0.0.1:8765/oauth2callback"]
     assert query["access_type"] == ["offline"]
     assert query["state"] == [session.state]
     assert query["login_hint"] == ["primary"]
+    assert query["code_challenge_method"] == ["S256"]
     assert "https://www.googleapis.com/auth/gmail.send" in query["scope"][0]

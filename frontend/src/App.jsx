@@ -9,7 +9,6 @@ const EMPTY_PROVIDER_FORM = {
   enabled: false,
   client_id: "",
   client_secret_ref: "",
-  redirect_uri: "",
   requested_scopes: "https://www.googleapis.com/auth/gmail.send",
 };
 
@@ -88,9 +87,9 @@ function deriveNodeState(bootstrap) {
 function normalizeProviderForm(config) {
   return {
     enabled: Boolean(config?.enabled),
+    oauth_client_type: config?.oauth_client_type || "desktop",
     client_id: config?.client_id || "",
     client_secret_ref: config?.client_secret_ref || "",
-    redirect_uri: config?.redirect_uri || "",
     requested_scopes: (config?.requested_scopes?.scopes || []).join("\n") || EMPTY_PROVIDER_FORM.requested_scopes,
   };
 }
@@ -98,9 +97,9 @@ function normalizeProviderForm(config) {
 function buildProviderPayload(form) {
   return {
     enabled: form.enabled,
+    oauth_client_type: "desktop",
     client_id: form.client_id.trim() || null,
     client_secret_ref: form.client_secret_ref.trim() || null,
-    redirect_uri: form.redirect_uri.trim() || null,
     requested_scopes: {
       scopes: form.requested_scopes
         .split("\n")
@@ -169,24 +168,16 @@ function ProviderSetupPage({
   providerLoading,
   providerSaving,
   providerValidating,
-  providerConnecting,
   providerNotice,
   providerError,
-  connectUrl,
+  helperCommand,
   onProviderChange,
   onRefresh,
   onSave,
   onValidate,
-  onConnect,
   onBack,
 }) {
   const providerSummary = providerStatus?.provider_account_summaries?.gmail || {};
-  const canConnect =
-    bootstrap?.status?.trust_state === "trusted" &&
-    providerSummary?.configured &&
-    providerForm.enabled &&
-    !providerConnecting;
-
   return (
     <main className="app-frame">
       <section className="hero card">
@@ -229,20 +220,11 @@ function ProviderSetupPage({
             required
           />
           <Field
-            label="Client Secret Ref"
+            label="Client Secret Ref (Optional)"
             name="client_secret_ref"
             value={providerForm.client_secret_ref}
             onChange={onProviderChange}
             placeholder="env:GMAIL_CLIENT_SECRET"
-            required
-          />
-          <Field
-            label="Redirect URI"
-            name="redirect_uri"
-            value={providerForm.redirect_uri}
-            onChange={onProviderChange}
-            placeholder="http://localhost:9003/providers/gmail/oauth/callback"
-            required
           />
           <TextareaField
             label="Requested scopes"
@@ -312,19 +294,19 @@ function ProviderSetupPage({
           </div>
 
           <div className="actions">
-            <button className="btn btn-primary" type="button" onClick={onConnect} disabled={!canConnect}>
-              {providerConnecting ? "Preparing..." : "Start Gmail Connect"}
+            <button className="btn btn-ghost" type="button" onClick={onRefresh} disabled={providerLoading}>
+              {providerLoading ? "Refreshing..." : "Refresh Provider Status"}
             </button>
           </div>
           {!providerForm.enabled ? <div className="callout callout-warning">Enable the provider before connecting.</div> : null}
           {bootstrap?.status?.trust_state !== "trusted" ? (
             <div className="callout callout-warning">The node must be trusted before Gmail OAuth can start.</div>
           ) : null}
-          {connectUrl ? (
-            <a className="approval-link" href={connectUrl} target="_blank" rel="noreferrer">
-              Open Google connect URL
-            </a>
-          ) : null}
+          <div className="callout">
+            Desktop OAuth runs on the operator workstation. Use the helper below on the machine that will open the
+            browser.
+          </div>
+          <pre className="helper-command">{helperCommand}</pre>
         </article>
       </section>
     </main>
@@ -348,10 +330,8 @@ export function App() {
   const [providerLoading, setProviderLoading] = useState(false);
   const [providerSaving, setProviderSaving] = useState(false);
   const [providerValidating, setProviderValidating] = useState(false);
-  const [providerConnecting, setProviderConnecting] = useState(false);
   const [providerNotice, setProviderNotice] = useState("");
   const [providerError, setProviderError] = useState("");
-  const [connectUrl, setConnectUrl] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -450,7 +430,6 @@ export function App() {
     setProviderDirty(true);
     setProviderError("");
     setProviderNotice("");
-    setConnectUrl("");
     setProviderForm((current) => ({
       ...current,
       [name]: type === "checkbox" ? checked : value,
@@ -565,28 +544,12 @@ export function App() {
     }
   }
 
-  async function startProviderConnect() {
-    setProviderConnecting(true);
-    setProviderError("");
-    setProviderNotice("");
-    try {
-      const payload = await fetchJson("/providers/gmail/accounts/primary/connect/start", {
-        method: "POST",
-      });
-      setConnectUrl(payload.connect_url);
-      setProviderNotice("Gmail connect URL created for the primary account.");
-      setProviderStatus(await fetchJson("/providers"));
-    } catch (connectError) {
-      setProviderError(connectError.message);
-    } finally {
-      setProviderConnecting(false);
-    }
-  }
-
   const onboarding = bootstrap?.onboarding;
   const status = bootstrap?.status;
   const requiredInputs = bootstrap?.required_inputs || [];
   const nodeState = deriveNodeState(bootstrap);
+  const helperHost = window.location.hostname || "localhost";
+  const helperCommand = `python3 scripts/gmail_desktop_auth.py --node-base-url http://${helperHost}:${bootstrap?.config.api_port || 9003} --account-id primary --open-browser`;
 
   if (view === "provider") {
     return (
@@ -600,15 +563,13 @@ export function App() {
           providerLoading={providerLoading}
           providerSaving={providerSaving}
           providerValidating={providerValidating}
-          providerConnecting={providerConnecting}
           providerNotice={providerNotice}
           providerError={providerError}
-          connectUrl={connectUrl}
+          helperCommand={helperCommand}
           onProviderChange={handleProviderChange}
           onRefresh={refreshProviderState}
           onSave={saveProviderConfig}
           onValidate={validateProviderConfig}
-          onConnect={startProviderConnect}
           onBack={() => setView("console")}
         />
       </div>

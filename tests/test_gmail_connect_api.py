@@ -24,7 +24,6 @@ async def test_gmail_connect_start_returns_connect_url_for_trusted_node(config, 
             enabled=True,
             client_id="client-id",
             client_secret_ref="env:GMAIL_CLIENT_SECRET",
-            redirect_uri="http://127.0.0.1:9003/providers/gmail/oauth/callback",
         )
     )
     await service.start()
@@ -34,6 +33,7 @@ async def test_gmail_connect_start_returns_connect_url_for_trusted_node(config, 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.post(
             "/providers/gmail/accounts/primary/connect/start",
+            json={"redirect_uri": "http://127.0.0.1:8765/oauth2callback"},
             headers={"X-Correlation-Id": "corr-123"},
         )
 
@@ -43,6 +43,7 @@ async def test_gmail_connect_start_returns_connect_url_for_trusted_node(config, 
     body = response.json()
     assert body["provider_id"] == "gmail"
     assert body["account_id"] == "primary"
+    assert body["redirect_uri"] == "http://127.0.0.1:8765/oauth2callback"
     assert "accounts.google.com" in body["connect_url"]
 
 
@@ -58,7 +59,10 @@ async def test_gmail_connect_start_requires_trusted_node(config, core_client_fac
     app = create_app(config=isolated_config, service=service)
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.post("/providers/gmail/accounts/primary/connect/start")
+        response = await client.post(
+            "/providers/gmail/accounts/primary/connect/start",
+            json={"redirect_uri": "http://127.0.0.1:8765/oauth2callback"},
+        )
 
     await service.stop()
 
@@ -80,9 +84,42 @@ async def test_gmail_connect_start_validates_gmail_config(config, core_client_fa
     app = create_app(config=config_with_blank_runtime, service=service)
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.post("/providers/gmail/accounts/primary/connect/start")
+        response = await client.post(
+            "/providers/gmail/accounts/primary/connect/start",
+            json={"redirect_uri": "http://127.0.0.1:8765/oauth2callback"},
+        )
 
     await service.stop()
 
     assert response.status_code == 400
     assert "configuration is incomplete" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_gmail_connect_start_rejects_non_loopback_redirect(config, core_client_factory):
+    isolated_config = config.model_copy(update={"core_base_url": None, "node_name": None})
+    service = NodeService(
+        isolated_config,
+        core_client=core_client_factory(build_core_app()),
+        mqtt_manager=FakeMQTTManager(),
+    )
+    GmailProviderConfigStore(isolated_config.runtime_dir).save(
+        GmailOAuthConfig(
+            enabled=True,
+            client_id="client-id",
+        )
+    )
+    await service.start()
+    service.state.trust_state = "trusted"
+    app = create_app(config=isolated_config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/providers/gmail/accounts/primary/connect/start",
+            json={"redirect_uri": "https://email.example.com/callback"},
+        )
+
+    await service.stop()
+
+    assert response.status_code == 400
+    assert "loopback" in response.json()["detail"].lower()

@@ -27,10 +27,10 @@ def test_gmail_oauth_config_keeps_static_fields_separate_from_runtime_tokens():
         enabled=True,
         client_id="client-id",
         client_secret_ref="env:GMAIL_CLIENT_SECRET",
-        redirect_uri="http://127.0.0.1:9003/providers/gmail/oauth/callback",
     )
 
     assert config.enabled is True
+    assert config.oauth_client_type == "desktop"
     assert config.client_secret_ref == "env:GMAIL_CLIENT_SECRET"
     assert "access_token" not in config.model_dump()
 
@@ -55,7 +55,12 @@ def test_gmail_token_record_tracks_runtime_token_metadata():
 
 
 def test_gmail_oauth_session_state_defaults_to_short_lived_pending_session():
-    session = GmailOAuthSessionState(state="oauth-state", account_id="primary")
+    session = GmailOAuthSessionState(
+        state="oauth-state",
+        account_id="primary",
+        redirect_uri="http://127.0.0.1:8765/oauth2callback",
+        code_verifier="verifier",
+    )
 
     assert session.account_id == "primary"
     assert session.consumed_at is None

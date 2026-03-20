@@ -14,7 +14,6 @@ def test_gmail_config_store_loads_and_saves_static_config(tmp_path):
         enabled=True,
         client_id="client-id",
         client_secret_ref="env:GMAIL_CLIENT_SECRET",
-        redirect_uri="http://127.0.0.1:9003/providers/gmail/oauth/callback",
     )
 
     store.save(config)
@@ -30,7 +29,7 @@ def test_gmail_config_store_reports_missing_required_fields(tmp_path):
     result = store.validate(GmailOAuthConfig())
 
     assert result.ok is False
-    assert result.missing_fields == ["client_id", "client_secret_ref", "redirect_uri"]
+    assert result.missing_fields == ["client_id"]
 
 
 def test_gmail_config_store_rejects_malformed_json(tmp_path):
@@ -49,7 +48,6 @@ def test_gmail_config_store_does_not_allow_token_fields_in_static_config(tmp_pat
                 "enabled": True,
                 "client_id": "client-id",
                 "client_secret_ref": "env:GMAIL_CLIENT_SECRET",
-                "redirect_uri": "http://127.0.0.1:9003/providers/gmail/oauth/callback",
                 "access_token": "should-not-be-here",
             }
         ),

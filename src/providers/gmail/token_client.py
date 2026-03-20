@@ -31,22 +31,27 @@ class GmailTokenExchangeClient:
         *,
         account_id: str,
         code: str,
+        redirect_uri: str,
+        code_verifier: str,
         correlation_id: str | None = None,
     ) -> GmailTokenRecord:
-        client_secret = self._resolve_client_secret(oauth_config.client_secret_ref)
         headers = {}
         if correlation_id:
             headers["X-Correlation-Id"] = correlation_id
+        data = {
+            "code": code,
+            "client_id": oauth_config.client_id or "",
+            "redirect_uri": redirect_uri,
+            "grant_type": "authorization_code",
+            "code_verifier": code_verifier,
+        }
+        client_secret = self._resolve_client_secret(oauth_config.client_secret_ref)
+        if client_secret:
+            data["client_secret"] = client_secret
 
         response = await self._client.post(
             self.TOKEN_ENDPOINT,
-            data={
-                "code": code,
-                "client_id": oauth_config.client_id or "",
-                "client_secret": client_secret,
-                "redirect_uri": oauth_config.redirect_uri or "",
-                "grant_type": "authorization_code",
-            },
+            data=data,
             headers=headers,
         )
 
@@ -105,19 +110,21 @@ class GmailTokenExchangeClient:
         refresh_token: str,
         correlation_id: str | None = None,
     ) -> GmailTokenRecord:
-        client_secret = self._resolve_client_secret(oauth_config.client_secret_ref)
         headers = {}
         if correlation_id:
             headers["X-Correlation-Id"] = correlation_id
+        data = {
+            "client_id": oauth_config.client_id or "",
+            "refresh_token": refresh_token,
+            "grant_type": "refresh_token",
+        }
+        client_secret = self._resolve_client_secret(oauth_config.client_secret_ref)
+        if client_secret:
+            data["client_secret"] = client_secret
 
         response = await self._client.post(
             self.TOKEN_ENDPOINT,
-            data={
-                "client_id": oauth_config.client_id or "",
-                "client_secret": client_secret,
-                "refresh_token": refresh_token,
-                "grant_type": "refresh_token",
-            },
+            data=data,
             headers=headers,
         )
 
@@ -193,9 +200,9 @@ class GmailTokenExchangeClient:
     async def aclose(self) -> None:
         await self._client.aclose()
 
-    def _resolve_client_secret(self, client_secret_ref: str | None) -> str:
+    def _resolve_client_secret(self, client_secret_ref: str | None) -> str | None:
         if not client_secret_ref:
-            raise GmailTokenExchangeError("gmail client secret reference is required")
+            return None
         if client_secret_ref.startswith("env:"):
             env_name = client_secret_ref.removeprefix("env:")
             value = os.environ.get(env_name)

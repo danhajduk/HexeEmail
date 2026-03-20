@@ -7,7 +7,7 @@ Validate the trusted Email Node plus Gmail provider activation flow end to end.
 This acceptance path should confirm:
 
 - Core trust onboarding is already complete
-- Gmail authorization happens through Google OAuth Web Application flow
+- Gmail authorization happens through Google OAuth Desktop app flow
 - Email Node handles ingress/provider activation
 - AI work remains delegated to AI Node
 
@@ -16,9 +16,7 @@ This acceptance path should confirm:
 - Core onboarding is already complete
 - the node is trusted
 - Gmail OAuth config is present and valid
-- the callback endpoint is reachable from the browser flow
-- the local development callback reference is:
-  `http://localhost:9003/providers/gmail/oauth/callback`
+- the operator workstation can run the helper and bind a loopback port
 
 ## Acceptance Steps
 
@@ -26,12 +24,10 @@ This acceptance path should confirm:
 2. Confirm `GET /status` shows `trust_state=trusted`.
 3. Confirm `GET /providers/gmail` shows the provider is configured.
 4. Call `POST /providers/gmail/validate-config` and confirm validation succeeds.
-5. Start Gmail connect:
-   `POST /providers/gmail/accounts/primary/connect/start`
-6. Open the returned Google OAuth URL.
+5. Run [`scripts/gmail_desktop_auth.py`](/home/dan/Projects/SynthiaEmail/scripts/gmail_desktop_auth.py) on the operator workstation.
+6. Confirm the helper prints a loopback redirect and a Google OAuth URL.
 7. Complete Google consent.
-8. Confirm Google redirects to the Email Node callback endpoint and the callback succeeds at:
-   `http://localhost:9003/providers/gmail/oauth/callback?...`
+8. Confirm the helper posts the returned `state` and `code` to `POST /providers/gmail/oauth/complete`.
 9. Confirm `GET /providers/gmail/accounts/primary` reports connected health.
 10. Confirm `GET /providers` lists:
    - `supported_providers` includes `gmail`

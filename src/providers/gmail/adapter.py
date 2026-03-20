@@ -111,7 +111,15 @@ class GmailProviderAdapter(EmailProviderAdapter):
             return updated
         return record
 
-    async def complete_oauth_callback(self, account_id: str, code: str, *, correlation_id: str | None = None) -> ProviderAccountRecord:
+    async def complete_oauth_callback(
+        self,
+        account_id: str,
+        code: str,
+        *,
+        redirect_uri: str,
+        code_verifier: str,
+        correlation_id: str | None = None,
+    ) -> ProviderAccountRecord:
         oauth_config = self.config_store.load()
         current = self.state_machine.ensure_account(account_id)
         if current.status in {"not_configured", "revoked"}:
@@ -120,6 +128,8 @@ class GmailProviderAdapter(EmailProviderAdapter):
             oauth_config,
             account_id=account_id,
             code=code,
+            redirect_uri=redirect_uri,
+            code_verifier=code_verifier,
             correlation_id=correlation_id,
         )
         self.token_store.save_token(account_id, token_record)

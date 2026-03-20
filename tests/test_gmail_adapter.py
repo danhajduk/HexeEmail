@@ -30,7 +30,6 @@ async def test_gmail_adapter_reports_configured_connected_account(tmp_path, monk
             enabled=True,
             client_id="client-id",
             client_secret_ref="env:GMAIL_CLIENT_SECRET",
-            redirect_uri="http://127.0.0.1:9003/providers/gmail/oauth/callback",
         )
     )
     token_client = GmailTokenExchangeClient(transport=ASGITransport(app=build_google_token_app()))
@@ -42,7 +41,13 @@ async def test_gmail_adapter_reports_configured_connected_account(tmp_path, monk
     adapter.account_store.save_account(
         adapter.account_store.load_account("primary")
     )
-    await adapter.complete_oauth_callback("primary", "auth-code", correlation_id="corr")
+    await adapter.complete_oauth_callback(
+        "primary",
+        "auth-code",
+        redirect_uri="http://127.0.0.1:8765/oauth2callback",
+        code_verifier="verifier",
+        correlation_id="corr",
+    )
 
     state = await adapter.get_provider_state()
     accounts = await adapter.list_accounts()

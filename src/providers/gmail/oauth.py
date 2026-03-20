@@ -3,8 +3,10 @@ from __future__ import annotations
 import json
 import os
 import secrets
+from base64 import urlsafe_b64encode
 from datetime import UTC, datetime
 from pathlib import Path
+from hashlib import sha256
 from urllib.parse import urlencode
 
 from pydantic import ValidationError
@@ -28,10 +30,25 @@ class GmailOAuthSessionManager:
     def generate_state(self) -> str:
         return secrets.token_urlsafe(24)
 
-    def create_session(self, account_id: str, *, correlation_id: str | None = None) -> GmailOAuthSessionState:
+    def generate_code_verifier(self) -> str:
+        return secrets.token_urlsafe(64)
+
+    def create_code_challenge(self, code_verifier: str) -> str:
+        digest = sha256(code_verifier.encode("ascii")).digest()
+        return urlsafe_b64encode(digest).decode("ascii").rstrip("=")
+
+    def create_session(
+        self,
+        account_id: str,
+        redirect_uri: str,
+        *,
+        correlation_id: str | None = None,
+    ) -> GmailOAuthSessionState:
         session = GmailOAuthSessionState(
             state=self.generate_state(),
             account_id=account_id,
+            redirect_uri=redirect_uri,
+            code_verifier=self.generate_code_verifier(),
             correlation_id=correlation_id,
         )
         self.save_session(session)
@@ -41,23 +58,27 @@ class GmailOAuthSessionManager:
         self,
         account_id: str,
         oauth_config: GmailOAuthConfig,
+        redirect_uri: str,
         *,
         correlation_id: str | None = None,
     ) -> GmailOAuthSessionState:
-        session = self.create_session(account_id, correlation_id=correlation_id)
-        session.authorization_url = self.build_connect_url(account_id, oauth_config, session.state)
+        session = self.create_session(account_id, redirect_uri, correlation_id=correlation_id)
+        session.authorization_url = self.build_connect_url(account_id, oauth_config, session)
         self.save_session(session)
         return session
 
-    def build_connect_url(self, account_id: str, oauth_config: GmailOAuthConfig, state: str) -> str:
+    def build_connect_url(self, account_id: str, oauth_config: GmailOAuthConfig, session: GmailOAuthSessionState) -> str:
         params = {
             "client_id": oauth_config.client_id or "",
-            "redirect_uri": oauth_config.redirect_uri or "",
+            "redirect_uri": session.redirect_uri,
             "response_type": "code",
             "scope": " ".join(oauth_config.requested_scopes.scopes),
             "access_type": "offline",
-            "state": state,
+            "state": session.state,
             "login_hint": account_id,
+            "code_challenge": self.create_code_challenge(session.code_verifier),
+            "code_challenge_method": "S256",
+            "prompt": "consent",
         }
         return f"{self.GOOGLE_AUTH_BASE_URL}?{urlencode(params)}"
 

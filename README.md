@@ -21,6 +21,8 @@ Local defaults today:
 - onboarding UI: `8083`
 - Gmail provider setup is available from the UI via `Setup Provider`
 
-For Gmail OAuth documentation, the standardized Web Application callback reference is:
+Gmail provider activation uses a Google `Desktop app` client plus a workstation helper:
 
-- `http://localhost:9003/providers/gmail/oauth/callback`
+- run [`scripts/gmail_desktop_auth.py`](/home/dan/Projects/SynthiaEmail/scripts/gmail_desktop_auth.py) on the workstation that will open the browser
+- the helper listens on a loopback redirect like `http://127.0.0.1:<port>/oauth2callback`
+- the helper posts the returned `state` and `code` back to the node
