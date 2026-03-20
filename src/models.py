@@ -111,3 +111,10 @@ class UiBootstrapResponse(BaseModel):
     status: StatusResponse
     required_inputs: list[str]
     can_start_onboarding: bool
+
+
+class GmailConnectStartResponse(BaseModel):
+    provider_id: str
+    account_id: str
+    connect_url: str
+    expires_at: datetime

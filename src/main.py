@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 
 from config import AppConfig
 from logging_utils import correlation_id_middleware, setup_logging
@@ -65,7 +65,17 @@ def create_app(
     @app.post("/ui/onboarding/start")
     async def start_ui_onboarding():
         try:
-            return await node_service.start_onboarding(force=node_service.state.onboarding_status != "pending")
+            return await node_service.start_onboarding()
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/providers/gmail/accounts/{account_id}/connect/start")
+    async def start_gmail_connect(account_id: str, request: Request):
+        try:
+            return await node_service.start_gmail_connect(
+                account_id,
+                correlation_id=request.headers.get("X-Correlation-Id"),
+            )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 

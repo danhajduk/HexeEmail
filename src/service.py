@@ -12,6 +12,7 @@ from config import AppConfig
 from core_client import CoreApiClient, FinalizeResponse, OnboardingSessionRequest
 from logging_utils import get_logger
 from models import (
+    GmailConnectStartResponse,
     OnboardingStatusResponse,
     OperatorConfig,
     OperatorConfigInput,
@@ -21,6 +22,8 @@ from models import (
     TrustMaterial,
     UiBootstrapResponse,
 )
+from providers.gmail.config_store import GmailProviderConfigError, GmailProviderConfigStore
+from providers.gmail.oauth import GmailOAuthSessionManager
 from mqtt import MQTTManager
 from providers.registry import ProviderRegistry
 from state_store import OperatorConfigStore, RuntimeStateStore, StateCorruptionError, TrustMaterialStore
@@ -48,6 +51,8 @@ class NodeService:
             heartbeat_seconds=config.mqtt_heartbeat_seconds,
             on_heartbeat=self._record_heartbeat,
         )
+        self.gmail_config_store = GmailProviderConfigStore(config.runtime_dir)
+        self.gmail_oauth_manager = GmailOAuthSessionManager(config.runtime_dir)
         self.provider_registry = ProviderRegistry(config)
         self.operator_config = OperatorConfig(core_base_url=config.core_base_url, node_name=config.node_name)
         self.state = RuntimeState()
@@ -250,10 +255,34 @@ class NodeService:
         if isinstance(exc, httpx.TimeoutException):
             return f"Timed out while contacting Core at {base_url}."
         if isinstance(exc, httpx.HTTPStatusError):
+            detail_message = self._extract_core_error_message(exc.response)
+            if detail_message:
+                return detail_message
             return f"Core returned {exc.response.status_code} during onboarding start."
         if isinstance(exc, httpx.UnsupportedProtocol):
             return f"Core URL must include a valid host. Current value: {base_url}"
         return f"Failed to contact Core at {base_url}: {exc.__class__.__name__}"
+
+    def _extract_core_error_message(self, response: httpx.Response) -> str | None:
+        try:
+            body = response.json()
+        except ValueError:
+            return None
+
+        if not isinstance(body, dict):
+            return None
+
+        detail = body.get("detail")
+        if isinstance(detail, str):
+            return detail
+        if isinstance(detail, dict):
+            message = detail.get("message")
+            error = detail.get("error")
+            if error == "duplicate_active_session":
+                return "Core already has an active onboarding session for this node. Resume the existing session or clear it in Core before starting again."
+            if isinstance(message, str) and message:
+                return message
+        return None
 
     def _ensure_polling(self) -> None:
         if self.polling_task is None or self.polling_task.done():
@@ -384,4 +413,42 @@ class NodeService:
             status=self.status(),
             required_inputs=required_inputs,
             can_start_onboarding=not required_inputs and self.state.trust_state != "trusted",
+        )
+
+    async def start_gmail_connect(self, account_id: str, *, correlation_id: str | None = None) -> GmailConnectStartResponse:
+        if self.state.trust_state != "trusted":
+            raise ValueError("gmail provider activation requires a trusted node")
+
+        try:
+            oauth_config = self.gmail_config_store.load()
+        except GmailProviderConfigError as exc:
+            raise ValueError(str(exc)) from exc
+
+        validation = self.gmail_config_store.validate(oauth_config)
+        if not validation.ok:
+            raise ValueError(f"gmail provider configuration is incomplete: {', '.join(validation.missing_fields)}")
+        if not oauth_config.enabled:
+            raise ValueError("gmail provider is disabled")
+
+        session = self.gmail_oauth_manager.create_connect_session(
+            account_id,
+            oauth_config,
+            correlation_id=correlation_id,
+        )
+        LOGGER.info(
+            "Gmail connect flow started",
+            extra={
+                "event_data": {
+                    "provider_id": "gmail",
+                    "account_id": account_id,
+                    "state": session.state,
+                    "expires_at": session.expires_at.isoformat(),
+                }
+            },
+        )
+        return GmailConnectStartResponse(
+            provider_id="gmail",
+            account_id=account_id,
+            connect_url=session.authorization_url or "",
+            expires_at=session.expires_at,
         )
