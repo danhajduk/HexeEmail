@@ -5,14 +5,14 @@ import socket
 import uuid
 from datetime import UTC, datetime
 
-from email_node import __version__
-from email_node.config import AppConfig
-from email_node.core_client import CoreApiClient, FinalizeResponse, OnboardingSessionRequest
-from email_node.logging_utils import get_logger
-from email_node.models import OnboardingStatusResponse, RuntimeState, StatusResponse, TrustMaterial
-from email_node.mqtt import MQTTManager
-from email_node.providers.registry import ProviderRegistry
-from email_node.state_store import RuntimeStateStore, StateCorruptionError, TrustMaterialStore
+from version import __version__
+from config import AppConfig
+from core_client import CoreApiClient, FinalizeResponse, OnboardingSessionRequest
+from logging_utils import get_logger
+from models import OnboardingStatusResponse, RuntimeState, StatusResponse, TrustMaterial
+from mqtt import MQTTManager
+from providers.registry import ProviderRegistry
+from state_store import RuntimeStateStore, StateCorruptionError, TrustMaterialStore
 
 
 LOGGER = get_logger(__name__)

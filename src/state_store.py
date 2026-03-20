@@ -8,7 +8,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from email_node.models import RuntimeState, TrustMaterial
+from models import RuntimeState, TrustMaterial
 
 
 class StateCorruptionError(RuntimeError):

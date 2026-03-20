@@ -4,9 +4,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from email_node.config import AppConfig
-from email_node.logging_utils import correlation_id_middleware, setup_logging
-from email_node.service import NodeService
+from config import AppConfig
+from logging_utils import correlation_id_middleware, setup_logging
+from service import NodeService
 
 
 def create_app(

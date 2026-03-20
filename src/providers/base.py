@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from email_node.providers.models import EmailProviderHealth
+from providers.models import EmailProviderHealth
 
 
 class EmailProviderAdapter(ABC):

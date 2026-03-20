@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from email_node.providers.base import EmailProviderAdapter
-from email_node.providers.models import EmailProviderHealth, ProviderId
+from providers.base import EmailProviderAdapter
+from providers.models import EmailProviderHealth, ProviderId
 
 
 class GmailProviderAdapter(EmailProviderAdapter):

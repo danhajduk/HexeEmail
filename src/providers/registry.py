@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from email_node.config import AppConfig
-from email_node.providers.gmail.adapter import GmailProviderAdapter
-from email_node.providers.models import ProviderId
+from config import AppConfig
+from providers.gmail.adapter import GmailProviderAdapter
+from providers.models import ProviderId
 
 
 @dataclass

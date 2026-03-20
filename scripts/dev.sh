@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-exec uvicorn email_node.main:create_app --factory --host 0.0.0.0 --port 8080
+exec uvicorn main:create_app --factory --app-dir src --host 0.0.0.0 --port 8080

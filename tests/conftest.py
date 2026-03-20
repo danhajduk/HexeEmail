@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 from httpx import ASGITransport
 
-from email_node.config import AppConfig
-from email_node.core_client import CoreApiClient
+from config import AppConfig
+from core_client import CoreApiClient
 
 
 @pytest.fixture

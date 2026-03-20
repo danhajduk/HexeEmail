@@ -6,7 +6,7 @@ from typing import Any
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
-from email_node.config import AppConfig
+from config import AppConfig
 
 
 class FinalizeRoute(BaseModel):

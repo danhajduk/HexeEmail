@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from email_node.core_client import OnboardingSessionRequest
-from email_node.service import NodeService
+from core_client import OnboardingSessionRequest
+from service import NodeService
 from tests.helpers import FakeMQTTManager, build_core_app
 
 

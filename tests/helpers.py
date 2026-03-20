@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 
-from email_node.mqtt import MQTTManager
+from mqtt import MQTTManager
 
 
 class FakeMQTTManager(MQTTManager):

@@ -26,9 +26,20 @@ dev = [
 addopts = "-q"
 asyncio_mode = "auto"
 testpaths = ["tests"]
+pythonpath = ["src"]
 
-[tool.setuptools.package-dir]
-"" = "src"
+[tool.setuptools]
+py-modules = [
+  "config",
+  "core_client",
+  "logging_utils",
+  "main",
+  "models",
+  "mqtt",
+  "service",
+  "state_store",
+  "version",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

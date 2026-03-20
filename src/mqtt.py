@@ -9,8 +9,8 @@ from typing import Callable
 
 import paho.mqtt.client as mqtt
 
-from email_node.logging_utils import get_logger
-from email_node.models import TrustMaterial
+from logging_utils import get_logger
+from models import TrustMaterial
 
 
 LOGGER = get_logger(__name__)

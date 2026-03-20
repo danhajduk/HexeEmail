@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from email_node.config import AppConfig
+from config import AppConfig
 
 
 def test_config_requires_email_node_type(tmp_path):

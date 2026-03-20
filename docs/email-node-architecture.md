@@ -39,7 +39,7 @@ Phase 1 does not implement:
 
 ## Provider Abstraction Boundary
 
-Provider-specific logic lives under `src/email_node/providers/`.
+Provider-specific logic lives under `src/providers/`.
 
 - provider models define the stable provider-neutral contract
 - provider registry exposes configured adapters
