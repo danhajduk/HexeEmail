@@ -129,15 +129,7 @@ class GmailConnectStartResponse(BaseModel):
     provider_id: str
     account_id: str
     connect_url: str
-    redirect_uri: str
-    state: str
     expires_at: datetime
-
-
-class GmailDesktopConnectStartInput(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    redirect_uri: str
 
 
 class GmailOAuthCallbackResponse(BaseModel):
@@ -146,10 +138,3 @@ class GmailOAuthCallbackResponse(BaseModel):
     status: str
     granted_scopes: list[str] = Field(default_factory=list)
     expires_at: datetime | None = None
-
-
-class GmailOAuthCompleteInput(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    state: str
-    code: str

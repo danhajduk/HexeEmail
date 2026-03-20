@@ -30,6 +30,7 @@ async def test_gmail_adapter_reports_configured_connected_account(tmp_path, monk
             enabled=True,
             client_id="client-id",
             client_secret_ref="env:GMAIL_CLIENT_SECRET",
+            redirect_uri="https://email-node.example.com/providers/gmail/oauth/callback",
         )
     )
     token_client = GmailTokenExchangeClient(transport=ASGITransport(app=build_google_token_app()))
@@ -44,7 +45,7 @@ async def test_gmail_adapter_reports_configured_connected_account(tmp_path, monk
     await adapter.complete_oauth_callback(
         "primary",
         "auth-code",
-        redirect_uri="http://127.0.0.1:8765/oauth2callback",
+        redirect_uri="https://email-node.example.com/providers/gmail/oauth/callback",
         code_verifier="verifier",
         correlation_id="corr",
     )

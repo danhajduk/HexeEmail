@@ -59,6 +59,10 @@ class GmailProviderConfigStore:
 
         if not config.client_id:
             missing_fields.append("client_id")
+        if not config.client_secret_ref:
+            missing_fields.append("client_secret_ref")
+        if not config.redirect_uri:
+            missing_fields.append("redirect_uri")
 
         messages: list[str] = []
         if missing_fields:

@@ -18,6 +18,7 @@ async def test_provider_endpoints_expose_gmail_summary(config, core_client_facto
             enabled=True,
             client_id="client-id",
             client_secret_ref="env:GMAIL_CLIENT_SECRET",
+            redirect_uri="https://email-node.example.com/providers/gmail/oauth/callback",
         )
     )
     service = NodeService(
@@ -55,10 +56,11 @@ async def test_gmail_config_endpoints_round_trip_runtime_config(config, core_cli
     app = create_app(config=isolated_config, service=service)
 
     payload = {
-        "oauth_client_type": "desktop",
+        "oauth_client_type": "web",
         "enabled": True,
         "client_id": "client-id",
         "client_secret_ref": "env:GMAIL_CLIENT_SECRET",
+        "redirect_uri": "https://email-node.example.com/providers/gmail/oauth/callback",
         "requested_scopes": {"scopes": ["https://www.googleapis.com/auth/gmail.send"]},
     }
 
@@ -69,7 +71,7 @@ async def test_gmail_config_endpoints_round_trip_runtime_config(config, core_cli
     await service.stop()
 
     assert update_response.status_code == 200
-    assert update_response.json()["config"]["oauth_client_type"] == "desktop"
+    assert update_response.json()["config"]["oauth_client_type"] == "web"
     assert update_response.json()["validation"]["ok"] is True
     assert get_response.status_code == 200
     assert get_response.json()["config"]["client_id"] == "client-id"

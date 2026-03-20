@@ -18,8 +18,8 @@ Keep the execution boundary separate too:
 
 - the node is already trusted and shows `trust_state=trusted`
 - the API is running and reachable
-- the operator has the helper script available on the workstation that will open the browser
-- Google OAuth Desktop app credentials are available for the Email Node
+- the operator can reach the node through a public HTTPS hostname, typically via Cloudflare Tunnel
+- Google OAuth Web application credentials are available for the Email Node
 
 ## Gmail Config
 
@@ -27,6 +27,7 @@ Populate Gmail provider config under the node runtime using:
 
 - `client_id`
 - `client_secret_ref`
+- `redirect_uri`
 - requested scopes
 - provider enabled flag
 
@@ -35,7 +36,7 @@ The fastest operator flow is through the UI on `http://127.0.0.1:8083`:
 - open `Setup Provider`
 - fill the Gmail fields
 - save or validate config
-- run the helper command shown in the provider page once the node is trusted
+- start the connect flow once the node is trusted
 
 The provider config must validate before connect-start will succeed.
 
@@ -43,12 +44,12 @@ The provider config must validate before connect-start will succeed.
 
 1. Confirm the node is trusted.
 2. Validate Gmail config with `POST /providers/gmail/validate-config`.
-3. Run [`scripts/gmail_desktop_auth.py`](/home/dan/Projects/SynthiaEmail/scripts/gmail_desktop_auth.py) on the operator workstation.
-4. The helper asks the node to start Gmail connect with a loopback redirect such as `http://127.0.0.1:8765/oauth2callback`.
+3. Set `redirect_uri` to the node's public HTTPS callback, typically your Cloudflare Tunnel hostname.
+4. Start Gmail connect with `POST /providers/gmail/accounts/<account_id>/connect/start`.
 5. Open the returned Google connect URL.
-6. Complete consent in Google and let the browser return to the workstation loopback listener.
-7. Confirm the helper posts the returned `state` and `code` to `POST /providers/gmail/oauth/complete`.
-8. Confirm the completion response returns `status=connected`.
+6. Complete consent in Google and let the browser return to the node callback endpoint.
+7. Confirm the Email Node performs the server-side authorization code exchange.
+8. Confirm the callback response returns `status=connected`.
 
 ## Post-Connect Expectations
 
@@ -71,7 +72,7 @@ After a successful callback:
 - `GET /providers/gmail/accounts`
 - `GET /providers/gmail/accounts/<account_id>`
 - `POST /providers/gmail/accounts/<account_id>/connect/start`
-- `POST /providers/gmail/oauth/complete`
+- `GET /providers/gmail/oauth/callback`
 - `GET /status`
 - `GET /health/ready`
 
@@ -80,9 +81,9 @@ After a successful callback:
 - invalid Gmail config:
   `POST /providers/gmail/validate-config` will report missing fields
 - failed token exchange:
-  check Google OAuth Desktop client, loopback redirect URI, and auth code lifetime
-- loopback redirect problems:
-  confirm the helper is using `127.0.0.1` or `localhost` and the workstation firewall allows local listener startup
+  check Google OAuth Web application client, redirect URI, and auth code lifetime
+- redirect URI mismatch:
+  confirm the Google OAuth Web application credential includes the Cloudflare Tunnel callback URI exactly
 - missing refresh token:
   reconnect the account and verify offline access is granted
 - degraded provider health:

@@ -7,7 +7,6 @@ from fastapi import FastAPI, HTTPException, Request
 from config import AppConfig
 from logging_utils import correlation_id_middleware, setup_logging
 from models import OperatorConfigInput
-from models import GmailDesktopConnectStartInput, GmailOAuthCompleteInput
 from providers.gmail.models import GmailOAuthConfig
 from service import NodeService
 
@@ -72,22 +71,29 @@ def create_app(
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @app.post("/providers/gmail/accounts/{account_id}/connect/start")
-    async def start_gmail_connect(account_id: str, payload: GmailDesktopConnectStartInput, request: Request):
+    async def start_gmail_connect(account_id: str, request: Request):
         try:
             return await node_service.start_gmail_connect(
                 account_id,
-                payload.redirect_uri,
                 correlation_id=request.headers.get("X-Correlation-Id"),
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    @app.post("/providers/gmail/oauth/complete")
-    async def gmail_oauth_complete(payload: GmailOAuthCompleteInput, request: Request):
+    @app.get("/providers/gmail/oauth/callback")
+    async def gmail_oauth_callback(
+        request: Request,
+        state: str | None = None,
+        code: str | None = None,
+        error: str | None = None,
+        error_description: str | None = None,
+    ):
         try:
-            return await node_service.complete_gmail_oauth(
-                state=payload.state,
-                code=payload.code,
+            return await node_service.handle_gmail_oauth_callback(
+                state=state,
+                code=code,
+                error=error,
+                error_description=error_description,
                 correlation_id=request.headers.get("X-Correlation-Id"),
             )
         except ValueError as exc:

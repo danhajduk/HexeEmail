@@ -23,10 +23,11 @@ class GmailRequestedScopes(BaseModel):
 class GmailOAuthConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    oauth_client_type: Literal["desktop"] = "desktop"
+    oauth_client_type: Literal["web"] = "web"
     enabled: bool = False
     client_id: str | None = None
     client_secret_ref: str | None = None
+    redirect_uri: str | None = None
     requested_scopes: GmailRequestedScopes = Field(default_factory=GmailRequestedScopes)
 
 

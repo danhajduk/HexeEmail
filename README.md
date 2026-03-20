@@ -21,8 +21,6 @@ Local defaults today:
 - onboarding UI: `8083`
 - Gmail provider setup is available from the UI via `Setup Provider`
 
-Gmail provider activation uses a Google `Desktop app` client plus a workstation helper:
+Gmail provider activation uses a Google `Web application` client with a public HTTPS callback on the node, typically through a Cloudflare Tunnel hostname such as:
 
-- run [`scripts/gmail_desktop_auth.py`](/home/dan/Projects/SynthiaEmail/scripts/gmail_desktop_auth.py) on the workstation that will open the browser
-- the helper listens on a loopback redirect like `http://127.0.0.1:<port>/oauth2callback`
-- the helper posts the returned `state` and `code` back to the node
+- `https://email-node.example.com/providers/gmail/oauth/callback`

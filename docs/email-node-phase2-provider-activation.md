@@ -18,7 +18,7 @@ Phase 2 includes:
 - provider runtime domain models that stay provider-neutral
 - provider registry and adapter lookup
 - Gmail provider static configuration
-- Gmail OAuth Desktop app connect flow with operator-workstation loopback helper
+- Gmail OAuth Web application connect flow using a node-owned public HTTPS callback
 - Gmail token storage and runtime account records
 - Gmail provider health validation
 - capability declaration updates that reflect provider readiness
@@ -65,19 +65,19 @@ Phase 1 established the trust lifecycle. Phase 2 adds the first provider lifecyc
 
 1. The node starts in a trusted state from Phase 1 onboarding.
 2. The provider registry loads supported adapters and exposes Gmail as the first available provider.
-3. The operator configures Gmail static OAuth settings for the node using a Google OAuth Desktop app client.
-4. The operator starts a Gmail connect flow for a target account from a workstation helper.
-5. The node generates and persists an OAuth session state locally, including loopback redirect and PKCE verifier, then returns a Google Authorization Code flow URL.
-6. Google redirects back to the workstation loopback listener with OAuth result parameters.
-7. The helper posts the returned `state` and `code` to the Email Node, which validates the state, exchanges the authorization code server-side, and stores the resulting refresh token locally and securely.
+3. The operator configures Gmail static OAuth settings for the node using a Google OAuth Web application client.
+4. The operator starts a Gmail connect flow for a target account.
+5. The node generates and persists an OAuth session state locally, then returns a Google Authorization Code flow URL.
+6. Google redirects back to the Email Node callback endpoint with OAuth result parameters.
+7. The Email Node validates the callback state, exchanges the authorization code server-side, and stores the resulting refresh token locally and securely.
 8. The node refreshes access tokens as needed from the stored refresh token.
 9. The node performs a lightweight Gmail identity and health validation to confirm the account linkage.
 10. The node updates its provider account record and provider activation summary.
 11. The node updates capability declaration data and syncs governance-dependent readiness state with Core.
 
-Default desktop development redirect shape:
+Default public callback shape:
 
-- `http://127.0.0.1:<random-port>/oauth2callback`
+- `https://email-node.example.com/providers/gmail/oauth/callback`
 
 ## Component Boundaries
 
@@ -110,7 +110,6 @@ The Gmail adapter owns:
 
 - Gmail static config interpretation
 - OAuth state/session handling
-- PKCE verifier generation
 - server-side authorization code exchange
 - refresh token storage
 - access token refresh
@@ -164,7 +163,7 @@ It does not redefine governance policy or alter Core templates.
 By the end of Phase 2, readiness should be evaluated across:
 
 - node trust established
-- provider configured through the Desktop app OAuth flow
+- provider configured through the Web application OAuth flow
 - provider account linked
 - provider health validated
 - capability declaration current
@@ -177,11 +176,10 @@ This is broader than Phase 1 readiness, which only needed trust activation and o
 
 - do not log raw OAuth tokens
 - keep OAuth state single-use and expiring
-- keep PKCE verifier material scoped to the temporary OAuth session only
 - separate static provider config from runtime token storage
 - store tokens per account to preserve future multi-account expansion
 - treat client secret handling as reference-based where possible rather than embedding raw secret values in generic config
-- use Google OAuth Desktop app credentials for operator-workstation authorization
+- use Google OAuth Web application credentials and a public HTTPS callback, ideally through Cloudflare Tunnel or equivalent
 
 ## Extensibility Notes
 
@@ -198,7 +196,6 @@ That means provider-neutral models and registry interfaces are part of the phase
 Phase 2 is complete when:
 
 - Gmail can be configured and connected through a node-owned OAuth flow
-- Gmail desktop helper can complete authorization from an operator workstation
 - Gmail tokens are stored safely and validated
 - provider state is visible through node APIs
 - capability data reflects Gmail activation
@@ -210,7 +207,7 @@ Phase 2 is complete when:
 
 The current Phase 2 docs supersede earlier looser wording in these areas:
 
-- Gmail authentication is standardized on Google OAuth Desktop app flow with workstation loopback helper
+- Gmail authentication is standardized on Google OAuth Web application flow with a public HTTPS callback
 - the Email Node owns the Gmail callback, token exchange, and refresh-token storage
 - Core trust onboarding is separate from Gmail provider authorization
 - Gmail is treated as provider ingress into a classification-first node
