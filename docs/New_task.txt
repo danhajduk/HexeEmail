@@ -47,18 +47,6 @@ Do not edit above this line:
 
 # Email Node — Phase 2 Tasks
 
-[TODO] Task 034: Implement provider registry
-- Create src/email_node/providers/registry.py
-- Add adapter registration and lookup
-- Support:
-  - register_provider(adapter)
-  - get_provider(provider_id)
-  - list_supported_providers()
-- Register gmail as the first provider
-- Keep the registry independent from Core capability submission logic
-
----
-
 [TODO] Task 035: Define provider base interface
 - Create src/email_node/providers/base.py
 - Define base adapter contract for all email providers
