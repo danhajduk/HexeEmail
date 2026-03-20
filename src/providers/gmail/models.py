@@ -30,6 +30,13 @@ class GmailOAuthConfig(BaseModel):
     redirect_uri: str | None = None
     requested_scopes: GmailRequestedScopes = Field(default_factory=GmailRequestedScopes)
 
+    @field_validator("oauth_client_type", mode="before")
+    @classmethod
+    def normalize_client_type(cls, value: str | None) -> str:
+        if value in {None, "", "web", "desktop"}:
+            return "web"
+        raise ValueError("oauth_client_type must be web")
+
 
 class GmailAccountConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")

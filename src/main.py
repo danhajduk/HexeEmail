@@ -109,7 +109,10 @@ def create_app(
 
     @app.get("/providers/gmail/config")
     async def gmail_provider_config():
-        return await node_service.gmail_provider_config()
+        try:
+            return await node_service.gmail_provider_config()
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @app.put("/providers/gmail/config")
     async def update_gmail_provider_config(payload: GmailOAuthConfig):

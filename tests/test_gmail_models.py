@@ -36,6 +36,15 @@ def test_gmail_oauth_config_keeps_static_fields_separate_from_runtime_tokens():
     assert "access_token" not in config.model_dump()
 
 
+def test_gmail_oauth_config_migrates_legacy_desktop_marker_to_web():
+    config = GmailOAuthConfig(
+        oauth_client_type="desktop",
+        client_id="client-id",
+    )
+
+    assert config.oauth_client_type == "web"
+
+
 def test_gmail_account_config_supports_future_multi_account_layout():
     account = GmailAccountConfig(account_id="primary", display_name="Primary Inbox")
 
