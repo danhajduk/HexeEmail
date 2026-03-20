@@ -9,6 +9,9 @@ from urllib.parse import urlparse
 
 import httpx
 from config import AppConfig
+from core.capability_client import CapabilityClient, CapabilityDeclarationResult, CapabilityManifestBuilder
+from core.governance_client import GovernanceClient, GovernanceSnapshot
+from core.readiness import OperationalReadinessEvaluator
 from core_client import CoreApiClient, FinalizeResponse, OnboardingSessionRequest
 from logging_utils import get_logger
 from models import (
@@ -45,6 +48,8 @@ class NodeService:
         core_client: CoreApiClient | None = None,
         mqtt_manager: MQTTManager | None = None,
         gmail_token_client: GmailTokenExchangeClient | None = None,
+        capability_client: CapabilityClient | None = None,
+        governance_client: GovernanceClient | None = None,
     ) -> None:
         self.config = config
         self.state_store = RuntimeStateStore(config.state_file)
@@ -58,6 +63,10 @@ class NodeService:
         self.gmail_config_store = GmailProviderConfigStore(config.runtime_dir)
         self.gmail_oauth_manager = GmailOAuthSessionManager(config.runtime_dir)
         self.gmail_token_client = gmail_token_client or GmailTokenExchangeClient()
+        self.capability_client = capability_client or CapabilityClient()
+        self.governance_client = governance_client or GovernanceClient()
+        self.capability_manifest_builder = CapabilityManifestBuilder()
+        self.readiness_evaluator = OperationalReadinessEvaluator()
         self.provider_registry = ProviderRegistry(config)
         self.provider_registry.register_provider(GmailProviderAdapter(config.runtime_dir, token_client=self.gmail_token_client))
         self.operator_config = OperatorConfig(core_base_url=config.core_base_url, node_name=config.node_name)
@@ -104,6 +113,8 @@ class NodeService:
                 await self.polling_task
         self.mqtt_manager.disconnect()
         await self.gmail_token_client.aclose()
+        await self.capability_client.aclose()
+        await self.governance_client.aclose()
         await self.core_client.aclose()
 
     def required_inputs(self) -> list[str]:
@@ -139,6 +150,7 @@ class NodeService:
     async def _resume_runtime(self) -> None:
         if self.state.trust_state == "trusted" and self.trust_material is not None:
             LOGGER.info("Trusted state detected, skipping onboarding")
+            await self._sync_post_trust_state()
             self._connect_mqtt_if_possible()
             return
 
@@ -348,6 +360,7 @@ class NodeService:
                 },
             )
             self._connect_mqtt_if_possible()
+            asyncio.create_task(self._sync_post_trust_state())
             return
 
         if finalize.onboarding_status in {"rejected", "expired", "consumed", "invalid"}:
@@ -367,11 +380,15 @@ class NodeService:
         self.state_store.save(self.state)
 
     def health_snapshot(self) -> dict[str, object]:
+        ready = self.ready and (self.state.trust_state != "trusted" or self.state.operational_readiness)
         return {
             "live": self.live,
-            "ready": self.ready,
+            "ready": ready,
             "version": __version__,
             "startup_error": self.startup_error,
+            "operational_readiness": self.state.operational_readiness,
+            "capability_declaration_status": self.state.capability_declaration_status,
+            "governance_sync_status": self.state.governance_sync_status,
         }
 
     def operator_config_response(self) -> OperatorConfigResponse:
@@ -399,7 +416,8 @@ class NodeService:
             required_inputs=self.required_inputs(),
         )
 
-    def status(self) -> StatusResponse:
+    async def status(self) -> StatusResponse:
+        provider_overview = await self._provider_status_snapshot_async()
         return StatusResponse(
             node_name=self.effective_node_name() or "",
             node_type=self.config.node_type,
@@ -410,14 +428,20 @@ class NodeService:
             onboarding_status=self.state.onboarding_status,
             providers=self.provider_registry.provider_ids(),
             required_inputs=self.required_inputs(),
+            supported_providers=provider_overview["supported_providers"],
+            enabled_providers=self.state.enabled_providers,
+            provider_account_summaries=provider_overview["providers"],
+            governance_sync_status=self.state.governance_sync_status,
+            capability_declaration_status=self.state.capability_declaration_status,
+            operational_readiness=self.state.operational_readiness,
         )
 
-    def ui_bootstrap(self) -> UiBootstrapResponse:
+    async def ui_bootstrap(self) -> UiBootstrapResponse:
         required_inputs = self.required_inputs()
         return UiBootstrapResponse(
             config=self.operator_config_response(),
             onboarding=self.onboarding_status(),
-            status=self.status(),
+            status=await self.status(),
             required_inputs=required_inputs,
             can_start_onboarding=not required_inputs and self.state.trust_state != "trusted",
         )
@@ -508,18 +532,55 @@ class NodeService:
                 }
             },
         )
+        await self._sync_post_trust_state()
+        token_record = self.gmail_token_store().load_token(account_record.account_id)
         return GmailOAuthCallbackResponse(
             provider_id="gmail",
             account_id=account_record.account_id,
             status=account_record.status,
-            granted_scopes=(self.gmail_token_store().load_token(account_record.account_id) or GmailTokenRecord(account_id=account_record.account_id, access_token="")).granted_scopes,
-            expires_at=(self.gmail_token_store().load_token(account_record.account_id) or GmailTokenRecord(account_id=account_record.account_id, access_token="")).expires_at,
+            granted_scopes=(token_record.granted_scopes if token_record is not None else []),
+            expires_at=(token_record.expires_at if token_record is not None else None),
         )
 
     def gmail_token_store(self):
         return self.provider_registry.get_provider("gmail").token_store
 
     async def providers_overview(self) -> dict[str, object]:
+        return await self._provider_status_snapshot_async()
+
+    async def gmail_provider_status(self) -> dict[str, object]:
+        adapter = self.provider_registry.get_provider("gmail")
+        validation = await adapter.validate_static_config()
+        accounts = await adapter.list_accounts()
+        return {
+            "provider_id": "gmail",
+            "provider_state": await adapter.get_provider_state(),
+            "enabled": adapter.get_enabled_status(),
+            "configured": validation.ok,
+            "validation": validation.model_dump(mode="json"),
+            "accounts": [account.model_dump(mode="json") for account in accounts],
+        }
+
+    async def gmail_accounts_status(self) -> list[dict[str, object]]:
+        adapter = self.provider_registry.get_provider("gmail")
+        accounts = await adapter.list_accounts()
+        return [account.model_dump(mode="json") for account in accounts]
+
+    async def gmail_account_status(self, account_id: str) -> dict[str, object]:
+        adapter = self.provider_registry.get_provider("gmail")
+        account = next((account for account in await adapter.list_accounts() if account.account_id == account_id), None)
+        health = await adapter.get_account_health(account_id)
+        return {
+            "account": account.model_dump(mode="json") if account is not None else None,
+            "health": health.model_dump(mode="json"),
+        }
+
+    async def gmail_config_validation(self) -> dict[str, object]:
+        adapter = self.provider_registry.get_provider("gmail")
+        validation = await adapter.validate_static_config()
+        return validation.model_dump(mode="json")
+
+    async def _provider_status_snapshot_async(self) -> dict[str, object]:
         supported = self.provider_registry.list_supported_providers()
         configured: list[str] = []
         enabled: list[str] = []
@@ -553,34 +614,67 @@ class NodeService:
             "providers": summaries,
         }
 
-    async def gmail_provider_status(self) -> dict[str, object]:
-        adapter = self.provider_registry.get_provider("gmail")
-        validation = await adapter.validate_static_config()
-        accounts = await adapter.list_accounts()
-        return {
-            "provider_id": "gmail",
-            "provider_state": await adapter.get_provider_state(),
-            "enabled": adapter.get_enabled_status(),
-            "configured": validation.ok,
-            "validation": validation.model_dump(mode="json"),
-            "accounts": [account.model_dump(mode="json") for account in accounts],
-        }
+    async def _sync_post_trust_state(self) -> None:
+        if self.state.trust_state != "trusted" or not self.state.node_id or not self.effective_core_base_url():
+            return
+        await self._declare_capabilities()
+        await self._sync_governance()
+        await self._update_operational_readiness()
 
-    async def gmail_accounts_status(self) -> list[dict[str, object]]:
-        adapter = self.provider_registry.get_provider("gmail")
-        accounts = await adapter.list_accounts()
-        return [account.model_dump(mode="json") for account in accounts]
+    async def _declare_capabilities(self) -> CapabilityDeclarationResult:
+        overview = await self._provider_status_snapshot_async()
+        enabled_providers: list[str] = []
+        for provider_id, provider_summary in overview["providers"].items():
+            if isinstance(provider_summary, dict) and provider_summary.get("provider_state") == "connected":
+                enabled_providers.append(provider_id)
+        manifest = self.capability_manifest_builder.build(
+            node_id=self.state.node_id or "",
+            node_type=self.config.node_type,
+            node_name=self.effective_node_name() or "",
+            node_software_version=self.config.node_software_version,
+            supported_providers=list(overview["supported_providers"]),
+            enabled_providers=enabled_providers,
+        )
+        result = await self.capability_client.declare(
+            self.effective_core_base_url() or "",
+            manifest,
+        )
+        self.state.capability_declaration_status = "accepted" if result.accepted else "rejected"
+        self.state.capability_declared_at = result.submitted_at
+        self.state.enabled_providers = enabled_providers
+        self.state_store.save(self.state)
+        LOGGER.info(
+            "Capability declaration submitted",
+            extra={
+                "event_data": {
+                    "accepted": result.accepted,
+                    "supported_providers": manifest.supported_providers,
+                    "enabled_providers": manifest.enabled_providers,
+                }
+            },
+        )
+        return result
 
-    async def gmail_account_status(self, account_id: str) -> dict[str, object]:
-        adapter = self.provider_registry.get_provider("gmail")
-        account = next((account for account in await adapter.list_accounts() if account.account_id == account_id), None)
-        health = await adapter.get_account_health(account_id)
-        return {
-            "account": account.model_dump(mode="json") if account is not None else None,
-            "health": health.model_dump(mode="json"),
-        }
+    async def _sync_governance(self) -> GovernanceSnapshot:
+        snapshot = await self.governance_client.fetch(
+            self.effective_core_base_url() or "",
+            self.state.node_id or "",
+        )
+        self.state.governance_sync_status = snapshot.last_sync_result
+        self.state.governance_synced_at = snapshot.synced_at
+        self.state_store.save(self.state)
+        LOGGER.info(
+            "Governance sync result",
+            extra={"event_data": {"present": snapshot.present, "last_sync_result": snapshot.last_sync_result}},
+        )
+        return snapshot
 
-    async def gmail_config_validation(self) -> dict[str, object]:
-        adapter = self.provider_registry.get_provider("gmail")
-        validation = await adapter.validate_static_config()
-        return validation.model_dump(mode="json")
+    async def _update_operational_readiness(self) -> None:
+        gmail_state = await self.provider_registry.get_provider("gmail").get_provider_state()
+        self.state.operational_readiness = self.readiness_evaluator.evaluate(
+            trust_state=self.state.trust_state,
+            capability_declaration_status=self.state.capability_declaration_status,
+            governance_sync_status=self.state.governance_sync_status,
+            gmail_provider_state=gmail_state,
+        )
+        self.state_store.save(self.state)

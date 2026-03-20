@@ -21,6 +21,8 @@ class FakeMQTTManager(MQTTManager):
 def build_core_app():
     app = FastAPI()
     app.state.sessions = {}
+    app.state.capabilities = {}
+    app.state.governance = {}
 
     @app.post("/api/system/nodes/onboarding/sessions")
     async def create_session(payload: dict):
@@ -52,5 +54,20 @@ def build_core_app():
                 },
             }
         return {"onboarding_status": session["status"]}
+
+    @app.post("/api/system/nodes/{node_id}/capabilities")
+    async def declare_capabilities(node_id: str, payload: dict):
+        app.state.capabilities[node_id] = payload
+        return {"ok": True}
+
+    @app.get("/api/system/nodes/{node_id}/governance")
+    async def fetch_governance(node_id: str):
+        payload = {
+            "node_id": node_id,
+            "policy_version": "phase2-test",
+            "provider_access": False,
+        }
+        app.state.governance[node_id] = payload
+        return payload
 
     return app

@@ -50,3 +50,9 @@ Task 049: Implement provider account state machine
 Task 050: Implement Gmail adapter
 Task 051: Add provider status API endpoints
 Task 052: Add provider config validation endpoint
+Task 053: Implement capability manifest builder for Email Node
+Task 054: Submit initial capability declaration with Gmail supported only
+Task 055: Update capability declaration after Gmail activation
+Task 056: Implement governance fetch client
+Task 057: Implement operational readiness evaluator
+Task 058: Update /status and /health/ready for Phase 2 state

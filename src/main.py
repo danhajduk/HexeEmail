@@ -45,11 +45,11 @@ def create_app(
 
     @app.get("/status")
     async def status():
-        return node_service.status()
+        return await node_service.status()
 
     @app.get("/ui/bootstrap")
     async def ui_bootstrap():
-        return node_service.ui_bootstrap()
+        return await node_service.ui_bootstrap()
 
     @app.get("/ui/config")
     async def ui_config():

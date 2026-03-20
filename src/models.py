@@ -45,6 +45,12 @@ class RuntimeState(BaseModel):
     last_poll_at: datetime | None = None
     last_heartbeat_at: datetime | None = None
     last_error: str | None = None
+    capability_declaration_status: str | None = None
+    capability_declared_at: datetime | None = None
+    enabled_providers: list[str] = Field(default_factory=list)
+    governance_sync_status: str | None = None
+    governance_synced_at: datetime | None = None
+    operational_readiness: bool = False
 
 
 class TrustMaterial(BaseModel):
@@ -94,6 +100,12 @@ class StatusResponse(BaseModel):
     onboarding_status: OnboardingStatus
     providers: list[str]
     required_inputs: list[str] = Field(default_factory=list)
+    supported_providers: list[str] = Field(default_factory=list)
+    enabled_providers: list[str] = Field(default_factory=list)
+    provider_account_summaries: dict[str, object] = Field(default_factory=dict)
+    governance_sync_status: str | None = None
+    capability_declaration_status: str | None = None
+    operational_readiness: bool = False
 
 
 class OperatorConfigResponse(BaseModel):
