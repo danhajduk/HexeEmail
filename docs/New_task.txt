@@ -47,21 +47,6 @@ Do not edit above this line:
 
 # Email Node — Phase 2 Tasks
 
-[TODO] Task 033: Add provider runtime domain models
-- Create shared provider models in src/email_node/providers/models.py
-- Add models for:
-  - ProviderId
-  - ProviderState
-  - ProviderAccountStatus
-  - ProviderHealth
-  - ProviderValidationResult
-  - ProviderAccountRecord
-  - ProviderActivationSummary
-- Ensure models are provider-neutral
-- Ensure models can support gmail, smtp, imap, and graph later
-
----
-
 [TODO] Task 034: Implement provider registry
 - Create src/email_node/providers/registry.py
 - Add adapter registration and lookup

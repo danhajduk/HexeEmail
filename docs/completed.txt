@@ -30,3 +30,4 @@ Task 029: Update onboarding monitor UI for Phase 1 lifecycle
 Task 030: Update Phase 1 docs and runbook for bootstrap-first onboarding
 Task 031: Phase 1 acceptance test
 Task 032: Create Phase 2 architecture document
+Task 033: Add provider runtime domain models
