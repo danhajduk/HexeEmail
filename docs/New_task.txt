@@ -47,23 +47,6 @@ Do not edit above this line:
 
 # Email Node — Phase 2 Tasks
 
-[TODO] Task 047: Implement Gmail provider health check
-- Create src/email_node/providers/gmail/health.py
-- Add provider health evaluation for:
-  - token presence
-  - token refresh readiness
-  - scope sufficiency
-  - identity probe success
-- Return provider/account health as structured model
-- Distinguish:
-  - connected
-  - degraded
-  - revoked
-  - invalid_config
-  - oauth_pending
-
----
-
 [TODO] Task 048: Implement Gmail token refresh flow
 - Add refresh-token logic for Gmail accounts
 - Refresh expired or near-expiry access tokens

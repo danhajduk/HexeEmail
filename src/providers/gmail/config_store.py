@@ -38,6 +38,10 @@ class GmailProviderConfigStore:
         return config
 
     def validate(self, config: GmailOAuthConfig) -> ProviderValidationResult:
+        return self.validate_static(config)
+
+    @staticmethod
+    def validate_static(config: GmailOAuthConfig) -> ProviderValidationResult:
         missing_fields: list[str] = []
 
         if not config.client_id:
