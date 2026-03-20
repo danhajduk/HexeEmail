@@ -1,23 +1,32 @@
-Create repository skeleton
-Define Phase 1 architecture document
-Implement config and environment model
-Define node identity and type strategy
-Implement service bootstrap and health endpoints
-Implement persistent local state store
-Implement onboarding session client
-Surface approval URL for operator
-Implement finalize polling loop
-Implement trust material storage
-Implement startup resume behavior
-Implement MQTT operational connection
-Publish runtime presence
-Implement local status API
-Define provider abstraction interfaces
-Add Gmail provider skeleton
-Create Core compatibility checklist
-Implement structured logging
-Add automated tests
-Add dev scripts and runbook
-Add operator-configurable onboarding API
-Create React onboarding monitor UI
-Document UI workflow
+Task 001: Create repository skeleton
+Task 002: Define Phase 1 architecture document
+Task 003: Implement config and environment model
+Task 004: Define node identity and type strategy
+Task 005: Implement service bootstrap and health endpoints
+Task 006: Implement persistent local state store
+Task 007: Implement onboarding session client
+Task 008: Surface approval URL for operator
+Task 009: Implement finalize polling loop
+Task 010: Implement trust material storage
+Task 011: Implement startup resume behavior
+Task 012: Implement MQTT operational connection
+Task 013: Publish runtime presence
+Task 014: Implement local status API
+Task 015: Define provider abstraction interfaces
+Task 016: Add Gmail provider skeleton
+Task 017: Create Core compatibility checklist
+Task 018: Implement structured logging
+Task 019: Add automated tests
+Task 020: Add dev scripts and runbook
+Task 021: Add operator-configurable onboarding API
+Task 022: Create React onboarding monitor UI
+Task 023: Document UI workflow
+Task 024: Define explicit Phase 1 lifecycle model
+Task 025: Implement bootstrap Core connection state
+Task 026: Implement MQTT bootstrap discovery
+Task 027: Refactor registration flow to use bootstrap metadata
+Task 028: Add provider setup stage placeholder
+Task 029: Update onboarding monitor UI for Phase 1 lifecycle
+Task 030: Update Phase 1 docs and runbook for bootstrap-first onboarding
+Task 031: Phase 1 acceptance test
+Task 032: Create Phase 2 architecture document

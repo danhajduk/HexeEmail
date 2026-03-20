@@ -45,18 +45,400 @@ if it is not present and should be node-owned create a file with the new data in
 Do not edit above this line:
 #######################################################################
 
-# Email Node — Phase 1 Tasks
+# Email Node — Phase 2 Tasks
 
-[TODO] Task 024: Phase 1 acceptance test
-- Validate against a live Core + MQTT environment:
-  - node starts
-  - onboarding session created
-  - approval URL shown
-  - approval completed in Core
-  - finalize succeeds
-  - trust data persists
-  - restart skips onboarding
-  - MQTT connects successfully
-- Current blocker:
-  - repository now includes a live acceptance helper and runbook guidance
-  - final completion still requires an external running Core instance that supports `email-node` plus reachable MQTT
+[TODO] Task 033: Add provider runtime domain models
+- Create shared provider models in src/email_node/providers/models.py
+- Add models for:
+  - ProviderId
+  - ProviderState
+  - ProviderAccountStatus
+  - ProviderHealth
+  - ProviderValidationResult
+  - ProviderAccountRecord
+  - ProviderActivationSummary
+- Ensure models are provider-neutral
+- Ensure models can support gmail, smtp, imap, and graph later
+
+---
+
+[TODO] Task 034: Implement provider registry
+- Create src/email_node/providers/registry.py
+- Add adapter registration and lookup
+- Support:
+  - register_provider(adapter)
+  - get_provider(provider_id)
+  - list_supported_providers()
+- Register gmail as the first provider
+- Keep the registry independent from Core capability submission logic
+
+---
+
+[TODO] Task 035: Define provider base interface
+- Create src/email_node/providers/base.py
+- Define base adapter contract for all email providers
+- Include methods for:
+  - validate_static_config()
+  - get_provider_state()
+  - list_accounts()
+  - get_account_health(account_id)
+  - get_enabled_status()
+- Add placeholders for future methods:
+  - send_email()
+  - fetch_email()
+  - watch_mailbox()
+- Keep interface minimal for Phase 2
+
+---
+
+[TODO] Task 036: Add Gmail provider config models
+- Create src/email_node/providers/gmail/models.py
+- Add config models for:
+  - GmailOAuthConfig
+  - GmailRequestedScopes
+  - GmailAccountConfig
+  - GmailTokenRecord
+  - GmailOAuthSessionState
+- Separate static config from token/runtime state
+- Ensure models support multiple Gmail accounts later
+
+---
+
+[TODO] Task 037: Add Gmail provider filesystem layout
+- Create runtime layout for Gmail provider state
+- Add directories/files:
+  - runtime/providers/gmail/
+  - runtime/providers/gmail/provider_config.json
+  - runtime/providers/gmail/accounts/
+  - runtime/providers/gmail/oauth_sessions/
+- Ensure runtime directory is gitignored
+- Add file permission handling for sensitive data files
+
+---
+
+[TODO] Task 038: Implement Gmail provider config loader
+- Create Gmail config load/save logic
+- Load:
+  - client_id
+  - client_secret reference or secret source
+  - redirect_uri
+  - requested scopes
+  - provider enabled flag
+- Validate required configuration
+- Fail clearly when config is incomplete or malformed
+- Do not load token data from generic config paths
+
+---
+
+[TODO] Task 039: Define Gmail OAuth scope strategy
+- Document Gmail scope strategy in docs/gmail-scope-strategy.md
+- Define minimum required scopes for first activation
+- Recommended first slice:
+  - gmail.send only for initial outbound support
+- Explicitly defer:
+  - broad mailbox read scopes
+  - modify/delete scopes
+  - watch/subscription scopes
+- Add rationale for least-privilege scope selection
+
+---
+
+[TODO] Task 040: Implement Gmail OAuth session manager
+- Create src/email_node/providers/gmail/oauth.py
+- Add logic to:
+  - generate OAuth state values
+  - persist pending OAuth sessions
+  - validate callback state
+  - expire stale sessions
+- Prevent reuse of consumed OAuth state
+- Add correlation id support for logs and diagnostics
+
+---
+
+[TODO] Task 041: Implement Gmail connect URL generation
+- Add method to generate Google OAuth connect URL
+- Include:
+  - client_id
+  - redirect_uri
+  - requested scopes
+  - access_type=offline
+  - state token
+- Support account_id in local flow
+- Return connect URL to operator-facing API
+- Do not exchange auth code yet in this task
+
+---
+
+[TODO] Task 042: Add Gmail OAuth start endpoint
+- Create operator-facing route:
+  - POST /providers/gmail/accounts/{account_id}/connect/start
+- Generate OAuth session
+- Return:
+  - provider_id
+  - account_id
+  - connect_url
+  - state expiry
+- Persist pending OAuth session before returning URL
+- Add structured logging for connect-start event
+
+---
+
+[TODO] Task 043: Add Gmail OAuth callback endpoint
+- Create route:
+  - GET /providers/gmail/oauth/callback
+- Validate:
+  - state exists
+  - state not expired
+  - state not consumed
+  - required query parameters present
+- Handle provider-side OAuth errors cleanly
+- Route valid auth code into token exchange service
+
+---
+
+[TODO] Task 044: Implement Gmail token exchange client
+- Add token exchange logic against Google OAuth token endpoint
+- Exchange authorization code for:
+  - access token
+  - refresh token
+  - token type
+  - expiry metadata
+  - granted scope metadata if available
+- Normalize token response into GmailTokenRecord
+- Fail clearly on invalid_grant and related provider errors
+- Do not log raw tokens
+
+---
+
+[TODO] Task 045: Implement Gmail token storage
+- Create src/email_node/providers/gmail/token_store.py
+- Store token records per account
+- Support:
+  - save_token(account_id, token_record)
+  - load_token(account_id)
+  - delete_token(account_id)
+  - token_exists(account_id)
+- Ensure secrets are redacted in logs and diagnostics
+- Ensure stored files use restricted permissions where possible
+
+---
+
+[TODO] Task 046: Implement Gmail account identity probe
+- After token exchange, call a lightweight Google/Gmail identity endpoint
+- Resolve:
+  - authenticated email address
+  - account linkage confirmation
+- Persist resolved email address into ProviderAccountRecord
+- Fail activation if account identity cannot be confirmed
+- Keep this probe minimal and deterministic
+
+---
+
+[TODO] Task 047: Implement Gmail provider health check
+- Create src/email_node/providers/gmail/health.py
+- Add provider health evaluation for:
+  - token presence
+  - token refresh readiness
+  - scope sufficiency
+  - identity probe success
+- Return provider/account health as structured model
+- Distinguish:
+  - connected
+  - degraded
+  - revoked
+  - invalid_config
+  - oauth_pending
+
+---
+
+[TODO] Task 048: Implement Gmail token refresh flow
+- Add refresh-token logic for Gmail accounts
+- Refresh expired or near-expiry access tokens
+- Update persisted token metadata after refresh
+- Handle revoked/invalid refresh token cases
+- Transition account state appropriately on refresh failure
+
+---
+
+[TODO] Task 049: Implement provider account state machine
+- Add explicit account state transitions:
+  - not_configured
+  - oauth_pending
+  - token_exchanged
+  - connected
+  - degraded
+  - revoked
+- Enforce valid transitions only
+- Persist state changes in runtime provider account records
+- Expose state in status endpoints
+
+---
+
+[TODO] Task 050: Implement Gmail adapter
+- Create src/email_node/providers/gmail/adapter.py
+- Implement provider base interface for gmail
+- Add methods for:
+  - validate_static_config()
+  - get_provider_state()
+  - list_accounts()
+  - get_account_health(account_id)
+  - get_enabled_status()
+- Wire config loader, token store, health check, and identity probe together
+- Do not implement send/read logic yet
+
+---
+
+[TODO] Task 051: Add provider status API endpoints
+- Create routes for:
+  - GET /providers
+  - GET /providers/gmail
+  - GET /providers/gmail/accounts
+  - GET /providers/gmail/accounts/{account_id}
+- Return:
+  - supported providers
+  - configured providers
+  - enabled providers
+  - account states
+  - health summaries
+- Redact any sensitive fields from responses
+
+---
+
+[TODO] Task 052: Add provider config validation endpoint
+- Create route:
+  - POST /providers/gmail/validate-config
+- Validate current Gmail provider configuration without starting OAuth
+- Return structured validation results
+- Include missing config items and invalid field details
+- Do not expose secrets in response payloads
+
+---
+
+[TODO] Task 053: Implement capability manifest builder for Email Node
+- Create src/email_node/core/capability_client.py
+- Add manifest builder for capability declaration payload
+- Include:
+  - node metadata
+  - declared_task_families
+  - supported_providers
+  - enabled_providers
+  - node_features
+  - environment_hints
+- For initial Phase 2 state:
+  - supported_providers = ["gmail"]
+  - enabled_providers = [] until Gmail is healthy
+
+---
+
+[TODO] Task 054: Submit initial capability declaration with Gmail supported only
+- Call Core capability declaration endpoint after trust is already established
+- Submit manifest with:
+  - supported_providers = ["gmail"]
+  - enabled_providers = []
+- Persist declaration result locally
+- Log accepted/rejected result with structured event fields
+- Do not mark provider_access active yet
+
+---
+
+[TODO] Task 055: Update capability declaration after Gmail activation
+- After Gmail account reaches connected state:
+  - rebuild manifest
+  - set enabled_providers = ["gmail"]
+  - resubmit declaration to Core
+- Persist updated declaration result
+- Track last successful declaration timestamp
+- Handle rejected or partial failure paths clearly
+
+---
+
+[TODO] Task 056: Implement governance fetch client
+- Create src/email_node/core/governance_client.py
+- Fetch current governance from Core for trusted Email Node
+- Persist governance snapshot locally
+- Track:
+  - governance presence
+  - last sync time
+  - last sync result
+- Prepare for periodic refresh later
+
+---
+
+[TODO] Task 057: Implement operational readiness evaluator
+- Add readiness evaluation based on:
+  - trust_status == trusted
+  - capability declaration accepted
+  - governance present/synced
+  - Gmail provider state connected for initial provider activation path
+- Expose composite readiness result internally
+- Keep readiness logic deterministic and testable
+
+---
+
+[TODO] Task 058: Update /status and /health/ready for Phase 2 state
+- Expand status response to include:
+  - supported_providers
+  - enabled_providers
+  - provider account summaries
+  - governance sync status
+  - capability declaration status
+  - operational readiness status
+- Update ready endpoint behavior to reflect Phase 2 setup state cleanly
+- Keep live endpoint simple and independent
+
+---
+
+[TODO] Task 059: Add telemetry/logging for provider activation lifecycle
+- Add structured log events for:
+  - provider config loaded
+  - OAuth session started
+  - OAuth callback received
+  - token exchange success/failure
+  - identity probe success/failure
+  - provider connected/degraded/revoked
+  - capability declaration submitted
+  - governance sync result
+- Ensure all logs redact secrets and token material
+
+---
+
+[TODO] Task 060: Add automated tests for Gmail provider activation
+- Add tests for:
+  - config validation
+  - OAuth session creation and expiry
+  - callback state validation
+  - token exchange response normalization
+  - token storage
+  - provider state transitions
+  - provider health evaluation
+  - declaration manifest content
+  - readiness evaluation
+- Mock Google endpoints and Core endpoints cleanly
+
+---
+
+[TODO] Task 061: Add Phase 2 operator runbook
+- Create docs/phase2-gmail-provider-runbook.md
+- Document:
+  - required Google Cloud/OAuth setup
+  - local provider config
+  - connect flow
+  - callback handling
+  - common failure cases
+  - revocation/reconnect flow
+  - how Core declaration changes before and after Gmail activation
+
+---
+
+[TODO] Task 062: Add manual Phase 2 acceptance test
+- Validate end-to-end:
+  - trusted node starts
+  - initial declaration submitted with gmail supported only
+  - operator starts Gmail connect flow
+  - OAuth callback succeeds
+  - token stored securely
+  - account email resolved
+  - provider health reports connected
+  - declaration updated with gmail enabled
+  - governance fetched successfully
+  - node reports operational readiness
