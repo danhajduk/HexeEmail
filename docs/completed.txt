@@ -33,3 +33,4 @@ Task 032: Create Phase 2 architecture document
 Task 033: Add provider runtime domain models
 Task 034: Implement provider registry
 Task 035: Define provider base interface
+Task 036: Add Gmail provider config models

@@ -47,19 +47,6 @@ Do not edit above this line:
 
 # Email Node — Phase 2 Tasks
 
-[TODO] Task 036: Add Gmail provider config models
-- Create src/email_node/providers/gmail/models.py
-- Add config models for:
-  - GmailOAuthConfig
-  - GmailRequestedScopes
-  - GmailAccountConfig
-  - GmailTokenRecord
-  - GmailOAuthSessionState
-- Separate static config from token/runtime state
-- Ensure models support multiple Gmail accounts later
-
----
-
 [TODO] Task 037: Add Gmail provider filesystem layout
 - Create runtime layout for Gmail provider state
 - Add directories/files:
