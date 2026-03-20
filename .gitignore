@@ -1,1 +1,6 @@
-docs/Core Docs
+__pycache__/
+.pytest_cache/
+.venv/
+*.egg-info/
+runtime/*
+!runtime/.gitkeep
