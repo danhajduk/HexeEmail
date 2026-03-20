@@ -47,17 +47,6 @@ Do not edit above this line:
 
 # Email Node — Phase 2 Tasks
 
-[TODO] Task 046: Implement Gmail account identity probe
-- After token exchange, call a lightweight Google/Gmail identity endpoint
-- Resolve:
-  - authenticated email address
-  - account linkage confirmation
-- Persist resolved email address into ProviderAccountRecord
-- Fail activation if account identity cannot be confirmed
-- Keep this probe minimal and deterministic
-
----
-
 [TODO] Task 047: Implement Gmail provider health check
 - Create src/email_node/providers/gmail/health.py
 - Add provider health evaluation for:
