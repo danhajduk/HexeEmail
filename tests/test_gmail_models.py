@@ -27,7 +27,7 @@ def test_gmail_oauth_config_keeps_static_fields_separate_from_runtime_tokens():
         enabled=True,
         client_id="client-id",
         client_secret_ref="env:GMAIL_CLIENT_SECRET",
-        redirect_uri="http://127.0.0.1:9002/providers/gmail/oauth/callback",
+        redirect_uri="http://127.0.0.1:9003/providers/gmail/oauth/callback",
     )
 
     assert config.enabled is True

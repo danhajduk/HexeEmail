@@ -19,7 +19,7 @@ async def test_ui_bootstrap_reports_missing_inputs(runtime_dir, core_client_fact
         NODE_SOFTWARE_VERSION="0.1.0",
         NODE_NONCE="nonce-test",
         RUNTIME_DIR=runtime_dir,
-        API_PORT=9002,
+        API_PORT=9003,
         UI_PORT=8083,
     )
     service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())

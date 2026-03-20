@@ -14,7 +14,7 @@ def test_gmail_config_store_loads_and_saves_static_config(tmp_path):
         enabled=True,
         client_id="client-id",
         client_secret_ref="env:GMAIL_CLIENT_SECRET",
-        redirect_uri="http://127.0.0.1:9002/providers/gmail/oauth/callback",
+        redirect_uri="http://127.0.0.1:9003/providers/gmail/oauth/callback",
     )
 
     store.save(config)
@@ -49,7 +49,7 @@ def test_gmail_config_store_does_not_allow_token_fields_in_static_config(tmp_pat
                 "enabled": True,
                 "client_id": "client-id",
                 "client_secret_ref": "env:GMAIL_CLIENT_SECRET",
-                "redirect_uri": "http://127.0.0.1:9002/providers/gmail/oauth/callback",
+                "redirect_uri": "http://127.0.0.1:9003/providers/gmail/oauth/callback",
                 "access_token": "should-not-be-here",
             }
         ),

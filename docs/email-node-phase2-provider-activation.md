@@ -77,7 +77,7 @@ Phase 1 established the trust lifecycle. Phase 2 adds the first provider lifecyc
 
 Default development callback reference:
 
-- `http://localhost:8092/providers/gmail/oauth/callback`
+- `http://localhost:9003/providers/gmail/oauth/callback`
 
 ## Component Boundaries
 

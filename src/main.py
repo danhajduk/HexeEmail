@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException, Request
 from config import AppConfig
 from logging_utils import correlation_id_middleware, setup_logging
 from models import OperatorConfigInput
+from providers.gmail.models import GmailOAuthConfig
 from service import NodeService
 
 
@@ -105,6 +106,17 @@ def create_app(
     @app.get("/providers/gmail")
     async def gmail_provider():
         return await node_service.gmail_provider_status()
+
+    @app.get("/providers/gmail/config")
+    async def gmail_provider_config():
+        return await node_service.gmail_provider_config()
+
+    @app.put("/providers/gmail/config")
+    async def update_gmail_provider_config(payload: GmailOAuthConfig):
+        try:
+            return await node_service.update_gmail_provider_config(payload)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @app.get("/providers/gmail/accounts")
     async def gmail_accounts():

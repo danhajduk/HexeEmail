@@ -32,7 +32,7 @@ async def test_gmail_callback_exchanges_code_and_consumes_state(config, core_cli
             enabled=True,
             client_id="client-id",
             client_secret_ref="env:GMAIL_CLIENT_SECRET",
-            redirect_uri="http://127.0.0.1:9002/providers/gmail/oauth/callback",
+            redirect_uri="http://127.0.0.1:9003/providers/gmail/oauth/callback",
         )
     )
     session = GmailOAuthSessionManager(isolated_config.runtime_dir).create_session("primary", correlation_id="corr-123")

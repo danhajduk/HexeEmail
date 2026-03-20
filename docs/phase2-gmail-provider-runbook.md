@@ -31,11 +31,16 @@ Populate Gmail provider config under the node runtime using:
 - requested scopes
 - provider enabled flag
 
+The fastest operator flow is through the UI on `http://127.0.0.1:8083`:
+
+- open `Setup Provider`
+- fill the Gmail fields
+- save or validate config
+- start the connect flow once the node is trusted
+
 For local development, the standardized callback reference is:
 
-- `http://localhost:8092/providers/gmail/oauth/callback`
-
-If your current local API runtime is still on `9002`, expose or proxy the callback path there during development until the dedicated callback port convention is adopted in your environment.
+- `http://localhost:9003/providers/gmail/oauth/callback`
 
 The provider config must validate before connect-start will succeed.
 
@@ -66,6 +71,8 @@ After a successful callback:
 
 - `GET /providers`
 - `GET /providers/gmail`
+- `GET /providers/gmail/config`
+- `PUT /providers/gmail/config`
 - `GET /providers/gmail/accounts`
 - `GET /providers/gmail/accounts/<account_id>`
 - `GET /status`

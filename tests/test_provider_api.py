@@ -18,7 +18,7 @@ async def test_provider_endpoints_expose_gmail_summary(config, core_client_facto
             enabled=True,
             client_id="client-id",
             client_secret_ref="env:GMAIL_CLIENT_SECRET",
-            redirect_uri="http://127.0.0.1:9002/providers/gmail/oauth/callback",
+            redirect_uri="http://127.0.0.1:9003/providers/gmail/oauth/callback",
         )
     )
     service = NodeService(
@@ -42,3 +42,35 @@ async def test_provider_endpoints_expose_gmail_summary(config, core_client_facto
     assert gmail_response.json()["provider_id"] == "gmail"
     assert validate_response.status_code == 200
     assert "client_secret_ref" not in str(validate_response.json())
+
+
+@pytest.mark.asyncio
+async def test_gmail_config_endpoints_round_trip_runtime_config(config, core_client_factory):
+    isolated_config = config.model_copy(update={"core_base_url": None, "node_name": None})
+    service = NodeService(
+        isolated_config,
+        core_client=core_client_factory(build_core_app()),
+        mqtt_manager=FakeMQTTManager(),
+    )
+    await service.start()
+    app = create_app(config=isolated_config, service=service)
+
+    payload = {
+        "enabled": True,
+        "client_id": "client-id",
+        "client_secret_ref": "env:GMAIL_CLIENT_SECRET",
+        "redirect_uri": "http://127.0.0.1:9003/providers/gmail/oauth/callback",
+        "requested_scopes": {"scopes": ["https://www.googleapis.com/auth/gmail.send"]},
+    }
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        update_response = await client.put("/providers/gmail/config", json=payload)
+        get_response = await client.get("/providers/gmail/config")
+
+    await service.stop()
+
+    assert update_response.status_code == 200
+    assert update_response.json()["config"]["redirect_uri"] == payload["redirect_uri"]
+    assert update_response.json()["validation"]["ok"] is True
+    assert get_response.status_code == 200
+    assert get_response.json()["config"]["client_id"] == "client-id"

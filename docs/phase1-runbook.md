@@ -10,6 +10,7 @@
 6. Start onboarding from the UI.
 7. Open the approval URL in Core and approve the node.
 8. Confirm `GET /onboarding/status` returns `approved` and `GET /status` shows `trust_state=trusted`.
+9. Use `Setup Provider` in the UI to continue into Gmail provider configuration when trust is active.
 
 ## Approval Flow
 
@@ -17,7 +18,7 @@
 - After the operator saves configuration and starts onboarding, the node creates an onboarding session and persists the returned session metadata.
 - The node keeps polling the finalize endpoint until Core returns a terminal state.
 - On approval, trust and MQTT credentials are stored locally with restrictive file permissions.
-- The React UI on port `8083` shows onboarding status, approval URL, trust state, and MQTT connection state.
+- The React UI on port `8083` shows onboarding status, approval URL, trust state, MQTT connection state, and the provider setup entry point.
 
 ## Restart Behavior
 
@@ -43,5 +44,5 @@ Run `scripts/phase1_acceptance.sh` while the node is up and connected to a live 
 
 ## UI Ports
 
-- local node API: `9002`
+- local node API: `9003`
 - onboarding UI: `8083`

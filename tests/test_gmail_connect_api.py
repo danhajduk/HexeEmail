@@ -24,7 +24,7 @@ async def test_gmail_connect_start_returns_connect_url_for_trusted_node(config, 
             enabled=True,
             client_id="client-id",
             client_secret_ref="env:GMAIL_CLIENT_SECRET",
-            redirect_uri="http://127.0.0.1:9002/providers/gmail/oauth/callback",
+            redirect_uri="http://127.0.0.1:9003/providers/gmail/oauth/callback",
         )
     )
     await service.start()

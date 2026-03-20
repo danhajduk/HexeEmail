@@ -24,7 +24,7 @@ The Email Node Gmail flow uses:
 
 Standard development callback reference:
 
-- `http://localhost:8092/providers/gmail/oauth/callback`
+- `http://localhost:9003/providers/gmail/oauth/callback`
 
 ## Google Cloud Setup
 
@@ -35,7 +35,7 @@ Standard development callback reference:
 5. Choose application type:
    `Web application`
 6. Add the authorized redirect URI:
-   `http://localhost:8092/providers/gmail/oauth/callback`
+   `http://localhost:9003/providers/gmail/oauth/callback`
 
 ## Credential Fields
 
@@ -66,7 +66,7 @@ Current implementation examples:
 
 - `client_id`
 - `client_secret_ref=env:GMAIL_CLIENT_SECRET`
-- `redirect_uri=http://localhost:8092/providers/gmail/oauth/callback`
+- `redirect_uri=http://localhost:9003/providers/gmail/oauth/callback`
 
 ## Flow Summary
 

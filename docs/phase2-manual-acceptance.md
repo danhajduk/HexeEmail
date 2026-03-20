@@ -18,7 +18,7 @@ This acceptance path should confirm:
 - Gmail OAuth config is present and valid
 - the callback endpoint is reachable from the browser flow
 - the local development callback reference is:
-  `http://localhost:8092/providers/gmail/oauth/callback`
+  `http://localhost:9003/providers/gmail/oauth/callback`
 
 ## Acceptance Steps
 
@@ -31,7 +31,7 @@ This acceptance path should confirm:
 6. Open the returned Google OAuth URL.
 7. Complete Google consent.
 8. Confirm Google redirects to the Email Node callback endpoint and the callback succeeds at:
-   `http://localhost:8092/providers/gmail/oauth/callback?...`
+   `http://localhost:9003/providers/gmail/oauth/callback?...`
 9. Confirm `GET /providers/gmail/accounts/primary` reports connected health.
 10. Confirm `GET /providers` lists:
    - `supported_providers` includes `gmail`

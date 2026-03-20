@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-const apiTarget = process.env.API_PROXY_TARGET || "http://127.0.0.1:9002";
+const apiTarget = process.env.API_PROXY_TARGET || "http://127.0.0.1:9003";
 
 export default defineConfig({
   plugins: [react()],
@@ -11,7 +11,8 @@ export default defineConfig({
       "/health": apiTarget,
       "/status": apiTarget,
       "/onboarding": apiTarget,
-      "/ui": apiTarget
+      "/ui": apiTarget,
+      "/providers": apiTarget
     }
   },
   preview: {

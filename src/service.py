@@ -26,8 +26,9 @@ from models import (
     TrustMaterial,
     UiBootstrapResponse,
 )
-from providers.gmail.config_store import GmailProviderConfigError, GmailProviderConfigStore
 from providers.gmail.adapter import GmailProviderAdapter
+from providers.gmail.config_store import GmailProviderConfigError, GmailProviderConfigStore
+from providers.gmail.models import GmailOAuthConfig
 from providers.gmail.oauth import GmailOAuthSessionManager
 from providers.gmail.token_client import GmailTokenExchangeClient, GmailTokenExchangeError
 from mqtt import MQTTManager
@@ -563,6 +564,26 @@ class NodeService:
             "configured": validation.ok,
             "validation": validation.model_dump(mode="json"),
             "accounts": [account.model_dump(mode="json") for account in accounts],
+        }
+
+    async def gmail_provider_config(self) -> dict[str, object]:
+        try:
+            config = self.gmail_config_store.load()
+        except GmailProviderConfigError as exc:
+            raise ValueError(str(exc)) from exc
+        validation = self.gmail_config_store.validate(config)
+        return {
+            "config": config.model_dump(mode="json"),
+            "validation": validation.model_dump(mode="json"),
+        }
+
+    async def update_gmail_provider_config(self, payload: GmailOAuthConfig) -> dict[str, object]:
+        config = self.gmail_config_store.save(payload)
+        validation = self.gmail_config_store.validate(config)
+        await self._sync_post_trust_state()
+        return {
+            "config": config.model_dump(mode="json"),
+            "validation": validation.model_dump(mode="json"),
         }
 
     async def gmail_accounts_status(self) -> list[dict[str, object]]:

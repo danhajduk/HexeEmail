@@ -72,7 +72,7 @@ def test_gmail_oauth_session_manager_builds_google_connect_url(tmp_path):
         enabled=True,
         client_id="client-id",
         client_secret_ref="env:GMAIL_CLIENT_SECRET",
-        redirect_uri="http://127.0.0.1:9002/providers/gmail/oauth/callback",
+        redirect_uri="http://127.0.0.1:9003/providers/gmail/oauth/callback",
     )
 
     session = manager.create_connect_session("primary", oauth_config, correlation_id="corr-123")
@@ -82,7 +82,7 @@ def test_gmail_oauth_session_manager_builds_google_connect_url(tmp_path):
     assert parsed.scheme == "https"
     assert parsed.netloc == "accounts.google.com"
     assert query["client_id"] == ["client-id"]
-    assert query["redirect_uri"] == ["http://127.0.0.1:9002/providers/gmail/oauth/callback"]
+    assert query["redirect_uri"] == ["http://127.0.0.1:9003/providers/gmail/oauth/callback"]
     assert query["access_type"] == ["offline"]
     assert query["state"] == [session.state]
     assert query["login_hint"] == ["primary"]

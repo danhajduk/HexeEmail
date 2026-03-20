@@ -17,9 +17,10 @@ Architecture and runbooks:
 
 Local defaults today:
 
-- node API: `9002`
+- node API: `9003`
 - onboarding UI: `8083`
+- Gmail provider setup is available from the UI via `Setup Provider`
 
 For Gmail OAuth documentation, the standardized Web Application callback reference is:
 
-- `http://localhost:8092/providers/gmail/oauth/callback`
+- `http://localhost:9003/providers/gmail/oauth/callback`
