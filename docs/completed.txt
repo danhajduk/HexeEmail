@@ -1,0 +1,20 @@
+Create repository skeleton
+Define Phase 1 architecture document
+Implement config and environment model
+Define node identity and type strategy
+Implement service bootstrap and health endpoints
+Implement persistent local state store
+Implement onboarding session client
+Surface approval URL for operator
+Implement finalize polling loop
+Implement trust material storage
+Implement startup resume behavior
+Implement MQTT operational connection
+Publish runtime presence
+Implement local status API
+Define provider abstraction interfaces
+Add Gmail provider skeleton
+Create Core compatibility checklist
+Implement structured logging
+Add automated tests
+Add dev scripts and runbook

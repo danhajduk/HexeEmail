@@ -44,3 +44,19 @@ if it is not present and should be node-owned create a file with the new data in
 
 Do not edit above this line:
 #######################################################################
+
+# Email Node — Phase 1 Tasks
+
+[TODO] Task 021: Phase 1 acceptance test
+- Validate against a live Core + MQTT environment:
+  - node starts
+  - onboarding session created
+  - approval URL shown
+  - approval completed in Core
+  - finalize succeeds
+  - trust data persists
+  - restart skips onboarding
+  - MQTT connects successfully
+- Current blocker:
+  - repository now includes a live acceptance helper and runbook guidance
+  - final completion still requires an external running Core instance that supports `email-node` plus reachable MQTT
