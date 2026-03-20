@@ -20,6 +20,13 @@
   margin-bottom: 24px;
 }
 
+.hero-topline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .eyebrow {
   display: inline-block;
   padding: 6px 10px;

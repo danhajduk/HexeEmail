@@ -96,14 +96,14 @@ class CoreApiClient:
             for attempt in range(2):
                 response = await client.post("/api/system/nodes/onboarding/sessions", json=payload, headers=headers)
                 if response.status_code in (200, 201):
-                    return OnboardingSessionResponse.model_validate(response.json())
+                    return self._parse_onboarding_session_response(response.json())
 
                 if response.status_code == 409:
                     body = response.json()
                     session_payload = body.get("session") if isinstance(body, dict) else None
                     if isinstance(session_payload, dict):
                         return OnboardingSessionResponse.model_validate(session_payload)
-                    if isinstance(body, dict):
+                    if isinstance(body, dict) and "session_id" in body and "approval_url" in body:
                         return OnboardingSessionResponse.model_validate(body)
 
                 if response.status_code >= 500 and attempt == 0:
@@ -113,6 +113,13 @@ class CoreApiClient:
                 response.raise_for_status()
 
         raise RuntimeError("failed to create onboarding session")
+
+    def _parse_onboarding_session_response(self, body: Any) -> OnboardingSessionResponse:
+        if isinstance(body, dict):
+            session_payload = body.get("session")
+            if isinstance(session_payload, dict):
+                return OnboardingSessionResponse.model_validate(session_payload)
+        return OnboardingSessionResponse.model_validate(body)
 
     async def finalize_onboarding(
         self,

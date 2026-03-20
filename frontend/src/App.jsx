@@ -45,6 +45,38 @@ function statusTone(value) {
   return "neutral";
 }
 
+function deriveNodeState(bootstrap) {
+  const onboarding = bootstrap?.onboarding;
+  const status = bootstrap?.status;
+  const requiredInputs = bootstrap?.required_inputs || [];
+
+  if (requiredInputs.length > 0) {
+    return { label: "Configuration Required", tone: "warning" };
+  }
+  if (status?.trust_state === "trusted") {
+    return { label: "Trusted", tone: "success" };
+  }
+  if (onboarding?.onboarding_status === "pending" && onboarding?.approval_url) {
+    return { label: "Awaiting Approval", tone: "warning" };
+  }
+  if (onboarding?.onboarding_status === "pending") {
+    return { label: "Registering", tone: "warning" };
+  }
+  if (onboarding?.onboarding_status === "approved") {
+    return { label: "Trust Activating", tone: "warning" };
+  }
+  if (onboarding?.onboarding_status === "rejected") {
+    return { label: "Rejected", tone: "danger" };
+  }
+  if (onboarding?.onboarding_status === "expired") {
+    return { label: "Expired", tone: "danger" };
+  }
+  if (onboarding?.onboarding_status === "invalid" || onboarding?.onboarding_status === "consumed") {
+    return { label: "Needs Recovery", tone: "danger" };
+  }
+  return { label: "Ready To Start", tone: "neutral" };
+}
+
 function Field({ label, name, value, onChange, placeholder, required }) {
   return (
     <label className="field">
@@ -164,13 +196,17 @@ export function App() {
   const onboarding = bootstrap?.onboarding;
   const status = bootstrap?.status;
   const requiredInputs = bootstrap?.required_inputs || [];
+  const nodeState = deriveNodeState(bootstrap);
 
   return (
     <div className="shell">
       <main className="app-frame">
         <section className="hero card">
           <div>
-            <div className="eyebrow">Synthia Email Node</div>
+            <div className="hero-topline">
+              <div className="eyebrow">Synthia Email Node</div>
+              <div className={`status-pill tone-${nodeState.tone}`}>state: {nodeState.label}</div>
+            </div>
             <h1>Operator Onboarding Console</h1>
             <p className="hero-copy">
               Configure the target Core, start onboarding, and watch the node move from local setup to trusted

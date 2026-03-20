@@ -32,6 +32,44 @@ async def test_onboarding_request_creation(core_client_factory, config):
 
 
 @pytest.mark.asyncio
+async def test_onboarding_request_creation_accepts_wrapped_session_payload(core_client_factory, config):
+    core_app = build_core_app()
+    create_route = next(
+        route for route in core_app.router.routes if getattr(route, "path", "") == "/api/system/nodes/onboarding/sessions"
+    )
+    core_app.router.routes.remove(create_route)
+
+    @core_app.post("/api/system/nodes/onboarding/sessions")
+    async def create_wrapped_session(payload: dict):
+        return {
+            "ok": True,
+            "session": {
+                "session_id": "sx_wrapped",
+                "approval_url": "http://core.test/approve/sx_wrapped",
+                "expires_at": "2026-03-20T12:00:00+00:00",
+                "node_type": "email",
+                "requested_node_type": "email-node",
+                "finalize": {"method": "GET", "path": "/api/system/nodes/onboarding/sessions/sx_wrapped/finalize"},
+            },
+        }
+
+    client = core_client_factory(core_app)
+    request = OnboardingSessionRequest(
+        node_name=config.node_name,
+        node_type=config.node_type,
+        node_software_version=config.node_software_version,
+        protocol_version=config.onboarding_protocol_version,
+        node_nonce=config.node_nonce,
+        hostname="test-host",
+    )
+    response = await client.create_onboarding_session(config.core_base_url or "", request, "corr-1")
+    await client.aclose()
+
+    assert response.session_id == "sx_wrapped"
+    assert response.approval_url == "http://core.test/approve/sx_wrapped"
+
+
+@pytest.mark.asyncio
 async def test_finalize_handling_and_trust_persistence(core_client_factory, config, runtime_dir: Path):
     core_app = build_core_app()
     core_client = core_client_factory(core_app)

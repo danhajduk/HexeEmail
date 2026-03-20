@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+from fastapi.responses import JSONResponse
 from httpx import ASGITransport, AsyncClient
 
 from config import AppConfig
@@ -56,3 +57,38 @@ async def test_ui_can_save_config_and_start_onboarding(config, core_client_facto
     assert start_response.status_code == 200
     assert start_response.json()["onboarding_status"] == "pending"
     assert start_response.json()["node_name"] == "ui-node"
+
+
+@pytest.mark.asyncio
+async def test_ui_duplicate_active_session_returns_clean_error(config, core_client_factory):
+    core_app = build_core_app()
+    create_route = next(
+        route for route in core_app.router.routes if getattr(route, "path", "") == "/api/system/nodes/onboarding/sessions"
+    )
+    core_app.router.routes.remove(create_route)
+
+    @core_app.post("/api/system/nodes/onboarding/sessions")
+    async def duplicate_session(payload: dict):
+        return JSONResponse(
+            status_code=409,
+            content={
+                "detail": {
+                    "error": "duplicate_active_session",
+                    "message": "active onboarding session already exists",
+                    "retryable": False,
+                }
+            },
+        )
+
+    blank_config = config.model_copy(update={"core_base_url": "http://core.test", "node_name": "ui-node"})
+    service = NodeService(blank_config, core_client=core_client_factory(core_app), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    app = create_app(config=blank_config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post("/ui/onboarding/start")
+
+    await service.stop()
+
+    assert response.status_code == 400
+    assert "active onboarding session" in response.json()["detail"].lower()
