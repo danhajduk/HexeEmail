@@ -47,20 +47,6 @@ Do not edit above this line:
 
 # Email Node — Phase 2 Tasks
 
-[TODO] Task 038: Implement Gmail provider config loader
-- Create Gmail config load/save logic
-- Load:
-  - client_id
-  - client_secret reference or secret source
-  - redirect_uri
-  - requested scopes
-  - provider enabled flag
-- Validate required configuration
-- Fail clearly when config is incomplete or malformed
-- Do not load token data from generic config paths
-
----
-
 [TODO] Task 039: Define Gmail OAuth scope strategy
 - Document Gmail scope strategy in docs/gmail-scope-strategy.md
 - Define minimum required scopes for first activation
