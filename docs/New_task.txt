@@ -47,18 +47,6 @@ Do not edit above this line:
 
 # Email Node — Phase 2 Tasks
 
-[TODO] Task 037: Add Gmail provider filesystem layout
-- Create runtime layout for Gmail provider state
-- Add directories/files:
-  - runtime/providers/gmail/
-  - runtime/providers/gmail/provider_config.json
-  - runtime/providers/gmail/accounts/
-  - runtime/providers/gmail/oauth_sessions/
-- Ensure runtime directory is gitignored
-- Add file permission handling for sensitive data files
-
----
-
 [TODO] Task 038: Implement Gmail provider config loader
 - Create Gmail config load/save logic
 - Load:

@@ -34,3 +34,4 @@ Task 033: Add provider runtime domain models
 Task 034: Implement provider registry
 Task 035: Define provider base interface
 Task 036: Add Gmail provider config models
+Task 037: Add Gmail provider filesystem layout
