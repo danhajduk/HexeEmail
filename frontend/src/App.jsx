@@ -13,9 +13,21 @@ async function fetchJson(url, options) {
     ...options,
   });
 
-  const payload = await response.json();
+  const contentType = response.headers.get("content-type") || "";
+  const rawText = await response.text();
+  let payload;
+
+  if (contentType.includes("application/json")) {
+    payload = rawText ? JSON.parse(rawText) : {};
+  } else {
+    payload = { detail: rawText || `Unexpected ${contentType || "response"} from server` };
+  }
+
   if (!response.ok) {
     throw new Error(payload.detail || "Request failed");
+  }
+  if (!contentType.includes("application/json")) {
+    throw new Error("Server returned HTML instead of JSON. Check that the API proxy points to the node backend.");
   }
   return payload;
 }

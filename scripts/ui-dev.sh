@@ -2,4 +2,4 @@
 set -euo pipefail
 
 cd frontend
-exec npm run dev
+API_PROXY_TARGET="${API_PROXY_TARGET:-http://127.0.0.1:9002}" exec npm run dev

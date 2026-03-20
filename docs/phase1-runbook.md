@@ -43,5 +43,5 @@ Run `scripts/phase1_acceptance.sh` while the node is up and connected to a live 
 
 ## UI Ports
 
-- local node API: `8080`
+- local node API: `9002`
 - onboarding UI: `8083`

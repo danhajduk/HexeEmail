@@ -25,7 +25,7 @@ def config(runtime_dir: Path) -> AppConfig:
         NODE_SOFTWARE_VERSION="0.1.0",
         NODE_NONCE="nonce-test",
         RUNTIME_DIR=runtime_dir,
-        API_PORT=8080,
+        API_PORT=9002,
         UI_PORT=8083,
         ONBOARDING_POLL_INTERVAL_SECONDS=0.01,
         MQTT_HEARTBEAT_SECONDS=0.01,

@@ -5,7 +5,9 @@ import contextlib
 import socket
 import uuid
 from datetime import UTC, datetime
+from urllib.parse import urlparse
 
+import httpx
 from config import AppConfig
 from core_client import CoreApiClient, FinalizeResponse, OnboardingSessionRequest
 from logging_utils import get_logger
@@ -60,6 +62,11 @@ class NodeService:
             self.state = self.state_store.load()
             self.trust_material = self.trust_store.load()
             self.operator_config = self.operator_config_store.load(defaults=self.operator_config)
+            self.operator_config = OperatorConfig(
+                core_base_url=self._normalize_core_base_url(self.operator_config.core_base_url),
+                node_name=self.operator_config.node_name,
+            )
+            self.operator_config_store.save(self.operator_config)
         except StateCorruptionError as exc:
             self.startup_error = str(exc)
             self.ready = False
@@ -107,7 +114,7 @@ class NodeService:
 
         previous = self.operator_config.model_copy()
         next_config = OperatorConfig(
-            core_base_url=(payload.core_base_url or "").strip() or None,
+            core_base_url=self._normalize_core_base_url((payload.core_base_url or "").strip() or None),
             node_name=(payload.node_name or "").strip() or None,
         )
         self.operator_config = self.operator_config_store.save(next_config)
@@ -138,7 +145,8 @@ class NodeService:
             return
 
         if self.state.onboarding_status == "not_started" or not self.state.onboarding_session_id:
-            await self.start_onboarding()
+            with contextlib.suppress(ValueError):
+                await self.start_onboarding()
             return
 
         if self.state.onboarding_status in {"rejected", "expired", "invalid", "consumed"}:
@@ -146,7 +154,8 @@ class NodeService:
                 "Terminal onboarding state found without trust, starting fresh onboarding",
                 extra={"event_data": {"onboarding_status": self.state.onboarding_status}},
             )
-            await self.start_onboarding(force=True)
+            with contextlib.suppress(ValueError):
+                await self.start_onboarding(force=True)
             return
 
         self.startup_error = "corrupted state: unable to determine startup path"
@@ -177,11 +186,16 @@ class NodeService:
             node_nonce=self.config.node_nonce,
             hostname=socket.gethostname(),
         )
-        session = await self.core_client.create_onboarding_session(
-            self.effective_core_base_url() or "",
-            request,
-            correlation_id,
-        )
+        try:
+            session = await self.core_client.create_onboarding_session(
+                self.effective_core_base_url() or "",
+                request,
+                correlation_id,
+            )
+        except httpx.HTTPError as exc:
+            self.state.last_error = self._format_core_error(exc)
+            self.state_store.save(self.state)
+            raise ValueError(self.state.last_error) from exc
         self.state.onboarding_session_id = session.session_id
         self.state.approval_url = session.approval_url
         self.state.onboarding_status = "pending"
@@ -220,6 +234,26 @@ class NodeService:
         self.state.trusted_at = None
         self.state.last_poll_at = None
         self.state_store.save(self.state)
+
+    def _normalize_core_base_url(self, value: str | None) -> str | None:
+        if not value:
+            return None
+        parsed = urlparse(value)
+        if not parsed.scheme:
+            return f"http://{value}"
+        return value.rstrip("/")
+
+    def _format_core_error(self, exc: httpx.HTTPError) -> str:
+        base_url = self.effective_core_base_url() or "configured Core URL"
+        if isinstance(exc, httpx.ConnectError):
+            return f"Unable to reach Core at {base_url}. Check the host, port, and network."
+        if isinstance(exc, httpx.TimeoutException):
+            return f"Timed out while contacting Core at {base_url}."
+        if isinstance(exc, httpx.HTTPStatusError):
+            return f"Core returned {exc.response.status_code} during onboarding start."
+        if isinstance(exc, httpx.UnsupportedProtocol):
+            return f"Core URL must include a valid host. Current value: {base_url}"
+        return f"Failed to contact Core at {base_url}: {exc.__class__.__name__}"
 
     def _ensure_polling(self) -> None:
         if self.polling_task is None or self.polling_task.done():
