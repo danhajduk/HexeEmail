@@ -5,9 +5,11 @@ import os
 import secrets
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import urlencode
 
 from pydantic import ValidationError
 
+from providers.gmail.models import GmailOAuthConfig
 from providers.gmail.models import GmailOAuthSessionState
 from providers.gmail.runtime import GmailRuntimeLayout
 
@@ -17,6 +19,8 @@ class GmailOAuthStateError(RuntimeError):
 
 
 class GmailOAuthSessionManager:
+    GOOGLE_AUTH_BASE_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+
     def __init__(self, runtime_dir: Path) -> None:
         self.layout = GmailRuntimeLayout(runtime_dir)
         self.layout.ensure_layout()
@@ -32,6 +36,30 @@ class GmailOAuthSessionManager:
         )
         self.save_session(session)
         return session
+
+    def create_connect_session(
+        self,
+        account_id: str,
+        oauth_config: GmailOAuthConfig,
+        *,
+        correlation_id: str | None = None,
+    ) -> GmailOAuthSessionState:
+        session = self.create_session(account_id, correlation_id=correlation_id)
+        session.authorization_url = self.build_connect_url(account_id, oauth_config, session.state)
+        self.save_session(session)
+        return session
+
+    def build_connect_url(self, account_id: str, oauth_config: GmailOAuthConfig, state: str) -> str:
+        params = {
+            "client_id": oauth_config.client_id or "",
+            "redirect_uri": oauth_config.redirect_uri or "",
+            "response_type": "code",
+            "scope": " ".join(oauth_config.requested_scopes.scopes),
+            "access_type": "offline",
+            "state": state,
+            "login_hint": account_id,
+        }
+        return f"{self.GOOGLE_AUTH_BASE_URL}?{urlencode(params)}"
 
     def save_session(self, session: GmailOAuthSessionState) -> GmailOAuthSessionState:
         path = self.layout.oauth_session_file(session.state)

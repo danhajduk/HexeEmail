@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 
+from providers.gmail.models import GmailOAuthConfig
 from providers.gmail.models import GmailOAuthSessionState
 from providers.gmail.oauth import GmailOAuthSessionManager, GmailOAuthStateError
 
@@ -62,3 +64,26 @@ def test_gmail_oauth_session_manager_expires_stale_sessions(tmp_path):
     assert expired_count == 1
     assert manager.load_session("stale-state").consumed_at is not None
     assert manager.load_session("fresh-state").consumed_at is None
+
+
+def test_gmail_oauth_session_manager_builds_google_connect_url(tmp_path):
+    manager = GmailOAuthSessionManager(tmp_path)
+    oauth_config = GmailOAuthConfig(
+        enabled=True,
+        client_id="client-id",
+        client_secret_ref="env:GMAIL_CLIENT_SECRET",
+        redirect_uri="http://127.0.0.1:9002/providers/gmail/oauth/callback",
+    )
+
+    session = manager.create_connect_session("primary", oauth_config, correlation_id="corr-123")
+    parsed = urlparse(session.authorization_url or "")
+    query = parse_qs(parsed.query)
+
+    assert parsed.scheme == "https"
+    assert parsed.netloc == "accounts.google.com"
+    assert query["client_id"] == ["client-id"]
+    assert query["redirect_uri"] == ["http://127.0.0.1:9002/providers/gmail/oauth/callback"]
+    assert query["access_type"] == ["offline"]
+    assert query["state"] == [session.state]
+    assert query["login_hint"] == ["primary"]
+    assert "https://www.googleapis.com/auth/gmail.send" in query["scope"][0]

@@ -47,20 +47,6 @@ Do not edit above this line:
 
 # Email Node — Phase 2 Tasks
 
-[TODO] Task 041: Implement Gmail connect URL generation
-- Add method to generate Google OAuth connect URL
-- Include:
-  - client_id
-  - redirect_uri
-  - requested scopes
-  - access_type=offline
-  - state token
-- Support account_id in local flow
-- Return connect URL to operator-facing API
-- Do not exchange auth code yet in this task
-
----
-
 [TODO] Task 042: Add Gmail OAuth start endpoint
 - Create operator-facing route:
   - POST /providers/gmail/accounts/{account_id}/connect/start

@@ -38,3 +38,4 @@ Task 037: Add Gmail provider filesystem layout
 Task 038: Implement Gmail provider config loader
 Task 039: Define Gmail OAuth scope strategy
 Task 040: Implement Gmail OAuth session manager
+Task 041: Implement Gmail connect URL generation
