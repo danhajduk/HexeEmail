@@ -4,15 +4,27 @@ import pytest
 
 from config import AppConfig
 from providers.base import EmailProviderAdapter
-from providers.models import EmailProviderHealth, ProviderId
+from providers.models import ProviderAccountRecord, ProviderHealth, ProviderId, ProviderValidationResult
 from providers.registry import ProviderRegistry
 
 
 class FakeGraphAdapter(EmailProviderAdapter):
     provider_id = ProviderId.GRAPH.value
 
-    async def health(self) -> EmailProviderHealth:
-        return EmailProviderHealth(provider_id=ProviderId.GRAPH, status="unknown")
+    async def validate_static_config(self) -> ProviderValidationResult:
+        return ProviderValidationResult(ok=True)
+
+    async def get_provider_state(self) -> str:
+        return "configured"
+
+    async def list_accounts(self) -> list[ProviderAccountRecord]:
+        return []
+
+    async def get_account_health(self, account_id: str) -> ProviderHealth:
+        return ProviderHealth(provider_id=ProviderId.GRAPH, status="unknown", account_id=account_id)
+
+    def get_enabled_status(self) -> bool:
+        return True
 
 
 def test_provider_registry_registers_gmail_by_default(runtime_dir):

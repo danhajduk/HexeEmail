@@ -47,23 +47,6 @@ Do not edit above this line:
 
 # Email Node — Phase 2 Tasks
 
-[TODO] Task 035: Define provider base interface
-- Create src/email_node/providers/base.py
-- Define base adapter contract for all email providers
-- Include methods for:
-  - validate_static_config()
-  - get_provider_state()
-  - list_accounts()
-  - get_account_health(account_id)
-  - get_enabled_status()
-- Add placeholders for future methods:
-  - send_email()
-  - fetch_email()
-  - watch_mailbox()
-- Keep interface minimal for Phase 2
-
----
-
 [TODO] Task 036: Add Gmail provider config models
 - Create src/email_node/providers/gmail/models.py
 - Add config models for:
