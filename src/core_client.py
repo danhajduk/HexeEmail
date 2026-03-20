@@ -6,8 +6,6 @@ from typing import Any
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
-from config import AppConfig
-
 
 class FinalizeRoute(BaseModel):
     method: str = "GET"
@@ -71,58 +69,81 @@ class TrustStatusResponse(BaseModel):
 
 
 class CoreApiClient:
-    def __init__(self, config: AppConfig, *, transport: httpx.AsyncBaseTransport | None = None) -> None:
-        self.config = config
-        self._client = httpx.AsyncClient(
-            base_url=str(config.core_base_url).rstrip("/"),
-            timeout=10.0,
-            transport=transport,
-        )
+    def __init__(self, *, transport: httpx.AsyncBaseTransport | None = None, timeout: float = 10.0) -> None:
+        self.transport = transport
+        self.timeout = timeout
 
     async def aclose(self) -> None:
-        await self._client.aclose()
+        return None
 
-    async def create_onboarding_session(self, request: OnboardingSessionRequest, correlation_id: str) -> OnboardingSessionResponse:
+    def _client(self, base_url: str) -> httpx.AsyncClient:
+        return httpx.AsyncClient(
+            base_url=base_url.rstrip("/"),
+            timeout=self.timeout,
+            transport=self.transport,
+        )
+
+    async def create_onboarding_session(
+        self,
+        base_url: str,
+        request: OnboardingSessionRequest,
+        correlation_id: str,
+    ) -> OnboardingSessionResponse:
         payload = request.model_dump(mode="json")
         headers = {"X-Correlation-Id": correlation_id}
 
-        for attempt in range(2):
-            response = await self._client.post("/api/system/nodes/onboarding/sessions", json=payload, headers=headers)
-            if response.status_code in (200, 201):
-                return OnboardingSessionResponse.model_validate(response.json())
+        async with self._client(base_url) as client:
+            for attempt in range(2):
+                response = await client.post("/api/system/nodes/onboarding/sessions", json=payload, headers=headers)
+                if response.status_code in (200, 201):
+                    return OnboardingSessionResponse.model_validate(response.json())
 
-            if response.status_code == 409:
-                body = response.json()
-                session_payload = body.get("session") if isinstance(body, dict) else None
-                if isinstance(session_payload, dict):
-                    return OnboardingSessionResponse.model_validate(session_payload)
-                if isinstance(body, dict):
-                    return OnboardingSessionResponse.model_validate(body)
+                if response.status_code == 409:
+                    body = response.json()
+                    session_payload = body.get("session") if isinstance(body, dict) else None
+                    if isinstance(session_payload, dict):
+                        return OnboardingSessionResponse.model_validate(session_payload)
+                    if isinstance(body, dict):
+                        return OnboardingSessionResponse.model_validate(body)
 
-            if response.status_code >= 500 and attempt == 0:
-                await asyncio.sleep(0.5)
-                continue
+                if response.status_code >= 500 and attempt == 0:
+                    await asyncio.sleep(0.5)
+                    continue
 
-            response.raise_for_status()
+                response.raise_for_status()
 
         raise RuntimeError("failed to create onboarding session")
 
-    async def finalize_onboarding(self, session_id: str, node_nonce: str, correlation_id: str) -> FinalizeResponse:
-        response = await self._client.get(
-            f"/api/system/nodes/onboarding/sessions/{session_id}/finalize",
-            params={"node_nonce": node_nonce},
-            headers={"X-Correlation-Id": correlation_id},
-        )
-        response.raise_for_status()
-        return FinalizeResponse.model_validate(response.json())
+    async def finalize_onboarding(
+        self,
+        base_url: str,
+        session_id: str,
+        node_nonce: str,
+        correlation_id: str,
+    ) -> FinalizeResponse:
+        async with self._client(base_url) as client:
+            response = await client.get(
+                f"/api/system/nodes/onboarding/sessions/{session_id}/finalize",
+                params={"node_nonce": node_nonce},
+                headers={"X-Correlation-Id": correlation_id},
+            )
+            response.raise_for_status()
+            return FinalizeResponse.model_validate(response.json())
 
-    async def get_trust_status(self, node_id: str, trust_token: str, correlation_id: str) -> TrustStatusResponse:
-        response = await self._client.get(
-            f"/api/system/nodes/trust-status/{node_id}",
-            headers={
-                "X-Correlation-Id": correlation_id,
-                "X-Node-Trust-Token": trust_token,
-            },
-        )
-        response.raise_for_status()
-        return TrustStatusResponse.model_validate(response.json())
+    async def get_trust_status(
+        self,
+        base_url: str,
+        node_id: str,
+        trust_token: str,
+        correlation_id: str,
+    ) -> TrustStatusResponse:
+        async with self._client(base_url) as client:
+            response = await client.get(
+                f"/api/system/nodes/trust-status/{node_id}",
+                headers={
+                    "X-Correlation-Id": correlation_id,
+                    "X-Node-Trust-Token": trust_token,
+                },
+            )
+            response.raise_for_status()
+            return TrustStatusResponse.model_validate(response.json())

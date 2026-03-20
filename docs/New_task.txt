@@ -47,7 +47,7 @@ Do not edit above this line:
 
 # Email Node — Phase 1 Tasks
 
-[TODO] Task 021: Phase 1 acceptance test
+[TODO] Task 024: Phase 1 acceptance test
 - Validate against a live Core + MQTT environment:
   - node starts
   - onboarding session created

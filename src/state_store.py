@@ -8,7 +8,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from models import RuntimeState, TrustMaterial
+from models import OperatorConfig, RuntimeState, TrustMaterial
 
 
 class StateCorruptionError(RuntimeError):
@@ -42,6 +42,27 @@ class RuntimeStateStore(JsonFileStore):
         state.updated_at = datetime.utcnow()
         self._write_json(state.model_dump(mode="json"))
         return state
+
+
+class OperatorConfigStore(JsonFileStore):
+    def load(self, *, defaults: OperatorConfig | None = None) -> OperatorConfig:
+        if not self.path.exists():
+            return defaults or OperatorConfig()
+        try:
+            payload = json.loads(self.path.read_text(encoding="utf-8"))
+            loaded = OperatorConfig.model_validate(payload)
+        except (json.JSONDecodeError, ValidationError) as exc:
+            raise StateCorruptionError(f"operator config is corrupted: {exc}") from exc
+
+        merged = defaults or OperatorConfig()
+        return OperatorConfig(
+            core_base_url=loaded.core_base_url or merged.core_base_url,
+            node_name=loaded.node_name or merged.node_name,
+        )
+
+    def save(self, config: OperatorConfig) -> OperatorConfig:
+        self._write_json(config.model_dump(mode="json"))
+        return config
 
 
 class TrustMaterialStore(JsonFileStore):

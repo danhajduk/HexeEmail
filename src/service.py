@@ -1,18 +1,28 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import socket
 import uuid
 from datetime import UTC, datetime
 
-from version import __version__
 from config import AppConfig
 from core_client import CoreApiClient, FinalizeResponse, OnboardingSessionRequest
 from logging_utils import get_logger
-from models import OnboardingStatusResponse, RuntimeState, StatusResponse, TrustMaterial
+from models import (
+    OnboardingStatusResponse,
+    OperatorConfig,
+    OperatorConfigInput,
+    OperatorConfigResponse,
+    RuntimeState,
+    StatusResponse,
+    TrustMaterial,
+    UiBootstrapResponse,
+)
 from mqtt import MQTTManager
 from providers.registry import ProviderRegistry
-from state_store import RuntimeStateStore, StateCorruptionError, TrustMaterialStore
+from state_store import OperatorConfigStore, RuntimeStateStore, StateCorruptionError, TrustMaterialStore
+from version import __version__
 
 
 LOGGER = get_logger(__name__)
@@ -29,13 +39,15 @@ class NodeService:
     ) -> None:
         self.config = config
         self.state_store = RuntimeStateStore(config.state_file)
+        self.operator_config_store = OperatorConfigStore(config.operator_config_file)
         self.trust_store = TrustMaterialStore(config.trust_material_file)
-        self.core_client = core_client or CoreApiClient(config)
+        self.core_client = core_client or CoreApiClient()
         self.mqtt_manager = mqtt_manager or MQTTManager(
             heartbeat_seconds=config.mqtt_heartbeat_seconds,
             on_heartbeat=self._record_heartbeat,
         )
         self.provider_registry = ProviderRegistry(config)
+        self.operator_config = OperatorConfig(core_base_url=config.core_base_url, node_name=config.node_name)
         self.state = RuntimeState()
         self.trust_material: TrustMaterial | None = None
         self.polling_task: asyncio.Task | None = None
@@ -47,6 +59,7 @@ class NodeService:
         try:
             self.state = self.state_store.load()
             self.trust_material = self.trust_store.load()
+            self.operator_config = self.operator_config_store.load(defaults=self.operator_config)
         except StateCorruptionError as exc:
             self.startup_error = str(exc)
             self.ready = False
@@ -59,7 +72,7 @@ class NodeService:
             extra={
                 "event_data": {
                     "version": __version__,
-                    "node_name": self.config.node_name,
+                    "node_name": self.effective_node_name() or "(unset)",
                     "node_type": self.config.node_type,
                 }
             },
@@ -74,39 +87,101 @@ class NodeService:
         self.mqtt_manager.disconnect()
         await self.core_client.aclose()
 
+    def required_inputs(self) -> list[str]:
+        missing: list[str] = []
+        if not self.operator_config.core_base_url:
+            missing.append("core_base_url")
+        if not self.operator_config.node_name:
+            missing.append("node_name")
+        return missing
+
+    def effective_core_base_url(self) -> str | None:
+        return self.operator_config.core_base_url
+
+    def effective_node_name(self) -> str | None:
+        return self.operator_config.node_name
+
+    async def update_operator_config(self, payload: OperatorConfigInput) -> OperatorConfigResponse:
+        if self.state.trust_state == "trusted":
+            raise ValueError("cannot change onboarding configuration after trust activation")
+
+        previous = self.operator_config.model_copy()
+        next_config = OperatorConfig(
+            core_base_url=(payload.core_base_url or "").strip() or None,
+            node_name=(payload.node_name or "").strip() or None,
+        )
+        self.operator_config = self.operator_config_store.save(next_config)
+
+        if previous != self.operator_config:
+            self._reset_onboarding_state()
+
+        return self.operator_config_response()
+
     async def _resume_runtime(self) -> None:
         if self.state.trust_state == "trusted" and self.trust_material is not None:
             LOGGER.info("Trusted state detected, skipping onboarding")
             self._connect_mqtt_if_possible()
             return
+
         if self.state.onboarding_status == "pending" and self.state.onboarding_session_id:
             LOGGER.info("Pending onboarding session found, resuming finalize polling")
             self._ensure_polling()
             return
+
+        if self.required_inputs():
+            self.state.last_error = "Configuration required before onboarding can start"
+            self.state_store.save(self.state)
+            LOGGER.info(
+                "Waiting for onboarding configuration",
+                extra={"event_data": {"required_inputs": self.required_inputs()}},
+            )
+            return
+
         if self.state.onboarding_status == "not_started" or not self.state.onboarding_session_id:
             await self.start_onboarding()
             return
+
         if self.state.onboarding_status in {"rejected", "expired", "invalid", "consumed"}:
             LOGGER.warning(
                 "Terminal onboarding state found without trust, starting fresh onboarding",
                 extra={"event_data": {"onboarding_status": self.state.onboarding_status}},
             )
-            await self.start_onboarding()
+            await self.start_onboarding(force=True)
             return
+
         self.startup_error = "corrupted state: unable to determine startup path"
         self.ready = False
 
-    async def start_onboarding(self) -> None:
+    async def start_onboarding(self, *, force: bool = False) -> OnboardingStatusResponse:
+        if self.state.trust_state == "trusted":
+            return self.onboarding_status()
+
+        missing = self.required_inputs()
+        if missing:
+            self.state.last_error = "Missing required onboarding inputs"
+            self.state_store.save(self.state)
+            raise ValueError(f"missing required onboarding inputs: {', '.join(missing)}")
+
+        if self.state.onboarding_status == "pending" and self.state.onboarding_session_id and not force:
+            return self.onboarding_status()
+
+        if force:
+            self._reset_onboarding_state()
+
         correlation_id = str(uuid.uuid4())
         request = OnboardingSessionRequest(
-            node_name=self.config.node_name,
+            node_name=self.effective_node_name() or "",
             node_type=self.config.node_type,
             node_software_version=self.config.node_software_version,
             protocol_version=self.config.onboarding_protocol_version,
             node_nonce=self.config.node_nonce,
             hostname=socket.gethostname(),
         )
-        session = await self.core_client.create_onboarding_session(request, correlation_id)
+        session = await self.core_client.create_onboarding_session(
+            self.effective_core_base_url() or "",
+            request,
+            correlation_id,
+        )
         self.state.onboarding_session_id = session.session_id
         self.state.approval_url = session.approval_url
         self.state.onboarding_status = "pending"
@@ -124,6 +199,27 @@ class NodeService:
         )
         print(f"Approval URL: {session.approval_url}")
         self._ensure_polling()
+        return self.onboarding_status()
+
+    def _reset_onboarding_state(self) -> None:
+        if self.polling_task is not None and not self.polling_task.done():
+            self.polling_task.cancel()
+        self.state.onboarding_session_id = None
+        self.state.approval_url = None
+        self.state.onboarding_status = "not_started"
+        self.state.onboarding_expires_at = None
+        self.state.node_id = None
+        self.state.paired_core_id = None
+        self.state.trust_state = "untrusted"
+        self.state.trust_token_present = False
+        self.state.mqtt_credentials_present = False
+        self.state.operational_mqtt_host = None
+        self.state.operational_mqtt_port = None
+        self.state.last_finalize_status = None
+        self.state.last_error = None
+        self.state.trusted_at = None
+        self.state.last_poll_at = None
+        self.state_store.save(self.state)
 
     def _ensure_polling(self) -> None:
         if self.polling_task is None or self.polling_task.done():
@@ -133,6 +229,7 @@ class NodeService:
         while self.state.onboarding_session_id:
             correlation_id = str(uuid.uuid4())
             finalize = await self.core_client.finalize_onboarding(
+                self.effective_core_base_url() or "",
                 self.state.onboarding_session_id,
                 self.config.node_nonce,
                 correlation_id,
@@ -207,9 +304,19 @@ class NodeService:
             "startup_error": self.startup_error,
         }
 
+    def operator_config_response(self) -> OperatorConfigResponse:
+        return OperatorConfigResponse(
+            core_base_url=self.effective_core_base_url() or "",
+            node_name=self.effective_node_name() or "",
+            node_type=self.config.node_type,
+            node_software_version=self.config.node_software_version,
+            api_port=self.config.api_port,
+            ui_port=self.config.ui_port,
+        )
+
     def onboarding_status(self) -> OnboardingStatusResponse:
         return OnboardingStatusResponse(
-            node_name=self.config.node_name,
+            node_name=self.effective_node_name() or "",
             node_type=self.config.node_type,
             node_software_version=self.config.node_software_version,
             session_id=self.state.onboarding_session_id,
@@ -219,11 +326,12 @@ class NodeService:
             node_id=self.state.node_id,
             expires_at=self.state.onboarding_expires_at,
             last_error=self.state.last_error,
+            required_inputs=self.required_inputs(),
         )
 
     def status(self) -> StatusResponse:
         return StatusResponse(
-            node_name=self.config.node_name,
+            node_name=self.effective_node_name() or "",
             node_type=self.config.node_type,
             node_software_version=self.config.node_software_version,
             trust_state=self.state.trust_state,
@@ -231,7 +339,15 @@ class NodeService:
             mqtt_connection_status=self.mqtt_manager.status.state,
             onboarding_status=self.state.onboarding_status,
             providers=self.provider_registry.provider_ids(),
+            required_inputs=self.required_inputs(),
         )
 
-
-import contextlib
+    def ui_bootstrap(self) -> UiBootstrapResponse:
+        required_inputs = self.required_inputs()
+        return UiBootstrapResponse(
+            config=self.operator_config_response(),
+            onboarding=self.onboarding_status(),
+            status=self.status(),
+            required_inputs=required_inputs,
+            can_start_onboarding=not required_inputs and self.state.trust_state != "trusted",
+        )

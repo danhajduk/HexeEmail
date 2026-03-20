@@ -24,18 +24,28 @@ class AppConfig(BaseSettings):
         extra="ignore",
     )
 
-    core_base_url: str = Field(alias="CORE_BASE_URL")
-    node_name: str = Field(alias="NODE_NAME")
+    core_base_url: str | None = Field(default=None, alias="CORE_BASE_URL")
+    node_name: str | None = Field(default=None, alias="NODE_NAME")
     node_type: str = Field(default="email-node", alias="NODE_TYPE")
     node_software_version: str = Field(alias="NODE_SOFTWARE_VERSION")
     node_nonce: str = Field(alias="NODE_NONCE")
     runtime_dir: Path = Field(default=Path("runtime"), alias="RUNTIME_DIR")
+    api_port: int = Field(default=8080, alias="API_PORT")
+    ui_port: int = Field(default=8083, alias="UI_PORT")
     onboarding_protocol_version: str = Field(default="1.0", alias="ONBOARDING_PROTOCOL_VERSION")
     onboarding_poll_interval_seconds: float = Field(default=2.0, alias="ONBOARDING_POLL_INTERVAL_SECONDS")
     mqtt_heartbeat_seconds: float = Field(default=30.0, alias="MQTT_HEARTBEAT_SECONDS")
     providers: ProviderConfigs = Field(default_factory=ProviderConfigs)
 
-    @field_validator("core_base_url", "node_name", "node_software_version", "node_nonce")
+    @field_validator("core_base_url", "node_name", mode="before")
+    @classmethod
+    def normalize_optional_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        stripped = value.strip()
+        return stripped or None
+
+    @field_validator("node_software_version", "node_nonce")
     @classmethod
     def validate_non_empty(cls, value: str) -> str:
         stripped = value.strip()
@@ -62,6 +72,10 @@ class AppConfig(BaseSettings):
     @property
     def trust_material_file(self) -> Path:
         return self.runtime_dir / "trust_material.json"
+
+    @property
+    def operator_config_file(self) -> Path:
+        return self.runtime_dir / "operator_config.json"
 
 
 class HealthSnapshot(BaseModel):

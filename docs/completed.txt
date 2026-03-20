@@ -18,3 +18,6 @@ Create Core compatibility checklist
 Implement structured logging
 Add automated tests
 Add dev scripts and runbook
+Add operator-configurable onboarding API
+Create React onboarding monitor UI
+Document UI workflow

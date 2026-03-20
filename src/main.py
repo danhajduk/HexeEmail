@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 
 from config import AppConfig
 from logging_utils import correlation_id_middleware, setup_logging
+from models import OperatorConfigInput
 from service import NodeService
 
 
@@ -45,5 +46,27 @@ def create_app(
     @app.get("/status")
     async def status():
         return node_service.status()
+
+    @app.get("/ui/bootstrap")
+    async def ui_bootstrap():
+        return node_service.ui_bootstrap()
+
+    @app.get("/ui/config")
+    async def ui_config():
+        return node_service.operator_config_response()
+
+    @app.put("/ui/config")
+    async def update_ui_config(payload: OperatorConfigInput):
+        try:
+            return await node_service.update_operator_config(payload)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/ui/onboarding/start")
+    async def start_ui_onboarding():
+        try:
+            return await node_service.start_onboarding(force=node_service.state.onboarding_status != "pending")
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     return app

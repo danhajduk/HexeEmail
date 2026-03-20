@@ -10,6 +10,20 @@ OnboardingStatus = Literal["not_started", "pending", "approved", "rejected", "ex
 TrustState = Literal["untrusted", "pending", "trusted", "rejected", "expired", "consumed", "invalid"]
 
 
+class OperatorConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    core_base_url: str | None = None
+    node_name: str | None = None
+
+
+class OperatorConfigInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    core_base_url: str | None = None
+    node_name: str | None = None
+
+
 class RuntimeState(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -67,6 +81,7 @@ class OnboardingStatusResponse(BaseModel):
     node_id: str | None
     expires_at: datetime | None
     last_error: str | None
+    required_inputs: list[str] = Field(default_factory=list)
 
 
 class StatusResponse(BaseModel):
@@ -78,3 +93,21 @@ class StatusResponse(BaseModel):
     mqtt_connection_status: str
     onboarding_status: OnboardingStatus
     providers: list[str]
+    required_inputs: list[str] = Field(default_factory=list)
+
+
+class OperatorConfigResponse(BaseModel):
+    core_base_url: str
+    node_name: str
+    node_type: str
+    node_software_version: str
+    api_port: int
+    ui_port: int
+
+
+class UiBootstrapResponse(BaseModel):
+    config: OperatorConfigResponse
+    onboarding: OnboardingStatusResponse
+    status: StatusResponse
+    required_inputs: list[str]
+    can_start_onboarding: bool

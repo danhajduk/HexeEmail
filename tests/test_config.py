@@ -22,3 +22,17 @@ def test_config_exposes_provider_placeholders(config: AppConfig):
     assert config.providers.gmail.enabled is False
     assert config.providers.smtp.enabled is False
     assert config.providers.imap.enabled is False
+
+
+def test_config_allows_operator_supplied_core_and_node_name(tmp_path):
+    config = AppConfig(
+        CORE_BASE_URL="",
+        NODE_NAME="",
+        NODE_TYPE="email-node",
+        NODE_SOFTWARE_VERSION="0.1.0",
+        NODE_NONCE="nonce",
+        RUNTIME_DIR=tmp_path,
+    )
+
+    assert config.core_base_url is None
+    assert config.node_name is None

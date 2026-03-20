@@ -5,7 +5,9 @@ from pathlib import Path
 
 import pytest
 
+from config import AppConfig
 from core_client import OnboardingSessionRequest
+from models import OperatorConfigInput
 from service import NodeService
 from tests.helpers import FakeMQTTManager, build_core_app
 
@@ -22,7 +24,7 @@ async def test_onboarding_request_creation(core_client_factory, config):
         node_nonce=config.node_nonce,
         hostname="test-host",
     )
-    response = await client.create_onboarding_session(request, "corr-1")
+    response = await client.create_onboarding_session(config.core_base_url or "", request, "corr-1")
     await client.aclose()
 
     assert response.session_id == "sx_123"
@@ -78,4 +80,42 @@ async def test_failure_case_marks_rejected(core_client_factory, config):
 
     assert service.state.onboarding_status == "rejected"
     assert service.state.trust_state == "rejected"
+    await service.stop()
+
+
+@pytest.mark.asyncio
+async def test_service_waits_for_operator_inputs_when_missing(runtime_dir: Path, core_client_factory):
+    config = AppConfig(
+        CORE_BASE_URL="",
+        NODE_NAME="",
+        NODE_TYPE="email-node",
+        NODE_SOFTWARE_VERSION="0.1.0",
+        NODE_NONCE="nonce-test",
+        RUNTIME_DIR=runtime_dir,
+        API_PORT=8080,
+        UI_PORT=8083,
+        ONBOARDING_POLL_INTERVAL_SECONDS=0.01,
+        MQTT_HEARTBEAT_SECONDS=0.01,
+    )
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+
+    await service.start()
+    assert service.state.onboarding_status == "not_started"
+    assert service.required_inputs() == ["core_base_url", "node_name"]
+    await service.stop()
+
+
+@pytest.mark.asyncio
+async def test_operator_config_update_then_start_onboarding(core_client_factory, config):
+    blank_config = config.model_copy(update={"core_base_url": None, "node_name": None})
+    service = NodeService(blank_config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+
+    await service.start()
+    await service.update_operator_config(
+        OperatorConfigInput(core_base_url="http://core.test", node_name="ui-node"),
+    )
+    status = await service.start_onboarding()
+
+    assert status.node_name == "ui-node"
+    assert service.state.onboarding_status == "pending"
     await service.stop()
