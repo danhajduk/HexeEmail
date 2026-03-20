@@ -47,18 +47,6 @@ Do not edit above this line:
 
 # Email Node — Phase 2 Tasks
 
-[TODO] Task 040: Implement Gmail OAuth session manager
-- Create src/email_node/providers/gmail/oauth.py
-- Add logic to:
-  - generate OAuth state values
-  - persist pending OAuth sessions
-  - validate callback state
-  - expire stale sessions
-- Prevent reuse of consumed OAuth state
-- Add correlation id support for logs and diagnostics
-
----
-
 [TODO] Task 041: Implement Gmail connect URL generation
 - Add method to generate Google OAuth connect URL
 - Include:
