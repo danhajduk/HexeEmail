@@ -98,4 +98,24 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    @app.get("/providers")
+    async def providers():
+        return await node_service.providers_overview()
+
+    @app.get("/providers/gmail")
+    async def gmail_provider():
+        return await node_service.gmail_provider_status()
+
+    @app.get("/providers/gmail/accounts")
+    async def gmail_accounts():
+        return await node_service.gmail_accounts_status()
+
+    @app.get("/providers/gmail/accounts/{account_id}")
+    async def gmail_account(account_id: str):
+        return await node_service.gmail_account_status(account_id)
+
+    @app.post("/providers/gmail/validate-config")
+    async def gmail_validate_config():
+        return await node_service.gmail_config_validation()
+
     return app

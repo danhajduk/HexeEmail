@@ -24,6 +24,7 @@ from models import (
     UiBootstrapResponse,
 )
 from providers.gmail.config_store import GmailProviderConfigError, GmailProviderConfigStore
+from providers.gmail.adapter import GmailProviderAdapter
 from providers.gmail.oauth import GmailOAuthSessionManager
 from providers.gmail.token_client import GmailTokenExchangeClient, GmailTokenExchangeError
 from mqtt import MQTTManager
@@ -58,6 +59,7 @@ class NodeService:
         self.gmail_oauth_manager = GmailOAuthSessionManager(config.runtime_dir)
         self.gmail_token_client = gmail_token_client or GmailTokenExchangeClient()
         self.provider_registry = ProviderRegistry(config)
+        self.provider_registry.register_provider(GmailProviderAdapter(config.runtime_dir, token_client=self.gmail_token_client))
         self.operator_config = OperatorConfig(core_base_url=config.core_base_url, node_name=config.node_name)
         self.state = RuntimeState()
         self.trust_material: TrustMaterial | None = None
@@ -440,6 +442,9 @@ class NodeService:
             oauth_config,
             correlation_id=correlation_id,
         )
+        gmail_adapter = self.provider_registry.get_provider("gmail")
+        if hasattr(gmail_adapter, "start_account_connect"):
+            await gmail_adapter.start_account_connect(account_id)
         LOGGER.info(
             "Gmail connect flow started",
             extra={
@@ -476,16 +481,17 @@ class NodeService:
             raise ValueError(f"missing required query parameters: {', '.join(missing)}")
 
         try:
-            oauth_config = self.gmail_config_store.load()
             session = self.gmail_oauth_manager.validate_callback_state(state or "")
-            token_record = await self.gmail_token_client.exchange_authorization_code(
-                oauth_config,
-                account_id=session.account_id,
-                code=code or "",
+            gmail_adapter = self.provider_registry.get_provider("gmail")
+            if not hasattr(gmail_adapter, "complete_oauth_callback"):
+                raise ValueError("gmail provider adapter does not support oauth completion")
+            account_record = await gmail_adapter.complete_oauth_callback(
+                session.account_id,
+                code or "",
                 correlation_id=correlation_id,
             )
             self.gmail_oauth_manager.consume_session(session.state)
-        except GmailProviderConfigError as exc:
+        except (GmailProviderConfigError, AttributeError) as exc:
             raise ValueError(str(exc)) from exc
         except GmailTokenExchangeError as exc:
             raise ValueError(str(exc)) from exc
@@ -497,15 +503,84 @@ class NodeService:
             extra={
                 "event_data": {
                     "provider_id": "gmail",
-                    "account_id": token_record.account_id,
-                    "granted_scopes": token_record.granted_scopes,
+                    "account_id": account_record.account_id,
+                    "email_address": account_record.email_address,
                 }
             },
         )
         return GmailOAuthCallbackResponse(
             provider_id="gmail",
-            account_id=token_record.account_id,
-            status="token_exchanged",
-            granted_scopes=token_record.granted_scopes,
-            expires_at=token_record.expires_at,
+            account_id=account_record.account_id,
+            status=account_record.status,
+            granted_scopes=(self.gmail_token_store().load_token(account_record.account_id) or GmailTokenRecord(account_id=account_record.account_id, access_token="")).granted_scopes,
+            expires_at=(self.gmail_token_store().load_token(account_record.account_id) or GmailTokenRecord(account_id=account_record.account_id, access_token="")).expires_at,
         )
+
+    def gmail_token_store(self):
+        return self.provider_registry.get_provider("gmail").token_store
+
+    async def providers_overview(self) -> dict[str, object]:
+        supported = self.provider_registry.list_supported_providers()
+        configured: list[str] = []
+        enabled: list[str] = []
+        summaries: dict[str, object] = {}
+
+        for provider_id in supported:
+            adapter = self.provider_registry.get_provider(provider_id)
+            validation = await adapter.validate_static_config()
+            if validation.ok:
+                configured.append(provider_id)
+            if adapter.get_enabled_status():
+                enabled.append(provider_id)
+            accounts = await adapter.list_accounts()
+            health = None
+            if accounts:
+                health = (await adapter.get_account_health(accounts[0].account_id)).model_dump(mode="json")
+            summaries[provider_id] = {
+                "provider_id": provider_id,
+                "provider_state": await adapter.get_provider_state(),
+                "enabled": adapter.get_enabled_status(),
+                "configured": validation.ok,
+                "account_count": len(accounts),
+                "accounts": [account.model_dump(mode="json") for account in accounts],
+                "health": health,
+            }
+
+        return {
+            "supported_providers": supported,
+            "configured_providers": configured,
+            "enabled_providers": enabled,
+            "providers": summaries,
+        }
+
+    async def gmail_provider_status(self) -> dict[str, object]:
+        adapter = self.provider_registry.get_provider("gmail")
+        validation = await adapter.validate_static_config()
+        accounts = await adapter.list_accounts()
+        return {
+            "provider_id": "gmail",
+            "provider_state": await adapter.get_provider_state(),
+            "enabled": adapter.get_enabled_status(),
+            "configured": validation.ok,
+            "validation": validation.model_dump(mode="json"),
+            "accounts": [account.model_dump(mode="json") for account in accounts],
+        }
+
+    async def gmail_accounts_status(self) -> list[dict[str, object]]:
+        adapter = self.provider_registry.get_provider("gmail")
+        accounts = await adapter.list_accounts()
+        return [account.model_dump(mode="json") for account in accounts]
+
+    async def gmail_account_status(self, account_id: str) -> dict[str, object]:
+        adapter = self.provider_registry.get_provider("gmail")
+        account = next((account for account in await adapter.list_accounts() if account.account_id == account_id), None)
+        health = await adapter.get_account_health(account_id)
+        return {
+            "account": account.model_dump(mode="json") if account is not None else None,
+            "health": health.model_dump(mode="json"),
+        }
+
+    async def gmail_config_validation(self) -> dict[str, object]:
+        adapter = self.provider_registry.get_provider("gmail")
+        validation = await adapter.validate_static_config()
+        return validation.model_dump(mode="json")

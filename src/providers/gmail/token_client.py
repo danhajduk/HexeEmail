@@ -7,6 +7,7 @@ import httpx
 
 from providers.gmail.account_store import GmailAccountStore
 from providers.gmail.models import GmailOAuthConfig, GmailTokenRecord
+from providers.gmail.state_machine import GmailAccountStateMachine
 from providers.gmail.token_store import GmailTokenStore
 
 
@@ -133,6 +134,7 @@ class GmailTokenExchangeClient:
         threshold_seconds: int = 300,
         correlation_id: str | None = None,
     ) -> GmailTokenRecord | None:
+        state_machine = GmailAccountStateMachine(account_store)
         token_record = token_store.load_token(account_id)
         if token_record is None:
             return None
@@ -143,12 +145,8 @@ class GmailTokenExchangeClient:
         if token_record.expires_at > refresh_cutoff:
             return token_record
         if not token_record.refresh_token:
-            account_record = account_store.load_account(account_id)
-            if account_record is not None:
-                account_record.status = "degraded"
-                account_record.last_error = "refresh token missing"
-                account_record.updated_at = datetime.now(UTC).replace(tzinfo=None)
-                account_store.save_account(account_record)
+            if account_store.load_account(account_id) is not None:
+                state_machine.transition(account_id, "degraded", last_error="refresh token missing")
             return token_record
 
         try:
@@ -159,22 +157,15 @@ class GmailTokenExchangeClient:
                 correlation_id=correlation_id,
             )
         except GmailTokenExchangeError as exc:
-            account_record = account_store.load_account(account_id)
-            if account_record is not None:
-                account_record.last_error = str(exc)
-                account_record.updated_at = datetime.now(UTC).replace(tzinfo=None)
-                account_record.status = "revoked" if "invalid" in str(exc).lower() or "revoked" in str(exc).lower() else "degraded"
-                account_store.save_account(account_record)
+            if account_store.load_account(account_id) is not None:
+                next_status = "revoked" if "invalid" in str(exc).lower() or "revoked" in str(exc).lower() else "degraded"
+                state_machine.transition(account_id, next_status, last_error=str(exc))
             raise
 
         token_store.save_token(account_id, refreshed)
         account_record = account_store.load_account(account_id)
-        if account_record is not None:
-            account_record.last_error = None
-            account_record.updated_at = datetime.now(UTC).replace(tzinfo=None)
-            if account_record.status not in {"connected", "token_exchanged"}:
-                account_record.status = "token_exchanged"
-            account_store.save_account(account_record)
+        if account_record is not None and account_record.status not in {"connected", "token_exchanged"}:
+            state_machine.transition(account_id, "token_exchanged")
         return refreshed
 
     async def aclose(self) -> None:

@@ -49,13 +49,15 @@ class GmailIdentityProbeClient:
             raise GmailIdentityProbeError("gmail identity probe did not return an email address")
 
         external_account_id = payload.get("id")
+        existing = self.account_store.load_account(token_record.account_id)
         record = ProviderAccountRecord(
             provider_id=ProviderId.GMAIL,
             account_id=token_record.account_id,
-            status="token_exchanged",
+            status=existing.status if existing is not None else "token_exchanged",
             email_address=email,
             display_name=payload.get("name") if isinstance(payload.get("name"), str) else None,
             external_account_id=external_account_id if isinstance(external_account_id, str) else None,
+            last_error=existing.last_error if existing is not None else None,
             last_connected_at=datetime.now(UTC).replace(tzinfo=None),
             updated_at=datetime.now(UTC).replace(tzinfo=None),
         )

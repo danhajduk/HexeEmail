@@ -14,7 +14,7 @@ class ProviderRegistry:
     _providers: dict[str, EmailProviderAdapter] = field(default_factory=dict, init=False)
 
     def __post_init__(self) -> None:
-        self.register_provider(GmailProviderAdapter())
+        self.register_provider(GmailProviderAdapter(self.config.runtime_dir))
 
     def register_provider(self, adapter: EmailProviderAdapter) -> None:
         self._providers[str(adapter.provider_id)] = adapter
