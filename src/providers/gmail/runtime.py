@@ -28,6 +28,9 @@ class GmailRuntimeLayout:
     def account_file(self, account_id: str) -> Path:
         return self.accounts_dir / f"{account_id}.json"
 
+    def token_file(self, account_id: str) -> Path:
+        return self.accounts_dir / f"{account_id}.token.json"
+
     def oauth_session_file(self, state: str) -> Path:
         return self.oauth_sessions_dir / f"{state}.json"
 

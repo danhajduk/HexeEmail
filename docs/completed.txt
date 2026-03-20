@@ -42,3 +42,4 @@ Task 041: Implement Gmail connect URL generation
 Task 042: Add Gmail OAuth start endpoint
 Task 043: Add Gmail OAuth callback endpoint
 Task 044: Implement Gmail token exchange client
+Task 045: Implement Gmail token storage
