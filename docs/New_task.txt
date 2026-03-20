@@ -47,15 +47,6 @@ Do not edit above this line:
 
 # Email Node — Phase 2 Tasks
 
-[TODO] Task 048: Implement Gmail token refresh flow
-- Add refresh-token logic for Gmail accounts
-- Refresh expired or near-expiry access tokens
-- Update persisted token metadata after refresh
-- Handle revoked/invalid refresh token cases
-- Transition account state appropriately on refresh failure
-
----
-
 [TODO] Task 049: Implement provider account state machine
 - Add explicit account state transitions:
   - not_configured
@@ -238,3 +229,113 @@ Do not edit above this line:
   - declaration updated with gmail enabled
   - governance fetched successfully
   - node reports operational readiness
+
+[TODO] Task 063: Migrate Gmail authentication design to Google OAuth Web Application flow
+- Review all existing Email Node Phase 2 tasks and documentation related to Gmail authentication
+- Update the architecture to explicitly use:
+  - Google OAuth client type: Web application
+  - Authorization Code flow
+  - server-side token exchange
+  - server-side refresh token storage
+- Remove or correct any wording that implies:
+  - desktop/native OAuth client is the primary implementation
+  - out-of-band/manual copy-paste auth flow
+  - Core owns Gmail credentials
+  - AI Node participates in Gmail authentication
+- Standardize callback design to:
+  - local callback endpoint owned by Email Node
+  - default dev callback:
+    - http://localhost:8092/providers/gmail/oauth/callback
+- Update provider activation tasks to reflect:
+  - Email Node generates connect URL
+  - Email Node receives OAuth callback
+  - Email Node exchanges authorization code for tokens
+  - Email Node stores refresh token locally and securely
+  - Email Node refreshes access tokens as needed
+- Update all Gmail auth docs to clearly separate:
+  - Core trust onboarding
+  - Gmail provider OAuth authorization
+- Ensure task wording consistently reflects:
+  - classification-first node design
+  - Gmail as provider ingress
+  - AI work delegated to AI Node
+- Update status, runbook, and acceptance criteria so Gmail provider connection is validated through the Web Application OAuth flow
+- Add migration notes describing which prior tasks were clarified or superseded by this authentication correction
+
+[TODO] Task 064: Refactor Gmail provider tasks and docs to match classification-first architecture
+- Review all existing Email Node Phase 2 tasks from 032 onward
+- Rewrite task descriptions where needed so the node is framed as:
+  - email ingress
+  - normalization
+  - routing
+  - automation orchestration
+- Remove any wording that frames Email Node as:
+  - a full email client
+  - an AI execution node
+  - a mailbox management UI
+- Update Gmail scope planning to prioritize classification-required read access before outbound send access
+- Align capability/task-family wording with:
+  - task.ingest.email
+  - task.routing.email
+  - task.automation.email
+- Ensure AI-dependent tasks explicitly describe delegation to AI Node instead of local inference inside Email Node
+- Update end-of-phase acceptance criteria to require:
+  - Gmail provider connected
+  - normalized email ingestion path available
+  - AI delegation contract defined
+  - first classification-oriented workflow path ready
+
+  
+[TODO] Task 065: Create Gmail OAuth setup guide for Google Cloud and Google Auth Platform
+- Create a new documentation page:
+  - docs/gmail-oauth-setup-guide.md
+- Document the full setup process for Gmail authentication using:
+  - Google OAuth 2.0
+  - Web application client
+  - server-side authorization code flow
+- Include step-by-step instructions for:
+  - creating or selecting a Google Cloud project
+  - enabling the Gmail API
+  - configuring the OAuth consent screen / Google Auth Platform settings
+  - creating OAuth credentials
+  - selecting application type:
+    - Web application
+  - configuring authorized redirect URIs
+  - using local development callback URI:
+    - http://localhost:8092/providers/gmail/oauth/callback
+- Explain the role of:
+  - Client ID
+  - Client Secret
+  - redirect URI
+  - authorization code
+  - access token
+  - refresh token
+- Explain the difference between:
+  - Core trust onboarding
+  - Gmail provider authorization
+- Document required Email Node environment/config values:
+  - Gmail client id
+  - Gmail client secret source
+  - Gmail redirect URI
+  - requested Gmail scopes
+- Add a section for common setup errors and fixes:
+  - redirect_uri_mismatch
+  - invalid_client
+  - invalid_grant
+  - missing refresh token
+  - consent/scope mismatch
+- Add a section describing secure handling rules:
+  - do not commit client secrets
+  - do not expose refresh tokens in logs
+  - store OAuth tokens only in Email Node runtime secret storage
+- Add a final verification checklist:
+  - Gmail API enabled
+  - OAuth client created
+  - redirect URI registered correctly
+  - local callback reachable
+  - successful OAuth callback received
+  - refresh token stored
+  - Gmail account marked connected
+- Cross-link this page from:
+  - docs/email-node-phase2-provider-activation.md
+  - docs/phase2-gmail-provider-runbook.md

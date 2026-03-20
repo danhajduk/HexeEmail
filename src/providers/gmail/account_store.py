@@ -35,6 +35,14 @@ class GmailAccountStore:
         except (json.JSONDecodeError, ValidationError) as exc:
             raise GmailAccountStoreError(f"gmail account record is invalid for account {account_id}: {exc}") from exc
 
+    def list_accounts(self) -> list[ProviderAccountRecord]:
+        records: list[ProviderAccountRecord] = []
+        for path in sorted(self.layout.accounts_dir.glob("*.json")):
+            if path.name.endswith(".token.json"):
+                continue
+            records.append(self.load_account(path.stem))  # type: ignore[arg-type]
+        return [record for record in records if record is not None]
+
     def _set_mode(self, path: Path, mode: int) -> None:
         try:
             os.chmod(path, mode)
