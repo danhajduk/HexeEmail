@@ -29,7 +29,7 @@ def create_app(
         finally:
             await node_service.stop()
 
-    app = FastAPI(title="Synthia Email Node", lifespan=lifespan)
+    app = FastAPI(title="Hexe Email Node", lifespan=lifespan)
     app.middleware("http")(correlation_id_middleware)
 
     @app.get("/health/live")

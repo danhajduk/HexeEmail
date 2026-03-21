@@ -193,7 +193,7 @@ function ProviderSetupPage({
       <section className="hero card">
         <div>
           <div className="hero-topline">
-            <div className="eyebrow">Synthia Email Node</div>
+            <div className="eyebrow">Hexe Email Node</div>
             <div className={`status-pill tone-${statusTone(providerSummary?.provider_state)}`}>
               gmail: {providerSummary?.provider_state || "loading"}
             </div>
@@ -625,7 +625,7 @@ export function App() {
         <section className="hero card">
           <div>
             <div className="hero-topline">
-              <div className="eyebrow">Synthia Email Node</div>
+              <div className="eyebrow">Hexe Email Node</div>
               <div className={`status-pill tone-${nodeState.tone}`}>state: {nodeState.label}</div>
             </div>
             <h1>Operator Onboarding Console</h1>

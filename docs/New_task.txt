@@ -1,9 +1,8 @@
-Workflow skill: $synthia-workflow 
-(/home/dan/.codex/skills/synthia-workflow/SKILL.md)
+Workflow skill: implementation workflow
 
 ## Codex Execution Directive
 
-You are acting as the Synthia development agent.
+You are acting as the Hexe development agent.
 
 Your job is to implement tasks listed in this file sequentially.
 
@@ -44,5 +43,3 @@ if it is not present and should be node-owned create a file with the new data in
 
 Do not edit above this line:
 #######################################################################
-
-# Email Node — Phase 2 Tasks

@@ -11,7 +11,7 @@ This guide covers Gmail authentication for the Email Node using:
 
 Keep this separate from Core trust onboarding:
 
-- Core trust onboarding establishes whether the Email Node is trusted by Synthia Core
+- Core trust onboarding establishes whether the Email Node is trusted by Hexe Core
 - Gmail provider authorization grants the trusted Email Node access to a Gmail provider account
 
 ## OAuth Model
@@ -122,5 +122,5 @@ Current implementation examples:
 
 ## Related Docs
 
-- [email-node-phase2-provider-activation.md](/home/dan/Projects/SynthiaEmail/docs/email-node-phase2-provider-activation.md)
-- [phase2-gmail-provider-runbook.md](/home/dan/Projects/SynthiaEmail/docs/phase2-gmail-provider-runbook.md)
+- [email-node-phase2-provider-activation.md](email-node-phase2-provider-activation.md)
+- [phase2-gmail-provider-runbook.md](phase2-gmail-provider-runbook.md)

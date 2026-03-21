@@ -41,7 +41,7 @@ class MQTTManager:
 
     def connect(self, trust_material: TrustMaterial) -> None:
         self._trust = trust_material
-        self._presence_topic = f"synthia/nodes/{trust_material.node_id}/presence"
+        self._presence_topic = f"hexe/nodes/{trust_material.node_id}/presence"
         self._client = _build_client(trust_material.operational_mqtt_identity)
         self._client.username_pw_set(
             trust_material.operational_mqtt_identity,

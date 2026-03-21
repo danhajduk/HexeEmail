@@ -2,7 +2,7 @@
 
 The email node expects the following Core conditions for Phase 1:
 
-- `email-node` is present in `SYNTHIA_NODE_ONBOARDING_SUPPORTED_TYPES`
+- `email-node` is present in `HEXE_NODE_ONBOARDING_SUPPORTED_TYPES`
 - `POST /api/system/nodes/onboarding/sessions` is reachable from the node
 - `GET /api/system/nodes/onboarding/sessions/{session_id}/finalize` is reachable from the node
 - Core approval UI is reachable by operators through the returned `approval_url`

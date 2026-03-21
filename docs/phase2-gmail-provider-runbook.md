@@ -110,5 +110,5 @@ The current capability flow is provider-aware:
 
 ## Related Docs
 
-- [email-node-phase2-provider-activation.md](/home/dan/Projects/SynthiaEmail/docs/email-node-phase2-provider-activation.md)
-- [gmail-oauth-setup-guide.md](/home/dan/Projects/SynthiaEmail/docs/gmail-oauth-setup-guide.md)
+- [email-node-phase2-provider-activation.md](email-node-phase2-provider-activation.md)
+- [gmail-oauth-setup-guide.md](gmail-oauth-setup-guide.md)

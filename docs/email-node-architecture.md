@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The Synthia Email Node is a provider-neutral edge/runtime service that onboards to Synthia Core as an `email-node`, persists trust material locally, and establishes an operational MQTT connection after approval.
+The Hexe Email Node is a provider-neutral edge/runtime service that onboards to Hexe Core as an `email-node`, persists trust material locally, and establishes an operational MQTT connection after approval.
 
 ## Phase 1 Scope
 
