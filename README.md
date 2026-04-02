@@ -20,9 +20,15 @@ Local defaults today:
 - node API: `9003`
 - onboarding UI: `8083`
 - Gmail provider setup is available from the UI via `Setup Provider`
+- `./scripts/start.sh` installs Python requirements and starts both API and UI
 
 Gmail provider activation uses a Google `Web application` client with the centralized public HTTPS callback:
 
 - `https://hexe-ai.com/google/gmail/callback`
 
 The node accepts forwarded Gmail OAuth callbacks on `/google/gmail/callback`, and the outbound OAuth `state` is signed and short-lived so callback routing does not depend on host parsing.
+
+Onboarding registration also reports both:
+
+- `ui_endpoint=http://<node-ip>:8083`
+- `api_base_url=http://<node-ip>:9003/api`

@@ -6,24 +6,22 @@ Phase 2 activates Gmail as the first provider for the Email Node. The initial OA
 
 ## Initial Scope Set
 
-The minimum required scope for the current implementation is:
+The current implemented scope set is:
 
 - `https://www.googleapis.com/auth/gmail.send`
-
-This remains the implemented scope in the codebase today because it is the narrowest working first slice.
+- `https://www.googleapis.com/auth/gmail.readonly`
 
 Architecture note:
 
 - the long-term classification-first direction will likely require carefully scoped read access later
 - when that happens, scope changes should be introduced deliberately and documented as a new architecture step
 
-## Why `gmail.send` First
+## Why Send Plus Readonly
 
-- it supports the first practical Gmail provider handshake we want to unlock
-- it avoids unnecessary read access to mailbox contents
-- it reduces operator concern during OAuth consent review
-- it keeps the activation surface aligned with least-privilege design
-- it gives the node a clean path to declare Gmail support without over-claiming inbox control
+- `gmail.send` supports outbound action capability
+- `gmail.readonly` supports the lightweight identity and mailbox-profile checks needed after connect
+- the pair remains narrower than modify/delete mailbox scopes
+- it keeps the activation surface smaller than full mailbox-management access
 
 ## Explicitly Deferred Scopes
 
@@ -35,7 +33,6 @@ The following scope categories are intentionally deferred from the first activat
 
 Examples of deferred expansion areas include:
 
-- `gmail.readonly`
 - `gmail.modify`
 - `https://www.googleapis.com/auth/gmail.metadata`
 
@@ -43,11 +40,11 @@ These are not needed for the Phase 2 activation milestone and would expand the t
 
 ## Activation Implications
 
-With `gmail.send` only:
+With `gmail.send` plus `gmail.readonly`:
 
 - Gmail can be linked and validated as an activated provider
-- outbound-provider capability can be declared later in a controlled way
-- inbox sync, mailbox inspection, and watcher setup remain out of scope
+- basic account identity/profile checks can complete after callback
+- inbox sync, mailbox modification, and watcher setup remain out of scope
 
 ## Future Expansion Rule
 
@@ -63,6 +60,6 @@ Scope growth should be additive and justified, not speculative.
 ## Security Notes
 
 - request the narrowest scope that satisfies the task
-- do not request read scopes for send-only activation
+- do not request modify/delete scopes for this activation slice
 - do not bundle watch or mailbox-management scopes into the first connect flow
 - preserve operator visibility into what the node is asking Google to authorize

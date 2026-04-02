@@ -6,7 +6,7 @@ This guide covers Gmail authentication for the Email Node using:
 
 - Google OAuth 2.0
 - Web application client credentials
-- public HTTPS callback on the Email Node, typically through Cloudflare Tunnel
+- centralized public HTTPS callback routed by Core
 - server-side Authorization Code flow
 
 Keep this separate from Core trust onboarding:
@@ -54,7 +54,7 @@ The Email Node Gmail flow uses:
 Configure the Gmail provider with:
 
 - Gmail client id
-- Gmail client secret source or reference
+- Gmail client secret or secret reference
 - Gmail redirect URI
 - requested Gmail scopes
 - provider enabled flag
@@ -62,8 +62,11 @@ Configure the Gmail provider with:
 Current implementation examples:
 
 - `client_id`
-- `client_secret_ref=env:GMAIL_CLIENT_SECRET`
+- `client_secret_ref=<literal-google-client-secret>` or `client_secret_ref=env:GMAIL_CLIENT_SECRET`
 - `redirect_uri=https://hexe-ai.com/google/gmail/callback`
+- requested scopes:
+  - `https://www.googleapis.com/auth/gmail.send`
+  - `https://www.googleapis.com/auth/gmail.readonly`
 
 ## Flow Summary
 
@@ -110,6 +113,7 @@ Current implementation examples:
 - do not expose refresh tokens in logs
 - store OAuth tokens only in Email Node runtime secret storage
 - keep Core trust credentials separate from Gmail provider credentials
+- if a literal client secret is stored in runtime config, treat `runtime/providers/gmail/provider_config.json` as sensitive local state
 
 ## Verification Checklist
 

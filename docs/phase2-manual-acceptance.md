@@ -16,7 +16,7 @@ This acceptance path should confirm:
 - Core onboarding is already complete
 - the node is trusted
 - Gmail OAuth config is present and valid
-- the node is reachable through a public HTTPS callback, typically via Cloudflare Tunnel
+- Core is configured to forward the centralized Gmail callback to the correct node
 
 ## Acceptance Steps
 
@@ -28,7 +28,7 @@ This acceptance path should confirm:
    `POST /providers/gmail/accounts/primary/connect/start`
 6. Open the returned Google OAuth URL.
 7. Complete Google consent.
-8. Confirm Google redirects to the Email Node callback endpoint through the public HTTPS hostname and the callback succeeds at:
+8. Confirm Google redirects to the centralized callback and the callback succeeds at:
    `https://hexe-ai.com/google/gmail/callback?...`
 9. Confirm `GET /providers/gmail/accounts/primary` reports connected health.
 10. Confirm `GET /providers` lists:
