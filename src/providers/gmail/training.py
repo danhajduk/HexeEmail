@@ -93,6 +93,27 @@ def render_flat_training_text(flattened: GmailFlattenedMessage) -> str:
     )
 
 
+def render_raw_training_text(message: GmailStoredMessage, *, label_names: dict[str, str] | None = None) -> str:
+    payload = _payload_json(message.raw_payload)
+    headers = _header_map(payload)
+    recipients = [value for value in message.recipients if value]
+    if not recipients:
+        recipients = [address for _, address in getaddresses([headers.get("to", ""), headers.get("cc", "")]) if address]
+    subject = _display_subject(message.subject or headers.get("subject"))
+    body = _display_body(message.snippet)
+    label_lookup = label_names or {}
+    labels = ", ".join(label_lookup.get(label_id, label_id) for label_id in message.label_ids)
+    return "\n".join(
+        [
+            f"from: {_display_sender(message.sender)}",
+            f"to: {', '.join(recipients)}",
+            f"subject: {subject}",
+            f"labels: {labels}",
+            f"body: {body}",
+        ]
+    )
+
+
 def _normalize_sender_email(value: str | None) -> str:
     _, address = parseaddr(value or "")
     return address.strip().lower()
@@ -107,7 +128,7 @@ def _extract_domain(sender_email: str) -> str:
 def _normalize_subject(value: str | None) -> str:
     if not value:
         return ""
-    subject = html.unescape(value).strip().lower()
+    subject = _clean_display_text(value).strip().lower()
     subject = REPLY_PREFIX_RE.sub("", subject)
     subject = NUMBER_RE.sub("number", subject)
     subject = PUNCT_RE.sub(" ", subject)
@@ -118,8 +139,7 @@ def _normalize_subject(value: str | None) -> str:
 def _normalize_body(value: str | None) -> str:
     if not value:
         return ""
-    body = html.unescape(value)
-    body = TAG_RE.sub(" ", body)
+    body = _clean_display_text(value)
     lines: list[str] = []
     for raw_line in body.splitlines():
         line = raw_line.strip()
@@ -136,6 +156,29 @@ def _normalize_body(value: str | None) -> str:
     body = PUNCT_RE.sub(" ", body.lower())
     body = MULTISPACE_RE.sub(" ", body).strip()
     return body[:MAX_BODY_PREVIEW_LENGTH].strip()
+
+
+def _display_sender(value: str | None) -> str:
+    return _clean_display_text(value).strip()
+
+
+def _display_subject(value: str | None) -> str:
+    return _clean_display_text(value).strip()
+
+
+def _display_body(value: str | None) -> str:
+    body = _clean_display_text(value)
+    body = MULTISPACE_RE.sub(" ", body).strip()
+    return body[:MAX_BODY_PREVIEW_LENGTH].strip()
+
+
+def _clean_display_text(value: str | None) -> str:
+    if not value:
+        return ""
+    text = html.unescape(value)
+    text = TAG_RE.sub(" ", text)
+    text = NON_PRINTING_RE.sub("", text)
+    return text
 
 
 def _recipient_count_bucket(count: int) -> str:

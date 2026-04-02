@@ -19,9 +19,11 @@ class GmailMailboxClientError(RuntimeError):
 class GmailMailboxClient:
     MESSAGES_ENDPOINT = "https://gmail.googleapis.com/gmail/v1/users/me/messages"
     MESSAGE_ENDPOINT_TEMPLATE = "https://gmail.googleapis.com/gmail/v1/users/me/messages/{message_id}"
+    LABELS_ENDPOINT = "https://gmail.googleapis.com/gmail/v1/users/me/labels"
     UNREAD_MESSAGES_QUERY = "is:unread"
     MESSAGE_LIST_QUOTA_UNITS = 5
     MESSAGE_GET_QUOTA_UNITS = 5
+    LABEL_LIST_QUOTA_UNITS = 1
 
     def __init__(
         self,
@@ -70,6 +72,47 @@ class GmailMailboxClient:
     async def fetch_unread_messages(self, *, token_record: GmailTokenRecord) -> list[GmailStoredMessage]:
         return await self.fetch_messages(token_record=token_record, query=self.UNREAD_MESSAGES_QUERY)
 
+    async def fetch_labels(self, *, token_record: GmailTokenRecord) -> list[dict[str, object]]:
+        response = await self._gmail_get(
+            account_id=token_record.account_id,
+            access_token=token_record.access_token,
+            url=self.LABELS_ENDPOINT,
+            params={"fields": "labels(id,name,type,messageListVisibility,labelListVisibility)"},
+            operation="labels.list",
+            quota_units=self.LABEL_LIST_QUOTA_UNITS,
+        )
+        payload = self._json_payload(response, "gmail labels fetch")
+        if response.is_error:
+            detail = payload.get("error", {}).get("message") if isinstance(payload, dict) else None
+            raise GmailMailboxClientError(detail or f"gmail labels fetch failed with status {response.status_code}")
+        if not isinstance(payload, dict):
+            raise GmailMailboxClientError("gmail labels fetch returned an invalid payload")
+        labels: list[dict[str, object]] = []
+        for item in payload.get("labels") or []:
+            if not isinstance(item, dict):
+                continue
+            label_id = item.get("id")
+            name = item.get("name")
+            if not isinstance(label_id, str) or not label_id or not isinstance(name, str) or not name:
+                continue
+            if label_id.startswith("Label_"):
+                continue
+            labels.append(
+                {
+                    "id": label_id,
+                    "name": name,
+                    "type": item.get("type") if isinstance(item.get("type"), str) else None,
+                    "message_list_visibility": item.get("messageListVisibility")
+                    if isinstance(item.get("messageListVisibility"), str)
+                    else None,
+                    "label_list_visibility": item.get("labelListVisibility")
+                    if isinstance(item.get("labelListVisibility"), str)
+                    else None,
+                }
+            )
+        labels.sort(key=lambda item: str(item.get("name", "")).lower())
+        return labels
+
     async def _count_query(self, account_id: str, access_token: str, query: str) -> int:
         response = await self._gmail_get(
             account_id=account_id,
@@ -99,7 +142,7 @@ class GmailMailboxClient:
 
         if window == "initial_learning":
             start = self._months_ago(local_now, 3)
-            return self._inbox_range_query(start, next_second)
+            return self._all_mail_range_query(start, next_second)
         if window == "yesterday":
             return self._inbox_date_query(yesterday_start - timedelta(days=1), today_start)
         if window == "today":
@@ -253,6 +296,9 @@ class GmailMailboxClient:
 
     def _inbox_range_query(self, after: datetime, before: datetime) -> str:
         return f"in:inbox after:{int(after.timestamp())} before:{int(before.timestamp())}"
+
+    def _all_mail_range_query(self, after: datetime, before: datetime) -> str:
+        return f"after:{int(after.timestamp())} before:{int(before.timestamp())}"
 
     def _inbox_date_query(self, after: datetime, before: datetime) -> str:
         return f"in:inbox after:{self._gmail_date(after)} before:{self._gmail_date(before)}"

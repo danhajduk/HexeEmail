@@ -65,7 +65,7 @@ def build_google_fetch_app():
     async def list_messages(q: str = Query(default=""), pageToken: str | None = None):
         if pageToken:
             return {"messages": []}
-        assert q == "is:unread" or q.startswith("in:inbox after:")
+        assert q == "is:unread" or q.startswith("in:inbox after:") or (q.startswith("after:") and "in:inbox" not in q)
         return {"messages": [{"id": "msg-1"}]}
 
     @app.get("/messages/{message_id}")
@@ -107,6 +107,37 @@ async def test_gmail_mailbox_client_fetches_message_metadata():
     assert messages[0].recipients == ["primary@example.com"]
 
 
+@pytest.mark.asyncio
+async def test_gmail_mailbox_client_fetches_labels():
+    app = FastAPI()
+
+    @app.get("/labels")
+    async def labels():
+        return {
+            "labels": [
+                {"id": "INBOX", "name": "INBOX", "type": "system"},
+                {"id": "Label_74", "name": "Hexe/Scanned", "type": "user"},
+            ]
+        }
+
+    client = GmailMailboxClient(transport=ASGITransport(app=app))
+    client.LABELS_ENDPOINT = "http://google.test/labels"
+    token = GmailTokenRecord(account_id="primary", access_token="access-token")
+
+    labels = await client.fetch_labels(token_record=token)
+    await client.aclose()
+
+    assert labels == [
+        {
+            "id": "INBOX",
+            "name": "INBOX",
+            "type": "system",
+            "message_list_visibility": None,
+            "label_list_visibility": None,
+        }
+    ]
+
+
 def test_gmail_mailbox_client_builds_local_time_window_queries():
     client = GmailMailboxClient()
 
@@ -118,4 +149,5 @@ def test_gmail_mailbox_client_builds_local_time_window_queries():
     assert today_query == "in:inbox after:2026/4/1"
     assert yesterday_query == "in:inbox after:2026/3/31 before:2026/4/2"
     assert last_hour_query.startswith("in:inbox after:")
-    assert initial_query.startswith("in:inbox after:")
+    assert initial_query.startswith("after:")
+    assert "in:inbox" not in initial_query

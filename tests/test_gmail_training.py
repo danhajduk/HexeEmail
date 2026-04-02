@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from providers.gmail.models import GmailStoredMessage
-from providers.gmail.training import NORMALIZATION_VERSION, flatten_message, render_flat_training_text
+from providers.gmail.training import NORMALIZATION_VERSION, flatten_message, render_flat_training_text, render_raw_training_text
 
 
 def test_gmail_training_normalization_renders_expected_flat_text():
@@ -44,3 +44,21 @@ def test_gmail_training_normalization_renders_expected_flat_text():
 
 def test_gmail_training_normalization_version_is_explicit():
     assert NORMALIZATION_VERSION == "v2"
+
+
+def test_gmail_training_raw_render_preserves_human_readable_text():
+    message = GmailStoredMessage(
+        account_id="primary",
+        message_id="msg-2",
+        sender="Alerts <alerts@example.com>",
+        recipients=["primary@example.com"],
+        subject="Look who&#39;s checking you out",
+        snippet="<div>Tap now</div>",
+        label_ids=["INBOX", "UNREAD"],
+        received_at=datetime(2026, 4, 2, 12, 0, 0),
+    )
+
+    rendered = render_raw_training_text(message)
+
+    assert "subject: Look who's checking you out" in rendered
+    assert "body: Tap now" in rendered

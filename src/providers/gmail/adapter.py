@@ -7,6 +7,7 @@ from logging_utils import get_logger
 from providers.base import EmailProviderAdapter
 from providers.gmail.account_store import GmailAccountStore
 from providers.gmail.fetch_schedule_store import GmailFetchScheduleStore
+from providers.gmail.label_cache_store import GmailLabelCacheStore
 from providers.gmail.mailbox_client import GmailMailboxClient, GmailMailboxClientError
 from providers.gmail.message_store import GmailMessageStore
 from providers.gmail.mailbox_status_store import GmailMailboxStatusStore
@@ -28,7 +29,7 @@ from providers.gmail.spamhaus_checker import GmailSpamhausChecker
 from providers.gmail.state_machine import GmailAccountStateMachine
 from providers.gmail.token_client import GmailTokenExchangeClient
 from providers.gmail.token_store import GmailTokenStore
-from providers.gmail.training import flatten_message, render_flat_training_text
+from providers.gmail.training import flatten_message, render_flat_training_text, render_raw_training_text
 from providers.gmail.training_model import GmailTrainingModelStore
 from providers.models import ProviderAccountRecord, ProviderHealth, ProviderId, ProviderState, ProviderValidationResult
 
@@ -53,6 +54,7 @@ class GmailProviderAdapter(EmailProviderAdapter):
         self.mailbox_status_store = GmailMailboxStatusStore(runtime_dir)
         self.message_store = GmailMessageStore(runtime_dir)
         self.fetch_schedule_store = GmailFetchScheduleStore(runtime_dir)
+        self.label_cache_store = GmailLabelCacheStore(runtime_dir)
         self.quota_tracker = GmailQuotaTracker(runtime_dir)
         self.state_machine = GmailAccountStateMachine(self.account_store)
         self.token_client = token_client or GmailTokenExchangeClient()
@@ -250,6 +252,20 @@ class GmailProviderAdapter(EmailProviderAdapter):
     async def message_store_summary(self, account_id: str) -> dict[str, object]:
         return self.message_store.account_summary(account_id)
 
+    async def available_labels(self, account_id: str, *, refresh: bool = True) -> dict[str, object]:
+        account_record = self.account_store.load_account(account_id)
+        cached = self.label_cache_store.load(account_id)
+        if not refresh:
+            return cached
+        token_record = self.token_store.load_token(account_id)
+        if token_record is None:
+            return cached
+        try:
+            labels = await self.mailbox_client.fetch_labels(token_record=token_record)
+        except GmailMailboxClientError:
+            return cached
+        return self.label_cache_store.save(account_id, labels)
+
     async def local_classification_summary(self, account_id: str) -> dict[str, object]:
         return self.message_store.local_classification_summary(account_id)
 
@@ -265,6 +281,7 @@ class GmailProviderAdapter(EmailProviderAdapter):
     async def manual_training_batch(self, account_id: str, *, threshold: float, limit: int = 40) -> dict[str, object]:
         account_record = self.account_store.load_account(account_id)
         messages = self.message_store.list_training_candidates(account_id, limit=limit, threshold=threshold)
+        label_names = self.label_cache_store.id_name_map(account_id)
         flattened = [flatten_message(message, account_email=account_record.email_address if account_record is not None else None) for message in messages]
         return {
             "provider_id": self.provider_id,
@@ -276,8 +293,9 @@ class GmailProviderAdapter(EmailProviderAdapter):
                 {
                     **item.model_dump(mode="json"),
                     "flat_text": render_flat_training_text(item),
+                    "raw_text": render_raw_training_text(message, label_names=label_names),
                 }
-                for item in flattened
+                for message, item in zip(messages, flattened, strict=False)
             ],
         }
 
@@ -306,19 +324,21 @@ class GmailProviderAdapter(EmailProviderAdapter):
     async def semi_auto_training_batch(self, account_id: str, *, threshold: float, limit: int = 20) -> dict[str, object]:
         account_record = self.account_store.load_account(account_id)
         messages = self.message_store.list_oldest_training_candidates(account_id, limit=limit, threshold=threshold)
+        label_names = self.label_cache_store.id_name_map(account_id)
         flattened = [flatten_message(message, account_email=account_record.email_address if account_record is not None else None) for message in messages]
         predictions = self.training_model_store.predict(
             [render_flat_training_text(item) for item in flattened],
             threshold=threshold,
         )
         items: list[dict[str, object]] = []
-        for item, prediction in zip(flattened, predictions, strict=False):
+        for message, item, prediction in zip(messages, flattened, predictions, strict=False):
             predicted_label = prediction["predicted_label"]
             predicted_confidence = prediction["predicted_confidence"]
             items.append(
                 {
                     **item.model_dump(mode="json"),
                     "flat_text": render_flat_training_text(item),
+                    "raw_text": render_raw_training_text(message, label_names=label_names),
                     "predicted_label": predicted_label,
                     "predicted_confidence": predicted_confidence,
                     "raw_predicted_label": prediction["raw_predicted_label"],

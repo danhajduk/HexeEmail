@@ -818,7 +818,7 @@ function TrainingPage({
                           </div>
                           <span className="pill">{item.message_id}</span>
                         </div>
-                        <pre className="training-flat-text">{item.flat_text}</pre>
+                        <pre className="training-flat-text">{item.raw_text || item.flat_text}</pre>
                         <div className="training-controls">
                           <label className="field">
                             <span className="field-label">Label</span>
@@ -887,6 +887,7 @@ function ProviderSetupPage({
   bootstrap,
   providerConfig,
   providerStatus,
+  gmailStatus,
   providerForm,
   providerDirty,
   providerLoading,
@@ -907,6 +908,7 @@ function ProviderSetupPage({
   const providerHealth = providerSummary?.health || null;
   const providerAccounts = providerSummary?.accounts || [];
   const primaryAccount = providerAccounts[0] || null;
+  const primaryStatus = gmailStatus?.accounts?.[0] || null;
   const validation = providerConfig?.validation || null;
   const providerReadyReasons = [];
   if (bootstrap?.status?.trust_state !== "trusted") {
@@ -976,6 +978,22 @@ function ProviderSetupPage({
               <dd>{providerConfig?.config?.redirect_uri || "not set"}</dd>
             </div>
           </dl>
+          {primaryStatus?.labels?.labels?.length ? (
+            <div className="stack">
+              <div className="section-heading">
+                <h3>Available Labels</h3>
+                <span className="pill">{primaryStatus.labels.labels.length}</span>
+              </div>
+              <div className="training-sidebar-stats">
+                {primaryStatus.labels.labels.map((label) => (
+                  <div key={label.id} className="training-sidebar-stat">
+                    <span>{label.name}</span>
+                    <span className="muted tiny">{label.id}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
           {providerNotice ? <div className="callout callout-success">{providerNotice}</div> : null}
           {providerError ? <div className="callout callout-danger">{providerError}</div> : null}
         </article>
@@ -1743,6 +1761,7 @@ export function App() {
           bootstrap={bootstrap}
           providerConfig={providerConfig}
           providerStatus={providerStatus}
+          gmailStatus={gmailStatus}
           providerForm={providerForm}
           providerDirty={providerDirty}
           providerLoading={providerLoading}

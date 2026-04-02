@@ -229,6 +229,44 @@ async def test_gmail_adapter_fetch_window_saves_each_page_incrementally(tmp_path
 
 
 @pytest.mark.asyncio
+async def test_gmail_adapter_available_labels_uses_cache_and_resolves_names(tmp_path):
+    GmailProviderConfigStore(tmp_path).save(
+        GmailOAuthConfig(
+            enabled=True,
+            client_id="client-id",
+            client_secret_ref="secret",
+            redirect_uri="https://email-node.example.com/api/providers/gmail/oauth/callback",
+        )
+    )
+    adapter = GmailProviderAdapter(tmp_path)
+    adapter.token_store.save_token(
+        "primary",
+        GmailTokenRecord(
+            account_id="primary",
+            access_token="access-token",
+            refresh_token="refresh-token",
+            expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=1),
+        ),
+    )
+
+    class LabelMailboxClient:
+        quota_tracker = None
+
+        async def fetch_labels(self, *, token_record):
+            return [
+                {"id": "INBOX", "name": "INBOX", "type": "system"},
+                {"id": "Label_74", "name": "Hexe/Scanned", "type": "user"},
+            ]
+
+    adapter.mailbox_client = LabelMailboxClient()
+
+    payload = await adapter.available_labels("primary")
+
+    assert payload["labels"] == [{"id": "INBOX", "name": "INBOX", "type": "system"}]
+    assert "Label_74" not in adapter.label_cache_store.id_name_map("primary")
+
+
+@pytest.mark.asyncio
 async def test_gmail_adapter_does_not_recheck_messages_already_sent_to_spamhaus(tmp_path):
     GmailProviderConfigStore(tmp_path).save(
         GmailOAuthConfig(

@@ -655,6 +655,8 @@ async def test_gmail_training_api_returns_manual_batch_and_saves_labels(config, 
     assert "from: sender@example.com" in body["items"][0]["flat_text"]
     assert "is_reply=true" in body["items"][0]["flat_text"]
     assert "has_unsubscribe=true" in body["items"][0]["flat_text"]
+    assert body["items"][0]["raw_text"].startswith("from: Sender <sender@example.com>")
+    assert "subject: Re: Please review" in body["items"][0]["raw_text"]
 
     assert save_response.status_code == 200
     assert save_response.json()["saved_count"] == 1

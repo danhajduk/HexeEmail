@@ -1040,6 +1040,7 @@ class NodeService:
                 if hasattr(adapter, "refresh_mailbox_status")
                 else await adapter.get_mailbox_status(account.account_id) if hasattr(adapter, "get_mailbox_status") else None
             )
+            labels = await adapter.available_labels(account.account_id) if hasattr(adapter, "available_labels") else None
             message_summary = await adapter.message_store_summary(account.account_id) if hasattr(adapter, "message_store_summary") else None
             spamhaus_summary = await adapter.spamhaus_summary(account.account_id) if hasattr(adapter, "spamhaus_summary") else None
             quota_usage = await adapter.quota_usage_summary(account.account_id) if hasattr(adapter, "quota_usage_summary") else None
@@ -1047,6 +1048,7 @@ class NodeService:
                 {
                     "account": account.model_dump(mode="json"),
                     "mailbox_status": mailbox_status.model_dump(mode="json") if mailbox_status is not None else None,
+                    "labels": labels,
                     "message_store": message_summary,
                     "spamhaus": spamhaus_summary.model_dump(mode="json") if spamhaus_summary is not None else None,
                     "quota_usage": quota_usage.model_dump(mode="json") if quota_usage is not None else None,

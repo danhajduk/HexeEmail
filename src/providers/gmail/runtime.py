@@ -47,6 +47,10 @@ class GmailRuntimeLayout:
         return self.provider_dir / "quota_usage.json"
 
     @property
+    def label_cache_dir(self) -> Path:
+        return self.provider_dir / "labels"
+
+    @property
     def training_model_path(self) -> Path:
         return self.provider_dir / "training_model.pkl"
 
@@ -66,11 +70,15 @@ class GmailRuntimeLayout:
     def mailbox_status_file(self, account_id: str) -> Path:
         return self.mailbox_status_dir / f"{account_id}.json"
 
+    def label_cache_file(self, account_id: str) -> Path:
+        return self.label_cache_dir / f"{account_id}.json"
+
     def ensure_layout(self) -> None:
         self.provider_dir.mkdir(parents=True, exist_ok=True)
         self.accounts_dir.mkdir(parents=True, exist_ok=True)
         self.oauth_sessions_dir.mkdir(parents=True, exist_ok=True)
         self.mailbox_status_dir.mkdir(parents=True, exist_ok=True)
+        self.label_cache_dir.mkdir(parents=True, exist_ok=True)
         self._ensure_file(self.provider_config_path, "{}\n")
         self._ensure_file(self.oauth_state_secret_path, f"{secrets.token_urlsafe(32)}\n")
         self._ensure_file(self.fetch_schedule_state_path, "{}\n")
@@ -81,6 +89,7 @@ class GmailRuntimeLayout:
         self._set_mode(self.accounts_dir, 0o700)
         self._set_mode(self.oauth_sessions_dir, 0o700)
         self._set_mode(self.mailbox_status_dir, 0o700)
+        self._set_mode(self.label_cache_dir, 0o700)
         self._set_mode(self.provider_config_path, 0o600)
         self._set_mode(self.oauth_state_secret_path, 0o600)
         self._set_mode(self.fetch_schedule_state_path, 0o600)
