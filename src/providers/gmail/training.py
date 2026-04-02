@@ -260,6 +260,7 @@ def build_training_dataset(
     *,
     my_addresses: list[str] | None = None,
     bootstrap_threshold: float,
+    allow_bootstrap: bool = True,
 ) -> tuple[list[GmailTrainingDatasetRow], GmailTrainingDatasetSummary]:
     rows: list[GmailTrainingDatasetRow] = []
     summary = GmailTrainingDatasetSummary(
@@ -273,7 +274,11 @@ def build_training_dataset(
             summary.excluded_mailbox_count += 1
             continue
         normalized_text = normalize_email_for_classifier(message, my_addresses=my_addresses)
-        bootstrap_result = propose_bootstrap_label(message, my_addresses=my_addresses, threshold=bootstrap_threshold)
+        bootstrap_result = (
+            propose_bootstrap_label(message, my_addresses=my_addresses, threshold=bootstrap_threshold)
+            if allow_bootstrap
+            else (None, 0.0, None)
+        )
         label, label_source, sample_weight = resolve_training_label(message, bootstrap_result)
         if label is None or label == GmailTrainingLabel.UNKNOWN or label_source is None or sample_weight is None:
             summary.excluded_no_label_count += 1

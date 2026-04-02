@@ -40,6 +40,7 @@ LOGGER = get_logger(__name__)
 
 class GmailProviderAdapter(EmailProviderAdapter):
     provider_id = ProviderId.GMAIL.value
+    spamhaus_auto_check_threshold = 10
 
     def __init__(
         self,
@@ -290,8 +291,14 @@ class GmailProviderAdapter(EmailProviderAdapter):
         return self.quota_tracker.snapshot(account_id)
 
     async def manual_training_batch(self, account_id: str, *, threshold: float, limit: int = 40) -> dict[str, object]:
+        await self._ensure_spamhaus_ready_for_training(account_id)
         account_record = self.account_store.load_account(account_id)
-        messages = self.message_store.list_training_candidates(account_id, limit=limit, threshold=threshold)
+        checked_ids = self.message_store.list_spamhaus_checked_message_ids(account_id)
+        messages = [
+            message
+            for message in self.message_store.list_training_candidates(account_id, limit=max(limit * 5, limit), threshold=threshold)
+            if message.message_id in checked_ids
+        ][:limit]
         label_names = self.label_cache_store.id_name_map(account_id)
         flattened = [flatten_message(message, account_email=account_record.email_address if account_record is not None else None) for message in messages]
         return {
@@ -311,6 +318,13 @@ class GmailProviderAdapter(EmailProviderAdapter):
         }
 
     async def save_manual_classifications(self, account_id: str, batch: GmailManualClassificationBatchInput) -> dict[str, object]:
+        unchecked = [
+            item.message_id
+            for item in batch.items
+            if not self.message_store.is_spamhaus_checked(account_id, item.message_id)
+        ]
+        if unchecked:
+            raise ValueError("cannot classify mail before Spamhaus has checked it")
         saved = 0
         for item in batch.items:
             self.message_store.update_local_classification(
@@ -323,12 +337,39 @@ class GmailProviderAdapter(EmailProviderAdapter):
             saved += 1
         return {"provider_id": self.provider_id, "account_id": account_id, "saved_count": saved}
 
-    async def train_local_model(self, account_id: str, *, bootstrap_threshold: float) -> dict[str, object]:
+    async def train_local_model(
+        self,
+        account_id: str,
+        *,
+        bootstrap_threshold: float,
+        minimum_confidence: float | None = None,
+    ) -> dict[str, object]:
         account_record = self.account_store.load_account(account_id)
+        await self._ensure_spamhaus_ready_for_training(account_id)
+        checked_ids = self.message_store.list_spamhaus_checked_message_ids(account_id)
+        messages = [
+            message
+            for message in self.message_store.list_all_messages(account_id)
+            if message.message_id in checked_ids
+        ]
+        allow_bootstrap = False
+        if minimum_confidence is None:
+            messages = [
+                message
+                for message in messages
+                if message.manual_classification
+            ]
+        else:
+            messages = [
+                message
+                for message in messages
+                if message.manual_classification or float(message.local_label_confidence or 0.0) >= minimum_confidence
+            ]
         dataset, summary = build_training_dataset(
-            self.message_store.list_all_messages(account_id),
+            messages,
             my_addresses=[account_record.email_address] if account_record and account_record.email_address else [],
             bootstrap_threshold=bootstrap_threshold,
+            allow_bootstrap=allow_bootstrap,
         )
         status = self.training_model_store.train_classifier(dataset, dataset_summary=summary)
         return {
@@ -336,11 +377,18 @@ class GmailProviderAdapter(EmailProviderAdapter):
             "account_id": account_id,
             "model_status": status,
             "dataset_summary": summary.model_dump(mode="json"),
+            "minimum_confidence": minimum_confidence,
         }
 
     async def semi_auto_training_batch(self, account_id: str, *, threshold: float, limit: int = 20) -> dict[str, object]:
+        await self._ensure_spamhaus_ready_for_training(account_id)
         account_record = self.account_store.load_account(account_id)
-        messages = self.message_store.list_oldest_training_candidates(account_id, limit=limit, threshold=threshold)
+        checked_ids = self.message_store.list_spamhaus_checked_message_ids(account_id)
+        messages = [
+            message
+            for message in self.message_store.list_oldest_training_candidates(account_id, limit=max(limit * 5, limit), threshold=threshold)
+            if message.message_id in checked_ids
+        ][:limit]
         label_names = self.label_cache_store.id_name_map(account_id)
         flattened = [flatten_message(message, account_email=account_record.email_address if account_record is not None else None) for message in messages]
         predictions = self.training_model_store.predict(
@@ -370,7 +418,47 @@ class GmailProviderAdapter(EmailProviderAdapter):
             "items": items,
         }
 
+    async def classified_training_batch(
+        self,
+        account_id: str,
+        *,
+        label: GmailTrainingLabel,
+        limit: int = 40,
+    ) -> dict[str, object]:
+        await self._ensure_spamhaus_ready_for_training(account_id)
+        account_record = self.account_store.load_account(account_id)
+        checked_ids = self.message_store.list_spamhaus_checked_message_ids(account_id)
+        messages = [
+            message
+            for message in self.message_store.list_classified_messages_by_label(account_id, label=label, limit=max(limit * 5, limit))
+            if message.message_id in checked_ids
+        ][:limit]
+        label_names = self.label_cache_store.id_name_map(account_id)
+        flattened = [flatten_message(message, account_email=account_record.email_address if account_record is not None else None) for message in messages]
+        return {
+            "provider_id": self.provider_id,
+            "account_id": account_id,
+            "count": len(flattened),
+            "source": "classified_label",
+            "selected_label": label.value,
+            "items": [
+                {
+                    **item.model_dump(mode="json"),
+                    "flat_text": render_flat_training_text(item),
+                    "raw_text": render_raw_training_text(message, label_names=label_names),
+                }
+                for message, item in zip(messages, flattened, strict=False)
+            ],
+        }
+
     async def save_semi_auto_review(self, account_id: str, batch: GmailSemiAutoClassificationBatchInput) -> dict[str, object]:
+        unchecked = [
+            item.message_id
+            for item in batch.items
+            if not self.message_store.is_spamhaus_checked(account_id, item.message_id)
+        ]
+        if unchecked:
+            raise ValueError("cannot classify mail before Spamhaus has checked it")
         saved = 0
         manual_count = 0
         for item in batch.items:
@@ -420,6 +508,11 @@ class GmailProviderAdapter(EmailProviderAdapter):
             "error_count": error_count,
             "summary": summary.model_dump(mode="json"),
         }
+
+    async def _ensure_spamhaus_ready_for_training(self, account_id: str) -> None:
+        summary = self.message_store.spamhaus_summary(account_id)
+        if summary.pending_count >= self.spamhaus_auto_check_threshold:
+            await self.check_spamhaus_for_stored_messages(account_id)
 
     async def fetch_schedule_state(self) -> GmailFetchScheduleState:
         return self.fetch_schedule_store.load_state()

@@ -580,6 +580,18 @@ async def test_gmail_spamhaus_check_api_marks_stored_messages(config, core_clien
         ],
         now=datetime(2026, 4, 2, 12, 5, 0).astimezone(),
     )
+    adapter.message_store.upsert_spamhaus_check(
+        GmailSpamhausCheck(
+            account_id="primary",
+            message_id="msg-1",
+            sender_email="sender@example.com",
+            sender_domain="example.com",
+            checked=True,
+            listed=False,
+            status="clean",
+        ),
+        now=datetime(2026, 4, 2, 12, 6, 0).astimezone(),
+    )
 
     class FakeSpamhausChecker:
         async def check_sender(self, *, account_id: str, message_id: str, sender: str | None):
@@ -708,6 +720,16 @@ async def test_gmail_training_api_supports_model_training_and_semi_auto_review(c
                 label_ids=["INBOX"],
                 received_at=datetime(2026, 4, 1, 10, 0, 0).astimezone(),
             ),
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="auto-1",
+                sender="Deals <deals@example.com>",
+                recipients=["primary@example.com"],
+                subject="Big sale today",
+                snippet="Limited offer just for you",
+                label_ids=["INBOX"],
+                received_at=datetime(2026, 4, 1, 9, 0, 0).astimezone(),
+            ),
         ],
         now=datetime(2026, 4, 2, 12, 5, 0).astimezone(),
     )
@@ -725,6 +747,26 @@ async def test_gmail_training_api_supports_model_training_and_semi_auto_review(c
         confidence=1.0,
         manual_classification=True,
     )
+    adapter.message_store.update_local_classification(
+        "primary",
+        "auto-1",
+        label=GmailTrainingLabel.MARKETING,
+        confidence=0.98,
+        manual_classification=False,
+    )
+    for message_id in ["train-1", "train-2", "predict-1", "auto-1"]:
+        adapter.message_store.upsert_spamhaus_check(
+            GmailSpamhausCheck(
+                account_id="primary",
+                message_id=message_id,
+                sender_email=f"{message_id}@example.com",
+                sender_domain="example.com",
+                checked=True,
+                listed=False,
+                status="clean",
+            ),
+            now=datetime(2026, 4, 2, 12, 6, 0).astimezone(),
+        )
 
     class FakeTrainingModelStore:
         def __init__(self) -> None:
@@ -750,6 +792,7 @@ async def test_gmail_training_api_supports_model_training_and_semi_auto_review(c
 
         def train_classifier(self, dataset, *, dataset_summary):
             assert len(dataset) == 2
+            assert [row.message_id for row in dataset] == ["train-1", "train-2"]
             assert [row.label.value for row in dataset] == ["direct_human", "invoice"]
             assert dataset_summary.included_count == 2
             self.trained = True
@@ -805,6 +848,291 @@ async def test_gmail_training_api_supports_model_training_and_semi_auto_review(c
     assert saved_message.local_label == "financial"
     assert saved_message.local_label_confidence == 1.0
     assert saved_message.manual_classification is True
+
+
+@pytest.mark.asyncio
+async def test_gmail_training_api_supports_high_confidence_only_training(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    adapter = service.provider_registry.get_provider("gmail")
+    adapter.account_store.save_account(
+        adapter.state_machine.ensure_account("primary").model_copy(
+            update={"status": "connected", "email_address": "primary@example.com"}
+        )
+    )
+    adapter.message_store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="hi-1",
+                sender="Promo <promo@example.com>",
+                recipients=["primary@example.com"],
+                subject="Great sale",
+                snippet="Offer",
+                label_ids=["INBOX"],
+                received_at=datetime(2026, 4, 1, 12, 0, 0).astimezone(),
+                local_label="marketing",
+                local_label_confidence=0.95,
+            ),
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="lo-1",
+                sender="Update <update@example.com>",
+                recipients=["primary@example.com"],
+                subject="System update",
+                snippet="Info",
+                label_ids=["INBOX"],
+                received_at=datetime(2026, 4, 1, 11, 0, 0).astimezone(),
+                local_label="system",
+                local_label_confidence=0.85,
+            ),
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="manual-1",
+                sender="Person <person@example.com>",
+                recipients=["primary@example.com"],
+                subject="Please respond",
+                snippet="Need your reply",
+                label_ids=["INBOX"],
+                received_at=datetime(2026, 4, 1, 10, 0, 0).astimezone(),
+                local_label="direct_human",
+                local_label_confidence=1.0,
+                manual_classification=True,
+            ),
+        ],
+        now=datetime(2026, 4, 2, 12, 5, 0).astimezone(),
+    )
+    for message_id in ["hi-1", "lo-1", "manual-1"]:
+        adapter.message_store.upsert_spamhaus_check(
+            GmailSpamhausCheck(
+                account_id="primary",
+                message_id=message_id,
+                sender_email=f"{message_id}@example.com",
+                sender_domain="example.com",
+                checked=True,
+                listed=False,
+                status="clean",
+            ),
+            now=datetime(2026, 4, 2, 12, 6, 0).astimezone(),
+        )
+
+    class FakeTrainingModelStore:
+        def train_classifier(self, dataset, *, dataset_summary):
+            assert [row.message_id for row in dataset] == ["hi-1", "manual-1"]
+            assert dataset_summary.included_count == 2
+            return {
+                "trained": True,
+                "trained_at": "2026-04-02T12:10:00-07:00",
+                "sample_count": 2,
+                "train_count": 1,
+                "test_count": 1,
+                "class_counts": {"marketing": 1, "direct_human": 1},
+                "detail": "trained in test",
+            }
+
+        def status(self):
+            return {
+                "trained": True,
+                "trained_at": "2026-04-02T12:10:00-07:00",
+                "sample_count": 2,
+                "class_counts": {"marketing": 1, "direct_human": 1},
+                "detail": "trained in test",
+            }
+
+    adapter.training_model_store = FakeTrainingModelStore()
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        train_response = await client.post("/api/gmail/training/train-model?minimum_confidence=0.92")
+
+    await service.stop()
+
+    assert train_response.status_code == 200
+    assert train_response.json()["minimum_confidence"] == 0.92
+
+
+@pytest.mark.asyncio
+async def test_gmail_training_status_includes_manual_and_high_confidence_counts(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    adapter = service.provider_registry.get_provider("gmail")
+    adapter.account_store.save_account(
+        adapter.state_machine.ensure_account("primary").model_copy(
+            update={"status": "connected", "email_address": "primary@example.com"}
+        )
+    )
+    adapter.message_store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="manual-1",
+                sender="Person <person@example.com>",
+                recipients=["primary@example.com"],
+                subject="Need review",
+                snippet="Please review",
+                label_ids=["INBOX"],
+                received_at=datetime(2026, 4, 1, 12, 0, 0).astimezone(),
+            ),
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="high-1",
+                sender="Deals <deals@example.com>",
+                recipients=["primary@example.com"],
+                subject="Big sale",
+                snippet="Offer",
+                label_ids=["INBOX"],
+                received_at=datetime(2026, 4, 1, 11, 0, 0).astimezone(),
+            ),
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="low-1",
+                sender="Alerts <alerts@example.com>",
+                recipients=["primary@example.com"],
+                subject="Heads up",
+                snippet="Notice",
+                label_ids=["INBOX"],
+                received_at=datetime(2026, 4, 1, 10, 0, 0).astimezone(),
+            ),
+        ],
+        now=datetime(2026, 4, 2, 12, 5, 0).astimezone(),
+    )
+    adapter.message_store.update_local_classification(
+        "primary",
+        "manual-1",
+        label=GmailTrainingLabel.DIRECT_HUMAN,
+        confidence=1.0,
+        manual_classification=True,
+    )
+    adapter.message_store.update_local_classification(
+        "primary",
+        "high-1",
+        label=GmailTrainingLabel.MARKETING,
+        confidence=0.95,
+        manual_classification=False,
+    )
+    adapter.message_store.update_local_classification(
+        "primary",
+        "low-1",
+        label=GmailTrainingLabel.SYSTEM,
+        confidence=0.91,
+        manual_classification=False,
+    )
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/gmail/training")
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["classification_summary"]["manual_count"] == 1
+    assert body["classification_summary"]["high_confidence_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_gmail_training_api_supports_classified_label_batch(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    adapter = service.provider_registry.get_provider("gmail")
+    adapter.account_store.save_account(
+        adapter.state_machine.ensure_account("primary").model_copy(
+            update={"status": "connected", "email_address": "primary@example.com"}
+        )
+    )
+    adapter.message_store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="m1",
+                sender="Promo <promo@example.com>",
+                recipients=["primary@example.com"],
+                subject="Great sale",
+                snippet="Offer",
+                label_ids=["INBOX"],
+                received_at=datetime(2026, 4, 1, 12, 0, 0).astimezone(),
+                local_label="marketing",
+                local_label_confidence=0.95,
+            ),
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="m2",
+                sender="Other <other@example.com>",
+                recipients=["primary@example.com"],
+                subject="Invoice",
+                snippet="Bill",
+                label_ids=["INBOX"],
+                received_at=datetime(2026, 4, 1, 11, 0, 0).astimezone(),
+                local_label="invoice",
+                local_label_confidence=0.9,
+            ),
+        ],
+        now=datetime(2026, 4, 2, 12, 5, 0).astimezone(),
+    )
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        batch_response = await client.post("/api/gmail/training/classified-batch?label=marketing")
+
+    await service.stop()
+
+    assert batch_response.status_code == 200
+    body = batch_response.json()
+    assert body["source"] == "classified_label"
+    assert body["selected_label"] == "marketing"
+    assert body["count"] == 1
+    assert body["items"][0]["message_id"] == "m1"
+
+
+@pytest.mark.asyncio
+async def test_gmail_training_classified_batch_orders_newest_first(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    adapter = service.provider_registry.get_provider("gmail")
+    adapter.account_store.save_account(
+        adapter.state_machine.ensure_account("primary").model_copy(
+            update={"status": "connected", "email_address": "primary@example.com"}
+        )
+    )
+    adapter.message_store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="older",
+                sender="Promo <promo@example.com>",
+                recipients=["primary@example.com"],
+                subject="Older sale",
+                snippet="Offer",
+                label_ids=["INBOX"],
+                received_at=datetime(2026, 4, 1, 11, 0, 0).astimezone(),
+                local_label="marketing",
+                local_label_confidence=0.95,
+            ),
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="newer",
+                sender="Promo <promo@example.com>",
+                recipients=["primary@example.com"],
+                subject="Newer sale",
+                snippet="Offer",
+                label_ids=["INBOX"],
+                received_at=datetime(2026, 4, 1, 12, 0, 0).astimezone(),
+                local_label="marketing",
+                local_label_confidence=0.97,
+            ),
+        ],
+        now=datetime(2026, 4, 2, 12, 5, 0).astimezone(),
+    )
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        batch_response = await client.post("/api/gmail/training/classified-batch?label=marketing")
+
+    await service.stop()
+
+    assert batch_response.status_code == 200
+    body = batch_response.json()
+    assert [item["message_id"] for item in body["items"]] == ["newer", "older"]
 
 
 @pytest.mark.asyncio

@@ -100,6 +100,43 @@ def test_gmail_message_store_tracks_spamhaus_check_state(runtime_dir):
     assert [message.message_id for message in pending_after] == ["msg-2"]
 
 
+def test_gmail_message_store_reports_checked_message_ids(runtime_dir):
+    store = GmailMessageStore(runtime_dir)
+    store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="msg-1",
+                sender="Sender <sender@example.com>",
+                received_at=datetime(2026, 4, 2, 12, 0, 0),
+            ),
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="msg-2",
+                sender="Another <another@example.com>",
+                received_at=datetime(2026, 4, 2, 11, 0, 0),
+            ),
+        ],
+        now=datetime(2026, 4, 2, 12, 30, 0),
+    )
+    store.upsert_spamhaus_check(
+        GmailSpamhausCheck(
+            account_id="primary",
+            message_id="msg-1",
+            sender_email="sender@example.com",
+            sender_domain="example.com",
+            checked=True,
+            listed=False,
+            status="clean",
+        ),
+        now=datetime(2026, 4, 2, 12, 45, 0),
+    )
+
+    assert store.list_spamhaus_checked_message_ids("primary") == {"msg-1"}
+    assert store.is_spamhaus_checked("primary", "msg-1") is True
+    assert store.is_spamhaus_checked("primary", "msg-2") is False
+
+
 def test_gmail_message_store_supports_local_training_labels(runtime_dir):
     store = GmailMessageStore(runtime_dir)
     store.upsert_messages(

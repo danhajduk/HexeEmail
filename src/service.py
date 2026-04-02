@@ -30,7 +30,7 @@ from models import (
 )
 from providers.gmail.adapter import GmailProviderAdapter
 from providers.gmail.config_store import GmailProviderConfigError, GmailProviderConfigStore
-from providers.gmail.models import GmailManualClassificationBatchInput, GmailOAuthConfig, GmailSemiAutoClassificationBatchInput
+from providers.gmail.models import GmailManualClassificationBatchInput, GmailOAuthConfig, GmailSemiAutoClassificationBatchInput, GmailTrainingLabel
 from providers.gmail.oauth import GmailOAuthSessionManager
 from providers.gmail.token_client import GmailTokenExchangeClient, GmailTokenExchangeError
 from mqtt import MQTTManager
@@ -1155,7 +1155,12 @@ class NodeService:
         except Exception as exc:
             raise ValueError(str(exc)) from exc
 
-    async def gmail_training_train_model(self, *, account_id: str = "primary") -> dict[str, object]:
+    async def gmail_training_train_model(
+        self,
+        *,
+        account_id: str = "primary",
+        minimum_confidence: float | None = None,
+    ) -> dict[str, object]:
         adapter = self.provider_registry.get_provider("gmail")
         if not hasattr(adapter, "train_local_model"):
             raise ValueError("gmail training actions are not available")
@@ -1163,6 +1168,7 @@ class NodeService:
             return await adapter.train_local_model(
                 account_id,
                 bootstrap_threshold=self.config.gmail_training_bootstrap_threshold,
+                minimum_confidence=minimum_confidence,
             )
         except Exception as exc:
             raise ValueError(str(exc)) from exc
@@ -1177,6 +1183,21 @@ class NodeService:
                 threshold=self.config.gmail_local_classification_threshold,
                 limit=limit,
             )
+        except Exception as exc:
+            raise ValueError(str(exc)) from exc
+
+    async def gmail_training_classified_batch(
+        self,
+        *,
+        account_id: str = "primary",
+        label: GmailTrainingLabel,
+        limit: int = 40,
+    ) -> dict[str, object]:
+        adapter = self.provider_registry.get_provider("gmail")
+        if not hasattr(adapter, "classified_training_batch"):
+            raise ValueError("gmail training actions are not available")
+        try:
+            return await adapter.classified_training_batch(account_id, label=label, limit=limit)
         except Exception as exc:
             raise ValueError(str(exc)) from exc
 

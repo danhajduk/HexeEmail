@@ -161,3 +161,29 @@ def test_gmail_training_builds_weighted_dataset_with_manual_local_and_bootstrap_
     assert summary.included_by_label_source == {"manual": 1, "local_auto": 1, "gmail_bootstrap": 1}
     assert summary.per_label_counts == {"direct_human": 1, "financial": 1, "marketing": 1}
     assert summary.weighted_counts == {"direct_human": 1.0, "financial": 0.75, "marketing": 0.3}
+
+
+def test_gmail_training_dataset_can_disable_bootstrap_rows():
+    messages = [
+        GmailStoredMessage(
+            account_id="primary",
+            message_id="bootstrap-only",
+            sender="Deals <deals@example.com>",
+            recipients=["primary@example.com", "friend@example.com", "list@example.com", "team@example.com"],
+            subject="Big sale today",
+            snippet="Unsubscribe here for 50% off https://example.com",
+            label_ids=["CATEGORY_PROMOTIONS", "INBOX"],
+            received_at=datetime(2026, 4, 2, 10, 0, 0),
+            raw_payload='{"payload":{"headers":[{"name":"List-Unsubscribe","value":"<mailto:stop@example.com>"}]}}',
+        )
+    ]
+
+    dataset, summary = build_training_dataset(
+        messages,
+        my_addresses=["primary@example.com"],
+        bootstrap_threshold=3.0,
+        allow_bootstrap=False,
+    )
+
+    assert dataset == []
+    assert summary.excluded_no_label_count == 1

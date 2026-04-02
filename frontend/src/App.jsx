@@ -674,9 +674,11 @@ function TrainingPage({
   trainingNotice,
   trainingSelections,
   onBack,
+  onLoadClassifiedLabelBatch,
   onLoadManualBatch,
   onLoadSemiAutoBatch,
   onTrainModel,
+  onTrainHighConfidenceModel,
   onSelectionChange,
   onSaveBatch,
 }) {
@@ -723,6 +725,9 @@ function TrainingPage({
             <button className="btn" type="button" onClick={onTrainModel} disabled={trainingModelPending}>
               {trainingModelPending ? "Training..." : "Train Model"}
             </button>
+            <button className="btn" type="button" onClick={onTrainHighConfidenceModel} disabled={trainingModelPending}>
+              {trainingModelPending ? "Training..." : "Train 92%+"}
+            </button>
             <button className="btn" type="button" onClick={onLoadSemiAutoBatch} disabled={trainingBatchLoading}>
               {trainingBatchLoading ? "Loading..." : "Semi Auto Classify"}
             </button>
@@ -731,6 +736,12 @@ function TrainingPage({
             </div>
             <div className="callout">
               Classified: {trainingStatus?.classification_summary?.classified_count ?? 0}
+            </div>
+            <div className="callout">
+              Manual Labels: {trainingStatus?.classification_summary?.manual_count ?? 0}
+            </div>
+            <div className="callout">
+              High Confidence: {trainingStatus?.classification_summary?.high_confidence_count ?? 0}
             </div>
             <div className="callout">
               Model: {trainingStatus?.model_status?.trained
@@ -742,7 +753,9 @@ function TrainingPage({
                 <div className="training-sidebar-stats">
                   {Object.entries(trainingStatus.classification_summary.per_label).map(([label, count]) => (
                     <div key={label} className="training-sidebar-stat">
-                      <span>{label}</span>
+                      <button className="btn btn-ghost" type="button" onClick={() => onLoadClassifiedLabelBatch(label)}>
+                        {label}
+                      </button>
                       <strong>{count}</strong>
                     </div>
                   ))}
@@ -763,6 +776,8 @@ function TrainingPage({
               <p className="muted">
                 {trainingModelPending
                   ? "Training in progress..."
+                  : trainingBatch?.source === "classified_label"
+                    ? `Showing stored mails already classified as ${trainingBatch?.selected_label || "selected"}`
                   : trainingBatch?.source === "semi_auto"
                     ? "Oldest unclassified mails are pre-labeled by the local model and shown here for review."
                     : "Random unknown or low-confidence mails are flattened into a consistent training format for local review."}
@@ -1410,6 +1425,31 @@ export function App() {
     }
   }
 
+  async function loadClassifiedLabelBatch(label) {
+    setTrainingBatchLoading(true);
+    setTrainingBatchError("");
+    setTrainingNotice("");
+    try {
+      const payload = await fetchJson(`/api/gmail/training/classified-batch?label=${encodeURIComponent(label)}`, { method: "POST" });
+      setTrainingBatch(payload);
+      setTrainingSelections(
+        Object.fromEntries(
+          (payload.items || []).map((item) => [
+            item.message_id,
+            {
+              label: item.local_label || "unknown",
+              confidence: item.local_label_confidence ?? trainingStatus?.threshold ?? 0.6,
+            },
+          ]),
+        ),
+      );
+    } catch (loadError) {
+      setTrainingBatchError(loadError.message);
+    } finally {
+      setTrainingBatchLoading(false);
+    }
+  }
+
   async function trainLocalModel() {
     setTrainingModelPending(true);
     setTrainingBatchError("");
@@ -1420,6 +1460,24 @@ export function App() {
       setTrainingStatus(refreshedTraining);
       setTrainingNotice(
         `Model trained with ${payload.model_status?.sample_count ?? refreshedTraining?.model_status?.sample_count ?? 0} samples.`,
+      );
+    } catch (trainError) {
+      setTrainingBatchError(trainError.message);
+    } finally {
+      setTrainingModelPending(false);
+    }
+  }
+
+  async function trainHighConfidenceModel() {
+    setTrainingModelPending(true);
+    setTrainingBatchError("");
+    setTrainingNotice("");
+    try {
+      const payload = await fetchJson("/api/gmail/training/train-model?minimum_confidence=0.92", { method: "POST" });
+      const refreshedTraining = await fetchJson("/api/gmail/training");
+      setTrainingStatus(refreshedTraining);
+      setTrainingNotice(
+        `High-confidence model trained with ${payload.model_status?.sample_count ?? refreshedTraining?.model_status?.sample_count ?? 0} samples.`,
       );
     } catch (trainError) {
       setTrainingBatchError(trainError.message);
@@ -1797,9 +1855,11 @@ export function App() {
           trainingNotice={trainingNotice}
           trainingSelections={trainingSelections}
           onBack={() => (dashboardEnabled ? openDashboard() : openSetup())}
+          onLoadClassifiedLabelBatch={loadClassifiedLabelBatch}
           onLoadManualBatch={loadTrainingManualBatch}
           onLoadSemiAutoBatch={loadTrainingSemiAutoBatch}
           onTrainModel={trainLocalModel}
+          onTrainHighConfidenceModel={trainHighConfidenceModel}
           onSelectionChange={handleTrainingSelectionChange}
           onSaveBatch={saveTrainingBatch}
         />

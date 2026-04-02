@@ -319,6 +319,40 @@ class GmailMessageStore:
             ).fetchall()
         return [self._row_to_message(row) for row in rows]
 
+    def list_classified_messages_by_label(
+        self,
+        account_id: str,
+        *,
+        label: GmailTrainingLabel,
+        limit: int = 40,
+    ) -> list[GmailStoredMessage]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    account_id,
+                    message_id,
+                    thread_id,
+                    subject,
+                    sender,
+                    recipients,
+                    snippet,
+                    label_ids,
+                    received_at,
+                    raw_payload,
+                    local_label,
+                    local_label_confidence,
+                    manual_classification
+                FROM gmail_messages
+                WHERE account_id = ?
+                  AND local_label = ?
+                ORDER BY received_at DESC
+                LIMIT ?
+                """,
+                (account_id, label.value, limit),
+            ).fetchall()
+        return [self._row_to_message(row) for row in rows]
+
     def update_local_classification(
         self,
         account_id: str,
@@ -339,7 +373,7 @@ class GmailMessageStore:
             )
             connection.commit()
 
-    def local_classification_summary(self, account_id: str) -> dict[str, object]:
+    def local_classification_summary(self, account_id: str, *, high_confidence_threshold: float = 0.92) -> dict[str, object]:
         with self._connect() as connection:
             totals_row = connection.execute(
                 """
@@ -347,11 +381,27 @@ class GmailMessageStore:
                     COUNT(*) AS total_count,
                     SUM(CASE WHEN local_label IS NOT NULL AND local_label != ? THEN 1 ELSE 0 END) AS classified_count,
                     SUM(CASE WHEN local_label = ? THEN 1 ELSE 0 END) AS unknown_count,
-                    SUM(CASE WHEN manual_classification = 1 THEN 1 ELSE 0 END) AS manual_count
+                    SUM(CASE WHEN manual_classification = 1 THEN 1 ELSE 0 END) AS manual_count,
+                    SUM(
+                        CASE
+                            WHEN manual_classification = 0
+                              AND local_label IS NOT NULL
+                              AND local_label != ?
+                              AND COALESCE(local_label_confidence, 0) >= ?
+                            THEN 1
+                            ELSE 0
+                        END
+                    ) AS high_confidence_count
                 FROM gmail_messages
                 WHERE account_id = ?
                 """,
-                (GmailTrainingLabel.UNKNOWN.value, GmailTrainingLabel.UNKNOWN.value, account_id),
+                (
+                    GmailTrainingLabel.UNKNOWN.value,
+                    GmailTrainingLabel.UNKNOWN.value,
+                    GmailTrainingLabel.UNKNOWN.value,
+                    high_confidence_threshold,
+                    account_id,
+                ),
             ).fetchone()
             rows = connection.execute(
                 """
@@ -374,6 +424,7 @@ class GmailMessageStore:
             "classified_count": int(totals_row["classified_count"] or 0) if totals_row is not None else 0,
             "unknown_count": int(totals_row["unknown_count"] or 0) if totals_row is not None else 0,
             "manual_count": int(totals_row["manual_count"] or 0) if totals_row is not None else 0,
+            "high_confidence_count": int(totals_row["high_confidence_count"] or 0) if totals_row is not None else 0,
             "per_label": per_label,
         }
 
@@ -404,6 +455,32 @@ class GmailMessageStore:
         with self._connect() as connection:
             rows = connection.execute(query, tuple(params)).fetchall()
         return [self._row_to_message(row) for row in rows]
+
+    def list_spamhaus_checked_message_ids(self, account_id: str) -> set[str]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT message_id
+                FROM gmail_spamhaus_checks
+                WHERE account_id = ?
+                  AND checked = 1
+                """,
+                (account_id,),
+            ).fetchall()
+        return {str(row["message_id"]) for row in rows if row["message_id"]}
+
+    def is_spamhaus_checked(self, account_id: str, message_id: str) -> bool:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT checked
+                FROM gmail_spamhaus_checks
+                WHERE account_id = ?
+                  AND message_id = ?
+                """,
+                (account_id, message_id),
+            ).fetchone()
+        return bool(row["checked"]) if row is not None else False
 
     def upsert_spamhaus_check(self, check: GmailSpamhausCheck, *, now: datetime | None = None) -> GmailSpamhausCheck:
         checked_at = (check.checked_at or now or datetime.now().astimezone()).isoformat() if check.checked else None

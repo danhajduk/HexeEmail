@@ -7,7 +7,7 @@ from fastapi import FastAPI, HTTPException, Request
 from config import AppConfig
 from logging_utils import correlation_id_middleware, setup_logging
 from models import OperatorConfigInput, RefreshTriggerRequest, ServiceRestartRequest, TaskCapabilitySelectionInput
-from providers.gmail.models import GmailManualClassificationBatchInput, GmailOAuthConfig, GmailSemiAutoClassificationBatchInput
+from providers.gmail.models import GmailManualClassificationBatchInput, GmailOAuthConfig, GmailSemiAutoClassificationBatchInput, GmailTrainingLabel
 from service import NodeService
 
 
@@ -237,9 +237,12 @@ def create_app(
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @app.post("/api/gmail/training/train-model")
-    async def gmail_training_train_model(account_id: str = "primary"):
+    async def gmail_training_train_model(account_id: str = "primary", minimum_confidence: float | None = None):
         try:
-            return await node_service.gmail_training_train_model(account_id=account_id)
+            return await node_service.gmail_training_train_model(
+                account_id=account_id,
+                minimum_confidence=minimum_confidence,
+            )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -247,6 +250,13 @@ def create_app(
     async def gmail_training_semi_auto_batch(account_id: str = "primary", limit: int = 20):
         try:
             return await node_service.gmail_training_semi_auto_batch(account_id=account_id, limit=limit)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/api/gmail/training/classified-batch")
+    async def gmail_training_classified_batch(label: GmailTrainingLabel, account_id: str = "primary", limit: int = 40):
+        try:
+            return await node_service.gmail_training_classified_batch(account_id=account_id, label=label, limit=limit)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 

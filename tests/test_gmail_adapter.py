@@ -320,6 +320,69 @@ async def test_gmail_adapter_does_not_recheck_messages_already_sent_to_spamhaus(
 
 
 @pytest.mark.asyncio
+async def test_gmail_adapter_manual_training_batch_auto_runs_spamhaus_when_pending_threshold_is_met(tmp_path):
+    GmailProviderConfigStore(tmp_path).save(
+        GmailOAuthConfig(
+            enabled=True,
+            client_id="client-id",
+            client_secret_ref="secret",
+            redirect_uri="https://email-node.example.com/api/providers/gmail/oauth/callback",
+        )
+    )
+    adapter = GmailProviderAdapter(tmp_path)
+    adapter.account_store.save_account(
+        ProviderAccountRecord(
+            provider_id=ProviderId.GMAIL,
+            account_id="primary",
+            status="connected",
+            email_address="primary@example.com",
+        )
+    )
+    adapter.message_store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id=f"msg-{index}",
+                sender=f"Sender {index} <sender{index}@example.com>",
+                recipients=["primary@example.com"],
+                subject=f"Message {index}",
+                snippet="Please review this",
+                label_ids=["INBOX"],
+                received_at=datetime(2026, 4, 2, 12, index, 0).astimezone(),
+            )
+            for index in range(10)
+        ],
+        now=datetime(2026, 4, 2, 12, 30, 0).astimezone(),
+    )
+
+    class CountingSpamhausChecker:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def check_sender(self, *, account_id: str, message_id: str, sender: str | None):
+            self.calls += 1
+            return GmailSpamhausCheck(
+                account_id=account_id,
+                message_id=message_id,
+                sender_email="sender@example.com",
+                sender_domain="example.com",
+                checked=True,
+                listed=False,
+                status="clean",
+                detail="clean in test",
+            )
+
+    checker = CountingSpamhausChecker()
+    adapter.spamhaus_checker = checker
+
+    batch = await adapter.manual_training_batch("primary", threshold=0.6, limit=5)
+
+    assert checker.calls == 10
+    assert batch["count"] == 5
+    assert adapter.message_store.spamhaus_summary("primary").pending_count == 0
+
+
+@pytest.mark.asyncio
 async def test_gmail_adapter_initial_learning_fetch_does_not_require_schedule_slot(tmp_path):
     GmailProviderConfigStore(tmp_path).save(
         GmailOAuthConfig(
