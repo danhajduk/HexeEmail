@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from pathlib import Path
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -32,13 +32,16 @@ async def test_gmail_callback_exchanges_code_and_consumes_state(config, core_cli
             enabled=True,
             client_id="client-id",
             client_secret_ref="env:GMAIL_CLIENT_SECRET",
-            redirect_uri="https://email-node.example.com/providers/gmail/oauth/callback",
+            redirect_uri="https://email-node.example.com/api/providers/gmail/oauth/callback",
         )
     )
     session = GmailOAuthSessionManager(isolated_config.runtime_dir).create_session(
         "primary",
-        "https://email-node.example.com/providers/gmail/oauth/callback",
+        "https://email-node.example.com/api/providers/gmail/oauth/callback",
+        client_id="client-id",
         correlation_id="corr-123",
+        core_id="core-1",
+        node_id="node-1",
     )
     identity_client = GmailIdentityProbeClient(
         service.provider_registry.get_provider("gmail").account_store,
@@ -51,7 +54,7 @@ async def test_gmail_callback_exchanges_code_and_consumes_state(config, core_cli
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get(
-            "/providers/gmail/oauth/callback",
+            "/api/providers/gmail/oauth/callback",
             params={"state": session.state, "code": "auth-code"},
             headers={"X-Correlation-Id": "corr-123"},
         )
@@ -62,6 +65,57 @@ async def test_gmail_callback_exchanges_code_and_consumes_state(config, core_cli
     assert response.status_code == 200
     assert response.json()["status"] == "connected"
     assert consumed.consumed_at is not None
+
+
+@pytest.mark.asyncio
+async def test_gmail_central_callback_route_accepts_signed_state(config, core_client_factory, monkeypatch):
+    monkeypatch.setenv("GMAIL_CLIENT_SECRET", "secret-value")
+    isolated_config = config.model_copy(update={"core_base_url": None, "node_name": None})
+    token_client = GmailTokenExchangeClient(transport=ASGITransport(app=build_google_token_app()))
+    token_client.TOKEN_ENDPOINT = "http://google.test/token"
+    service = NodeService(
+        isolated_config,
+        core_client=core_client_factory(build_core_app()),
+        mqtt_manager=FakeMQTTManager(),
+        gmail_token_client=token_client,
+    )
+    GmailProviderConfigStore(isolated_config.runtime_dir).save(
+        GmailOAuthConfig(
+            enabled=True,
+            client_id="client-id",
+            client_secret_ref="env:GMAIL_CLIENT_SECRET",
+            redirect_uri="https://email-node.example.com/google/gmail/callback",
+        )
+    )
+    session = GmailOAuthSessionManager(isolated_config.runtime_dir).create_session(
+        "primary",
+        "https://email-node.example.com/google/gmail/callback",
+        client_id="client-id",
+        correlation_id="corr-123",
+        core_id="core-1",
+        node_id="node-1",
+    )
+    signed_state = GmailOAuthSessionManager(isolated_config.runtime_dir).sign_public_state(session)
+    identity_client = GmailIdentityProbeClient(
+        service.provider_registry.get_provider("gmail").account_store,
+        transport=ASGITransport(app=build_google_identity_app()),
+    )
+    identity_client.USERINFO_ENDPOINT = "http://google.test/userinfo"
+    service.provider_registry.get_provider("gmail").identity_client = identity_client
+    await service.start()
+    app = create_app(config=isolated_config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get(
+            "/google/gmail/callback",
+            params={"state": signed_state, "code": "auth-code"},
+            headers={"X-Correlation-Id": "corr-123"},
+        )
+
+    await service.stop()
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "connected"
 
 
 @pytest.mark.asyncio
@@ -76,7 +130,7 @@ async def test_gmail_callback_requires_state_and_code(config, core_client_factor
     app = create_app(config=isolated_config, service=service)
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.get("/providers/gmail/oauth/callback", params={"state": "only-state"})
+        response = await client.get("/api/providers/gmail/oauth/callback", params={"state": "only-state"})
 
     await service.stop()
 
@@ -97,7 +151,7 @@ async def test_gmail_callback_handles_provider_error(config, core_client_factory
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get(
-            "/providers/gmail/oauth/callback",
+            "/api/providers/gmail/oauth/callback",
             params={"error": "access_denied", "error_description": "operator rejected consent"},
         )
 
@@ -105,3 +159,48 @@ async def test_gmail_callback_handles_provider_error(config, core_client_factory
 
     assert response.status_code == 400
     assert "operator rejected consent" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_gmail_callback_logs_failure_detail_when_secret_env_is_missing(config, core_client_factory, monkeypatch):
+    monkeypatch.delenv("GMAIL_CLIENT_SECRET", raising=False)
+    isolated_config = config.model_copy(update={"core_base_url": None, "node_name": None})
+    service = NodeService(
+        isolated_config,
+        core_client=core_client_factory(build_core_app()),
+        mqtt_manager=FakeMQTTManager(),
+    )
+    GmailProviderConfigStore(isolated_config.runtime_dir).save(
+        GmailOAuthConfig(
+            enabled=True,
+            client_id="client-id",
+            client_secret_ref="env:GMAIL_CLIENT_SECRET",
+            redirect_uri="https://email-node.example.com/google/gmail/callback",
+        )
+    )
+    session = GmailOAuthSessionManager(isolated_config.runtime_dir).create_session(
+        "primary",
+        "https://email-node.example.com/google/gmail/callback",
+        client_id="client-id",
+        correlation_id="corr-123",
+        core_id="core-1",
+        node_id="node-1",
+    )
+    signed_state = GmailOAuthSessionManager(isolated_config.runtime_dir).sign_public_state(session)
+    await service.start()
+    app = create_app(config=isolated_config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get(
+            "/google/gmail/callback",
+            params={"state": signed_state, "code": "auth-code"},
+            headers={"X-Correlation-Id": "corr-123"},
+        )
+
+    await service.stop()
+
+    assert response.status_code == 400
+    assert "gmail client secret environment variable is missing" in response.json()["detail"].lower()
+    log_text = (Path("runtime") / "logs" / "api.log").read_text(encoding="utf-8")
+    assert "Gmail oauth callback failed" in log_text
+    assert "gmail client secret environment variable is missing: GMAIL_CLIENT_SECRET" in log_text

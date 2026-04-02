@@ -10,7 +10,7 @@ const EMPTY_PROVIDER_FORM = {
   client_id: "",
   client_secret_ref: "",
   redirect_uri: "",
-  requested_scopes: "https://www.googleapis.com/auth/gmail.send",
+  requested_scopes: "https://www.googleapis.com/auth/gmail.send\nhttps://www.googleapis.com/auth/gmail.readonly",
 };
 
 async function fetchJson(url, options) {
@@ -242,7 +242,7 @@ function ProviderSetupPage({
             name="redirect_uri"
             value={providerForm.redirect_uri}
             onChange={onProviderChange}
-            placeholder="https://email-node.example.com/providers/gmail/oauth/callback"
+            placeholder="https://hexe-ai.com/google/gmail/callback"
             required
           />
           <TextareaField
@@ -322,7 +322,7 @@ function ProviderSetupPage({
             <div className="callout callout-warning">The node must be trusted before Gmail OAuth can start.</div>
           ) : null}
           <div className="callout">
-            Use your Cloudflare Tunnel public HTTPS hostname as the redirect URI, then start the connect flow.
+            Use the centralized public redirect URI `https://hexe-ai.com/google/gmail/callback`, then start the connect flow.
           </div>
           {connectUrl ? (
             <a className="approval-link" href={connectUrl} target="_blank" rel="noreferrer">
@@ -342,6 +342,7 @@ export function App() {
   const [touched, setTouched] = useState(false);
   const [saving, setSaving] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [restarting, setRestarting] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
 
@@ -524,6 +525,28 @@ export function App() {
     }
   }
 
+  async function restartOnboarding() {
+    setRestarting(true);
+    setError("");
+    setNotice("");
+    try {
+      const payload = await fetchJson("/ui/onboarding/restart", {
+        method: "POST",
+        body: JSON.stringify(form),
+      });
+      setTouched(false);
+      setNotice(`Setup restarted for ${payload.node_name || "this node"}.`);
+      const refreshed = await fetchJson("/ui/bootstrap");
+      startTransition(() => {
+        setBootstrap(refreshed);
+      });
+    } catch (restartError) {
+      setError(restartError.message);
+    } finally {
+      setRestarting(false);
+    }
+  }
+
   async function saveProviderConfig() {
     setProviderSaving(true);
     setProviderError("");
@@ -591,7 +614,6 @@ export function App() {
   const status = bootstrap?.status;
   const requiredInputs = bootstrap?.required_inputs || [];
   const nodeState = deriveNodeState(bootstrap);
-
   if (view === "provider") {
     return (
       <div className="shell">
@@ -678,6 +700,9 @@ export function App() {
               <button className="btn btn-primary" type="button" onClick={startOnboarding} disabled={starting}>
                 {starting ? "Starting..." : "Start Onboarding"}
               </button>
+              <button className="btn btn-ghost" type="button" onClick={restartOnboarding} disabled={restarting}>
+                {restarting ? "Restarting..." : "Restart Setup"}
+              </button>
             </div>
             {requiredInputs.length > 0 ? (
               <div className="callout callout-warning">Required before onboarding: {requiredInputs.join(", ")}</div>
@@ -759,6 +784,7 @@ export function App() {
               {requiredInputs.length > 0 ? <li>Enter the Core base URL and node name, then start onboarding.</li> : null}
               {onboarding?.approval_url ? <li>Open the approval URL in Core and approve the node.</li> : null}
               {onboarding?.onboarding_status === "pending" ? <li>Keep this page open while finalize polling continues.</li> : null}
+              <li>Use Restart Setup if you need a fresh onboarding session.</li>
               {status?.trust_state === "trusted" ? <li>The node is trusted. Use Setup Provider to configure Gmail.</li> : null}
               {!requiredInputs.length && !onboarding?.approval_url && status?.trust_state !== "trusted" ? (
                 <li>Start onboarding when you are ready.</li>

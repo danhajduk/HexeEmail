@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import re
 import socket
 import uuid
 from datetime import UTC, datetime
@@ -39,6 +40,7 @@ from version import __version__
 
 LOGGER = get_logger(__name__)
 TERMINAL_ONBOARDING_STATES = {"approved", "rejected", "expired", "consumed", "invalid"}
+CORE_ID_PATTERN = re.compile(r"^[0-9a-f]{16}$")
 
 
 class NodeService:
@@ -148,6 +150,23 @@ class NodeService:
 
         return self.operator_config_response()
 
+    async def restart_setup(self, payload: OperatorConfigInput | None = None) -> OnboardingStatusResponse:
+        self._clear_trust_and_onboarding_state()
+
+        if payload is not None:
+            next_config = OperatorConfig(
+                core_base_url=self._normalize_core_base_url((payload.core_base_url or "").strip() or None),
+                node_name=(payload.node_name or "").strip() or None,
+            )
+            self.operator_config = self.operator_config_store.save(next_config)
+
+        if self.required_inputs():
+            self.state.last_error = "Configuration required before onboarding can start"
+            self.state_store.save(self.state)
+            return self.onboarding_status()
+
+        return await self.start_onboarding()
+
     async def _resume_runtime(self) -> None:
         if self.state.trust_state == "trusted" and self.trust_material is not None:
             LOGGER.info("Trusted state detected, skipping onboarding")
@@ -209,7 +228,9 @@ class NodeService:
             node_software_version=self.config.node_software_version,
             protocol_version=self.config.onboarding_protocol_version,
             node_nonce=self.config.node_nonce,
-            hostname=socket.gethostname(),
+            hostname=self._resolve_advertised_host(),
+            ui_endpoint=self._advertised_ui_endpoint(),
+            api_base_url=self._advertised_api_base_url(),
         )
         try:
             session = await self.core_client.create_onboarding_session(
@@ -240,6 +261,9 @@ class NodeService:
         self._ensure_polling()
         return self.onboarding_status()
 
+    async def restart_onboarding(self) -> OnboardingStatusResponse:
+        return await self.start_onboarding(force=True)
+
     def _reset_onboarding_state(self) -> None:
         if self.polling_task is not None and not self.polling_task.done():
             self.polling_task.cancel()
@@ -260,6 +284,12 @@ class NodeService:
         self.state.last_poll_at = None
         self.state_store.save(self.state)
 
+    def _clear_trust_and_onboarding_state(self) -> None:
+        self._reset_onboarding_state()
+        self.trust_store.clear()
+        self.trust_material = None
+        self.mqtt_manager.disconnect()
+
     def _normalize_core_base_url(self, value: str | None) -> str | None:
         if not value:
             return None
@@ -267,6 +297,72 @@ class NodeService:
         if not parsed.scheme:
             return f"http://{value}"
         return value.rstrip("/")
+
+    def _resolve_advertised_host(self) -> str:
+        targets: list[tuple[str, int]] = []
+        core_host = urlparse(self.effective_core_base_url() or "").hostname
+        if core_host:
+            targets.append((core_host, 80))
+        targets.append(("8.8.8.8", 80))
+
+        for host, port in targets:
+            with contextlib.suppress(OSError):
+                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+                    sock.connect((host, port))
+                    address = sock.getsockname()[0]
+                    if address and not address.startswith("127."):
+                        return address
+
+        with contextlib.suppress(OSError):
+            address = socket.gethostbyname(socket.gethostname())
+            if address and not address.startswith("127."):
+                return address
+
+        return socket.gethostname()
+
+    def _advertised_api_base_url(self) -> str:
+        host = self._resolve_advertised_host()
+        return f"http://{host}:{self.config.api_port}/api"
+
+    def _advertised_ui_endpoint(self) -> str:
+        host = self._resolve_advertised_host()
+        return f"http://{host}:{self.config.ui_port}"
+
+    async def _resolve_gmail_oauth_core_id(self, oauth_config: GmailOAuthConfig) -> str:
+        for candidate in (
+            self._extract_hexe_core_uuid(oauth_config.redirect_uri),
+            self._extract_hexe_core_uuid(self.state.approval_url),
+            self._extract_hexe_core_uuid(self.effective_core_base_url()),
+            self._normalize_platform_core_id(self.state.paired_core_id),
+        ):
+            if candidate:
+                return candidate
+
+        core_base_url = self.effective_core_base_url()
+        if core_base_url:
+            with contextlib.suppress(httpx.HTTPError, ValueError):
+                identity = await self.core_client.get_platform_identity(core_base_url)
+                candidate = self._normalize_platform_core_id(identity.core_id)
+                if candidate:
+                    return candidate
+
+        raise ValueError("unable to resolve Core UUID for Gmail OAuth state")
+
+    def _normalize_platform_core_id(self, value: str | None) -> str | None:
+        candidate = str(value or "").strip().lower()
+        if CORE_ID_PATTERN.fullmatch(candidate):
+            return candidate
+        return None
+
+    def _extract_hexe_core_uuid(self, value: str | None) -> str | None:
+        if not value:
+            return None
+        host = urlparse(value).hostname or ""
+        if host.endswith(".hexe-ai.com"):
+            candidate = host.removesuffix(".hexe-ai.com")
+            if candidate and candidate != "hexe-ai":
+                return candidate
+        return None
 
     def _format_core_error(self, exc: httpx.HTTPError) -> str:
         base_url = self.effective_core_base_url() or "configured Core URL"
@@ -470,8 +566,9 @@ class NodeService:
         session = self.gmail_oauth_manager.create_connect_session(
             account_id,
             oauth_config,
-            oauth_config.redirect_uri or "",
             correlation_id=correlation_id,
+            core_id=await self._resolve_gmail_oauth_core_id(oauth_config),
+            node_id=self.state.node_id or "",
         )
         gmail_adapter = self.provider_registry.get_provider("gmail")
         if hasattr(gmail_adapter, "start_account_connect"):
@@ -482,8 +579,11 @@ class NodeService:
                 "event_data": {
                     "provider_id": "gmail",
                     "account_id": account_id,
-                    "state": session.state,
+                    "core_id": session.core_id,
+                    "node_id": session.node_id,
+                    "flow_id": session.flow_id,
                     "expires_at": session.expires_at.isoformat(),
+                    "redirect_uri": session.redirect_uri,
                 }
             },
         )
@@ -503,18 +603,18 @@ class NodeService:
         error_description: str | None,
         correlation_id: str | None = None,
     ) -> GmailOAuthCallbackResponse:
-        LOGGER.info(
-            "Gmail oauth callback received",
-            extra={"event_data": {"has_state": bool(state), "has_code": bool(code), "has_error": bool(error)}},
-        )
-        if error:
-            message = error_description or error
-            raise ValueError(f"gmail oauth failed: {message}")
-        missing = [name for name, value in (("state", state), ("code", code)) if not value]
-        if missing:
-            raise ValueError(f"missing required query parameters: {', '.join(missing)}")
-
         try:
+            LOGGER.info(
+                "Gmail oauth callback received",
+                extra={"event_data": {"has_state": bool(state), "has_code": bool(code), "has_error": bool(error)}},
+            )
+            if error:
+                message = error_description or error
+                raise ValueError(f"gmail oauth failed: {message}")
+            missing = [name for name, value in (("state", state), ("code", code)) if not value]
+            if missing:
+                raise ValueError(f"missing required query parameters: {', '.join(missing)}")
+
             session = self.gmail_oauth_manager.validate_callback_state(state or "")
             gmail_adapter = self.provider_registry.get_provider("gmail")
             if not hasattr(gmail_adapter, "complete_oauth_callback"):
@@ -528,10 +628,16 @@ class NodeService:
             )
             self.gmail_oauth_manager.consume_session(session.state)
         except (GmailProviderConfigError, AttributeError) as exc:
+            LOGGER.error("Gmail oauth callback failed", extra={"event_data": {"detail": str(exc)}})
             raise ValueError(str(exc)) from exc
         except GmailTokenExchangeError as exc:
+            LOGGER.error("Gmail oauth callback failed", extra={"event_data": {"detail": str(exc)}})
             raise ValueError(str(exc)) from exc
         except RuntimeError as exc:
+            LOGGER.error("Gmail oauth callback failed", extra={"event_data": {"detail": str(exc)}})
+            raise ValueError(str(exc)) from exc
+        except ValueError as exc:
+            LOGGER.error("Gmail oauth callback failed", extra={"event_data": {"detail": str(exc)}})
             raise ValueError(str(exc)) from exc
 
         LOGGER.info(

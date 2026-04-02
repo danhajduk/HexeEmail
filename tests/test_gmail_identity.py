@@ -22,6 +22,16 @@ def build_google_identity_app(include_email: bool = True):
     return app
 
 
+def build_google_gmail_profile_app():
+    app = FastAPI()
+
+    @app.get("/gmail-profile")
+    async def gmail_profile():
+        return {"emailAddress": "primary@example.com", "messagesTotal": 10, "threadsTotal": 5}
+
+    return app
+
+
 @pytest.mark.asyncio
 async def test_gmail_identity_probe_persists_provider_account_record(tmp_path):
     account_store = GmailAccountStore(tmp_path)
@@ -50,3 +60,28 @@ async def test_gmail_identity_probe_requires_email_address(tmp_path):
         await client.probe_identity(token)
 
     await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_gmail_identity_probe_falls_back_to_gmail_profile(tmp_path):
+    account_store = GmailAccountStore(tmp_path)
+    app = FastAPI()
+
+    @app.get("/userinfo")
+    async def userinfo():
+        return {"id": "google-user-1", "name": "Primary Inbox"}
+
+    @app.get("/gmail-profile")
+    async def gmail_profile():
+        return {"emailAddress": "primary@example.com", "messagesTotal": 10, "threadsTotal": 5}
+
+    client = GmailIdentityProbeClient(account_store, transport=ASGITransport(app=app))
+    client.USERINFO_ENDPOINT = "http://google.test/userinfo"
+    client.GMAIL_PROFILE_ENDPOINT = "http://google.test/gmail-profile"
+    token = GmailTokenRecord(account_id="primary", access_token="access-token")
+
+    record = await client.probe_identity(token)
+    await client.aclose()
+
+    assert record.email_address == "primary@example.com"
+    assert record.external_account_id == "primary@example.com"

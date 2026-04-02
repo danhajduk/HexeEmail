@@ -55,6 +55,26 @@ def build_core_app():
             }
         return {"onboarding_status": session["status"]}
 
+    @app.get("/api/system/platform")
+    async def get_platform_identity():
+        return {
+            "ok": True,
+            "core_id": "a75d480287c33cab",
+            "platform_name": "Hexe",
+            "platform_short": "Hexe",
+            "platform_domain": "hexe-ai.com",
+            "core_name": "Hexe Core",
+            "supervisor_name": "Supervisor",
+            "nodes_name": "Nodes",
+            "addons_name": "Addons",
+            "docs_name": "Docs",
+            "legacy_internal_namespace": "synthia",
+            "legacy_compatibility_note": "compat",
+            "public_hostname": "a75d480287c33cab.hexe-ai.com",
+            "public_ui_hostname": "a75d480287c33cab.hexe-ai.com",
+            "public_api_hostname": "a75d480287c33cab.hexe-ai.com",
+        }
+
     @app.post("/api/system/nodes/{node_id}/capabilities")
     async def declare_capabilities(node_id: str, payload: dict):
         app.state.capabilities[node_id] = payload

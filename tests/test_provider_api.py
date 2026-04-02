@@ -18,7 +18,7 @@ async def test_provider_endpoints_expose_gmail_summary(config, core_client_facto
             enabled=True,
             client_id="client-id",
             client_secret_ref="env:GMAIL_CLIENT_SECRET",
-            redirect_uri="https://email-node.example.com/providers/gmail/oauth/callback",
+            redirect_uri="https://email-node.example.com/api/providers/gmail/oauth/callback",
         )
     )
     service = NodeService(
@@ -60,7 +60,7 @@ async def test_gmail_config_endpoints_round_trip_runtime_config(config, core_cli
         "enabled": True,
         "client_id": "client-id",
         "client_secret_ref": "env:GMAIL_CLIENT_SECRET",
-        "redirect_uri": "https://email-node.example.com/providers/gmail/oauth/callback",
+        "redirect_uri": "https://email-node.example.com/api/providers/gmail/oauth/callback",
         "requested_scopes": {"scopes": ["https://www.googleapis.com/auth/gmail.send"]},
     }
 

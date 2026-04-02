@@ -2,8 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from dotenv import load_dotenv
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=False)
 
 
 class ProviderConfig(BaseModel):

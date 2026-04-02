@@ -77,7 +77,7 @@ Phase 1 established the trust lifecycle. Phase 2 adds the first provider lifecyc
 
 Default public callback shape:
 
-- `https://email-node.example.com/providers/gmail/oauth/callback`
+- `https://hexe-ai.com/google/gmail/callback`
 
 ## Component Boundaries
 

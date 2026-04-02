@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from urllib.parse import parse_qs, urlparse
 
 from config import AppConfig
 from main import create_app
@@ -24,11 +25,15 @@ async def test_gmail_connect_start_returns_connect_url_for_trusted_node(config, 
             enabled=True,
             client_id="client-id",
             client_secret_ref="env:GMAIL_CLIENT_SECRET",
-            redirect_uri="https://email-node.example.com/providers/gmail/oauth/callback",
+            redirect_uri="https://hexe-ai.com/google/gmail/callback",
         )
     )
     await service.start()
+    service.operator_config.core_base_url = "http://core.test"
+    service.operator_config.node_name = "email-node-test"
     service.state.trust_state = "trusted"
+    service.state.node_id = "node-1"
+    service.state.paired_core_id = "hexe-core"
     app = create_app(config=isolated_config, service=service)
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -44,6 +49,13 @@ async def test_gmail_connect_start_returns_connect_url_for_trusted_node(config, 
     assert body["provider_id"] == "gmail"
     assert body["account_id"] == "primary"
     assert "accounts.google.com" in body["connect_url"]
+    parsed = urlparse(body["connect_url"])
+    query = parse_qs(parsed.query)
+    assert query["redirect_uri"] == ["https://hexe-ai.com/google/gmail/callback"]
+    assert "login_hint" not in query
+    payload = service.gmail_oauth_manager.verify_public_state(query["state"][0])
+    assert payload["client_id"] == "client-id"
+    assert payload["core_id"] == "a75d480287c33cab"
 
 
 @pytest.mark.asyncio

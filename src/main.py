@@ -70,6 +70,13 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    @app.post("/ui/onboarding/restart")
+    async def restart_ui_onboarding(payload: OperatorConfigInput):
+        try:
+            return await node_service.restart_setup(payload)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     @app.post("/providers/gmail/accounts/{account_id}/connect/start")
     async def start_gmail_connect(account_id: str, request: Request):
         try:
@@ -80,7 +87,7 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    @app.get("/providers/gmail/oauth/callback")
+    @app.get("/google/callback")
     async def gmail_oauth_callback(
         request: Request,
         state: str | None = None,

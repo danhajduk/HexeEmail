@@ -12,6 +12,12 @@ class FinalizeRoute(BaseModel):
     path: str | None = None
 
 
+class PlatformIdentityResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    core_id: str
+
+
 class OnboardingSessionRequest(BaseModel):
     node_name: str
     node_type: str
@@ -19,6 +25,8 @@ class OnboardingSessionRequest(BaseModel):
     protocol_version: str
     node_nonce: str
     hostname: str | None = None
+    ui_endpoint: str | None = None
+    api_base_url: str | None = None
 
 
 class OnboardingSessionResponse(BaseModel):
@@ -99,12 +107,9 @@ class CoreApiClient:
                     return self._parse_onboarding_session_response(response.json())
 
                 if response.status_code == 409:
-                    body = response.json()
-                    session_payload = body.get("session") if isinstance(body, dict) else None
-                    if isinstance(session_payload, dict):
-                        return OnboardingSessionResponse.model_validate(session_payload)
-                    if isinstance(body, dict) and "session_id" in body and "approval_url" in body:
-                        return OnboardingSessionResponse.model_validate(body)
+                    reusable_session = self._extract_reusable_session(response.json())
+                    if reusable_session is not None:
+                        return reusable_session
 
                 if response.status_code >= 500 and attempt == 0:
                     await asyncio.sleep(0.5)
@@ -121,6 +126,31 @@ class CoreApiClient:
                 return OnboardingSessionResponse.model_validate(session_payload)
         return OnboardingSessionResponse.model_validate(body)
 
+    def _extract_reusable_session(self, body: Any) -> OnboardingSessionResponse | None:
+        if not isinstance(body, dict):
+            return None
+
+        direct_session = body.get("session")
+        if isinstance(direct_session, dict):
+            return OnboardingSessionResponse.model_validate(direct_session)
+
+        if "session_id" in body and "approval_url" in body:
+            return OnboardingSessionResponse.model_validate(body)
+
+        detail = body.get("detail")
+        if not isinstance(detail, dict):
+            return None
+
+        for key in ("session", "existing_session", "active_session"):
+            candidate = detail.get(key)
+            if isinstance(candidate, dict):
+                return OnboardingSessionResponse.model_validate(candidate)
+
+        if "session_id" in detail and "approval_url" in detail:
+            return OnboardingSessionResponse.model_validate(detail)
+
+        return None
+
     async def finalize_onboarding(
         self,
         base_url: str,
@@ -136,6 +166,12 @@ class CoreApiClient:
             )
             response.raise_for_status()
             return FinalizeResponse.model_validate(response.json())
+
+    async def get_platform_identity(self, base_url: str) -> PlatformIdentityResponse:
+        async with self._client(base_url) as client:
+            response = await client.get("/api/system/platform")
+            response.raise_for_status()
+            return PlatformIdentityResponse.model_validate(response.json())
 
     async def get_trust_status(
         self,

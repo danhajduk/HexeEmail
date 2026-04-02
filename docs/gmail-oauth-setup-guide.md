@@ -32,7 +32,7 @@ The Email Node Gmail flow uses:
 5. Choose application type:
    `Web application`
 6. Add the authorized redirect URI:
-   `https://email-node.example.com/providers/gmail/oauth/callback`
+   `https://hexe-ai.com/google/gmail/callback`
 
 ## Credential Fields
 
@@ -63,7 +63,7 @@ Current implementation examples:
 
 - `client_id`
 - `client_secret_ref=env:GMAIL_CLIENT_SECRET`
-- `redirect_uri=https://email-node.example.com/providers/gmail/oauth/callback`
+- `redirect_uri=https://hexe-ai.com/google/gmail/callback`
 
 ## Flow Summary
 
@@ -71,7 +71,7 @@ Current implementation examples:
 2. The trusted Email Node validates Gmail config.
 3. The Email Node generates a Google connect URL.
 4. The operator opens the URL and grants consent.
-5. Google redirects to the Email Node callback through the public HTTPS hostname.
+5. Google redirects to the centralized public callback, which forwards the request to the correct Email Node using signed state.
 6. The Email Node exchanges the authorization code server-side and stores the refresh token locally and securely.
 7. The Email Node probes Gmail identity and marks the account connected.
 

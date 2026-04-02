@@ -9,7 +9,12 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 class GmailRequestedScopes(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    scopes: list[str] = Field(default_factory=lambda: ["https://www.googleapis.com/auth/gmail.send"])
+    scopes: list[str] = Field(
+        default_factory=lambda: [
+            "https://www.googleapis.com/auth/gmail.send",
+            "https://www.googleapis.com/auth/gmail.readonly",
+        ]
+    )
 
     @field_validator("scopes")
     @classmethod
@@ -64,10 +69,15 @@ class GmailOAuthSessionState(BaseModel):
 
     state: str
     account_id: str
+    client_id: str | None = None
     redirect_uri: str
     code_verifier: str
     correlation_id: str | None = None
+    core_id: str | None = None
+    node_id: str | None = None
+    flow_id: str | None = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     expires_at: datetime = Field(default_factory=lambda: datetime.utcnow() + timedelta(minutes=10))
     consumed_at: datetime | None = None
     authorization_url: str | None = None
+    public_state: str | None = None

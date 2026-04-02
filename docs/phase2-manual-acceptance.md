@@ -29,7 +29,7 @@ This acceptance path should confirm:
 6. Open the returned Google OAuth URL.
 7. Complete Google consent.
 8. Confirm Google redirects to the Email Node callback endpoint through the public HTTPS hostname and the callback succeeds at:
-   `https://email-node.example.com/providers/gmail/oauth/callback?...`
+   `https://hexe-ai.com/google/gmail/callback?...`
 9. Confirm `GET /providers/gmail/accounts/primary` reports connected health.
 10. Confirm `GET /providers` lists:
    - `supported_providers` includes `gmail`

@@ -44,7 +44,8 @@ The provider config must validate before connect-start will succeed.
 
 1. Confirm the node is trusted.
 2. Validate Gmail config with `POST /providers/gmail/validate-config`.
-3. Set `redirect_uri` to the node's public HTTPS callback, typically your Cloudflare Tunnel hostname.
+3. Set `redirect_uri` to the centralized public callback:
+   `https://hexe-ai.com/google/gmail/callback`
 4. Start Gmail connect with `POST /providers/gmail/accounts/<account_id>/connect/start`.
 5. Open the returned Google connect URL.
 6. Complete consent in Google and let the browser return to the node callback endpoint.
@@ -72,7 +73,7 @@ After a successful callback:
 - `GET /providers/gmail/accounts`
 - `GET /providers/gmail/accounts/<account_id>`
 - `POST /providers/gmail/accounts/<account_id>/connect/start`
-- `GET /providers/gmail/oauth/callback`
+- `GET /google/gmail/callback`
 - `GET /status`
 - `GET /health/ready`
 
@@ -83,7 +84,7 @@ After a successful callback:
 - failed token exchange:
   check Google OAuth Web application client, redirect URI, and auth code lifetime
 - redirect URI mismatch:
-  confirm the Google OAuth Web application credential includes the Cloudflare Tunnel callback URI exactly
+  confirm the Google OAuth Web application credential includes `https://hexe-ai.com/google/gmail/callback` exactly
 - missing refresh token:
   reconnect the account and verify offline access is granted
 - degraded provider health:

@@ -6,6 +6,7 @@ import logging
 import sys
 import uuid
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from fastapi import Request
@@ -47,11 +48,20 @@ class JsonFormatter(logging.Formatter):
 
 
 def setup_logging(level: int = logging.INFO) -> None:
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(JsonFormatter())
+    formatter = JsonFormatter()
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setFormatter(formatter)
+
+    runtime_dir = Path.cwd() / "runtime"
+    log_dir = runtime_dir / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    file_handler = logging.FileHandler(log_dir / "api.log", encoding="utf-8")
+    file_handler.setFormatter(formatter)
+
     root_logger = logging.getLogger()
     root_logger.handlers.clear()
-    root_logger.addHandler(handler)
+    root_logger.addHandler(stream_handler)
+    root_logger.addHandler(file_handler)
     root_logger.setLevel(level)
 
 

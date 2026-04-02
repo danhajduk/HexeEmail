@@ -21,6 +21,8 @@ Local defaults today:
 - onboarding UI: `8083`
 - Gmail provider setup is available from the UI via `Setup Provider`
 
-Gmail provider activation uses a Google `Web application` client with a public HTTPS callback on the node, typically through a Cloudflare Tunnel hostname such as:
+Gmail provider activation uses a Google `Web application` client with the centralized public HTTPS callback:
 
-- `https://email-node.example.com/providers/gmail/oauth/callback`
+- `https://hexe-ai.com/google/gmail/callback`
+
+The node accepts forwarded Gmail OAuth callbacks on `/google/gmail/callback`, and the outbound OAuth `state` is signed and short-lived so callback routing does not depend on host parsing.

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import secrets
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -25,6 +26,10 @@ class GmailRuntimeLayout:
     def oauth_sessions_dir(self) -> Path:
         return self.provider_dir / "oauth_sessions"
 
+    @property
+    def oauth_state_secret_path(self) -> Path:
+        return self.provider_dir / "oauth_state_secret"
+
     def account_file(self, account_id: str) -> Path:
         return self.accounts_dir / f"{account_id}.json"
 
@@ -39,11 +44,13 @@ class GmailRuntimeLayout:
         self.accounts_dir.mkdir(parents=True, exist_ok=True)
         self.oauth_sessions_dir.mkdir(parents=True, exist_ok=True)
         self._ensure_file(self.provider_config_path, "{}\n")
+        self._ensure_file(self.oauth_state_secret_path, f"{secrets.token_urlsafe(32)}\n")
 
         self._set_mode(self.provider_dir, 0o700)
         self._set_mode(self.accounts_dir, 0o700)
         self._set_mode(self.oauth_sessions_dir, 0o700)
         self._set_mode(self.provider_config_path, 0o600)
+        self._set_mode(self.oauth_state_secret_path, 0o600)
 
     def _ensure_file(self, path: Path, contents: str) -> None:
         if path.exists():

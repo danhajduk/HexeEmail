@@ -11,10 +11,13 @@ from providers.gmail.models import (
 )
 
 
-def test_gmail_requested_scopes_default_to_least_privilege_send_scope():
+def test_gmail_requested_scopes_default_to_send_and_read_scopes():
     scopes = GmailRequestedScopes()
 
-    assert scopes.scopes == ["https://www.googleapis.com/auth/gmail.send"]
+    assert scopes.scopes == [
+        "https://www.googleapis.com/auth/gmail.send",
+        "https://www.googleapis.com/auth/gmail.readonly",
+    ]
 
 
 def test_gmail_requested_scopes_require_at_least_one_non_blank_scope():
@@ -27,7 +30,7 @@ def test_gmail_oauth_config_keeps_static_fields_separate_from_runtime_tokens():
         enabled=True,
         client_id="client-id",
         client_secret_ref="env:GMAIL_CLIENT_SECRET",
-        redirect_uri="https://email-node.example.com/providers/gmail/oauth/callback",
+        redirect_uri="https://email-node.example.com/api/providers/gmail/oauth/callback",
     )
 
     assert config.enabled is True
@@ -68,7 +71,7 @@ def test_gmail_oauth_session_state_defaults_to_short_lived_pending_session():
     session = GmailOAuthSessionState(
         state="oauth-state",
         account_id="primary",
-        redirect_uri="https://email-node.example.com/providers/gmail/oauth/callback",
+        redirect_uri="https://email-node.example.com/api/providers/gmail/oauth/callback",
         code_verifier="verifier",
     )
 
