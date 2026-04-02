@@ -1,17 +1,19 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 from logging_utils import get_logger
 from providers.base import EmailProviderAdapter
 from providers.gmail.account_store import GmailAccountStore
+from providers.gmail.fetch_schedule_store import GmailFetchScheduleStore
 from providers.gmail.mailbox_client import GmailMailboxClient, GmailMailboxClientError
 from providers.gmail.message_store import GmailMessageStore
 from providers.gmail.mailbox_status_store import GmailMailboxStatusStore
 from providers.gmail.config_store import GmailProviderConfigError, GmailProviderConfigStore
 from providers.gmail.health import GmailHealthEvaluator
 from providers.gmail.identity import GmailIdentityProbeClient
-from providers.gmail.models import GmailMailboxStatus, GmailStoredMessage
+from providers.gmail.models import GmailFetchScheduleState, GmailMailboxStatus, GmailStoredMessage
 from providers.gmail.state_machine import GmailAccountStateMachine
 from providers.gmail.token_client import GmailTokenExchangeClient
 from providers.gmail.token_store import GmailTokenStore
@@ -37,6 +39,7 @@ class GmailProviderAdapter(EmailProviderAdapter):
         self.token_store = GmailTokenStore(runtime_dir)
         self.mailbox_status_store = GmailMailboxStatusStore(runtime_dir)
         self.message_store = GmailMessageStore(runtime_dir)
+        self.fetch_schedule_store = GmailFetchScheduleStore(runtime_dir)
         self.state_machine = GmailAccountStateMachine(self.account_store)
         self.token_client = token_client or GmailTokenExchangeClient()
         self.identity_client = identity_client or GmailIdentityProbeClient(self.account_store)
@@ -157,43 +160,14 @@ class GmailProviderAdapter(EmailProviderAdapter):
         self,
         account_id: str,
         *,
+        store_unread_messages: bool = True,
         correlation_id: str | None = None,
     ) -> GmailMailboxStatus:
-        try:
-            oauth_config = self.config_store.load()
-        except GmailProviderConfigError as exc:
-            snapshot = GmailMailboxStatus(account_id=account_id, status="error", detail=str(exc))
-            return self.mailbox_status_store.save_status(snapshot)
-
         account_record = self.account_store.load_account(account_id)
-        token_record = await self.token_client.refresh_if_needed(
-            oauth_config,
-            account_id=account_id,
-            token_store=self.token_store,
-            account_store=self.account_store,
-            correlation_id=correlation_id,
+        snapshot = self.message_store.mailbox_status(
+            account_id,
+            email_address=account_record.email_address if account_record is not None else None,
         )
-        if token_record is None:
-            snapshot = GmailMailboxStatus(
-                account_id=account_id,
-                email_address=account_record.email_address if account_record is not None else None,
-                status="pending",
-                detail="gmail token is not available yet",
-            )
-            return self.mailbox_status_store.save_status(snapshot)
-
-        try:
-            snapshot = await self.mailbox_client.fetch_unread_status(
-                token_record=token_record,
-                email_address=account_record.email_address if account_record is not None else None,
-            )
-        except GmailMailboxClientError as exc:
-            snapshot = GmailMailboxStatus(
-                account_id=account_id,
-                email_address=account_record.email_address if account_record is not None else None,
-                status="error",
-                detail=str(exc),
-            )
         return self.mailbox_status_store.save_status(snapshot)
 
     async def get_mailbox_status(self, account_id: str) -> GmailMailboxStatus | None:
@@ -204,6 +178,8 @@ class GmailProviderAdapter(EmailProviderAdapter):
         account_id: str,
         *,
         window: str,
+        reason: str = "manual",
+        slot_key: str | None = None,
         correlation_id: str | None = None,
     ) -> dict[str, object]:
         try:
@@ -225,6 +201,12 @@ class GmailProviderAdapter(EmailProviderAdapter):
         messages = await self.mailbox_client.fetch_messages(token_record=token_record, query=query)
         stored_count = self.message_store.upsert_messages(messages)
         summary = self.message_store.account_summary(account_id)
+        schedule_state = self.fetch_schedule_store.load_state()
+        window_state = getattr(schedule_state, window)
+        window_state.last_run_at = datetime.now().astimezone()
+        window_state.last_run_reason = "scheduled" if reason == "scheduled" else "manual"
+        window_state.last_slot_key = slot_key
+        self.fetch_schedule_store.save_state(schedule_state)
         return {
             "provider_id": self.provider_id,
             "account_id": account_id,
@@ -233,6 +215,8 @@ class GmailProviderAdapter(EmailProviderAdapter):
             "fetched_count": len(messages),
             "stored_count": stored_count,
             "summary": summary,
+            "reason": window_state.last_run_reason,
+            "slot_key": slot_key,
         }
 
     async def list_stored_messages(self, account_id: str, *, limit: int = 100) -> list[GmailStoredMessage]:
@@ -240,6 +224,9 @@ class GmailProviderAdapter(EmailProviderAdapter):
 
     async def message_store_summary(self, account_id: str) -> dict[str, object]:
         return self.message_store.account_summary(account_id)
+
+    async def fetch_schedule_state(self) -> GmailFetchScheduleState:
+        return self.fetch_schedule_store.load_state()
 
     async def aclose(self) -> None:
         await self.token_client.aclose()

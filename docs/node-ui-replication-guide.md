@@ -317,14 +317,14 @@ The `Gmail Status` card currently shows:
 - unread inbox count
 - unread today count
 - unread yesterday count
-- unread this week count
+- unread last hour count
 - stored email count
 - last fetch time
 
 Unread counter semantics:
 
 - `Unread Inbox` uses `is:unread in:inbox`
-- `Unread Today`, `Unread Yesterday`, and `Unread This Week` use exact unread message matches within their time windows
+- `Unread Today`, `Unread Yesterday`, and `Unread Last Hour` use exact unread message matches within their time windows
 - those time-window counters are not restricted to inbox
 - counts are based on exact matched message IDs, not Gmail `resultSizeEstimate`
 

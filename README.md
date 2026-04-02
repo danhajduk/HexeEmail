@@ -44,5 +44,5 @@ Onboarding registration also reports both:
 Gmail unread counters currently behave as follows:
 
 - `Unread Inbox` uses `is:unread in:inbox`
-- `Unread Today`, `Unread Yesterday`, and `Unread This Week` use exact unread message matches by time window and are not limited to `in:inbox`
+- `Unread Today`, `Unread Yesterday`, and `Unread Last Hour` use exact unread message matches by time window and are not limited to `in:inbox`
 - unread counts are based on exact matched message IDs rather than Gmail `resultSizeEstimate`

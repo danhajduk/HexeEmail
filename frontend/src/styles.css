@@ -247,6 +247,39 @@
   flex-wrap: wrap;
 }
 
+.gmail-fetch-row .btn {
+  flex: 1 1 0;
+}
+
+.gmail-settings-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.gmail-settings-window {
+  padding: 16px;
+  border-radius: var(--sx-radius-md);
+  border: 1px solid hsl(var(--sx-border));
+  background: hsl(var(--sx-text) / 0.03);
+}
+
+.gmail-settings-window-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.gmail-settings-window-header h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.gmail-settings-facts {
+  gap: 10px;
+}
+
 .node-health-strip {
   padding: 18px 20px;
 }

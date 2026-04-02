@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class GmailRequestedScopes(BaseModel):
@@ -13,6 +13,7 @@ class GmailRequestedScopes(BaseModel):
         default_factory=lambda: [
             "https://www.googleapis.com/auth/gmail.send",
             "https://www.googleapis.com/auth/gmail.readonly",
+            "https://www.googleapis.com/auth/gmail.modify",
         ]
     )
 
@@ -92,9 +93,20 @@ class GmailMailboxStatus(BaseModel):
     unread_inbox_count: int = 0
     unread_today_count: int = 0
     unread_yesterday_count: int = 0
-    unread_week_count: int = 0
+    unread_last_hour_count: int = 0
     checked_at: datetime | None = None
     detail: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_legacy_unread_week_count(cls, value: object) -> object:
+        if not isinstance(value, dict):
+            return value
+        payload = dict(value)
+        if "unread_last_hour_count" not in payload and "unread_week_count" in payload:
+            payload["unread_last_hour_count"] = payload["unread_week_count"]
+        payload.pop("unread_week_count", None)
+        return payload
 
 
 class GmailStoredMessage(BaseModel):
@@ -110,3 +122,19 @@ class GmailStoredMessage(BaseModel):
     label_ids: list[str] = Field(default_factory=list)
     received_at: datetime
     raw_payload: str | None = None
+
+
+class GmailFetchWindowState(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    last_run_at: datetime | None = None
+    last_run_reason: Literal["manual", "scheduled"] | None = None
+    last_slot_key: str | None = None
+
+
+class GmailFetchScheduleState(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    yesterday: GmailFetchWindowState = Field(default_factory=GmailFetchWindowState)
+    today: GmailFetchWindowState = Field(default_factory=GmailFetchWindowState)
+    last_hour: GmailFetchWindowState = Field(default_factory=GmailFetchWindowState)

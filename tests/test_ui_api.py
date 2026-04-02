@@ -11,9 +11,10 @@ from logging_utils import setup_logging
 from main import create_app
 from models import TrustMaterial
 from providers.gmail.config_store import GmailProviderConfigStore
+from providers.gmail.fetch_schedule_store import GmailFetchScheduleStore
 from providers.gmail.mailbox_client import GmailMailboxClient
 from providers.gmail.mailbox_status_store import GmailMailboxStatusStore
-from providers.gmail.models import GmailMailboxStatus, GmailOAuthConfig, GmailTokenRecord
+from providers.gmail.models import GmailFetchScheduleState, GmailFetchWindowState, GmailMailboxStatus, GmailOAuthConfig, GmailTokenRecord
 from service import NodeService
 from tests.helpers import FakeMQTTManager, build_core_app
 
@@ -51,6 +52,30 @@ async def test_ui_bootstrap_reports_missing_inputs(runtime_dir, core_client_fact
     ]
     assert body["status"]["mqtt_health"]["status_freshness_state"] == "inactive"
     assert body["status"]["mqtt_health"]["health_status"] == "offline"
+
+
+@pytest.mark.asyncio
+async def test_service_start_can_skip_gmail_background_loops(runtime_dir, core_client_factory):
+    config = AppConfig(
+        CORE_BASE_URL="http://core.test",
+        NODE_NAME="node-test",
+        NODE_TYPE="email-node",
+        NODE_SOFTWARE_VERSION="0.1.0",
+        NODE_NONCE="nonce-test",
+        RUNTIME_DIR=runtime_dir,
+        API_PORT=9003,
+        UI_PORT=8083,
+        GMAIL_STATUS_POLL_ON_STARTUP=False,
+        GMAIL_FETCH_POLL_ON_STARTUP=False,
+    )
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+
+    await service.start()
+
+    assert service.gmail_status_task is None
+    assert service.gmail_fetch_task is None
+
+    await service.stop()
 
 
 @pytest.mark.asyncio
@@ -428,7 +453,7 @@ async def test_gmail_status_api_exposes_mailbox_counts(config, core_client_facto
             unread_inbox_count=12,
             unread_today_count=3,
             unread_yesterday_count=4,
-            unread_week_count=9,
+            unread_last_hour_count=2,
         )
     )
     app = create_app(config=config, service=service)
@@ -443,6 +468,7 @@ async def test_gmail_status_api_exposes_mailbox_counts(config, core_client_facto
     assert body["provider_id"] == "gmail"
     assert body["accounts"][0]["mailbox_status"]["unread_inbox_count"] == 12
     assert body["accounts"][0]["mailbox_status"]["unread_today_count"] == 3
+    assert body["accounts"][0]["mailbox_status"]["unread_last_hour_count"] == 2
 
 
 def build_google_fetch_test_app():
@@ -457,7 +483,7 @@ def build_google_fetch_test_app():
         return {
             "id": message_id,
             "threadId": "thread-1",
-            "labelIds": ["INBOX"],
+            "labelIds": ["INBOX", "UNREAD"],
             "snippet": "hello world",
             "internalDate": "1775121600000",
             "payload": {
@@ -515,3 +541,46 @@ async def test_gmail_fetch_api_stores_messages_for_requested_window(config, core
 
     assert status_response.status_code == 200
     assert status_response.json()["accounts"][0]["message_store"]["total_count"] == 1
+    assert status_response.json()["accounts"][0]["mailbox_status"]["unread_inbox_count"] == 1
+    assert status_response.json()["accounts"][0]["mailbox_status"]["unread_today_count"] == 1
+    assert status_response.json()["accounts"][0]["mailbox_status"]["unread_last_hour_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_gmail_status_api_exposes_fetch_schedule_state(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    GmailFetchScheduleStore(config.runtime_dir).save_state(
+        GmailFetchScheduleState(
+            yesterday=GmailFetchWindowState(last_run_at=datetime(2026, 4, 2, 0, 1, 0), last_run_reason="scheduled", last_slot_key="2026-04-01"),
+            today=GmailFetchWindowState(last_run_at=datetime(2026, 4, 2, 6, 0, 0), last_run_reason="manual", last_slot_key="2026-04-02:1"),
+            last_hour=GmailFetchWindowState(last_run_at=datetime(2026, 4, 2, 7, 0, 0), last_run_reason="scheduled", last_slot_key="2026-04-02T07:00:00+00:00"),
+        )
+    )
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/gmail/status")
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["fetch_schedule"]["yesterday"]["last_run_reason"] == "scheduled"
+    assert body["fetch_schedule"]["today"]["last_run_reason"] == "manual"
+
+
+def test_due_gmail_fetch_windows_match_requested_schedule(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    schedule_state = GmailFetchScheduleState()
+
+    due_at_0001 = service._due_gmail_fetch_windows(datetime(2026, 4, 2, 0, 1, 0).astimezone(), schedule_state)
+    assert ("yesterday", "2026-04-01") in due_at_0001
+
+    due_at_0600 = service._due_gmail_fetch_windows(datetime(2026, 4, 2, 6, 0, 0).astimezone(), schedule_state)
+    assert ("today", "2026-04-02:1") in due_at_0600
+    assert any(window == "last_hour" for window, _ in due_at_0600)
+
+    due_at_0700 = service._due_gmail_fetch_windows(datetime(2026, 4, 2, 7, 0, 0).astimezone(), schedule_state)
+    assert ("today", "2026-04-02:1") not in due_at_0700
+    assert any(window == "last_hour" for window, _ in due_at_0700)

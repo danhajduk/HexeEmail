@@ -126,6 +126,7 @@ def test_gmail_oauth_session_manager_builds_google_connect_url(tmp_path):
     assert query["code_challenge_method"] == ["S256"]
     assert "https://www.googleapis.com/auth/gmail.send" in query["scope"][0]
     assert "https://www.googleapis.com/auth/gmail.readonly" in query["scope"][0]
+    assert "https://www.googleapis.com/auth/gmail.modify" in query["scope"][0]
     assert payload["provider"] == "gmail"
     assert payload["client_id"] == "client-id"
     assert payload["core_id"] == "core-1"

@@ -38,6 +38,10 @@ class GmailRuntimeLayout:
     def message_store_path(self) -> Path:
         return self.provider_dir / "messages.sqlite3"
 
+    @property
+    def fetch_schedule_state_path(self) -> Path:
+        return self.provider_dir / "fetch_schedule_state.json"
+
     def account_file(self, account_id: str) -> Path:
         return self.accounts_dir / f"{account_id}.json"
 
@@ -57,6 +61,7 @@ class GmailRuntimeLayout:
         self.mailbox_status_dir.mkdir(parents=True, exist_ok=True)
         self._ensure_file(self.provider_config_path, "{}\n")
         self._ensure_file(self.oauth_state_secret_path, f"{secrets.token_urlsafe(32)}\n")
+        self._ensure_file(self.fetch_schedule_state_path, "{}\n")
 
         self._set_mode(self.provider_dir, 0o700)
         self._set_mode(self.accounts_dir, 0o700)
@@ -64,6 +69,7 @@ class GmailRuntimeLayout:
         self._set_mode(self.mailbox_status_dir, 0o700)
         self._set_mode(self.provider_config_path, 0o600)
         self._set_mode(self.oauth_state_secret_path, 0o600)
+        self._set_mode(self.fetch_schedule_state_path, 0o600)
         if self.message_store_path.exists():
             self._set_mode(self.message_store_path, 0o600)
 

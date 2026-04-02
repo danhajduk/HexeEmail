@@ -5,7 +5,7 @@ import contextlib
 import re
 import socket
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlparse
 
 import httpx
@@ -83,6 +83,7 @@ class NodeService:
         self.trust_material: TrustMaterial | None = None
         self.polling_task: asyncio.Task | None = None
         self.gmail_status_task: asyncio.Task | None = None
+        self.gmail_fetch_task: asyncio.Task | None = None
         self.live = True
         self.ready = False
         self.startup_error: str | None = None
@@ -118,7 +119,10 @@ class NodeService:
             },
         )
         await self._resume_runtime()
-        self._ensure_gmail_status_polling()
+        if self.config.gmail_status_poll_on_startup:
+            self._ensure_gmail_status_polling()
+        if self.config.gmail_fetch_poll_on_startup:
+            self._ensure_gmail_fetch_polling()
 
     async def stop(self) -> None:
         if self.polling_task is not None:
@@ -129,6 +133,10 @@ class NodeService:
             self.gmail_status_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await self.gmail_status_task
+        if self.gmail_fetch_task is not None:
+            self.gmail_fetch_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self.gmail_fetch_task
         self.mqtt_manager.disconnect()
         for provider_id in self.provider_registry.provider_ids():
             await self.provider_registry.get_provider(provider_id).aclose()
@@ -1010,7 +1018,11 @@ class NodeService:
         adapter = self.provider_registry.get_provider("gmail")
         account = next((account for account in await adapter.list_accounts() if account.account_id == account_id), None)
         health = await adapter.get_account_health(account_id)
-        mailbox_status = await adapter.get_mailbox_status(account_id) if hasattr(adapter, "get_mailbox_status") else None
+        mailbox_status = (
+            await adapter.refresh_mailbox_status(account_id, store_unread_messages=False)
+            if hasattr(adapter, "refresh_mailbox_status")
+            else await adapter.get_mailbox_status(account_id) if hasattr(adapter, "get_mailbox_status") else None
+        )
         return {
             "account": account.model_dump(mode="json") if account is not None else None,
             "health": health.model_dump(mode="json"),
@@ -1020,9 +1032,14 @@ class NodeService:
     async def gmail_status(self) -> dict[str, object]:
         adapter = self.provider_registry.get_provider("gmail")
         accounts = await adapter.list_accounts()
+        fetch_schedule = await adapter.fetch_schedule_state() if hasattr(adapter, "fetch_schedule_state") else None
         statuses: list[dict[str, object]] = []
         for account in accounts:
-            mailbox_status = await adapter.get_mailbox_status(account.account_id) if hasattr(adapter, "get_mailbox_status") else None
+            mailbox_status = (
+                await adapter.refresh_mailbox_status(account.account_id, store_unread_messages=False)
+                if hasattr(adapter, "refresh_mailbox_status")
+                else await adapter.get_mailbox_status(account.account_id) if hasattr(adapter, "get_mailbox_status") else None
+            )
             message_summary = await adapter.message_store_summary(account.account_id) if hasattr(adapter, "message_store_summary") else None
             statuses.append(
                 {
@@ -1035,6 +1052,7 @@ class NodeService:
             "provider_id": "gmail",
             "provider_state": await adapter.get_provider_state(),
             "enabled": adapter.get_enabled_status(),
+            "fetch_schedule": fetch_schedule.model_dump(mode="json") if fetch_schedule is not None else None,
             "accounts": statuses,
         }
 
@@ -1043,13 +1061,27 @@ class NodeService:
         window: str,
         *,
         account_id: str = "primary",
+        reason: str = "manual",
+        slot_key: str | None = None,
         correlation_id: str | None = None,
     ) -> dict[str, object]:
         adapter = self.provider_registry.get_provider("gmail")
         if not hasattr(adapter, "fetch_messages_for_window"):
             raise ValueError("gmail fetch actions are not available")
         try:
-            result = await adapter.fetch_messages_for_window(account_id, window=window, correlation_id=correlation_id)
+            result = await adapter.fetch_messages_for_window(
+                account_id,
+                window=window,
+                reason=reason,
+                slot_key=slot_key,
+                correlation_id=correlation_id,
+            )
+            if hasattr(adapter, "refresh_mailbox_status"):
+                await adapter.refresh_mailbox_status(
+                    account_id,
+                    store_unread_messages=False,
+                    correlation_id=correlation_id,
+                )
         except Exception as exc:
             raise ValueError(str(exc)) from exc
         return result
@@ -1110,6 +1142,10 @@ class NodeService:
         if self.gmail_status_task is None or self.gmail_status_task.done():
             self.gmail_status_task = asyncio.create_task(self._gmail_status_loop())
 
+    def _ensure_gmail_fetch_polling(self) -> None:
+        if self.gmail_fetch_task is None or self.gmail_fetch_task.done():
+            self.gmail_fetch_task = asyncio.create_task(self._gmail_fetch_loop())
+
     async def _gmail_status_loop(self) -> None:
         while True:
             with contextlib.suppress(Exception):
@@ -1122,6 +1158,72 @@ class NodeService:
         for account in accounts:
             if account.status in {"connected", "token_exchanged", "degraded"}:
                 await gmail_adapter.refresh_mailbox_status(account.account_id)
+
+    async def _gmail_fetch_loop(self) -> None:
+        while True:
+            with contextlib.suppress(Exception):
+                await self._run_due_gmail_fetches()
+            await asyncio.sleep(self._seconds_until_next_minute())
+
+    async def _run_due_gmail_fetches(self) -> None:
+        gmail_adapter = self.provider_registry.get_provider("gmail")
+        if not gmail_adapter.get_enabled_status():
+            return
+        accounts = await gmail_adapter.list_accounts()
+        eligible_accounts = [account for account in accounts if account.status in {"connected", "token_exchanged", "degraded"}]
+        if not eligible_accounts:
+            return
+
+        schedule_state = await gmail_adapter.fetch_schedule_state() if hasattr(gmail_adapter, "fetch_schedule_state") else None
+        due_windows = self._due_gmail_fetch_windows(datetime.now().astimezone(), schedule_state)
+        for account in eligible_accounts:
+            for window, slot_key in due_windows:
+                await self.gmail_fetch_messages(
+                    window,
+                    account_id=account.account_id,
+                    reason="scheduled",
+                    slot_key=slot_key,
+                )
+
+    def _due_gmail_fetch_windows(self, now: datetime, schedule_state) -> list[tuple[str, str]]:
+        due: list[tuple[str, str]] = []
+        schedule_map = {
+            "yesterday": self._gmail_fetch_slot_key("yesterday", now),
+            "today": self._gmail_fetch_slot_key("today", now),
+            "last_hour": self._gmail_fetch_slot_key("last_hour", now),
+        }
+        if schedule_state is None:
+            return []
+
+        yesterday_state = getattr(schedule_state, "yesterday", None)
+        if now.hour == 0 and now.minute == 1 and schedule_map["yesterday"] and getattr(yesterday_state, "last_slot_key", None) != schedule_map["yesterday"]:
+            due.append(("yesterday", schedule_map["yesterday"]))
+
+        today_state = getattr(schedule_state, "today", None)
+        if now.minute == 0 and now.hour % 6 == 0 and schedule_map["today"] and getattr(today_state, "last_slot_key", None) != schedule_map["today"]:
+            due.append(("today", schedule_map["today"]))
+
+        last_hour_state = getattr(schedule_state, "last_hour", None)
+        if now.minute == 0 and schedule_map["last_hour"] and getattr(last_hour_state, "last_slot_key", None) != schedule_map["last_hour"]:
+            due.append(("last_hour", schedule_map["last_hour"]))
+
+        return due
+
+    def _gmail_fetch_slot_key(self, window: str, now: datetime) -> str | None:
+        local_now = now.astimezone()
+        if window == "yesterday":
+            return (local_now - timedelta(days=1)).date().isoformat()
+        if window == "today":
+            return f"{local_now.date().isoformat()}:{local_now.hour // 6}"
+        if window == "last_hour":
+            slot_time = local_now.replace(minute=0, second=0, microsecond=0)
+            return slot_time.isoformat()
+        return None
+
+    def _seconds_until_next_minute(self) -> float:
+        now = datetime.now().astimezone()
+        next_minute = (now + timedelta(minutes=1)).replace(second=0, microsecond=0)
+        return max((next_minute - now).total_seconds(), 1.0)
 
     async def declare_selected_capabilities(self) -> StatusResponse:
         if self.state.trust_state != "trusted" or not self.state.node_id or not self.effective_core_base_url():

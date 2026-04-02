@@ -95,7 +95,7 @@ Retention policy:
 Current unread counter behavior:
 
 - `Unread Inbox` is limited to `is:unread in:inbox`
-- `Unread Today`, `Unread Yesterday`, and `Unread This Week` count unread mail by time window across Gmail and are not restricted to inbox only
+- `Unread Today`, `Unread Yesterday`, and `Unread Last Hour` count unread mail by time window across Gmail and are not restricted to inbox only
 - counts are based on exact Gmail message matches instead of `resultSizeEstimate`
 
 ## Useful Endpoints

@@ -17,7 +17,8 @@ const EMPTY_PROVIDER_FORM = {
   client_id: "",
   client_secret_ref: "",
   redirect_uri: "",
-  requested_scopes: "https://www.googleapis.com/auth/gmail.send\nhttps://www.googleapis.com/auth/gmail.readonly",
+  requested_scopes:
+    "https://www.googleapis.com/auth/gmail.send\nhttps://www.googleapis.com/auth/gmail.readonly\nhttps://www.googleapis.com/auth/gmail.modify",
 };
 
 async function fetchJson(url, options) {
@@ -114,6 +115,39 @@ function formatAge(value) {
     return `${Math.floor(value / 60)}m`;
   }
   return `${Math.floor(value / 3600)}h`;
+}
+
+function formatScheduleTimestamp(value) {
+  if (!value) {
+    return "-";
+  }
+  return formatTelemetryTimestamp(value);
+}
+
+function buildGmailWindowSettings(fetchSchedule) {
+  return [
+    {
+      key: "yesterday",
+      label: "Yesterday",
+      fetchedAt: fetchSchedule?.yesterday?.last_run_at,
+      runReason: fetchSchedule?.yesterday?.last_run_reason,
+      schedule: "00:01 daily",
+    },
+    {
+      key: "today",
+      label: "Today",
+      fetchedAt: fetchSchedule?.today?.last_run_at,
+      runReason: fetchSchedule?.today?.last_run_reason,
+      schedule: "00:00, 06:00, 12:00, 18:00",
+    },
+    {
+      key: "last_hour",
+      label: "Last Hour",
+      fetchedAt: fetchSchedule?.last_hour?.last_run_at,
+      runReason: fetchSchedule?.last_hour?.last_run_reason,
+      schedule: "top of every hour",
+    },
+  ];
 }
 
 function telemetryFreshnessIndicatorClass(value) {
@@ -885,22 +919,8 @@ export function App() {
     setGmailActionNotice("");
     try {
       const payload = await fetchJson(`/api/gmail/fetch/${window}`, { method: "POST" });
-      setGmailStatus((current) => {
-        if (!current || !Array.isArray(current.accounts) || current.accounts.length === 0) {
-          return current;
-        }
-        const [firstAccount, ...restAccounts] = current.accounts;
-        return {
-          ...current,
-          accounts: [
-            {
-              ...firstAccount,
-              message_store: payload.summary || firstAccount.message_store,
-            },
-            ...restAccounts,
-          ],
-        };
-      });
+      const refreshedStatus = await fetchJson("/api/gmail/status");
+      setGmailStatus(refreshedStatus);
       setGmailActionNotice(`${successLabel} completed. Stored ${payload.summary?.total_count ?? payload.stored_count ?? 0} emails.`);
     } catch (actionError) {
       setGmailActionError(actionError.message);
@@ -1162,6 +1182,8 @@ export function App() {
   const gmailPrimaryMailboxStatus = gmailPrimary?.mailbox_status || null;
   const gmailPrimaryAccount = gmailPrimary?.account || null;
   const gmailPrimaryStore = gmailPrimary?.message_store || null;
+  const gmailFetchSchedule = gmailStatus?.fetch_schedule || null;
+  const gmailWindowSettings = buildGmailWindowSettings(gmailFetchSchedule);
   const mqttHealth = status?.mqtt_health || {};
   const lastHeartbeatAt = mqttHealth?.last_status_report_at || status?.last_heartbeat_at || null;
   const mqttConnected = status?.mqtt_connection_status === "connected" || mqttHealth?.health_status === "connected";
@@ -1370,8 +1392,8 @@ export function App() {
                         <dd>{gmailPrimaryMailboxStatus?.unread_yesterday_count ?? (gmailStatusLoading ? "Loading..." : 0)}</dd>
                       </div>
                       <div>
-                        <dt>Unread This Week</dt>
-                        <dd>{gmailPrimaryMailboxStatus?.unread_week_count ?? (gmailStatusLoading ? "Loading..." : 0)}</dd>
+                        <dt>Unread Last Hour</dt>
+                        <dd>{gmailPrimaryMailboxStatus?.unread_last_hour_count ?? (gmailStatusLoading ? "Loading..." : 0)}</dd>
                       </div>
                       <div>
                         <dt>Stored Emails</dt>
@@ -1387,7 +1409,27 @@ export function App() {
                   <article className="card">
                     <div className="card-header">
                       <h2>Gmail Settings</h2>
-                      <p className="muted">Gmail configuration controls will live here.</p>
+                      <p className="muted">Scheduled Gmail fetch windows for operational refresh.</p>
+                    </div>
+                    <div className="gmail-settings-grid">
+                      {gmailWindowSettings.map((windowSetting) => (
+                        <section key={windowSetting.key} className="gmail-settings-window">
+                          <div className="gmail-settings-window-header">
+                            <h3>{windowSetting.label}</h3>
+                            <span className="status-pill">{windowSetting.runReason || "pending"}</span>
+                          </div>
+                          <dl className="facts single-column-facts gmail-settings-facts">
+                            <div>
+                              <dt>Fetched</dt>
+                              <dd>{formatScheduleTimestamp(windowSetting.fetchedAt)}</dd>
+                            </div>
+                            <div>
+                              <dt>Schedule</dt>
+                              <dd>{windowSetting.schedule}</dd>
+                            </div>
+                          </dl>
+                        </section>
+                      ))}
                     </div>
                   </article>
 
@@ -1407,32 +1449,36 @@ export function App() {
                       >
                         Fetch Initial Learning
                       </button>
-                      <button
-                        type="button"
-                        className="btn"
-                        disabled={gmailActionPending !== ""}
-                        onClick={() => runGmailFetch("today", "Today fetch")}
+                      <div className="row gmail-fetch-row">
+                        <button
+                          type="button"
+                          className="btn"
+                          disabled={gmailActionPending !== ""}
+                        onClick={() => runGmailFetch("today", "Today poll")}
                       >
-                        Fetch Today Email
+                        Poll Today
                       </button>
                       <button
                         type="button"
                         className="btn"
                         disabled={gmailActionPending !== ""}
-                        onClick={() => runGmailFetch("yesterday", "Yesterday fetch")}
+                        onClick={() => runGmailFetch("yesterday", "Yesterday poll")}
                       >
-                        Fetch Yesterday Email
+                        Poll Yesterday
                       </button>
                       <button
                         type="button"
                         className="btn"
                         disabled={gmailActionPending !== ""}
-                        onClick={() => runGmailFetch("last_hour", "Last hour fetch")}
+                        onClick={() => runGmailFetch("last_hour", "Last hour poll")}
                       >
-                        Fetch Last Hour Email
+                        Poll Last Hour
                       </button>
+                      </div>
                       <p className="muted tiny">
-                        {gmailActionPending ? "Fetch in progress..." : "Fetch windows use the node local timezone and store up to six months of mail."}
+                        {gmailActionPending
+                          ? "Fetch in progress..."
+                          : "Scheduled fetches use the node local timezone and store up to six months of mail."}
                       </p>
                     </div>
                   </article>

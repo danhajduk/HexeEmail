@@ -29,7 +29,7 @@ Current unread counters:
 - `Unread Inbox`
 - `Unread Today`
 - `Unread Yesterday`
-- `Unread This Week`
+- `Unread Last Hour`
 
 ## Unread Count Semantics
 
@@ -50,10 +50,10 @@ The counters intentionally do not all use the same Gmail search.
 - query shape: `is:unread after:<yesterday_start> before:<today_start>`
 - purpose: unread mail received in the prior local-day window
 
-`Unread This Week`:
+`Unread Last Hour`:
 
-- query shape: `is:unread after:<week_start> before:<tomorrow_start>`
-- purpose: unread mail in the current local-week window
+- query shape: `is:unread after:<one_hour_ago> before:<now>`
+- purpose: unread mail received in the last rolling hour
 
 Important behavior:
 
@@ -155,7 +155,7 @@ The Gmail dashboard status card currently displays:
 - unread inbox
 - unread today
 - unread yesterday
-- unread this week
+- unread last hour
 - stored emails
 - last fetch
 
@@ -177,6 +177,6 @@ Current default:
 - `600` seconds
 - 10 minutes
 
-This background status poll updates unread counts.
+This background status poll updates unread counts and upserts the currently unread message metadata into the local SQLite store.
 
 Manual fetch actions populate the SQLite message store.

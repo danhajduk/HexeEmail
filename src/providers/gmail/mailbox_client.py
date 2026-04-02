@@ -18,6 +18,7 @@ class GmailMailboxClientError(RuntimeError):
 class GmailMailboxClient:
     MESSAGES_ENDPOINT = "https://gmail.googleapis.com/gmail/v1/users/me/messages"
     MESSAGE_ENDPOINT_TEMPLATE = "https://gmail.googleapis.com/gmail/v1/users/me/messages/{message_id}"
+    UNREAD_MESSAGES_QUERY = "is:unread"
 
     def __init__(self, *, transport: httpx.AsyncBaseTransport | None = None) -> None:
         self._client = httpx.AsyncClient(transport=transport, timeout=10.0)
@@ -27,7 +28,7 @@ class GmailMailboxClient:
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         yesterday_start = today_start - timedelta(days=1)
         tomorrow_start = today_start + timedelta(days=1)
-        week_start = today_start - timedelta(days=today_start.weekday())
+        last_hour_start = now - timedelta(hours=1)
 
         unread_inbox_count = await self._count_query(token_record.access_token, "is:unread in:inbox")
         unread_today_count = await self._count_query(
@@ -38,9 +39,9 @@ class GmailMailboxClient:
             token_record.access_token,
             self._unread_range_query(yesterday_start, today_start),
         )
-        unread_week_count = await self._count_query(
+        unread_last_hour_count = await self._count_query(
             token_record.access_token,
-            self._unread_range_query(week_start, tomorrow_start),
+            self._unread_range_query(last_hour_start, now),
         )
 
         return GmailMailboxStatus(
@@ -50,9 +51,12 @@ class GmailMailboxClient:
             unread_inbox_count=unread_inbox_count,
             unread_today_count=unread_today_count,
             unread_yesterday_count=unread_yesterday_count,
-            unread_week_count=unread_week_count,
-            checked_at=datetime.utcnow(),
+            unread_last_hour_count=unread_last_hour_count,
+            checked_at=now,
         )
+
+    async def fetch_unread_messages(self, *, token_record: GmailTokenRecord) -> list[GmailStoredMessage]:
+        return await self.fetch_messages(token_record=token_record, query=self.UNREAD_MESSAGES_QUERY)
 
     async def _count_query(self, access_token: str, query: str) -> int:
         response = await self._client.get(
@@ -75,7 +79,6 @@ class GmailMailboxClient:
     def build_fetch_query(self, window: str, *, now: datetime | None = None) -> str:
         local_now = (now or datetime.now()).astimezone()
         today_start = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
-        tomorrow_start = today_start + timedelta(days=1)
         yesterday_start = today_start - timedelta(days=1)
         next_second = local_now + timedelta(seconds=1)
 
@@ -83,9 +86,9 @@ class GmailMailboxClient:
             start = self._months_ago(local_now, 3)
             return self._inbox_range_query(start, next_second)
         if window == "yesterday":
-            return self._inbox_range_query(yesterday_start, today_start)
+            return self._inbox_date_query(yesterday_start - timedelta(days=1), today_start)
         if window == "today":
-            return self._inbox_range_query(today_start, next_second)
+            return self._inbox_after_date_query(yesterday_start)
         if window == "last_hour":
             return self._inbox_range_query(local_now - timedelta(hours=1), next_second)
         raise GmailMailboxClientError(f"unsupported gmail fetch window: {window}")
@@ -199,6 +202,16 @@ class GmailMailboxClient:
 
     def _inbox_range_query(self, after: datetime, before: datetime) -> str:
         return f"in:inbox after:{int(after.timestamp())} before:{int(before.timestamp())}"
+
+    def _inbox_date_query(self, after: datetime, before: datetime) -> str:
+        return f"in:inbox after:{self._gmail_date(after)} before:{self._gmail_date(before)}"
+
+    def _inbox_after_date_query(self, after: datetime) -> str:
+        return f"in:inbox after:{self._gmail_date(after)}"
+
+    def _gmail_date(self, value: datetime) -> str:
+        local_value = value.astimezone()
+        return f"{local_value.year}/{local_value.month}/{local_value.day}"
 
     def _months_ago(self, value: datetime, months: int) -> datetime:
         year = value.year

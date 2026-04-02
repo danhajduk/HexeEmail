@@ -11,12 +11,13 @@ from providers.gmail.models import (
 )
 
 
-def test_gmail_requested_scopes_default_to_send_and_read_scopes():
+def test_gmail_requested_scopes_default_to_send_read_and_modify_scopes():
     scopes = GmailRequestedScopes()
 
     assert scopes.scopes == [
         "https://www.googleapis.com/auth/gmail.send",
         "https://www.googleapis.com/auth/gmail.readonly",
+        "https://www.googleapis.com/auth/gmail.modify",
     ]
 
 

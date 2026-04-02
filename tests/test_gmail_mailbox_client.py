@@ -12,7 +12,7 @@ from providers.gmail.models import GmailTokenRecord
 
 def build_google_mailbox_app():
     app = FastAPI()
-    counters = iter([3, 4, 9])
+    counters = iter([3, 4, 2])
 
     @app.get("/messages")
     async def messages(q: str = Query(default="")):
@@ -40,7 +40,22 @@ async def test_gmail_mailbox_client_fetches_unread_counts():
     assert status.unread_inbox_count == 11
     assert status.unread_today_count == 3
     assert status.unread_yesterday_count == 4
-    assert status.unread_week_count == 9
+    assert status.unread_last_hour_count == 2
+
+
+@pytest.mark.asyncio
+async def test_gmail_mailbox_client_fetches_unread_messages():
+    client = GmailMailboxClient(transport=ASGITransport(app=build_google_fetch_app()))
+    client.MESSAGES_ENDPOINT = "http://google.test/messages"
+    client.MESSAGE_ENDPOINT_TEMPLATE = "http://google.test/messages/{message_id}"
+    token = GmailTokenRecord(account_id="primary", access_token="access-token")
+
+    messages = await client.fetch_unread_messages(token_record=token)
+    await client.aclose()
+
+    assert len(messages) == 1
+    assert messages[0].message_id == "msg-1"
+    assert messages[0].subject == "Hello"
 
 
 def build_google_fetch_app():
@@ -96,10 +111,11 @@ def test_gmail_mailbox_client_builds_local_time_window_queries():
     client = GmailMailboxClient()
 
     today_query = client.build_fetch_query("today", now=datetime(2026, 4, 2, 15, 30, 0).astimezone())
+    yesterday_query = client.build_fetch_query("yesterday", now=datetime(2026, 4, 2, 15, 30, 0).astimezone())
     last_hour_query = client.build_fetch_query("last_hour", now=datetime(2026, 4, 2, 15, 30, 0).astimezone())
     initial_query = client.build_fetch_query("initial_learning", now=datetime(2026, 4, 2, 15, 30, 0).astimezone())
 
-    assert today_query.startswith("in:inbox after:")
-    assert "before:" in today_query
+    assert today_query == "in:inbox after:2026/4/1"
+    assert yesterday_query == "in:inbox after:2026/3/31 before:2026/4/2"
     assert last_hour_query.startswith("in:inbox after:")
     assert initial_query.startswith("in:inbox after:")
