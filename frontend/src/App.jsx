@@ -719,6 +719,7 @@ function ProviderSetupPage({
 
 export function App() {
   const [view, setView] = useState("setup");
+  const [setupPinned, setSetupPinned] = useState(false);
   const [bootstrap, setBootstrap] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [touched, setTouched] = useState(false);
@@ -831,14 +832,29 @@ export function App() {
     if (view === "provider") {
       return;
     }
-    if (dashboardReady && view === "setup") {
+    if (dashboardReady && view === "setup" && !setupPinned) {
       setView("dashboard");
       return;
     }
     if (!dashboardReady && view === "dashboard") {
       setView("setup");
     }
-  }, [bootstrap?.status?.operational_readiness, view]);
+  }, [bootstrap?.status?.operational_readiness, setupPinned, view]);
+
+  function openSetup() {
+    setSetupPinned(true);
+    setView("setup");
+  }
+
+  function openDashboard() {
+    setSetupPinned(false);
+    setView("dashboard");
+  }
+
+  function openProvider() {
+    setSetupPinned(false);
+    setView("provider");
+  }
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -1106,7 +1122,7 @@ export function App() {
           onSave={saveProviderConfig}
           onValidate={validateProviderConfig}
           onConnect={startProviderConnect}
-          onBack={() => setView(dashboardEnabled ? "dashboard" : "setup")}
+          onBack={() => (dashboardEnabled ? openDashboard() : openSetup())}
         />
       </div>
     );
@@ -1142,10 +1158,10 @@ export function App() {
                 <button className="btn btn-ghost" type="button" onClick={restartOnboarding} disabled={restarting}>
                   {restarting ? "Restarting..." : "Restart Setup"}
                 </button>
-                <button className="btn btn-ghost" type="button" onClick={() => setView("setup")}>
+                <button className="btn btn-ghost" type="button" onClick={openSetup}>
                   Open Setup
                 </button>
-                <button className="btn btn-ghost" type="button" onClick={() => setView("provider")}>
+                <button className="btn btn-ghost" type="button" onClick={openProvider}>
                   Setup Provider
                 </button>
                 <button className="btn btn-ghost" type="button" onClick={copyNodeId} disabled={!status?.node_id}>
@@ -1306,8 +1322,8 @@ export function App() {
                           <p className="muted tiny">Everyday sync and reconfiguration actions.</p>
                         </div>
                         <div className="row action-group-buttons">
-                          <button className="btn" type="button" onClick={() => setView("setup")}>Open Setup</button>
-                          <button className="btn" type="button" onClick={() => setView("provider")}>Setup Gmail Provider</button>
+                          <button className="btn" type="button" onClick={openSetup}>Open Setup</button>
+                          <button className="btn" type="button" onClick={openProvider}>Setup Gmail Provider</button>
                           <button className="btn" type="button" onClick={() => refreshDashboardState("Governance status refreshed.")}>
                             Refresh Governance
                           </button>
@@ -1385,11 +1401,11 @@ export function App() {
               {restarting ? "Restarting..." : "Restart Setup"}
             </button>
             {dashboardEnabled ? (
-              <button className="btn btn-ghost" type="button" onClick={() => setView("dashboard")}>
+              <button className="btn btn-ghost" type="button" onClick={openDashboard}>
                 Dashboard
               </button>
             ) : null}
-            <button className="btn btn-ghost" type="button" onClick={() => setView("provider")}>
+            <button className="btn btn-ghost" type="button" onClick={openProvider}>
               Setup Provider
             </button>
           </div>
