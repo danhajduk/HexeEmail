@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from providers.gmail.message_store import GmailMessageStore
-from providers.gmail.models import GmailStoredMessage
+from providers.gmail.models import GmailSpamhausCheck, GmailStoredMessage, GmailTrainingLabel
 
 
 def test_gmail_message_store_persists_messages(runtime_dir):
@@ -55,3 +55,85 @@ def test_gmail_message_store_enforces_six_month_retention(runtime_dir):
 
     messages = store.list_messages("primary", limit=10)
     assert [message.message_id for message in messages] == ["fresh-msg"]
+
+
+def test_gmail_message_store_tracks_spamhaus_check_state(runtime_dir):
+    store = GmailMessageStore(runtime_dir)
+    store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="msg-1",
+                sender="Sender <sender@example.com>",
+                received_at=datetime(2026, 4, 2, 12, 0, 0),
+            ),
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="msg-2",
+                sender="Another <another@example.com>",
+                received_at=datetime(2026, 4, 2, 11, 0, 0),
+            ),
+        ],
+        now=datetime(2026, 4, 2, 12, 30, 0),
+    )
+
+    pending_before = store.list_messages_pending_spamhaus("primary")
+    store.upsert_spamhaus_check(
+        GmailSpamhausCheck(
+            account_id="primary",
+            message_id="msg-1",
+            sender_email="sender@example.com",
+            sender_domain="example.com",
+            checked=True,
+            listed=True,
+            status="listed",
+        ),
+        now=datetime(2026, 4, 2, 12, 45, 0),
+    )
+    summary = store.spamhaus_summary("primary")
+    pending_after = store.list_messages_pending_spamhaus("primary")
+
+    assert [message.message_id for message in pending_before] == ["msg-1", "msg-2"]
+    assert summary.checked_count == 1
+    assert summary.pending_count == 1
+    assert summary.listed_count == 1
+    assert [message.message_id for message in pending_after] == ["msg-2"]
+
+
+def test_gmail_message_store_supports_local_training_labels(runtime_dir):
+    store = GmailMessageStore(runtime_dir)
+    store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="msg-1",
+                sender="Sender <sender@example.com>",
+                received_at=datetime(2026, 4, 2, 12, 0, 0),
+            ),
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="msg-2",
+                sender="Another <another@example.com>",
+                received_at=datetime(2026, 4, 2, 11, 0, 0),
+                local_label="unknown",
+                local_label_confidence=0.4,
+            ),
+        ],
+        now=datetime(2026, 4, 2, 12, 30, 0),
+    )
+
+    store.update_local_classification(
+        "primary",
+        "msg-1",
+        label=GmailTrainingLabel.DIRECT_HUMAN,
+        confidence=0.95,
+        manual_classification=True,
+    )
+    messages = store.list_messages("primary", limit=10)
+    candidates = store.list_training_candidates("primary", limit=10, threshold=0.6)
+
+    by_id = {message.message_id: message for message in messages}
+    assert by_id["msg-1"].local_label == "direct_human"
+    assert by_id["msg-1"].local_label_confidence == 0.95
+    assert by_id["msg-1"].manual_classification is True
+    assert [message.message_id for message in candidates] == ["msg-2"]

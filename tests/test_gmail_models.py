@@ -49,6 +49,24 @@ def test_gmail_oauth_config_migrates_legacy_desktop_marker_to_web():
     assert config.oauth_client_type == "web"
 
 
+def test_gmail_oauth_config_appends_modify_scope_for_legacy_saved_configs():
+    config = GmailOAuthConfig(
+        enabled=True,
+        requested_scopes=GmailRequestedScopes(
+            scopes=[
+                "https://www.googleapis.com/auth/gmail.send",
+                "https://www.googleapis.com/auth/gmail.readonly",
+            ]
+        ),
+    )
+
+    assert config.requested_scopes.scopes == [
+        "https://www.googleapis.com/auth/gmail.send",
+        "https://www.googleapis.com/auth/gmail.readonly",
+        "https://www.googleapis.com/auth/gmail.modify",
+    ]
+
+
 def test_gmail_account_config_supports_future_multi_account_layout():
     account = GmailAccountConfig(account_id="primary", display_name="Primary Inbox")
 

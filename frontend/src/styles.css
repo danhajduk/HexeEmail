@@ -407,6 +407,18 @@
   font-size: 14px;
 }
 
+.field input,
+.field textarea,
+.field select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border-radius: var(--sx-radius-md);
+  border: 1px solid hsl(var(--sx-border));
+  background: hsl(var(--sx-panel));
+  color: hsl(var(--sx-text));
+}
+
 .toggle-field {
   display: flex;
   align-items: center;
@@ -694,7 +706,7 @@
 }
 
 .provider-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: start;
 }
 
@@ -704,6 +716,42 @@
 
 .compact-stack {
   gap: 12px;
+}
+
+.training-list {
+  display: grid;
+  gap: 16px;
+}
+
+.training-item {
+  padding: 16px;
+  border-radius: var(--sx-radius-md);
+  border: 1px solid hsl(var(--sx-border));
+  background: hsl(var(--sx-text) / 0.03);
+}
+
+.training-item-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.training-flat-text {
+  margin: 0 0 14px;
+  padding: 14px;
+  white-space: pre-wrap;
+  border-radius: var(--sx-radius-md);
+  border: 1px solid hsl(var(--sx-border));
+  background: hsl(var(--sx-panel));
+  color: hsl(var(--sx-text));
+}
+
+.training-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  gap: 14px;
 }
 
 
@@ -747,6 +795,10 @@
   }
 
   .state-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .training-controls {
     grid-template-columns: 1fr;
   }
 }

@@ -9,6 +9,7 @@ from email.utils import getaddresses
 import httpx
 
 from providers.gmail.models import GmailMailboxStatus, GmailStoredMessage, GmailTokenRecord
+from providers.gmail.quota_tracker import GmailQuotaLimitError, GmailQuotaTracker
 
 
 class GmailMailboxClientError(RuntimeError):
@@ -19,9 +20,17 @@ class GmailMailboxClient:
     MESSAGES_ENDPOINT = "https://gmail.googleapis.com/gmail/v1/users/me/messages"
     MESSAGE_ENDPOINT_TEMPLATE = "https://gmail.googleapis.com/gmail/v1/users/me/messages/{message_id}"
     UNREAD_MESSAGES_QUERY = "is:unread"
+    MESSAGE_LIST_QUOTA_UNITS = 5
+    MESSAGE_GET_QUOTA_UNITS = 5
 
-    def __init__(self, *, transport: httpx.AsyncBaseTransport | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        transport: httpx.AsyncBaseTransport | None = None,
+        quota_tracker: GmailQuotaTracker | None = None,
+    ) -> None:
         self._client = httpx.AsyncClient(transport=transport, timeout=10.0)
+        self.quota_tracker = quota_tracker
 
     async def fetch_unread_status(self, *, token_record: GmailTokenRecord, email_address: str | None = None) -> GmailMailboxStatus:
         now = datetime.now().astimezone()
@@ -30,16 +39,19 @@ class GmailMailboxClient:
         tomorrow_start = today_start + timedelta(days=1)
         last_hour_start = now - timedelta(hours=1)
 
-        unread_inbox_count = await self._count_query(token_record.access_token, "is:unread in:inbox")
+        unread_inbox_count = await self._count_query(token_record.account_id, token_record.access_token, "is:unread in:inbox")
         unread_today_count = await self._count_query(
+            token_record.account_id,
             token_record.access_token,
             self._unread_range_query(today_start, tomorrow_start),
         )
         unread_yesterday_count = await self._count_query(
+            token_record.account_id,
             token_record.access_token,
             self._unread_range_query(yesterday_start, today_start),
         )
         unread_last_hour_count = await self._count_query(
+            token_record.account_id,
             token_record.access_token,
             self._unread_range_query(last_hour_start, now),
         )
@@ -58,11 +70,14 @@ class GmailMailboxClient:
     async def fetch_unread_messages(self, *, token_record: GmailTokenRecord) -> list[GmailStoredMessage]:
         return await self.fetch_messages(token_record=token_record, query=self.UNREAD_MESSAGES_QUERY)
 
-    async def _count_query(self, access_token: str, query: str) -> int:
-        response = await self._client.get(
-            self.MESSAGES_ENDPOINT,
+    async def _count_query(self, account_id: str, access_token: str, query: str) -> int:
+        response = await self._gmail_get(
+            account_id=account_id,
+            access_token=access_token,
+            url=self.MESSAGES_ENDPOINT,
             params={"q": query, "maxResults": 1, "fields": "resultSizeEstimate"},
-            headers={"Authorization": f"Bearer {access_token}"},
+            operation="messages.list",
+            quota_units=self.MESSAGE_LIST_QUOTA_UNITS,
         )
         payload = self._json_payload(response, "gmail mailbox query")
         if response.is_error:
@@ -94,28 +109,38 @@ class GmailMailboxClient:
         raise GmailMailboxClientError(f"unsupported gmail fetch window: {window}")
 
     async def fetch_messages(self, *, token_record: GmailTokenRecord, query: str) -> list[GmailStoredMessage]:
-        message_ids = await self._list_message_ids(token_record.access_token, query)
-        if not message_ids:
-            return []
-
         messages: list[GmailStoredMessage] = []
-        for start in range(0, len(message_ids), 10):
-            batch = message_ids[start : start + 10]
-            batch_messages = await self._fetch_message_batch(token_record, batch)
+        async for batch_messages in self.iter_message_batches(token_record=token_record, query=query):
             messages.extend(batch_messages)
         return messages
 
-    async def _list_message_ids(self, access_token: str, query: str) -> list[str]:
-        page_token: str | None = None
+    async def iter_message_batches(self, *, token_record: GmailTokenRecord, query: str):
+        async for message_ids in self._iter_message_id_pages(token_record.account_id, token_record.access_token, query):
+            if not message_ids:
+                continue
+            for start in range(0, len(message_ids), 10):
+                batch = message_ids[start : start + 10]
+                yield await self._fetch_message_batch(token_record, batch)
+
+    async def _list_message_ids(self, account_id: str, access_token: str, query: str) -> list[str]:
         message_ids: list[str] = []
+        async for page_ids in self._iter_message_id_pages(account_id, access_token, query):
+            message_ids.extend(page_ids)
+        return message_ids
+
+    async def _iter_message_id_pages(self, account_id: str, access_token: str, query: str):
+        page_token: str | None = None
         while True:
             params: dict[str, object] = {"q": query, "maxResults": 100, "fields": "messages/id,nextPageToken"}
             if page_token:
                 params["pageToken"] = page_token
-            response = await self._client.get(
-                self.MESSAGES_ENDPOINT,
+            response = await self._gmail_get(
+                account_id=account_id,
+                access_token=access_token,
+                url=self.MESSAGES_ENDPOINT,
                 params=params,
-                headers={"Authorization": f"Bearer {access_token}"},
+                operation="messages.list",
+                quota_units=self.MESSAGE_LIST_QUOTA_UNITS,
             )
             payload = self._json_payload(response, "gmail mailbox listing")
             if response.is_error:
@@ -123,15 +148,17 @@ class GmailMailboxClient:
                 raise GmailMailboxClientError(detail or f"gmail mailbox listing failed with status {response.status_code}")
             if not isinstance(payload, dict):
                 raise GmailMailboxClientError("gmail mailbox listing returned an invalid payload")
+            page_message_ids: list[str] = []
             for item in payload.get("messages") or []:
                 message_id = item.get("id") if isinstance(item, dict) else None
                 if isinstance(message_id, str) and message_id:
-                    message_ids.append(message_id)
+                    page_message_ids.append(message_id)
+            if page_message_ids:
+                yield page_message_ids
             next_page_token = payload.get("nextPageToken")
             if not isinstance(next_page_token, str) or not next_page_token:
                 break
             page_token = next_page_token
-        return message_ids
 
     async def _fetch_message_batch(self, token_record: GmailTokenRecord, message_ids: list[str]) -> list[GmailStoredMessage]:
         results = await asyncio.gather(
@@ -143,14 +170,17 @@ class GmailMailboxClient:
         return list(results)
 
     async def _fetch_message(self, access_token: str, account_id: str, message_id: str) -> GmailStoredMessage:
-        response = await self._client.get(
-            self.MESSAGE_ENDPOINT_TEMPLATE.format(message_id=message_id),
+        response = await self._gmail_get(
+            account_id=account_id,
+            access_token=access_token,
+            url=self.MESSAGE_ENDPOINT_TEMPLATE.format(message_id=message_id),
             params={
                 "format": "metadata",
-                "metadataHeaders": ["From", "To", "Cc", "Subject"],
-                "fields": "id,threadId,labelIds,snippet,internalDate,payload/headers",
+                "metadataHeaders": ["From", "To", "Cc", "Subject", "List-Unsubscribe"],
+                "fields": "id,threadId,labelIds,snippet,internalDate,payload/headers,payload/parts/filename",
             },
-            headers={"Authorization": f"Bearer {access_token}"},
+            operation="messages.get",
+            quota_units=self.MESSAGE_GET_QUOTA_UNITS,
         )
         payload = self._json_payload(response, "gmail message fetch")
         if response.is_error:
@@ -199,6 +229,27 @@ class GmailMailboxClient:
             return response.json()
         except ValueError as exc:
             raise GmailMailboxClientError(f"{operation} returned invalid JSON") from exc
+
+    async def _gmail_get(
+        self,
+        *,
+        account_id: str,
+        access_token: str,
+        url: str,
+        params: dict[str, object],
+        operation: str,
+        quota_units: int,
+    ) -> httpx.Response:
+        if self.quota_tracker is not None:
+            try:
+                self.quota_tracker.reserve(account_id, quota_units, operation)
+            except GmailQuotaLimitError as exc:
+                raise GmailMailboxClientError(str(exc)) from exc
+        return await self._client.get(
+            url,
+            params=params,
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
 
     def _inbox_range_query(self, after: datetime, before: datetime) -> str:
         return f"in:inbox after:{int(after.timestamp())} before:{int(before.timestamp())}"

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from enum import Enum
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -42,6 +43,15 @@ class GmailOAuthConfig(BaseModel):
         if value in {None, "", "web", "desktop"}:
             return "web"
         raise ValueError("oauth_client_type must be web")
+
+    @model_validator(mode="after")
+    def ensure_modify_scope(self) -> GmailOAuthConfig:
+        scopes = list(self.requested_scopes.scopes)
+        modify_scope = "https://www.googleapis.com/auth/gmail.modify"
+        if modify_scope not in scopes:
+            scopes.append(modify_scope)
+            self.requested_scopes = GmailRequestedScopes(scopes=scopes)
+        return self
 
 
 class GmailAccountConfig(BaseModel):
@@ -122,6 +132,115 @@ class GmailStoredMessage(BaseModel):
     label_ids: list[str] = Field(default_factory=list)
     received_at: datetime
     raw_payload: str | None = None
+    local_label: str | None = None
+    local_label_confidence: float | None = None
+    manual_classification: bool = False
+
+
+class GmailTrainingLabel(str, Enum):
+    ACTION_REQUIRED = "action_required"
+    DIRECT_HUMAN = "direct_human"
+    FINANCIAL = "financial"
+    ORDER = "order"
+    INVOICE = "invoice"
+    SHIPMENT = "shipment"
+    SECURITY = "security"
+    SYSTEM = "system"
+    NEWSLETTER = "newsletter"
+    MARKETING = "marketing"
+    UNKNOWN = "unknown"
+
+
+class GmailTrainingRecipientFlags(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    to_me_only: bool = False
+    cc_me: bool = False
+    recipient_count: int = 0
+
+
+class GmailTrainingFlags(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    has_attachment: bool = False
+    is_reply: bool = False
+    is_forward: bool = False
+    has_unsubscribe: bool = False
+
+
+class GmailFlattenedMessage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    account_id: str
+    message_id: str
+    sender_email: str | None = None
+    sender_domain: str | None = None
+    recipient: str | None = None
+    recipient_flags: GmailTrainingRecipientFlags = Field(default_factory=GmailTrainingRecipientFlags)
+    subject: str | None = None
+    flags: GmailTrainingFlags = Field(default_factory=GmailTrainingFlags)
+    body_preview: str | None = None
+    gmail_labels: list[str] = Field(default_factory=list)
+    local_label: str | None = None
+    local_label_confidence: float | None = None
+    manual_classification: bool = False
+
+
+class GmailManualClassificationInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    message_id: str
+    label: GmailTrainingLabel
+    confidence: float
+
+    @field_validator("confidence")
+    @classmethod
+    def validate_confidence(cls, value: float) -> float:
+        if value < 0 or value > 1:
+            raise ValueError("confidence must be between 0 and 1")
+        return value
+
+
+class GmailManualClassificationBatchInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    items: list[GmailManualClassificationInput] = Field(default_factory=list)
+
+
+class GmailSpamhausCheck(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    account_id: str
+    message_id: str
+    sender_email: str | None = None
+    sender_domain: str | None = None
+    checked: bool = False
+    listed: bool = False
+    status: Literal["pending", "clean", "listed", "error", "invalid_sender"] = "pending"
+    checked_at: datetime | None = None
+    detail: str | None = None
+
+
+class GmailSpamhausSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    account_id: str
+    checked_count: int = 0
+    pending_count: int = 0
+    listed_count: int = 0
+    error_count: int = 0
+    latest_checked_at: datetime | None = None
+
+
+class GmailQuotaUsageSnapshot(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    account_id: str
+    limit_per_minute: int = 15000
+    used_last_minute: int = 0
+    remaining_last_minute: int = 15000
+    recent_operations: dict[str, int] = Field(default_factory=dict)
+    last_request_at: datetime | None = None
 
 
 class GmailFetchWindowState(BaseModel):

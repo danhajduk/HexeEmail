@@ -14,7 +14,16 @@ from providers.gmail.config_store import GmailProviderConfigStore
 from providers.gmail.fetch_schedule_store import GmailFetchScheduleStore
 from providers.gmail.mailbox_client import GmailMailboxClient
 from providers.gmail.mailbox_status_store import GmailMailboxStatusStore
-from providers.gmail.models import GmailFetchScheduleState, GmailFetchWindowState, GmailMailboxStatus, GmailOAuthConfig, GmailTokenRecord
+from providers.gmail.models import (
+    GmailFetchScheduleState,
+    GmailFetchWindowState,
+    GmailManualClassificationBatchInput,
+    GmailMailboxStatus,
+    GmailOAuthConfig,
+    GmailSpamhausCheck,
+    GmailStoredMessage,
+    GmailTokenRecord,
+)
 from service import NodeService
 from tests.helpers import FakeMQTTManager, build_core_app
 
@@ -524,6 +533,7 @@ async def test_gmail_fetch_api_stores_messages_for_requested_window(config, core
         ),
     )
     adapter.mailbox_client = GmailMailboxClient(transport=ASGITransport(app=build_google_fetch_test_app()))
+    adapter.mailbox_client.quota_tracker = adapter.quota_tracker
     adapter.mailbox_client.MESSAGES_ENDPOINT = "http://google.test/messages"
     adapter.mailbox_client.MESSAGE_ENDPOINT_TEMPLATE = "http://google.test/messages/{message_id}"
     app = create_app(config=config, service=service)
@@ -544,6 +554,113 @@ async def test_gmail_fetch_api_stores_messages_for_requested_window(config, core
     assert status_response.json()["accounts"][0]["mailbox_status"]["unread_inbox_count"] == 1
     assert status_response.json()["accounts"][0]["mailbox_status"]["unread_today_count"] == 1
     assert status_response.json()["accounts"][0]["mailbox_status"]["unread_last_hour_count"] == 1
+    assert status_response.json()["accounts"][0]["quota_usage"]["used_last_minute"] == 10
+    assert status_response.json()["accounts"][0]["quota_usage"]["remaining_last_minute"] == 14990
+
+
+@pytest.mark.asyncio
+async def test_gmail_spamhaus_check_api_marks_stored_messages(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    adapter = service.provider_registry.get_provider("gmail")
+    adapter.account_store.save_account(
+        adapter.state_machine.ensure_account("primary").model_copy(
+            update={"status": "connected", "email_address": "primary@example.com"}
+        )
+    )
+    adapter.message_store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="msg-1",
+                sender="Sender <sender@example.com>",
+                received_at=datetime(2026, 4, 2, 12, 0, 0).astimezone(),
+            )
+        ],
+        now=datetime(2026, 4, 2, 12, 5, 0).astimezone(),
+    )
+
+    class FakeSpamhausChecker:
+        async def check_sender(self, *, account_id: str, message_id: str, sender: str | None):
+            return GmailSpamhausCheck(
+                account_id=account_id,
+                message_id=message_id,
+                sender_email="sender@example.com",
+                sender_domain="example.com",
+                checked=True,
+                listed=True,
+                status="listed",
+                detail="listed in test",
+            )
+
+    adapter.spamhaus_checker = FakeSpamhausChecker()
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post("/api/gmail/spamhaus/check")
+        status_response = await client.get("/api/gmail/status")
+
+    await service.stop()
+
+    assert response.status_code == 200
+    assert response.json()["checked_count"] == 1
+    assert response.json()["listed_count"] == 1
+    assert status_response.status_code == 200
+    assert status_response.json()["accounts"][0]["spamhaus"]["checked_count"] == 1
+    assert status_response.json()["accounts"][0]["spamhaus"]["listed_count"] == 1
+    assert status_response.json()["accounts"][0]["spamhaus"]["pending_count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_gmail_training_api_returns_manual_batch_and_saves_labels(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    adapter = service.provider_registry.get_provider("gmail")
+    adapter.account_store.save_account(
+        adapter.state_machine.ensure_account("primary").model_copy(
+            update={"status": "connected", "email_address": "primary@example.com"}
+        )
+    )
+    adapter.message_store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="msg-1",
+                sender="Sender <sender@example.com>",
+                recipients=["primary@example.com"],
+                subject="Re: Please review",
+                snippet="Please review and unsubscribe if not needed",
+                label_ids=["INBOX", "UNREAD"],
+                received_at=datetime(2026, 4, 2, 12, 0, 0).astimezone(),
+                raw_payload='{"payload":{"headers":[{"name":"To","value":"primary@example.com"},{"name":"List-Unsubscribe","value":"<mailto:test@example.com>"}]}}',
+            )
+        ],
+        now=datetime(2026, 4, 2, 12, 5, 0).astimezone(),
+    )
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        batch_response = await client.post("/api/gmail/training/manual-batch")
+        save_response = await client.post(
+            "/api/gmail/training/manual-classify",
+            json={"items": [{"message_id": "msg-1", "label": "direct_human", "confidence": 0.95}]},
+        )
+
+    await service.stop()
+
+    assert batch_response.status_code == 200
+    body = batch_response.json()
+    assert body["count"] == 1
+    assert "from: sender@example.com" in body["items"][0]["flat_text"]
+    assert "is_reply=true" in body["items"][0]["flat_text"]
+    assert "has_unsubscribe=true" in body["items"][0]["flat_text"]
+
+    assert save_response.status_code == 200
+    assert save_response.json()["saved_count"] == 1
+    saved_message = adapter.message_store.list_messages("primary", limit=1)[0]
+    assert saved_message.local_label == "direct_human"
+    assert saved_message.local_label_confidence == 0.95
+    assert saved_message.manual_classification is True
 
 
 @pytest.mark.asyncio

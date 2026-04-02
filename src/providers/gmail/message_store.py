@@ -6,7 +6,7 @@ import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from providers.gmail.models import GmailMailboxStatus, GmailStoredMessage
+from providers.gmail.models import GmailMailboxStatus, GmailSpamhausCheck, GmailSpamhausSummary, GmailStoredMessage, GmailTrainingLabel
 from providers.gmail.runtime import GmailRuntimeLayout
 
 
@@ -44,6 +44,28 @@ class GmailMessageStore:
             )
             connection.execute(
                 "CREATE INDEX IF NOT EXISTS idx_gmail_messages_account_received ON gmail_messages(account_id, received_at DESC)"
+            )
+            self._ensure_column(connection, "gmail_messages", "local_label", "TEXT")
+            self._ensure_column(connection, "gmail_messages", "local_label_confidence", "REAL")
+            self._ensure_column(connection, "gmail_messages", "manual_classification", "INTEGER NOT NULL DEFAULT 0")
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS gmail_spamhaus_checks (
+                    account_id TEXT NOT NULL,
+                    message_id TEXT NOT NULL,
+                    sender_email TEXT,
+                    sender_domain TEXT,
+                    checked INTEGER NOT NULL DEFAULT 0,
+                    listed INTEGER NOT NULL DEFAULT 0,
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    checked_at TEXT,
+                    detail TEXT,
+                    PRIMARY KEY (account_id, message_id)
+                )
+                """
+            )
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_gmail_spamhaus_checks_account_checked ON gmail_spamhaus_checks(account_id, checked_at DESC)"
             )
             connection.commit()
         self._set_mode(self.path, 0o600)
@@ -124,7 +146,10 @@ class GmailMessageStore:
                     snippet,
                     label_ids,
                     received_at,
-                    raw_payload
+                    raw_payload,
+                    local_label,
+                    local_label_confidence,
+                    manual_classification
                 FROM gmail_messages
                 WHERE account_id = ?
                 ORDER BY received_at DESC
@@ -162,6 +187,168 @@ class GmailMessageStore:
             "latest_received_at": row["latest_received_at"],
             "latest_fetched_at": row["latest_fetched_at"],
         }
+
+    def list_training_candidates(
+        self,
+        account_id: str,
+        *,
+        limit: int = 40,
+        threshold: float = 0.6,
+    ) -> list[GmailStoredMessage]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    account_id,
+                    message_id,
+                    thread_id,
+                    subject,
+                    sender,
+                    recipients,
+                    snippet,
+                    label_ids,
+                    received_at,
+                    raw_payload,
+                    local_label,
+                    local_label_confidence,
+                    manual_classification
+                FROM gmail_messages
+                WHERE account_id = ?
+                  AND (
+                    local_label IS NULL
+                    OR local_label = ?
+                    OR COALESCE(local_label_confidence, 0) < ?
+                  )
+                ORDER BY RANDOM()
+                LIMIT ?
+                """,
+                (account_id, GmailTrainingLabel.UNKNOWN.value, threshold, limit),
+            ).fetchall()
+        return [self._row_to_message(row) for row in rows]
+
+    def update_local_classification(
+        self,
+        account_id: str,
+        message_id: str,
+        *,
+        label: GmailTrainingLabel,
+        confidence: float,
+        manual_classification: bool,
+    ) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE gmail_messages
+                SET local_label = ?, local_label_confidence = ?, manual_classification = ?
+                WHERE account_id = ? AND message_id = ?
+                """,
+                (label.value, confidence, 1 if manual_classification else 0, account_id, message_id),
+            )
+            connection.commit()
+
+    def list_messages_pending_spamhaus(self, account_id: str, *, limit: int | None = None) -> list[GmailStoredMessage]:
+        query = """
+            SELECT
+                gm.account_id,
+                gm.message_id,
+                gm.thread_id,
+                gm.subject,
+                gm.sender,
+                gm.recipients,
+                gm.snippet,
+                gm.label_ids,
+                gm.received_at,
+                gm.raw_payload
+            FROM gmail_messages gm
+            LEFT JOIN gmail_spamhaus_checks sc
+              ON sc.account_id = gm.account_id AND sc.message_id = gm.message_id
+            WHERE gm.account_id = ?
+              AND COALESCE(sc.checked, 0) = 0
+            ORDER BY gm.received_at DESC
+        """
+        params: list[object] = [account_id]
+        if limit is not None:
+            query = f"{query}\nLIMIT ?"
+            params.append(limit)
+        with self._connect() as connection:
+            rows = connection.execute(query, tuple(params)).fetchall()
+        return [self._row_to_message(row) for row in rows]
+
+    def upsert_spamhaus_check(self, check: GmailSpamhausCheck, *, now: datetime | None = None) -> GmailSpamhausCheck:
+        checked_at = (check.checked_at or now or datetime.now().astimezone()).isoformat() if check.checked else None
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO gmail_spamhaus_checks (
+                    account_id,
+                    message_id,
+                    sender_email,
+                    sender_domain,
+                    checked,
+                    listed,
+                    status,
+                    checked_at,
+                    detail
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(account_id, message_id) DO UPDATE SET
+                    sender_email=excluded.sender_email,
+                    sender_domain=excluded.sender_domain,
+                    checked=excluded.checked,
+                    listed=excluded.listed,
+                    status=excluded.status,
+                    checked_at=excluded.checked_at,
+                    detail=excluded.detail
+                """,
+                (
+                    check.account_id,
+                    check.message_id,
+                    check.sender_email,
+                    check.sender_domain,
+                    1 if check.checked else 0,
+                    1 if check.listed else 0,
+                    check.status,
+                    checked_at,
+                    check.detail,
+                ),
+            )
+            connection.commit()
+        return check.model_copy(update={"checked_at": datetime.fromisoformat(checked_at) if checked_at else None})
+
+    def spamhaus_summary(self, account_id: str) -> GmailSpamhausSummary:
+        with self._connect() as connection:
+            checked_row = connection.execute(
+                """
+                SELECT
+                    COUNT(*) AS checked_count,
+                    SUM(CASE WHEN listed = 1 THEN 1 ELSE 0 END) AS listed_count,
+                    SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) AS error_count,
+                    MAX(checked_at) AS latest_checked_at
+                FROM gmail_spamhaus_checks
+                WHERE account_id = ?
+                  AND checked = 1
+                """,
+                (account_id,),
+            ).fetchone()
+            pending_row = connection.execute(
+                """
+                SELECT COUNT(*) AS pending_count
+                FROM gmail_messages gm
+                LEFT JOIN gmail_spamhaus_checks sc
+                  ON sc.account_id = gm.account_id AND sc.message_id = gm.message_id
+                WHERE gm.account_id = ?
+                  AND COALESCE(sc.checked, 0) = 0
+                """,
+                (account_id,),
+            ).fetchone()
+        latest_checked_at = checked_row["latest_checked_at"] if checked_row is not None else None
+        return GmailSpamhausSummary(
+            account_id=account_id,
+            checked_count=int(checked_row["checked_count"] or 0) if checked_row is not None else 0,
+            pending_count=int(pending_row["pending_count"] or 0) if pending_row is not None else 0,
+            listed_count=int(checked_row["listed_count"] or 0) if checked_row is not None else 0,
+            error_count=int(checked_row["error_count"] or 0) if checked_row is not None else 0,
+            latest_checked_at=datetime.fromisoformat(latest_checked_at) if isinstance(latest_checked_at, str) else None,
+        )
 
     def mailbox_status(self, account_id: str, *, email_address: str | None = None, now: datetime | None = None) -> GmailMailboxStatus:
         local_now = (now or datetime.now().astimezone()).astimezone()
@@ -227,6 +414,9 @@ class GmailMessageStore:
             label_ids=label_ids,
             received_at=datetime.fromisoformat(row["received_at"]),
             raw_payload=row["raw_payload"],
+            local_label=row["local_label"] if "local_label" in row.keys() else None,
+            local_label_confidence=row["local_label_confidence"] if "local_label_confidence" in row.keys() else None,
+            manual_classification=bool(row["manual_classification"]) if "manual_classification" in row.keys() else False,
         )
 
     def _six_month_cutoff(self, now: datetime) -> datetime:
@@ -248,3 +438,12 @@ class GmailMessageStore:
             os.chmod(path, mode)
         except PermissionError:
             return
+
+    def _ensure_column(self, connection: sqlite3.Connection, table_name: str, column_name: str, definition: str) -> None:
+        columns = {
+            row["name"]
+            for row in connection.execute(f"PRAGMA table_info({table_name})").fetchall()
+        }
+        if column_name in columns:
+            return
+        connection.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {definition}")

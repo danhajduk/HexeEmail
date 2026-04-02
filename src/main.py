@@ -7,7 +7,7 @@ from fastapi import FastAPI, HTTPException, Request
 from config import AppConfig
 from logging_utils import correlation_id_middleware, setup_logging
 from models import OperatorConfigInput, RefreshTriggerRequest, ServiceRestartRequest, TaskCapabilitySelectionInput
-from providers.gmail.models import GmailOAuthConfig
+from providers.gmail.models import GmailManualClassificationBatchInput, GmailOAuthConfig
 from service import NodeService
 
 
@@ -205,6 +205,34 @@ def create_app(
                 account_id=account_id,
                 correlation_id=request.headers.get("X-Correlation-Id"),
             )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/api/gmail/spamhaus/check")
+    async def gmail_spamhaus_check(account_id: str = "primary"):
+        try:
+            return await node_service.gmail_check_spamhaus(account_id=account_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.get("/api/gmail/training")
+    async def gmail_training(account_id: str = "primary"):
+        try:
+            return await node_service.gmail_training_status(account_id=account_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/api/gmail/training/manual-batch")
+    async def gmail_training_manual_batch(account_id: str = "primary", limit: int = 40):
+        try:
+            return await node_service.gmail_training_manual_batch(account_id=account_id, limit=limit)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/api/gmail/training/manual-classify")
+    async def gmail_training_manual_classify(payload: GmailManualClassificationBatchInput, account_id: str = "primary"):
+        try:
+            return await node_service.gmail_training_save_manual_classifications(payload, account_id=account_id)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 

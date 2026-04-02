@@ -21,6 +21,20 @@ const EMPTY_PROVIDER_FORM = {
     "https://www.googleapis.com/auth/gmail.send\nhttps://www.googleapis.com/auth/gmail.readonly\nhttps://www.googleapis.com/auth/gmail.modify",
 };
 
+const TRAINING_LABEL_OPTIONS = [
+  "action_required",
+  "direct_human",
+  "financial",
+  "order",
+  "invoice",
+  "shipment",
+  "security",
+  "system",
+  "newsletter",
+  "marketing",
+  "unknown",
+];
+
 async function fetchJson(url, options) {
   const response = await fetch(url, {
     headers: {
@@ -648,6 +662,134 @@ function TextareaField({ label, name, value, onChange, placeholder }) {
   );
 }
 
+function TrainingPage({
+  trainingStatus,
+  trainingLoading,
+  trainingError,
+  trainingBatch,
+  trainingBatchLoading,
+  trainingBatchError,
+  trainingSavePending,
+  trainingNotice,
+  trainingSelections,
+  onBack,
+  onLoadManualBatch,
+  onSelectionChange,
+  onSaveBatch,
+}) {
+  return (
+    <main className="app-frame">
+      <section className="hero card">
+        <div>
+          <div className="hero-topline">
+            <div className="eyebrow">Hexe Email Node</div>
+            <div className="status-pill tone-warning">gmail: training</div>
+          </div>
+          <h1>Training</h1>
+          <p className="hero-copy">
+            Review flattened local mail and apply manual labels for future local classification work.
+          </p>
+        </div>
+      </section>
+
+      <section className="app-shell">
+        <aside className="card stack flow-sidebar">
+          <div className="section-heading">
+            <h2>Training</h2>
+            <span className="pill">{trainingBatch?.count ?? 0} mails</span>
+          </div>
+          <div className="stack compact-stack">
+            <button className="btn btn-ghost" type="button" onClick={onBack}>
+              Back To Dashboard
+            </button>
+            <button className="btn btn-primary" type="button" onClick={onLoadManualBatch} disabled={trainingBatchLoading}>
+              {trainingBatchLoading ? "Loading..." : "Manual Classify"}
+            </button>
+            <div className="callout">
+              Threshold: {trainingStatus?.threshold ?? 0.6}
+            </div>
+            {trainingLoading ? <div className="callout">Loading training status...</div> : null}
+            {trainingError ? <div className="callout callout-danger">{trainingError}</div> : null}
+            {trainingBatchError ? <div className="callout callout-danger">{trainingBatchError}</div> : null}
+            {trainingNotice ? <div className="callout callout-success">{trainingNotice}</div> : null}
+          </div>
+        </aside>
+
+        <div className="main-column">
+          <article className="card stack">
+            <div className="card-header">
+              <h2>Manual Classification</h2>
+              <p className="muted">
+                Random unknown or low-confidence mails are flattened into a consistent training format for local review.
+              </p>
+            </div>
+            {!trainingBatch?.items?.length ? (
+              <div className="callout">
+                Use <code>Manual Classify</code> to load up to 40 local emails for review.
+              </div>
+            ) : (
+              <>
+                <div className="actions">
+                  <button className="btn btn-primary" type="button" onClick={onSaveBatch} disabled={trainingSavePending}>
+                    {trainingSavePending ? "Saving..." : "Save Manual Labels"}
+                  </button>
+                </div>
+                <div className="training-list">
+                  {trainingBatch.items.map((item) => {
+                    const selected = trainingSelections[item.message_id] || {
+                      label: item.local_label || "unknown",
+                      confidence: item.local_label_confidence ?? trainingStatus?.threshold ?? 0.6,
+                    };
+                    return (
+                      <section key={item.message_id} className="training-item">
+                        <div className="training-item-top">
+                          <div>
+                            <strong>{item.subject || "(no subject)"}</strong>
+                            <div className="muted tiny">{item.sender_email || "-"}</div>
+                          </div>
+                          <span className="pill">{item.message_id}</span>
+                        </div>
+                        <pre className="training-flat-text">{item.flat_text}</pre>
+                        <div className="training-controls">
+                          <label className="field">
+                            <span className="field-label">Label</span>
+                            <select
+                              name="label"
+                              value={selected.label}
+                              onChange={(event) => onSelectionChange(item.message_id, "label", event.target.value)}
+                            >
+                              {TRAINING_LABEL_OPTIONS.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="field">
+                            <span className="field-label">Confidence</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="1"
+                              step="0.05"
+                              value={selected.confidence}
+                              onChange={(event) => onSelectionChange(item.message_id, "confidence", event.target.value)}
+                            />
+                          </label>
+                        </div>
+                      </section>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </article>
+        </div>
+      </section>
+    </main>
+  );
+}
+
 function ProviderSetupPage({
   bootstrap,
   providerConfig,
@@ -669,11 +811,21 @@ function ProviderSetupPage({
   onBack,
 }) {
   const providerSummary = providerStatus?.provider_account_summaries?.gmail || {};
-  const canConnect =
-    bootstrap?.status?.trust_state === "trusted" &&
-    providerSummary?.configured &&
-    providerForm.enabled &&
-    !providerConnecting;
+  const providerHealth = providerSummary?.health || null;
+  const providerAccounts = providerSummary?.accounts || [];
+  const primaryAccount = providerAccounts[0] || null;
+  const validation = providerConfig?.validation || null;
+  const providerReadyReasons = [];
+  if (bootstrap?.status?.trust_state !== "trusted") {
+    providerReadyReasons.push("node trust is not active");
+  }
+  if (!providerSummary?.configured) {
+    providerReadyReasons.push("Gmail config is not valid yet");
+  }
+  if (!providerForm.enabled) {
+    providerReadyReasons.push("provider is disabled");
+  }
+  const canConnect = providerReadyReasons.length === 0 && !providerConnecting;
   return (
     <main className="app-frame">
       <section className="hero card">
@@ -705,6 +857,34 @@ function ProviderSetupPage({
             <h2>Gmail Status</h2>
             <span className="pill">API {bootstrap?.config.api_port || 9003}</span>
           </div>
+          <dl className="facts single-column-facts">
+            <div>
+              <dt>Provider State</dt>
+              <dd>{providerSummary?.provider_state || "pending"}</dd>
+            </div>
+            <div>
+              <dt>Configured</dt>
+              <dd>{providerSummary?.configured ? "yes" : "no"}</dd>
+            </div>
+            <div>
+              <dt>Enabled</dt>
+              <dd>{providerConfig?.config?.enabled ? "yes" : "no"}</dd>
+            </div>
+            <div>
+              <dt>Primary Account</dt>
+              <dd>{primaryAccount?.email_address || primaryAccount?.account_id || "not connected"}</dd>
+            </div>
+            <div>
+              <dt>Health</dt>
+              <dd>{providerHealth?.status || "unknown"}</dd>
+            </div>
+            <div>
+              <dt>Redirect URI</dt>
+              <dd>{providerConfig?.config?.redirect_uri || "not set"}</dd>
+            </div>
+          </dl>
+          {providerNotice ? <div className="callout callout-success">{providerNotice}</div> : null}
+          {providerError ? <div className="callout callout-danger">{providerError}</div> : null}
         </article>
 
         <article className="card stack">
@@ -714,6 +894,58 @@ function ProviderSetupPage({
               {providerSummary?.provider_state || "unknown"}
             </span>
           </div>
+          <ToggleField
+            label="Provider Enabled"
+            name="enabled"
+            checked={providerForm.enabled}
+            onChange={onProviderChange}
+          />
+          <Field
+            label="Client ID"
+            name="client_id"
+            value={providerForm.client_id}
+            onChange={onProviderChange}
+            placeholder="Google OAuth client id"
+            required
+          />
+          <Field
+            label="Client Secret Ref"
+            name="client_secret_ref"
+            value={providerForm.client_secret_ref}
+            onChange={onProviderChange}
+            placeholder="env:GMAIL_CLIENT_SECRET"
+            required
+          />
+          <Field
+            label="Redirect URI"
+            name="redirect_uri"
+            value={providerForm.redirect_uri}
+            onChange={onProviderChange}
+            placeholder="https://your-domain/google/callback"
+            required
+          />
+          <TextareaField
+            label="Requested Scopes"
+            name="requested_scopes"
+            value={providerForm.requested_scopes}
+            onChange={onProviderChange}
+            placeholder="One scope per line"
+          />
+          <div className="actions">
+            <button className="btn btn-ghost" type="button" onClick={onValidate} disabled={providerValidating}>
+              {providerValidating ? "Validating..." : "Validate"}
+            </button>
+            <button className="btn btn-primary" type="button" onClick={onSave} disabled={providerSaving}>
+              {providerSaving ? "Saving..." : "Save Gmail Config"}
+            </button>
+          </div>
+          {validation ? (
+            <div className={`callout ${validation.ok ? "callout-success" : "callout-warning"}`}>
+              {validation.ok
+                ? "Configuration looks valid."
+                : `Missing required fields: ${(validation.missing_fields || []).join(", ") || "unknown"}.`}
+            </div>
+          ) : null}
         </article>
 
         <article className="card stack">
@@ -721,6 +953,27 @@ function ProviderSetupPage({
             <h2>Gmail Action</h2>
             <span className="pill">{canConnect ? "ready" : "waiting"}</span>
           </div>
+          <div className="callout">
+            Create the Gmail authorization link here, then open it to approve access in Google.
+          </div>
+          {!canConnect ? (
+            <div className="callout callout-warning">
+              Auth link is not ready yet: {providerReadyReasons.join(", ")}.
+            </div>
+          ) : null}
+          <div className="actions">
+            <button className="btn btn-primary" type="button" onClick={onConnect} disabled={!canConnect}>
+              {providerConnecting ? "Creating..." : "Create Auth Link"}
+            </button>
+          </div>
+          {connectUrl ? (
+            <div className="stack compact-stack">
+              <div className="callout callout-success">Auth link created. Open it to continue Gmail authorization.</div>
+              <a className="approval-link" href={connectUrl} target="_blank" rel="noreferrer">
+                Open Gmail Auth Link
+              </a>
+            </div>
+          ) : null}
         </article>
       </section>
     </main>
@@ -758,6 +1011,15 @@ export function App() {
   const [gmailActionPending, setGmailActionPending] = useState("");
   const [gmailActionNotice, setGmailActionNotice] = useState("");
   const [gmailActionError, setGmailActionError] = useState("");
+  const [trainingStatus, setTrainingStatus] = useState(null);
+  const [trainingLoading, setTrainingLoading] = useState(false);
+  const [trainingError, setTrainingError] = useState("");
+  const [trainingBatch, setTrainingBatch] = useState(null);
+  const [trainingBatchLoading, setTrainingBatchLoading] = useState(false);
+  const [trainingBatchError, setTrainingBatchError] = useState("");
+  const [trainingSavePending, setTrainingSavePending] = useState(false);
+  const [trainingNotice, setTrainingNotice] = useState("");
+  const [trainingSelections, setTrainingSelections] = useState({});
   const [copyNotice, setCopyNotice] = useState("");
   const [uiUpdatedAt, setUiUpdatedAt] = useState(null);
 
@@ -884,6 +1146,40 @@ export function App() {
   }, [view, dashboardSection]);
 
   useEffect(() => {
+    if (view !== "training") {
+      return undefined;
+    }
+
+    let active = true;
+
+    async function loadTrainingStatus() {
+      setTrainingLoading(true);
+      try {
+        const payload = await fetchJson("/api/gmail/training");
+        if (!active) {
+          return;
+        }
+        setTrainingStatus(payload);
+        setTrainingError("");
+      } catch (loadError) {
+        if (!active) {
+          return;
+        }
+        setTrainingError(loadError.message);
+      } finally {
+        if (active) {
+          setTrainingLoading(false);
+        }
+      }
+    }
+
+    loadTrainingStatus();
+    return () => {
+      active = false;
+    };
+  }, [view]);
+
+  useEffect(() => {
     const dashboardReady = Boolean(bootstrap?.status?.operational_readiness);
     if (view === "provider") {
       return;
@@ -913,6 +1209,11 @@ export function App() {
     setView("provider");
   }
 
+  function openTraining() {
+    setSetupPinned(false);
+    setView("training");
+  }
+
   async function runGmailFetch(window, successLabel) {
     setGmailActionPending(window);
     setGmailActionError("");
@@ -926,6 +1227,88 @@ export function App() {
       setGmailActionError(actionError.message);
     } finally {
       setGmailActionPending("");
+    }
+  }
+
+  async function runSpamhausCheck() {
+    setGmailActionPending("spamhaus");
+    setGmailActionError("");
+    setGmailActionNotice("");
+    try {
+      const payload = await fetchJson("/api/gmail/spamhaus/check", { method: "POST" });
+      const refreshedStatus = await fetchJson("/api/gmail/status");
+      setGmailStatus(refreshedStatus);
+      setGmailActionNotice(
+        `Spamhaus check completed. Checked ${payload.checked_count ?? 0} senders, flagged ${payload.listed_count ?? 0}.`,
+      );
+    } catch (actionError) {
+      setGmailActionError(actionError.message);
+    } finally {
+      setGmailActionPending("");
+    }
+  }
+
+  async function loadTrainingManualBatch() {
+    setTrainingBatchLoading(true);
+    setTrainingBatchError("");
+    setTrainingNotice("");
+    try {
+      const payload = await fetchJson("/api/gmail/training/manual-batch", { method: "POST" });
+      setTrainingBatch(payload);
+      setTrainingSelections(
+        Object.fromEntries(
+          (payload.items || []).map((item) => [
+            item.message_id,
+            {
+              label: item.local_label || "unknown",
+              confidence: item.local_label_confidence ?? payload.threshold ?? 0.6,
+            },
+          ]),
+        ),
+      );
+    } catch (loadError) {
+      setTrainingBatchError(loadError.message);
+    } finally {
+      setTrainingBatchLoading(false);
+    }
+  }
+
+  function handleTrainingSelectionChange(messageId, field, value) {
+    setTrainingSelections((current) => ({
+      ...current,
+      [messageId]: {
+        ...(current[messageId] || {}),
+        [field]: field === "confidence" ? value : value,
+      },
+    }));
+  }
+
+  async function saveTrainingBatch() {
+    const items = Object.entries(trainingSelections).map(([message_id, selection]) => ({
+      message_id,
+      label: selection.label || "unknown",
+      confidence: Number(selection.confidence ?? trainingStatus?.threshold ?? 0.6),
+    }));
+    setTrainingSavePending(true);
+    setTrainingBatchError("");
+    setTrainingNotice("");
+    try {
+      const payload = await fetchJson("/api/gmail/training/manual-classify", {
+        method: "POST",
+        body: JSON.stringify({ items }),
+      });
+      setTrainingNotice(`Saved ${payload.saved_count ?? 0} manual classifications.`);
+      const [refreshedStatus, refreshedTraining] = await Promise.all([
+        fetchJson("/api/gmail/status"),
+        fetchJson("/api/gmail/training"),
+      ]);
+      setGmailStatus(refreshedStatus);
+      setTrainingStatus(refreshedTraining);
+      await loadTrainingManualBatch();
+    } catch (saveError) {
+      setTrainingBatchError(saveError.message);
+    } finally {
+      setTrainingSavePending(false);
     }
   }
 
@@ -1182,6 +1565,8 @@ export function App() {
   const gmailPrimaryMailboxStatus = gmailPrimary?.mailbox_status || null;
   const gmailPrimaryAccount = gmailPrimary?.account || null;
   const gmailPrimaryStore = gmailPrimary?.message_store || null;
+  const gmailPrimarySpamhaus = gmailPrimary?.spamhaus || null;
+  const gmailPrimaryQuotaUsage = gmailPrimary?.quota_usage || null;
   const gmailFetchSchedule = gmailStatus?.fetch_schedule || null;
   const gmailWindowSettings = buildGmailWindowSettings(gmailFetchSchedule);
   const mqttHealth = status?.mqtt_health || {};
@@ -1224,6 +1609,28 @@ export function App() {
           onValidate={validateProviderConfig}
           onConnect={startProviderConnect}
           onBack={() => (dashboardEnabled ? openDashboard() : openSetup())}
+        />
+      </div>
+    );
+  }
+
+  if (view === "training") {
+    return (
+      <div className="shell">
+        <TrainingPage
+          trainingStatus={trainingStatus}
+          trainingLoading={trainingLoading}
+          trainingError={trainingError}
+          trainingBatch={trainingBatch}
+          trainingBatchLoading={trainingBatchLoading}
+          trainingBatchError={trainingBatchError}
+          trainingSavePending={trainingSavePending}
+          trainingNotice={trainingNotice}
+          trainingSelections={trainingSelections}
+          onBack={() => (dashboardEnabled ? openDashboard() : openSetup())}
+          onLoadManualBatch={loadTrainingManualBatch}
+          onSelectionChange={handleTrainingSelectionChange}
+          onSaveBatch={saveTrainingBatch}
         />
       </div>
     );
@@ -1273,6 +1680,9 @@ export function App() {
             <div className="app-header-meta">
               <span className="muted tiny">
                 Updated: <code>{formatTelemetryTimestamp(uiUpdatedAt)}</code>
+              </span>
+              <span className="muted tiny">
+                Quota: <code>{gmailPrimaryQuotaUsage ? `${gmailPrimaryQuotaUsage.used_last_minute}/${gmailPrimaryQuotaUsage.limit_per_minute}` : "0/15000"}</code>
               </span>
               <span className="muted tiny">
                 Node: <code>{status?.node_id || "pending"}</code>
@@ -1380,10 +1790,6 @@ export function App() {
                         <dd>{gmailPrimaryAccount?.email_address || gmailPrimaryAccount?.account_id || "Pending"}</dd>
                       </div>
                       <div>
-                        <dt>Unread Inbox</dt>
-                        <dd>{gmailPrimaryMailboxStatus?.unread_inbox_count ?? (gmailStatusLoading ? "Loading..." : 0)}</dd>
-                      </div>
-                      <div>
                         <dt>Unread Today</dt>
                         <dd>{gmailPrimaryMailboxStatus?.unread_today_count ?? (gmailStatusLoading ? "Loading..." : 0)}</dd>
                       </div>
@@ -1392,16 +1798,28 @@ export function App() {
                         <dd>{gmailPrimaryMailboxStatus?.unread_yesterday_count ?? (gmailStatusLoading ? "Loading..." : 0)}</dd>
                       </div>
                       <div>
-                        <dt>Unread Last Hour</dt>
-                        <dd>{gmailPrimaryMailboxStatus?.unread_last_hour_count ?? (gmailStatusLoading ? "Loading..." : 0)}</dd>
-                      </div>
-                      <div>
                         <dt>Stored Emails</dt>
                         <dd>{gmailPrimaryStore?.total_count ?? 0}</dd>
                       </div>
                       <div>
-                        <dt>Last Fetch</dt>
-                        <dd>{formatTelemetryTimestamp(gmailPrimaryStore?.latest_fetched_at)}</dd>
+                        <dt>Spamhaus Checked</dt>
+                        <dd>{gmailPrimarySpamhaus?.checked_count ?? 0}</dd>
+                      </div>
+                      <div>
+                        <dt>Spamhaus Pending</dt>
+                        <dd>{gmailPrimarySpamhaus?.pending_count ?? 0}</dd>
+                      </div>
+                      <div>
+                        <dt>Spamhaus Listed</dt>
+                        <dd>{gmailPrimarySpamhaus?.listed_count ?? 0}</dd>
+                      </div>
+                      <div>
+                        <dt>Quota Used / Min</dt>
+                        <dd>{gmailPrimaryQuotaUsage ? `${gmailPrimaryQuotaUsage.used_last_minute}/${gmailPrimaryQuotaUsage.limit_per_minute}` : 0}</dd>
+                      </div>
+                      <div>
+                        <dt>Quota Remaining</dt>
+                        <dd>{gmailPrimaryQuotaUsage?.remaining_last_minute ?? 15000}</dd>
                       </div>
                     </dl>
                   </article>
@@ -1449,6 +1867,21 @@ export function App() {
                       >
                         Fetch Initial Learning
                       </button>
+                      <button
+                        type="button"
+                        className="btn"
+                        disabled={gmailActionPending !== "" || (gmailPrimaryStore?.total_count ?? 0) === 0}
+                        onClick={runSpamhausCheck}
+                      >
+                        Check With Spamhaus
+                      </button>
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={openTraining}
+                      >
+                        Open Training
+                      </button>
                       <div className="row gmail-fetch-row">
                         <button
                           type="button"
@@ -1477,7 +1910,9 @@ export function App() {
                       </div>
                       <p className="muted tiny">
                         {gmailActionPending
-                          ? "Fetch in progress..."
+                          ? gmailActionPending === "spamhaus"
+                            ? "Spamhaus check in progress..."
+                            : "Fetch in progress..."
                           : "Scheduled fetches use the node local timezone and store up to six months of mail."}
                       </p>
                     </div>

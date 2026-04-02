@@ -30,7 +30,7 @@ from models import (
 )
 from providers.gmail.adapter import GmailProviderAdapter
 from providers.gmail.config_store import GmailProviderConfigError, GmailProviderConfigStore
-from providers.gmail.models import GmailOAuthConfig
+from providers.gmail.models import GmailManualClassificationBatchInput, GmailOAuthConfig
 from providers.gmail.oauth import GmailOAuthSessionManager
 from providers.gmail.token_client import GmailTokenExchangeClient, GmailTokenExchangeError
 from mqtt import MQTTManager
@@ -1041,11 +1041,15 @@ class NodeService:
                 else await adapter.get_mailbox_status(account.account_id) if hasattr(adapter, "get_mailbox_status") else None
             )
             message_summary = await adapter.message_store_summary(account.account_id) if hasattr(adapter, "message_store_summary") else None
+            spamhaus_summary = await adapter.spamhaus_summary(account.account_id) if hasattr(adapter, "spamhaus_summary") else None
+            quota_usage = await adapter.quota_usage_summary(account.account_id) if hasattr(adapter, "quota_usage_summary") else None
             statuses.append(
                 {
                     "account": account.model_dump(mode="json"),
                     "mailbox_status": mailbox_status.model_dump(mode="json") if mailbox_status is not None else None,
                     "message_store": message_summary,
+                    "spamhaus": spamhaus_summary.model_dump(mode="json") if spamhaus_summary is not None else None,
+                    "quota_usage": quota_usage.model_dump(mode="json") if quota_usage is not None else None,
                 }
             )
         return {
@@ -1090,6 +1094,55 @@ class NodeService:
         adapter = self.provider_registry.get_provider("gmail")
         validation = await adapter.validate_static_config()
         return validation.model_dump(mode="json")
+
+    async def gmail_check_spamhaus(
+        self,
+        *,
+        account_id: str = "primary",
+    ) -> dict[str, object]:
+        adapter = self.provider_registry.get_provider("gmail")
+        if not hasattr(adapter, "check_spamhaus_for_stored_messages"):
+            raise ValueError("gmail Spamhaus actions are not available")
+        try:
+            return await adapter.check_spamhaus_for_stored_messages(account_id)
+        except Exception as exc:
+            raise ValueError(str(exc)) from exc
+
+    async def gmail_training_status(self, *, account_id: str = "primary") -> dict[str, object]:
+        adapter = self.provider_registry.get_provider("gmail")
+        return {
+            "provider_id": "gmail",
+            "account_id": account_id,
+            "threshold": self.config.gmail_local_classification_threshold,
+            "message_store": await adapter.message_store_summary(account_id) if hasattr(adapter, "message_store_summary") else None,
+        }
+
+    async def gmail_training_manual_batch(self, *, account_id: str = "primary", limit: int = 40) -> dict[str, object]:
+        adapter = self.provider_registry.get_provider("gmail")
+        if not hasattr(adapter, "manual_training_batch"):
+            raise ValueError("gmail training actions are not available")
+        try:
+            return await adapter.manual_training_batch(
+                account_id,
+                threshold=self.config.gmail_local_classification_threshold,
+                limit=limit,
+            )
+        except Exception as exc:
+            raise ValueError(str(exc)) from exc
+
+    async def gmail_training_save_manual_classifications(
+        self,
+        payload: GmailManualClassificationBatchInput,
+        *,
+        account_id: str = "primary",
+    ) -> dict[str, object]:
+        adapter = self.provider_registry.get_provider("gmail")
+        if not hasattr(adapter, "save_manual_classifications"):
+            raise ValueError("gmail training actions are not available")
+        try:
+            return await adapter.save_manual_classifications(account_id, payload)
+        except Exception as exc:
+            raise ValueError(str(exc)) from exc
 
     async def _provider_status_snapshot_async(self) -> dict[str, object]:
         supported = self.provider_registry.list_supported_providers()

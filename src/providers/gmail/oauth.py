@@ -23,7 +23,6 @@ class GmailOAuthStateError(RuntimeError):
 
 class GmailOAuthSessionManager:
     GOOGLE_AUTH_BASE_URL = "https://accounts.google.com/o/oauth2/v2/auth"
-    PUBLIC_CALLBACK_URL = "https://hexe-ai.com/google/callback"
     STATE_VERSION = 1
     STATE_TTL_SECONDS = 600
 
@@ -79,7 +78,7 @@ class GmailOAuthSessionManager:
     ) -> GmailOAuthSessionState:
         session = self.create_session(
             account_id,
-            self.build_public_gmail_callback_url(),
+            oauth_config.redirect_uri or "",
             client_id=oauth_config.client_id,
             correlation_id=correlation_id,
             core_id=core_id,
@@ -103,9 +102,6 @@ class GmailOAuthSessionManager:
             "prompt": "consent",
         }
         return f"{self.GOOGLE_AUTH_BASE_URL}?{urlencode(params)}"
-
-    def build_public_gmail_callback_url(self) -> str:
-        return self.PUBLIC_CALLBACK_URL
 
     def sign_public_state(self, session: GmailOAuthSessionState) -> str:
         payload = {

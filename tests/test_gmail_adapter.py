@@ -8,7 +8,7 @@ from httpx import ASGITransport
 
 from providers.gmail.adapter import GmailProviderAdapter
 from providers.gmail.config_store import GmailProviderConfigStore
-from providers.gmail.models import GmailOAuthConfig, GmailStoredMessage, GmailTokenRecord
+from providers.gmail.models import GmailOAuthConfig, GmailSpamhausCheck, GmailStoredMessage, GmailTokenRecord
 from providers.gmail.token_client import GmailTokenExchangeClient
 from providers.gmail.identity import GmailIdentityProbeClient
 from providers.models import ProviderAccountRecord, ProviderId
@@ -163,3 +163,172 @@ async def test_gmail_adapter_refresh_mailbox_status_works_without_token_when_dat
     assert status.status == "ok"
     assert status.unread_inbox_count == 1
     assert len(stored_messages) == 1
+
+
+@pytest.mark.asyncio
+async def test_gmail_adapter_fetch_window_saves_each_page_incrementally(tmp_path):
+    GmailProviderConfigStore(tmp_path).save(
+        GmailOAuthConfig(
+            enabled=True,
+            client_id="client-id",
+            client_secret_ref="secret",
+            redirect_uri="https://email-node.example.com/api/providers/gmail/oauth/callback",
+        )
+    )
+    adapter = GmailProviderAdapter(tmp_path)
+    adapter.account_store.save_account(
+        ProviderAccountRecord(
+            provider_id=ProviderId.GMAIL,
+            account_id="primary",
+            status="connected",
+            email_address="primary@example.com",
+        )
+    )
+    adapter.token_store.save_token(
+        "primary",
+        GmailTokenRecord(
+            account_id="primary",
+            access_token="access-token",
+            refresh_token="refresh-token",
+            expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=1),
+        ),
+    )
+
+    class IncrementalMailboxClient:
+        quota_tracker = None
+
+        def build_fetch_query(self, window: str, *, now=None) -> str:
+            return f"query:{window}"
+
+        async def iter_message_batches(self, *, token_record, query):
+            yield [
+                GmailStoredMessage(
+                    account_id="primary",
+                    message_id="msg-1",
+                    sender="sender1@example.com",
+                    received_at=datetime(2026, 4, 2, 8, 0, 0).astimezone(),
+                )
+            ]
+            assert adapter.message_store.count_messages("primary") == 1
+            yield [
+                GmailStoredMessage(
+                    account_id="primary",
+                    message_id="msg-2",
+                    sender="sender2@example.com",
+                    received_at=datetime(2026, 4, 2, 9, 0, 0).astimezone(),
+                )
+            ]
+
+    adapter.mailbox_client = IncrementalMailboxClient()
+
+    result = await adapter.fetch_messages_for_window("primary", window="today")
+
+    assert result["fetched_count"] == 2
+    assert result["stored_count"] == 2
+    assert adapter.message_store.count_messages("primary") == 2
+
+
+@pytest.mark.asyncio
+async def test_gmail_adapter_does_not_recheck_messages_already_sent_to_spamhaus(tmp_path):
+    GmailProviderConfigStore(tmp_path).save(
+        GmailOAuthConfig(
+            enabled=True,
+            client_id="client-id",
+            client_secret_ref="secret",
+            redirect_uri="https://email-node.example.com/api/providers/gmail/oauth/callback",
+        )
+    )
+    adapter = GmailProviderAdapter(tmp_path)
+    adapter.message_store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="msg-1",
+                sender="Sender <sender@example.com>",
+                received_at=datetime(2026, 4, 2, 12, 0, 0).astimezone(),
+            )
+        ],
+        now=datetime(2026, 4, 2, 12, 5, 0).astimezone(),
+    )
+
+    class CountingSpamhausChecker:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def check_sender(self, *, account_id: str, message_id: str, sender: str | None):
+            self.calls += 1
+            return GmailSpamhausCheck(
+                account_id=account_id,
+                message_id=message_id,
+                sender_email="sender@example.com",
+                sender_domain="example.com",
+                checked=True,
+                listed=False,
+                status="clean",
+                detail="clean in test",
+            )
+
+    checker = CountingSpamhausChecker()
+    adapter.spamhaus_checker = checker
+
+    first = await adapter.check_spamhaus_for_stored_messages("primary")
+    second = await adapter.check_spamhaus_for_stored_messages("primary")
+
+    assert checker.calls == 1
+    assert first["checked_count"] == 1
+    assert second["checked_count"] == 0
+    assert first["summary"]["checked_count"] == 1
+    assert second["summary"]["checked_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_gmail_adapter_initial_learning_fetch_does_not_require_schedule_slot(tmp_path):
+    GmailProviderConfigStore(tmp_path).save(
+        GmailOAuthConfig(
+            enabled=True,
+            client_id="client-id",
+            client_secret_ref="secret",
+            redirect_uri="https://email-node.example.com/api/providers/gmail/oauth/callback",
+        )
+    )
+    adapter = GmailProviderAdapter(tmp_path)
+    adapter.account_store.save_account(
+        ProviderAccountRecord(
+            provider_id=ProviderId.GMAIL,
+            account_id="primary",
+            status="connected",
+            email_address="primary@example.com",
+        )
+    )
+    adapter.token_store.save_token(
+        "primary",
+        GmailTokenRecord(
+            account_id="primary",
+            access_token="access-token",
+            refresh_token="refresh-token",
+            expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=1),
+        ),
+    )
+
+    class InitialLearningMailboxClient:
+        quota_tracker = None
+
+        def build_fetch_query(self, window: str, *, now=None) -> str:
+            return f"query:{window}"
+
+        async def iter_message_batches(self, *, token_record, query):
+            yield [
+                GmailStoredMessage(
+                    account_id="primary",
+                    message_id="msg-1",
+                    sender="sender@example.com",
+                    received_at=datetime(2026, 4, 2, 8, 0, 0).astimezone(),
+                )
+            ]
+
+    adapter.mailbox_client = InitialLearningMailboxClient()
+
+    result = await adapter.fetch_messages_for_window("primary", window="initial_learning")
+
+    assert result["window"] == "initial_learning"
+    assert result["stored_count"] == 1

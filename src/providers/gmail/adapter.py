@@ -13,10 +13,20 @@ from providers.gmail.mailbox_status_store import GmailMailboxStatusStore
 from providers.gmail.config_store import GmailProviderConfigError, GmailProviderConfigStore
 from providers.gmail.health import GmailHealthEvaluator
 from providers.gmail.identity import GmailIdentityProbeClient
-from providers.gmail.models import GmailFetchScheduleState, GmailMailboxStatus, GmailStoredMessage
+from providers.gmail.models import (
+    GmailFetchScheduleState,
+    GmailMailboxStatus,
+    GmailManualClassificationBatchInput,
+    GmailQuotaUsageSnapshot,
+    GmailSpamhausSummary,
+    GmailStoredMessage,
+)
+from providers.gmail.quota_tracker import GmailQuotaTracker
+from providers.gmail.spamhaus_checker import GmailSpamhausChecker
 from providers.gmail.state_machine import GmailAccountStateMachine
 from providers.gmail.token_client import GmailTokenExchangeClient
 from providers.gmail.token_store import GmailTokenStore
+from providers.gmail.training import flatten_message, render_flat_training_text
 from providers.models import ProviderAccountRecord, ProviderHealth, ProviderId, ProviderState, ProviderValidationResult
 
 
@@ -40,10 +50,14 @@ class GmailProviderAdapter(EmailProviderAdapter):
         self.mailbox_status_store = GmailMailboxStatusStore(runtime_dir)
         self.message_store = GmailMessageStore(runtime_dir)
         self.fetch_schedule_store = GmailFetchScheduleStore(runtime_dir)
+        self.quota_tracker = GmailQuotaTracker(runtime_dir)
         self.state_machine = GmailAccountStateMachine(self.account_store)
         self.token_client = token_client or GmailTokenExchangeClient()
         self.identity_client = identity_client or GmailIdentityProbeClient(self.account_store)
-        self.mailbox_client = mailbox_client or GmailMailboxClient()
+        self.mailbox_client = mailbox_client or GmailMailboxClient(quota_tracker=self.quota_tracker)
+        if getattr(self.mailbox_client, "quota_tracker", None) is None:
+            self.mailbox_client.quota_tracker = self.quota_tracker
+        self.spamhaus_checker = GmailSpamhausChecker()
         self.health_evaluator = GmailHealthEvaluator()
 
     async def validate_static_config(self) -> ProviderValidationResult:
@@ -196,26 +210,33 @@ class GmailProviderAdapter(EmailProviderAdapter):
         )
         if token_record is None:
             raise GmailMailboxClientError("gmail token is not available yet")
+        if getattr(self.mailbox_client, "quota_tracker", None) is None:
+            self.mailbox_client.quota_tracker = self.quota_tracker
 
         query = self.mailbox_client.build_fetch_query(window)
-        messages = await self.mailbox_client.fetch_messages(token_record=token_record, query=query)
-        stored_count = self.message_store.upsert_messages(messages)
+        fetched_count = 0
+        stored_count = 0
+        async for batch_messages in self.mailbox_client.iter_message_batches(token_record=token_record, query=query):
+            fetched_count += len(batch_messages)
+            stored_count += self.message_store.upsert_messages(batch_messages)
         summary = self.message_store.account_summary(account_id)
-        schedule_state = self.fetch_schedule_store.load_state()
-        window_state = getattr(schedule_state, window)
-        window_state.last_run_at = datetime.now().astimezone()
-        window_state.last_run_reason = "scheduled" if reason == "scheduled" else "manual"
-        window_state.last_slot_key = slot_key
-        self.fetch_schedule_store.save_state(schedule_state)
+        window_reason = "scheduled" if reason == "scheduled" else "manual"
+        if window in {"yesterday", "today", "last_hour"}:
+            schedule_state = self.fetch_schedule_store.load_state()
+            window_state = getattr(schedule_state, window)
+            window_state.last_run_at = datetime.now().astimezone()
+            window_state.last_run_reason = window_reason
+            window_state.last_slot_key = slot_key
+            self.fetch_schedule_store.save_state(schedule_state)
         return {
             "provider_id": self.provider_id,
             "account_id": account_id,
             "window": window,
             "query": query,
-            "fetched_count": len(messages),
+            "fetched_count": fetched_count,
             "stored_count": stored_count,
             "summary": summary,
-            "reason": window_state.last_run_reason,
+            "reason": window_reason,
             "slot_key": slot_key,
         }
 
@@ -224,6 +245,72 @@ class GmailProviderAdapter(EmailProviderAdapter):
 
     async def message_store_summary(self, account_id: str) -> dict[str, object]:
         return self.message_store.account_summary(account_id)
+
+    async def spamhaus_summary(self, account_id: str) -> GmailSpamhausSummary:
+        return self.message_store.spamhaus_summary(account_id)
+
+    async def quota_usage_summary(self, account_id: str) -> GmailQuotaUsageSnapshot:
+        return self.quota_tracker.snapshot(account_id)
+
+    async def manual_training_batch(self, account_id: str, *, threshold: float, limit: int = 40) -> dict[str, object]:
+        account_record = self.account_store.load_account(account_id)
+        messages = self.message_store.list_training_candidates(account_id, limit=limit, threshold=threshold)
+        flattened = [flatten_message(message, account_email=account_record.email_address if account_record is not None else None) for message in messages]
+        return {
+            "provider_id": self.provider_id,
+            "account_id": account_id,
+            "threshold": threshold,
+            "count": len(flattened),
+            "items": [
+                {
+                    **item.model_dump(mode="json"),
+                    "flat_text": render_flat_training_text(item),
+                }
+                for item in flattened
+            ],
+        }
+
+    async def save_manual_classifications(self, account_id: str, batch: GmailManualClassificationBatchInput) -> dict[str, object]:
+        saved = 0
+        for item in batch.items:
+            self.message_store.update_local_classification(
+                account_id,
+                item.message_id,
+                label=item.label,
+                confidence=item.confidence,
+                manual_classification=True,
+            )
+            saved += 1
+        return {"provider_id": self.provider_id, "account_id": account_id, "saved_count": saved}
+
+    async def check_spamhaus_for_stored_messages(self, account_id: str) -> dict[str, object]:
+        pending_messages = self.message_store.list_messages_pending_spamhaus(account_id)
+        checked_count = 0
+        listed_count = 0
+        error_count = 0
+
+        for message in pending_messages:
+            check = await self.spamhaus_checker.check_sender(
+                account_id=account_id,
+                message_id=message.message_id,
+                sender=message.sender,
+            )
+            saved_check = self.message_store.upsert_spamhaus_check(check)
+            checked_count += 1
+            if saved_check.listed:
+                listed_count += 1
+            if saved_check.status == "error":
+                error_count += 1
+
+        summary = self.message_store.spamhaus_summary(account_id)
+        return {
+            "provider_id": self.provider_id,
+            "account_id": account_id,
+            "checked_count": checked_count,
+            "listed_count": listed_count,
+            "error_count": error_count,
+            "summary": summary.model_dump(mode="json"),
+        }
 
     async def fetch_schedule_state(self) -> GmailFetchScheduleState:
         return self.fetch_schedule_store.load_state()

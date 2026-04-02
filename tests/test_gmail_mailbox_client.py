@@ -65,7 +65,7 @@ def build_google_fetch_app():
     async def list_messages(q: str = Query(default=""), pageToken: str | None = None):
         if pageToken:
             return {"messages": []}
-        assert q.startswith("in:inbox after:")
+        assert q == "is:unread" or q.startswith("in:inbox after:")
         return {"messages": [{"id": "msg-1"}]}
 
     @app.get("/messages/{message_id}")
