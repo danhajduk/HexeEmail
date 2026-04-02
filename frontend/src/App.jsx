@@ -116,6 +116,50 @@ function formatAge(value) {
   return `${Math.floor(value / 3600)}h`;
 }
 
+function telemetryFreshnessIndicatorClass(value) {
+  return value === "fresh" ? "health-fresh" : "health-pending";
+}
+
+function deriveDashboardWarnings({ status, providerConnected, mqttConnected, mqttHealth }) {
+  const warnings = [];
+
+  if (status?.governance_sync_status && status.governance_sync_status !== "ok") {
+    warnings.push(`Governance sync is ${status.governance_sync_status}.`);
+  }
+  if (!providerConnected) {
+    warnings.push("Gmail provider is not connected.");
+  }
+  if (!mqttConnected) {
+    warnings.push("MQTT is not currently connected.");
+  }
+  if (mqttHealth?.status_freshness_state && mqttHealth.status_freshness_state !== "fresh") {
+    warnings.push(`Telemetry freshness is ${mqttHealth.status_freshness_state}.`);
+  }
+
+  return warnings;
+}
+
+function formatRelativeTime(value) {
+  if (!value) {
+    return "-";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+  const diffSeconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+  if (diffSeconds < 60) {
+    return `${diffSeconds} sec ago`;
+  }
+  if (diffSeconds < 3600) {
+    return `${Math.floor(diffSeconds / 60)} min ago`;
+  }
+  if (diffSeconds < 86400) {
+    return `${Math.floor(diffSeconds / 3600)} hour ago`;
+  }
+  return `${Math.floor(diffSeconds / 86400)} day ago`;
+}
+
 function maskOnboardingRef(value) {
   if (!value) {
     return "pending";
@@ -606,10 +650,9 @@ function ProviderSetupPage({
               gmail: {providerSummary?.provider_state || "loading"}
             </div>
           </div>
-          <h1>Provider Setup</h1>
+          <h1>Gmail</h1>
           <p className="hero-copy">
-            Configure Gmail OAuth for this node, validate the settings, and launch the connect flow once the node is
-            trusted.
+            Gmail management will live here. This view is being staged into dedicated Gmail status, settings, and action cards.
           </p>
         </div>
         <div className="hero-actions">
@@ -625,118 +668,25 @@ function ProviderSetupPage({
       <section className="grid provider-grid">
         <article className="card stack">
           <div className="section-heading">
-            <h2>Gmail Configuration</h2>
+            <h2>Gmail Status</h2>
             <span className="pill">API {bootstrap?.config.api_port || 9003}</span>
           </div>
-          <ToggleField label="Provider status" name="enabled" checked={providerForm.enabled} onChange={onProviderChange} />
-          <Field
-            label="Client ID"
-            name="client_id"
-            value={providerForm.client_id}
-            onChange={onProviderChange}
-            placeholder="google-oauth-client-id.apps.googleusercontent.com"
-            required
-          />
-          <Field
-            label="Client Secret Ref"
-            name="client_secret_ref"
-            value={providerForm.client_secret_ref}
-            onChange={onProviderChange}
-            placeholder="env:GMAIL_CLIENT_SECRET"
-            required
-          />
-          <Field
-            label="Redirect URI"
-            name="redirect_uri"
-            value={providerForm.redirect_uri}
-            onChange={onProviderChange}
-            placeholder="https://hexe-ai.com/google/gmail/callback"
-            required
-          />
-          <TextareaField
-            label="Requested scopes"
-            name="requested_scopes"
-            value={providerForm.requested_scopes}
-            onChange={onProviderChange}
-            placeholder="One Gmail scope per line"
-          />
-          <div className="actions">
-            <button className="btn btn-ghost" type="button" onClick={onValidate} disabled={providerValidating}>
-              {providerValidating ? "Validating..." : "Validate Config"}
-            </button>
-            <button className="btn btn-primary" type="button" onClick={onSave} disabled={providerSaving || !providerDirty}>
-              {providerSaving ? "Saving..." : "Save Provider"}
-            </button>
-          </div>
-          {providerNotice ? <div className="callout callout-success">{providerNotice}</div> : null}
-          {providerError ? <div className="callout callout-danger">{providerError}</div> : null}
         </article>
 
         <article className="card stack">
           <div className="section-heading">
-            <h2>Provider Status</h2>
+            <h2>Gmail Settings</h2>
             <span className={`status-pill tone-${statusTone(providerSummary?.provider_state)}`}>
               {providerSummary?.provider_state || "unknown"}
             </span>
           </div>
-          <dl className="facts">
-            <div>
-              <dt>Configured</dt>
-              <dd>{providerSummary?.configured ? "Yes" : "No"}</dd>
-            </div>
-            <div>
-              <dt>Enabled</dt>
-              <dd>{providerSummary?.enabled ? "Yes" : "No"}</dd>
-            </div>
-            <div>
-              <dt>Accounts</dt>
-              <dd>{providerSummary?.account_count ?? 0}</dd>
-            </div>
-            <div>
-              <dt>Trust State</dt>
-              <dd>{bootstrap?.status?.trust_state || "untrusted"}</dd>
-            </div>
-          </dl>
+        </article>
 
-          <div className="stack compact-stack">
-            <div className="section-heading">
-              <h2>Validation</h2>
-              <span className={`status-pill tone-${providerConfig?.validation?.ok ? "success" : "warning"}`}>
-                {providerConfig?.validation?.ok ? "valid" : "needs fields"}
-              </span>
-            </div>
-            {(providerConfig?.validation?.messages || []).length > 0 ? (
-              <ul className="prompt-list">
-                {providerConfig.validation.messages.map((message) => (
-                  <li key={message}>{message}</li>
-                ))}
-              </ul>
-            ) : (
-              <div className="callout">
-                {(providerConfig?.validation?.missing_fields || []).length > 0
-                  ? `Missing: ${providerConfig.validation.missing_fields.join(", ")}`
-                  : "Gmail configuration currently validates."}
-              </div>
-            )}
+        <article className="card stack">
+          <div className="section-heading">
+            <h2>Gmail Action</h2>
+            <span className="pill">{canConnect ? "ready" : "waiting"}</span>
           </div>
-
-          <div className="actions">
-            <button className="btn btn-primary" type="button" onClick={onConnect} disabled={!canConnect}>
-              {providerConnecting ? "Preparing..." : "Start Gmail Connect"}
-            </button>
-          </div>
-          {!providerForm.enabled ? <div className="callout callout-warning">Enable the provider before connecting.</div> : null}
-          {bootstrap?.status?.trust_state !== "trusted" ? (
-            <div className="callout callout-warning">The node must be trusted before Gmail OAuth can start.</div>
-          ) : null}
-          <div className="callout">
-            Use the centralized public redirect URI `https://hexe-ai.com/google/gmail/callback`, then start the connect flow.
-          </div>
-          {connectUrl ? (
-            <a className="approval-link" href={connectUrl} target="_blank" rel="noreferrer">
-              Open Google connect URL
-            </a>
-          ) : null}
         </article>
       </section>
     </main>
@@ -768,13 +718,14 @@ export function App() {
   const [providerError, setProviderError] = useState("");
   const [connectUrl, setConnectUrl] = useState("");
   const [copyNotice, setCopyNotice] = useState("");
+  const [uiUpdatedAt, setUiUpdatedAt] = useState(null);
 
   useEffect(() => {
     let active = true;
 
     async function loadBootstrap() {
       try {
-        const payload = await fetchJson("/ui/bootstrap");
+        const payload = await fetchJson("/api/node/bootstrap");
         if (!active) {
           return;
         }
@@ -782,6 +733,7 @@ export function App() {
         startTransition(() => {
           setBootstrap(payload);
           setProviderStatus(payload.status);
+          setUiUpdatedAt(new Date().toISOString());
         });
 
         if (!touched) {
@@ -818,7 +770,7 @@ export function App() {
     async function loadProviderConfig() {
       setProviderLoading(true);
       try {
-        const [configPayload, statusPayload] = await Promise.all([
+      const [configPayload, statusPayload] = await Promise.all([
           fetchJson("/providers/gmail/config"),
           fetchJson("/providers"),
         ]);
@@ -941,7 +893,7 @@ export function App() {
     setError("");
     setNotice("");
     try {
-      const payload = await fetchJson("/ui/config", {
+      const payload = await fetchJson("/api/node/config", {
         method: "PUT",
         body: JSON.stringify(form),
       });
@@ -963,7 +915,7 @@ export function App() {
     setError("");
     setNotice("");
     try {
-      const payload = await fetchJson("/ui/capabilities/declare", {
+      const payload = await fetchJson("/api/capabilities/declare", {
         method: "POST",
       });
       setNotice(
@@ -971,9 +923,10 @@ export function App() {
           ? "Capability declaration submitted."
           : `Capability declaration status: ${payload.capability_declaration_status || "pending"}.`,
       );
-      const refreshed = await fetchJson("/ui/bootstrap");
+      const refreshed = await fetchJson("/api/node/bootstrap");
       startTransition(() => {
         setBootstrap(refreshed);
+        setUiUpdatedAt(new Date().toISOString());
       });
     } catch (declareError) {
       setError(declareError.message);
@@ -987,18 +940,19 @@ export function App() {
     setError("");
     setNotice("");
     try {
-      await fetchJson("/ui/config", {
+      await fetchJson("/api/node/config", {
         method: "PUT",
         body: JSON.stringify(form),
       });
-      const payload = await fetchJson("/ui/onboarding/start", {
+      const payload = await fetchJson("/api/onboarding/start", {
         method: "POST",
       });
       setTouched(false);
       setNotice(`Onboarding started for ${payload.node_name || "this node"}.`);
-      const refreshed = await fetchJson("/ui/bootstrap");
+      const refreshed = await fetchJson("/api/node/bootstrap");
       startTransition(() => {
         setBootstrap(refreshed);
+        setUiUpdatedAt(new Date().toISOString());
       });
     } catch (startError) {
       setError(startError.message);
@@ -1012,15 +966,16 @@ export function App() {
     setError("");
     setNotice("");
     try {
-      const payload = await fetchJson("/ui/onboarding/restart", {
+      const payload = await fetchJson("/api/onboarding/restart", {
         method: "POST",
         body: JSON.stringify(form),
       });
       setTouched(false);
       setNotice(`Setup restarted for ${payload.node_name || "this node"}.`);
-      const refreshed = await fetchJson("/ui/bootstrap");
+      const refreshed = await fetchJson("/api/node/bootstrap");
       startTransition(() => {
         setBootstrap(refreshed);
+        setUiUpdatedAt(new Date().toISOString());
       });
     } catch (restartError) {
       setError(restartError.message);
@@ -1108,10 +1063,11 @@ export function App() {
       if (message) {
         setNotice(message);
       }
-      const refreshed = await fetchJson("/ui/bootstrap");
+      const refreshed = await fetchJson("/api/node/bootstrap");
       startTransition(() => {
         setBootstrap(refreshed);
         setProviderStatus(refreshed.status);
+        setUiUpdatedAt(new Date().toISOString());
       });
     } catch (refreshError) {
       setError(refreshError.message);
@@ -1128,6 +1084,23 @@ export function App() {
   const providerSummary = status?.provider_account_summaries?.gmail || {};
   const providerConnected = providerSummary?.provider_state === "connected";
   const mqttHealth = status?.mqtt_health || {};
+  const lastHeartbeatAt = mqttHealth?.last_status_report_at || status?.last_heartbeat_at || null;
+  const mqttConnected = status?.mqtt_connection_status === "connected" || mqttHealth?.health_status === "connected";
+  const mqttTelemetryFresh = mqttHealth?.status_freshness_state === "fresh";
+  const dashboardWarnings = deriveDashboardWarnings({
+    status,
+    providerConnected,
+    mqttConnected,
+    mqttHealth,
+  });
+  const mqttIndicatorClass = mqttConnected || mqttTelemetryFresh
+    ? "health-connected"
+    : mqttHealth?.status_freshness_state === "unknown"
+      ? "health-fresh"
+      : "health-pending";
+  const mqttSeverityClass = mqttConnected || mqttTelemetryFresh
+    ? healthSeverityClass("connected", ["connected"])
+    : healthSeverityClass(mqttHealth?.status_freshness_state, [], ["unknown"]);
   if (view === "provider") {
     return (
       <div className="shell">
@@ -1198,7 +1171,7 @@ export function App() {
             </div>
             <div className="app-header-meta">
               <span className="muted tiny">
-                Updated: <code>{formatTelemetryTimestamp(status?.last_heartbeat_at)}</code>
+                Updated: <code>{formatTelemetryTimestamp(uiUpdatedAt)}</code>
               </span>
               <span className="muted tiny">
                 Node: <code>{status?.node_id || "pending"}</code>
@@ -1210,7 +1183,7 @@ export function App() {
             <aside className="card operational-shell-nav-card">
               <nav className="operational-shell-nav" aria-label="Operational sections">
                 <button type="button" className="btn operational-nav-btn btn-primary">Overview</button>
-                <button type="button" className="btn operational-nav-btn">Capabilities</button>
+                <button type="button" className="btn operational-nav-btn" onClick={openProvider}>Gmail</button>
                 <button type="button" className="btn operational-nav-btn">Runtime</button>
                 <button type="button" className="btn operational-nav-btn">Activity</button>
                 <button type="button" className="btn operational-nav-btn">Diagnostics</button>
@@ -1245,16 +1218,10 @@ export function App() {
                   </div>
                   <div className="node-health-strip-item">
                     <span className="muted tiny">MQTT</span>
-                    <span className={healthSeverityClass(mqttHealth?.status_freshness_state, ["fresh"], ["unknown"])}>
-                      <span className={`health-indicator ${
-                        mqttHealth?.status_freshness_state === "fresh"
-                          ? "health-connected"
-                          : mqttHealth?.status_freshness_state === "unknown"
-                            ? "health-fresh"
-                            : "health-pending"
-                      }`}>
+                    <span className={mqttSeverityClass}>
+                      <span className={`health-indicator ${mqttIndicatorClass}`}>
                         <span className="health-dot" />
-                        {mqttHealth?.status_freshness_state || status?.mqtt_connection_status || "pending"}
+                        {mqttConnected ? "connected" : mqttHealth?.status_freshness_state || status?.mqtt_connection_status || "pending"}
                       </span>
                     </span>
                   </div>
@@ -1276,14 +1243,37 @@ export function App() {
                     </span>
                   </div>
                   <div className="node-health-strip-item">
-                    <span className="muted tiny">Last Telemetry</span>
-                    <code>{formatTelemetryTimestamp(status?.last_heartbeat_at)}</code>
+                    <span className="muted tiny">Last Heartbeat</span>
+                    <code>{formatRelativeTime(lastHeartbeatAt)}</code>
                   </div>
                 </div>
               </article>
 
               <section className="grid operational-dashboard-grid">
-                  <article className="card">
+                  {dashboardWarnings.length ? (
+                    <article className="card degraded-state-banner">
+                      <div className="card-header">
+                        <h2>Operational With Warnings</h2>
+                        <p className="muted">The node is operational, but a few runtime signals still need attention.</p>
+                      </div>
+                      <div className="stack compact-stack">
+                        {dashboardWarnings.map((warning) => (
+                          <div key={warning} className="callout callout-warning">
+                            {warning}
+                          </div>
+                        ))}
+                        <div className="row">
+                          <button className="btn" type="button" onClick={() => refreshDashboardState("Governance status refreshed.")}>
+                            Refresh Governance
+                          </button>
+                          <button className="btn" type="button" onClick={openProvider}>
+                            Setup Provider
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  ) : null}
+                  <article className="card dashboard-primary-card">
                     <div className="card-header">
                       <h2>Node Overview</h2>
                       <p className="muted">Primary home for identity, lifecycle, and trusted pairing summary.</p>
@@ -1326,25 +1316,30 @@ export function App() {
                       <code>
                         {status?.operational_mqtt_host && status?.operational_mqtt_port
                           ? `${status.operational_mqtt_host}:${status.operational_mqtt_port}`
-                          : "pending"}
+                          : mqttConnected
+                            ? "connected"
+                            : "pending"}
                       </code>
                       <span>Connection</span>
-                      <span className={healthSeverityClass(mqttHealth?.health_status, ["connected"], ["unknown"])}>
-                        <span className={`health-indicator ${
-                          mqttHealth?.health_status === "connected"
-                            ? "health-connected"
-                            : mqttHealth?.health_status === "unknown"
-                              ? "health-fresh"
-                              : "health-pending"
-                        }`}>
+                      <span className={mqttSeverityClass}>
+                        <span className={`health-indicator ${mqttIndicatorClass}`}>
                           <span className="health-dot" />
-                          {formatValue(mqttHealth?.health_status)}
+                          {mqttConnected ? "connected" : formatValue(mqttHealth?.health_status)}
                         </span>
                       </span>
                       <span>Onboarding Ref</span>
                       <code>{maskOnboardingRef(formatValue(onboarding?.session_id, status?.operational_readiness ? "operational" : "pending"))}</code>
                       <span>Telemetry Freshness</span>
-                      <code>{formatValue(mqttHealth?.status_freshness_state)}</code>
+                      <span className={healthSeverityClass(mqttHealth?.status_freshness_state, [], ["fresh"])}>
+                        <span
+                          className={`health-indicator ${telemetryFreshnessIndicatorClass(
+                            mqttHealth?.status_freshness_state,
+                          )}`}
+                        >
+                          <span className="health-dot" />
+                          {formatValue(mqttHealth?.status_freshness_state)}
+                        </span>
+                      </span>
                       <span>Telemetry Age</span>
                       <code>{formatAge(mqttHealth?.status_age_s)}</code>
                     </div>
@@ -1527,7 +1522,7 @@ export function App() {
                 </article>
               ) : null}
 
-              <section className="grid">
+              <section className="grid setup-secondary-grid">
                 <article className="card stack">
                   <div className="section-heading">
                     <h2>Live Status</h2>

@@ -43,3 +43,9 @@ if it is not present and should be node-owned create a file with the new data in
 
 Do not edit above this line:
 #######################################################################
+
+[WIP] Task 075: add backend bg process.
+         - Check current unread mails in inbok
+         - check unread mails today, yesterday, this week.
+
+[TODO] Task 076: add backend api and show the status in the gmail status cars.
