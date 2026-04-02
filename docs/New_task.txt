@@ -45,5 +45,4 @@ Do not edit above this line:
 #######################################################################
 
 
-[TODO] Task 078: Create a local email fetch database with six-month retention
 [TODO] Task 079: Add Gmail fetch processes for initial teach and time-window refresh

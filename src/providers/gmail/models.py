@@ -95,3 +95,18 @@ class GmailMailboxStatus(BaseModel):
     unread_week_count: int = 0
     checked_at: datetime | None = None
     detail: str | None = None
+
+
+class GmailStoredMessage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    account_id: str
+    message_id: str
+    thread_id: str | None = None
+    subject: str | None = None
+    sender: str | None = None
+    recipients: list[str] = Field(default_factory=list)
+    snippet: str | None = None
+    label_ids: list[str] = Field(default_factory=list)
+    received_at: datetime
+    raw_payload: str | None = None

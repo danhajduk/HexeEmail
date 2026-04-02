@@ -34,6 +34,10 @@ class GmailRuntimeLayout:
     def mailbox_status_dir(self) -> Path:
         return self.provider_dir / "mailbox_status"
 
+    @property
+    def message_store_path(self) -> Path:
+        return self.provider_dir / "messages.sqlite3"
+
     def account_file(self, account_id: str) -> Path:
         return self.accounts_dir / f"{account_id}.json"
 
@@ -60,6 +64,8 @@ class GmailRuntimeLayout:
         self._set_mode(self.mailbox_status_dir, 0o700)
         self._set_mode(self.provider_config_path, 0o600)
         self._set_mode(self.oauth_state_secret_path, 0o600)
+        if self.message_store_path.exists():
+            self._set_mode(self.message_store_path, 0o600)
 
     def _ensure_file(self, path: Path, contents: str) -> None:
         if path.exists():
