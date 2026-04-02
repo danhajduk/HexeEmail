@@ -46,9 +46,9 @@ class CapabilityManifestBuilder:
             node_name=node_name,
             node_software_version=node_software_version,
             declared_task_families=[
-                "task.ingest.email",
-                "task.routing.email",
-                "task.automation.email",
+                "task.classification",
+                "task.summarization",
+                "task.tracking",
             ],
             supported_providers=sorted(supported_providers),
             enabled_providers=sorted(enabled_providers),

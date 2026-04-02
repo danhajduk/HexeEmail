@@ -64,3 +64,4 @@ Task 063: Migrate Gmail authentication design to Google OAuth Web Application fl
 Task 064: Refactor Gmail provider tasks and docs to match classification-first architecture
 Task 065: Create Gmail OAuth setup guide for Google Cloud and Google Auth Platform
 Task 066: UI changes to the setup flow - Completed on 04/01/2026 19:05
+Task 067: Add capabilities: task.classification, task.summarization, task.tracking - Completed on 04/01/2026 19:50

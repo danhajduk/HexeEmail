@@ -23,7 +23,11 @@ def test_capability_manifest_builder_starts_with_supported_only_when_gmail_not_c
 
     assert manifest.supported_providers == ["gmail"]
     assert manifest.enabled_providers == []
-    assert "task.ingest.email" in manifest.declared_task_families
+    assert manifest.declared_task_families == [
+        "task.classification",
+        "task.summarization",
+        "task.tracking",
+    ]
 
 
 @pytest.mark.asyncio

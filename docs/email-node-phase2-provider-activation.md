@@ -142,7 +142,10 @@ The node should declare:
 
 - support for Gmail as an available ingress provider when the adapter is present
 - activation state only when Gmail configuration, token acquisition, and account validation succeed
-- task families aligned with email ingress, routing, and automation orchestration
+- stable Core task families:
+  `task.classification`,
+  `task.summarization`,
+  `task.tracking`
 
 This avoids advertising provider capability before the node can actually execute it.
 
