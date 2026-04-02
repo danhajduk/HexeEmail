@@ -74,3 +74,4 @@ Task 073: Add dashboard overview, core connection, and action content - Complete
 Task 074: Change second dashboard side-panel button to Gmail and add placeholder Gmail cards - Completed on 04/02/2026 00:00
 Task 075: Add backend Gmail unread-mail background process - Completed on 04/02/2026 01:30
 Task 076: Add Gmail status API and show status in the Gmail status card - Completed on 04/02/2026 01:31
+Task 077: Add Gmail fetch action buttons in the dashboard Gmail view - Completed on 04/02/2026 08:49

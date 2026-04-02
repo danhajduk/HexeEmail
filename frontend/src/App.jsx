@@ -1352,7 +1352,19 @@ export function App() {
                   <article className="card">
                     <div className="card-header">
                       <h2>Gmail Action</h2>
-                      <p className="muted">Gmail actions and connect operations will appear here.</p>
+                      <p className="muted">Manual Gmail fetch actions for initial learning and time-window refresh.</p>
+                    </div>
+                    <div className="stack compact-stack">
+                      <button type="button" className="btn" disabled>
+                        Fetch Initial Learning
+                      </button>
+                      <button type="button" className="btn" disabled>
+                        Fetch Yesterday Email
+                      </button>
+                      <button type="button" className="btn" disabled>
+                        Fetch Last Hour Email
+                      </button>
+                      <p className="muted tiny">Buttons are placed now; backend fetch actions will be wired in the next tasks.</p>
                     </div>
                   </article>
                 </section>

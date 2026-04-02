@@ -45,6 +45,5 @@ Do not edit above this line:
 #######################################################################
 
 
-[TODO] Task 077: Add Gmail fetch action buttons in the dashboard Gmail view
 [TODO] Task 078: Create a local email fetch database with six-month retention
 [TODO] Task 079: Add Gmail fetch processes for initial teach and time-window refresh
