@@ -614,6 +614,7 @@ class NodeService:
             provider_account_summaries=provider_overview["providers"],
             governance_sync_status=self.state.governance_sync_status,
             capability_declaration_status=self.state.capability_declaration_status,
+            active_governance_version=self.state.active_governance_version,
             operational_readiness=self.state.operational_readiness,
             capability_setup=self._capability_setup_summary(provider_overview),
         )
@@ -890,16 +891,36 @@ class NodeService:
         return result
 
     async def _sync_governance(self) -> GovernanceSnapshot:
+        if self.trust_material is None:
+            snapshot = GovernanceSnapshot(
+                node_id=self.state.node_id or "",
+                present=False,
+                last_sync_result="trust_material_missing",
+            )
+            self.state.governance_sync_status = snapshot.last_sync_result
+            self.state.governance_synced_at = snapshot.synced_at
+            self.state.active_governance_version = None
+            self.state_store.save(self.state)
+            return snapshot
         snapshot = await self.governance_client.fetch(
             self.effective_core_base_url() or "",
             self.state.node_id or "",
+            trust_token=self.trust_material.node_trust_token,
+            current_governance_version=self.state.active_governance_version,
         )
         self.state.governance_sync_status = snapshot.last_sync_result
         self.state.governance_synced_at = snapshot.synced_at
+        self.state.active_governance_version = snapshot.governance_version
         self.state_store.save(self.state)
         LOGGER.info(
             "Governance sync result",
-            extra={"event_data": {"present": snapshot.present, "last_sync_result": snapshot.last_sync_result}},
+            extra={
+                "event_data": {
+                    "present": snapshot.present,
+                    "last_sync_result": snapshot.last_sync_result,
+                    "governance_version": snapshot.governance_version,
+                }
+            },
         )
         return snapshot
 

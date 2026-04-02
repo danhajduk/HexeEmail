@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Header
 
 from mqtt import MQTTManager
 
@@ -23,6 +23,7 @@ def build_core_app():
     app.state.sessions = {}
     app.state.capabilities = {}
     app.state.governance = {}
+    app.state.governance_refresh_requests = []
 
     @app.post("/api/system/nodes/onboarding/sessions")
     async def create_session(payload: dict):
@@ -80,14 +81,39 @@ def build_core_app():
         app.state.capabilities[node_id] = payload
         return {"ok": True}
 
-    @app.get("/api/system/nodes/{node_id}/governance")
-    async def fetch_governance(node_id: str):
+    @app.get("/api/system/nodes/governance/current")
+    async def fetch_governance(node_id: str, x_node_trust_token: str | None = Header(default=None)):
+        assert x_node_trust_token == "trust-secret"
         payload = {
-            "node_id": node_id,
-            "policy_version": "phase2-test",
+            "routing_policy_constraints": {
+                "allowed_providers": ["gmail"],
+                "allowed_task_families": ["task.classification", "task.summarization", "task.tracking"],
+                "allowed_models": {},
+            },
             "provider_access": False,
         }
         app.state.governance[node_id] = payload
-        return payload
+        return {
+            "ok": True,
+            "node_id": node_id,
+            "capability_profile_id": "profile-test",
+            "governance_version": "phase2-test",
+            "issued_timestamp": "2026-03-20T12:00:00+00:00",
+            "refresh_interval_s": 120,
+            "governance_bundle": payload,
+        }
+
+    @app.post("/api/system/nodes/governance/refresh")
+    async def refresh_governance(payload: dict, x_node_trust_token: str | None = Header(default=None)):
+        assert x_node_trust_token == "trust-secret"
+        app.state.governance_refresh_requests.append(payload)
+        return {
+            "ok": True,
+            "node_id": payload.get("node_id"),
+            "capability_profile_id": "profile-test",
+            "governance_version": payload.get("current_governance_version") or "phase2-test",
+            "updated": False,
+            "refresh_interval_s": 120,
+        }
 
     return app

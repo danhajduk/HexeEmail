@@ -157,6 +157,10 @@ Governance remains Core-owned. The Email Node should fetch and persist the relev
 Phase 2 governance sync is limited to:
 
 - fetching governance data from Core
+- using Core's trusted-node governance routes:
+  `GET /api/system/nodes/governance/current?node_id=...`
+  and
+  `POST /api/system/nodes/governance/refresh`
 - persisting a local snapshot
 - exposing governance presence and sync status into readiness evaluation
 

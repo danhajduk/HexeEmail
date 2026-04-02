@@ -52,6 +52,7 @@ class RuntimeState(BaseModel):
     enabled_providers: list[str] = Field(default_factory=list)
     governance_sync_status: str | None = None
     governance_synced_at: datetime | None = None
+    active_governance_version: str | None = None
     operational_readiness: bool = False
 
 
@@ -107,6 +108,7 @@ class StatusResponse(BaseModel):
     provider_account_summaries: dict[str, object] = Field(default_factory=dict)
     governance_sync_status: str | None = None
     capability_declaration_status: str | None = None
+    active_governance_version: str | None = None
     operational_readiness: bool = False
     capability_setup: dict[str, object] = Field(default_factory=dict)
 

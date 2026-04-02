@@ -7,6 +7,7 @@ from httpx import ASGITransport
 
 from core.capability_client import CapabilityClient, CapabilityManifestBuilder
 from core.governance_client import GovernanceClient
+from models import TrustMaterial
 from providers.models import ProviderAccountRecord, ProviderHealth, ProviderId, ProviderValidationResult
 from service import NodeService
 from tests.helpers import FakeMQTTManager, build_core_app
@@ -146,9 +147,45 @@ async def test_trusted_runtime_declares_capabilities_when_provider_and_selection
 
     assert service.state.capability_declaration_status == "accepted"
     assert service.state.governance_sync_status == "ok"
+    assert service.state.active_governance_version == "phase2-test"
     assert core_app.state.capabilities["node-1"]["declared_task_families"] == [
         "task.classification",
         "task.summarization",
     ]
     assert core_app.state.capabilities["node-1"]["enabled_providers"] == ["gmail"]
     assert status.enabled_providers == ["gmail"]
+
+
+@pytest.mark.asyncio
+async def test_governance_sync_uses_refresh_route_after_initial_version_is_known(core_client_factory, config):
+    core_app = build_core_app()
+    service = NodeService(
+        config,
+        core_client=core_client_factory(core_app),
+        mqtt_manager=FakeMQTTManager(),
+        capability_client=CapabilityClient(transport=ASGITransport(app=core_app)),
+        governance_client=GovernanceClient(transport=ASGITransport(app=core_app)),
+    )
+    service.state.trust_state = "trusted"
+    service.state.node_id = "node-1"
+    service.trust_material = service.trust_store.save(
+        TrustMaterial(
+            node_id="node-1",
+            node_type="email-node",
+            paired_core_id="core-1",
+            node_trust_token="trust-secret",
+            operational_mqtt_identity="mqtt-user",
+            operational_mqtt_token="mqtt-secret",
+            operational_mqtt_host="127.0.0.2",
+            operational_mqtt_port=1883,
+        )
+    )
+
+    await service._sync_governance()
+    await service._sync_governance()
+    await service.stop()
+
+    assert core_app.state.governance_refresh_requests[-1] == {
+        "node_id": "node-1",
+        "current_governance_version": "phase2-test",
+    }
