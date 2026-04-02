@@ -99,6 +99,10 @@ function currentThemeLabel() {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
+function formatValue(value, fallback = "pending") {
+  return value || fallback;
+}
+
 function deriveNodeState(bootstrap) {
   const onboarding = bootstrap?.onboarding;
   const status = bootstrap?.status;
@@ -1056,6 +1060,22 @@ export function App() {
     window.setTimeout(() => setCopyNotice(""), 1600);
   }
 
+  async function refreshDashboardState(message = "") {
+    setError("");
+    try {
+      if (message) {
+        setNotice(message);
+      }
+      const refreshed = await fetchJson("/ui/bootstrap");
+      startTransition(() => {
+        setBootstrap(refreshed);
+        setProviderStatus(refreshed.status);
+      });
+    } catch (refreshError) {
+      setError(refreshError.message);
+    }
+  }
+
   const onboarding = bootstrap?.onboarding;
   const status = bootstrap?.status;
   const requiredInputs = bootstrap?.required_inputs || [];
@@ -1064,6 +1084,7 @@ export function App() {
   const nodeSetupVisible = isNodeSetupVisible(bootstrap);
   const dashboardEnabled = Boolean(status?.operational_readiness);
   const providerSummary = status?.provider_account_summaries?.gmail || {};
+  const providerConnected = providerSummary?.provider_state === "connected";
   if (view === "provider") {
     return (
       <div className="shell">
@@ -1202,7 +1223,7 @@ export function App() {
                       <span className="muted tiny">Providers</span>
                       <span className={healthSeverityClass(status?.enabled_providers?.length ? "configured" : "pending", [], ["configured"])}>
                         <span className="status-badge status-configured">
-                          {status?.enabled_providers?.length ? "configured" : "pending"}
+                          {providerConnected ? "configured" : "pending"}
                         </span>
                       </span>
                     </div>
@@ -1212,6 +1233,122 @@ export function App() {
                     </div>
                   </div>
                 </article>
+
+                <section className="grid operational-dashboard-grid">
+                  <article className="card">
+                    <div className="card-header">
+                      <h2>Node Overview</h2>
+                      <p className="muted">Primary home for identity, lifecycle, and trusted pairing summary.</p>
+                    </div>
+                    <div className="state-grid">
+                      <span>Node ID</span>
+                      <code>{formatValue(status?.node_id)}</code>
+                      <span>Node Name</span>
+                      <code>{formatValue(bootstrap?.config?.node_name)}</code>
+                      <span>Lifecycle</span>
+                      <span className={healthSeverityClass(status?.operational_readiness ? "operational" : "pending", ["operational"])}>
+                        <span className="status-badge status-operational">
+                          {status?.operational_readiness ? "operational" : setupFlow.current?.label || "pending"}
+                        </span>
+                      </span>
+                      <span>Trust</span>
+                      <span className={healthSeverityClass(status?.trust_state, ["trusted"])}>
+                        <span className="status-badge status-trusted">{formatValue(status?.trust_state, "untrusted")}</span>
+                      </span>
+                      <span>Paired Hexe Core</span>
+                      <code>{formatValue(status?.paired_core_id)}</code>
+                      <span>Software</span>
+                      <code>{formatValue(bootstrap?.config?.node_software_version || status?.node_software_version, "0.1.0")}</code>
+                      <span>Pairing Timestamp</span>
+                      <code>{formatTelemetryTimestamp(status?.trusted_at)}</code>
+                    </div>
+                  </article>
+
+                  <article className="card">
+                    <div className="card-header">
+                      <h2>Core Connection</h2>
+                      <p className="muted">Trusted Core endpoint metadata and current onboarding linkage.</p>
+                    </div>
+                    <div className="state-grid">
+                      <span>Core ID</span>
+                      <code>{formatValue(status?.paired_core_id)}</code>
+                      <span>Core API</span>
+                      <code>{formatValue(bootstrap?.config?.core_base_url)}</code>
+                      <span>Operational MQTT</span>
+                      <code>
+                        {status?.operational_mqtt_host && status?.operational_mqtt_port
+                          ? `${status.operational_mqtt_host}:${status.operational_mqtt_port}`
+                          : "pending"}
+                      </code>
+                      <span>Connection</span>
+                      <span className={healthSeverityClass(status?.mqtt_connection_status, ["connected"])}>
+                        <span className={`health-indicator ${status?.mqtt_connection_status === "connected" ? "health-connected" : "health-pending"}`}>
+                          <span className="health-dot" />
+                          {formatValue(status?.mqtt_connection_status)}
+                        </span>
+                      </span>
+                      <span>Onboarding Ref</span>
+                      <code>{formatValue(onboarding?.session_id, status?.operational_readiness ? "operational" : "pending")}</code>
+                    </div>
+                  </article>
+
+                  <article className="card">
+                    <div className="card-header">
+                      <h2>Actions</h2>
+                      <p className="muted">
+                        Operational controls are grouped by purpose so routine actions stay separate from diagnostics and admin tools.
+                      </p>
+                    </div>
+                    <div className="action-groups">
+                      <section className="action-group">
+                        <div className="action-group-header">
+                          <h3>Configuration</h3>
+                          <p className="muted tiny">Everyday sync and reconfiguration actions.</p>
+                        </div>
+                        <div className="row action-group-buttons">
+                          <button className="btn" type="button" onClick={() => setView("setup")}>Open Setup</button>
+                          <button className="btn" type="button" onClick={() => setView("provider")}>Setup Gmail Provider</button>
+                          <button className="btn" type="button" onClick={() => refreshDashboardState("Governance status refreshed.")}>
+                            Refresh Governance
+                          </button>
+                          <button className="btn" type="button" onClick={() => refreshDashboardState("Provider status refreshed.")}>
+                            Refresh Provider Status
+                          </button>
+                          <button
+                            className="btn"
+                            type="button"
+                            onClick={declareCapabilities}
+                            disabled={declaringCapabilities || !form.selected_task_capabilities.length}
+                          >
+                            {declaringCapabilities ? "Redeclaring..." : "Redeclare Capabilities"}
+                          </button>
+                        </div>
+                      </section>
+
+                      <section className="action-group">
+                        <div className="action-group-header">
+                          <h3>Runtime Controls</h3>
+                          <p className="muted tiny">Service restarts and runtime recovery actions.</p>
+                        </div>
+                        <div className="row action-group-buttons">
+                          <button className="btn" type="button" disabled>Restart Backend</button>
+                          <button className="btn" type="button" disabled>Restart Frontend</button>
+                          <button className="btn btn-primary" type="button" disabled>Restart Node</button>
+                        </div>
+                      </section>
+
+                      <section className="action-group action-group-admin">
+                        <div className="action-group-header">
+                          <h3>Admin &amp; Diagnostics</h3>
+                          <p className="muted tiny">Advanced rebuild and inspection actions stay on the diagnostics page.</p>
+                        </div>
+                        <div className="row action-group-buttons">
+                          <button className="btn" type="button" disabled>Open Diagnostics</button>
+                        </div>
+                      </section>
+                    </div>
+                  </article>
+                </section>
               </section>
             </div>
           </section>

@@ -99,7 +99,10 @@ class StatusResponse(BaseModel):
     node_software_version: str
     trust_state: TrustState
     node_id: str | None
+    paired_core_id: str | None = None
     mqtt_connection_status: str
+    operational_mqtt_host: str | None = None
+    operational_mqtt_port: int | None = None
     onboarding_status: OnboardingStatus
     providers: list[str]
     required_inputs: list[str] = Field(default_factory=list)
@@ -110,6 +113,7 @@ class StatusResponse(BaseModel):
     capability_declaration_status: str | None = None
     active_governance_version: str | None = None
     last_heartbeat_at: datetime | None = None
+    trusted_at: datetime | None = None
     operational_readiness: bool = False
     capability_setup: dict[str, object] = Field(default_factory=dict)
 

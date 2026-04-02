@@ -605,7 +605,10 @@ class NodeService:
             node_software_version=self.config.node_software_version,
             trust_state=self.state.trust_state,
             node_id=self.state.node_id,
+            paired_core_id=self.state.paired_core_id,
             mqtt_connection_status=self.mqtt_manager.status.state,
+            operational_mqtt_host=self.state.operational_mqtt_host,
+            operational_mqtt_port=self.state.operational_mqtt_port,
             onboarding_status=self.state.onboarding_status,
             providers=self.provider_registry.provider_ids(),
             required_inputs=self.required_inputs(),
@@ -616,6 +619,7 @@ class NodeService:
             capability_declaration_status=self.state.capability_declaration_status,
             active_governance_version=self.state.active_governance_version,
             last_heartbeat_at=self.state.last_heartbeat_at,
+            trusted_at=self.state.trusted_at,
             operational_readiness=self.state.operational_readiness,
             capability_setup=self._capability_setup_summary(provider_overview),
         )
