@@ -135,6 +135,34 @@
   gap: 24px;
 }
 
+.operational-shell {
+  display: grid;
+  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.operational-shell-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.operational-shell-nav-card {
+  position: sticky;
+  top: 24px;
+}
+
+.operational-shell-nav {
+  display: grid;
+  gap: 10px;
+}
+
+.operational-nav-btn {
+  width: 100%;
+  justify-content: center;
+}
+
 .dashboard-primary-card {
   grid-column: span 1;
 }
@@ -564,6 +592,7 @@
 @media (max-width: 900px) {
   .app-shell,
   .hero,
+  .operational-shell,
   .dashboard-stack,
   .grid {
     grid-template-columns: 1fr;
@@ -574,6 +603,10 @@
   }
 
   .flow-sidebar {
+    position: static;
+  }
+
+  .operational-shell-nav-card {
     position: static;
   }
 
