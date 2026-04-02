@@ -7,9 +7,11 @@
 }
 
 .app-frame {
-  width: min(90vw, 1600px);
+  box-sizing: border-box;
+  width: 90vw;
+  max-width: 90vw;
   margin: 0 auto;
-  padding: 32px 0 48px;
+  padding: 24px;
 }
 
 .app-shell {
@@ -81,8 +83,10 @@
 .app-header {
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  margin-bottom: 24px;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-top: 14px;
+  padding-bottom: 14px;
 }
 
 .app-header-top,
@@ -97,7 +101,7 @@
 
 .app-header h1 {
   margin: 0;
-  font-size: clamp(30px, 4vw, 44px);
+  font-size: clamp(26px, 3vw, 36px);
   line-height: 1;
 }
 
@@ -168,6 +172,7 @@
 }
 
 .operational-dashboard-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: start;
 }
 
@@ -241,7 +246,7 @@
 
 .node-health-strip-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 14px;
 }
 

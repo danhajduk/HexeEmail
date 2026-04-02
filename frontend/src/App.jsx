@@ -103,6 +103,32 @@ function formatValue(value, fallback = "pending") {
   return value || fallback;
 }
 
+function formatAge(value) {
+  if (value === null || value === undefined) {
+    return "pending";
+  }
+  if (value < 60) {
+    return `${value}s`;
+  }
+  if (value < 3600) {
+    return `${Math.floor(value / 60)}m`;
+  }
+  return `${Math.floor(value / 3600)}h`;
+}
+
+function maskOnboardingRef(value) {
+  if (!value) {
+    return "pending";
+  }
+  if (value === "operational") {
+    return value;
+  }
+  if (value.length <= 7) {
+    return `**********${value}`;
+  }
+  return `**********${value.slice(-7)}`;
+}
+
 function deriveNodeState(bootstrap) {
   const onboarding = bootstrap?.onboarding;
   const status = bootstrap?.status;
@@ -1101,6 +1127,7 @@ export function App() {
   const dashboardEnabled = Boolean(status?.operational_readiness);
   const providerSummary = status?.provider_account_summaries?.gmail || {};
   const providerConnected = providerSummary?.provider_state === "connected";
+  const mqttHealth = status?.mqtt_health || {};
   if (view === "provider") {
     return (
       <div className="shell">
@@ -1191,66 +1218,71 @@ export function App() {
             </aside>
 
             <div className="operational-shell-content">
-              <section className="dashboard-stack">
-                <article className="card node-health-strip dashboard-primary-card">
-                  <div className="node-health-strip-grid">
-                    <div className="node-health-strip-item">
-                      <span className="muted tiny">Lifecycle</span>
-                      <span className={healthSeverityClass(status?.operational_readiness ? "operational" : "pending", ["operational"])}>
-                        <span className="status-badge status-operational">
-                          {status?.operational_readiness ? "operational" : setupFlow.current?.label || "pending"}
-                        </span>
+              <article className="card node-health-strip operational-content-header">
+                <div className="node-health-strip-grid">
+                  <div className="node-health-strip-item">
+                    <span className="muted tiny">Lifecycle</span>
+                    <span className={healthSeverityClass(status?.operational_readiness ? "operational" : "pending", ["operational"])}>
+                      <span className="status-badge status-operational">
+                        {status?.operational_readiness ? "operational" : setupFlow.current?.label || "pending"}
                       </span>
-                    </div>
-                    <div className="node-health-strip-item">
-                      <span className="muted tiny">Trust</span>
-                      <span className={healthSeverityClass(status?.trust_state, ["trusted"])}>
-                        <span className="status-badge status-trusted">{status?.trust_state || "untrusted"}</span>
-                      </span>
-                    </div>
-                    <div className="node-health-strip-item">
-                      <span className="muted tiny">Core API</span>
-                      <span className={healthSeverityClass(bootstrap?.config?.core_base_url ? "connected" : "pending", ["connected"])}>
-                        <span className={`health-indicator ${bootstrap?.config?.core_base_url ? "health-connected" : "health-pending"}`}>
-                          <span className="health-dot" />
-                          {bootstrap?.config?.core_base_url ? "connected" : "pending"}
-                        </span>
-                      </span>
-                    </div>
-                    <div className="node-health-strip-item">
-                      <span className="muted tiny">MQTT</span>
-                      <span className={healthSeverityClass(status?.mqtt_connection_status, ["connected"])}>
-                        <span className={`health-indicator ${status?.mqtt_connection_status === "connected" ? "health-connected" : "health-pending"}`}>
-                          <span className="health-dot" />
-                          {status?.mqtt_connection_status || "pending"}
-                        </span>
-                      </span>
-                    </div>
-                    <div className="node-health-strip-item">
-                      <span className="muted tiny">Governance</span>
-                      <span className={healthSeverityClass(status?.governance_sync_status, [], ["ok"])}>
-                        <span className={`health-indicator ${status?.governance_sync_status === "ok" ? "health-fresh" : "health-pending"}`}>
-                          <span className="health-dot" />
-                          {status?.governance_sync_status === "ok" ? "fresh" : status?.governance_sync_status || "pending"}
-                        </span>
-                      </span>
-                    </div>
-                    <div className="node-health-strip-item">
-                      <span className="muted tiny">Providers</span>
-                      <span className={healthSeverityClass(status?.enabled_providers?.length ? "configured" : "pending", [], ["configured"])}>
-                        <span className="status-badge status-configured">
-                          {providerConnected ? "configured" : "pending"}
-                        </span>
-                      </span>
-                    </div>
-                    <div className="node-health-strip-item">
-                      <span className="muted tiny">Last Telemetry</span>
-                      <code>{formatTelemetryTimestamp(status?.last_heartbeat_at)}</code>
-                    </div>
+                    </span>
                   </div>
-                </article>
+                  <div className="node-health-strip-item">
+                    <span className="muted tiny">Trust</span>
+                    <span className={healthSeverityClass(status?.trust_state, ["trusted"])}>
+                      <span className="status-badge status-trusted">{status?.trust_state || "untrusted"}</span>
+                    </span>
+                  </div>
+                  <div className="node-health-strip-item">
+                    <span className="muted tiny">Core API</span>
+                    <span className={healthSeverityClass(bootstrap?.config?.core_base_url ? "connected" : "pending", ["connected"])}>
+                      <span className={`health-indicator ${bootstrap?.config?.core_base_url ? "health-connected" : "health-pending"}`}>
+                        <span className="health-dot" />
+                        {bootstrap?.config?.core_base_url ? "connected" : "pending"}
+                      </span>
+                    </span>
+                  </div>
+                  <div className="node-health-strip-item">
+                    <span className="muted tiny">MQTT</span>
+                    <span className={healthSeverityClass(mqttHealth?.status_freshness_state, ["fresh"], ["unknown"])}>
+                      <span className={`health-indicator ${
+                        mqttHealth?.status_freshness_state === "fresh"
+                          ? "health-connected"
+                          : mqttHealth?.status_freshness_state === "unknown"
+                            ? "health-fresh"
+                            : "health-pending"
+                      }`}>
+                        <span className="health-dot" />
+                        {mqttHealth?.status_freshness_state || status?.mqtt_connection_status || "pending"}
+                      </span>
+                    </span>
+                  </div>
+                  <div className="node-health-strip-item">
+                    <span className="muted tiny">Governance</span>
+                    <span className={healthSeverityClass(status?.governance_sync_status, [], ["ok"])}>
+                      <span className={`health-indicator ${status?.governance_sync_status === "ok" ? "health-fresh" : "health-pending"}`}>
+                        <span className="health-dot" />
+                        {status?.governance_sync_status === "ok" ? "fresh" : status?.governance_sync_status || "pending"}
+                      </span>
+                    </span>
+                  </div>
+                  <div className="node-health-strip-item">
+                    <span className="muted tiny">Providers</span>
+                    <span className={healthSeverityClass(status?.enabled_providers?.length ? "configured" : "pending", [], ["configured"])}>
+                      <span className="status-badge status-configured">
+                        {providerConnected ? "configured" : "pending"}
+                      </span>
+                    </span>
+                  </div>
+                  <div className="node-health-strip-item">
+                    <span className="muted tiny">Last Telemetry</span>
+                    <code>{formatTelemetryTimestamp(status?.last_heartbeat_at)}</code>
+                  </div>
+                </div>
+              </article>
 
-                <section className="grid operational-dashboard-grid">
+              <section className="grid operational-dashboard-grid">
                   <article className="card">
                     <div className="card-header">
                       <h2>Node Overview</h2>
@@ -1297,14 +1329,24 @@ export function App() {
                           : "pending"}
                       </code>
                       <span>Connection</span>
-                      <span className={healthSeverityClass(status?.mqtt_connection_status, ["connected"])}>
-                        <span className={`health-indicator ${status?.mqtt_connection_status === "connected" ? "health-connected" : "health-pending"}`}>
+                      <span className={healthSeverityClass(mqttHealth?.health_status, ["connected"], ["unknown"])}>
+                        <span className={`health-indicator ${
+                          mqttHealth?.health_status === "connected"
+                            ? "health-connected"
+                            : mqttHealth?.health_status === "unknown"
+                              ? "health-fresh"
+                              : "health-pending"
+                        }`}>
                           <span className="health-dot" />
-                          {formatValue(status?.mqtt_connection_status)}
+                          {formatValue(mqttHealth?.health_status)}
                         </span>
                       </span>
                       <span>Onboarding Ref</span>
-                      <code>{formatValue(onboarding?.session_id, status?.operational_readiness ? "operational" : "pending")}</code>
+                      <code>{maskOnboardingRef(formatValue(onboarding?.session_id, status?.operational_readiness ? "operational" : "pending"))}</code>
+                      <span>Telemetry Freshness</span>
+                      <code>{formatValue(mqttHealth?.status_freshness_state)}</code>
+                      <span>Telemetry Age</span>
+                      <code>{formatAge(mqttHealth?.status_age_s)}</code>
                     </div>
                   </article>
 
@@ -1364,7 +1406,6 @@ export function App() {
                       </section>
                     </div>
                   </article>
-                </section>
               </section>
             </div>
           </section>
