@@ -43,5 +43,3 @@ if it is not present and should be node-owned create a file with the new data in
 
 Do not edit above this line:
 #######################################################################
-
-[TODO] Task 070: Create main UI the will have the same header and the node status card under it (dashboard)

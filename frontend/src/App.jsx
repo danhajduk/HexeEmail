@@ -672,7 +672,7 @@ function ProviderSetupPage({
 }
 
 export function App() {
-  const [view, setView] = useState("console");
+  const [view, setView] = useState("dashboard");
   const [bootstrap, setBootstrap] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [touched, setTouched] = useState(false);
@@ -991,8 +991,100 @@ export function App() {
           onSave={saveProviderConfig}
           onValidate={validateProviderConfig}
           onConnect={startProviderConnect}
-          onBack={() => setView("console")}
+          onBack={() => setView("dashboard")}
         />
+      </div>
+    );
+  }
+
+  if (view === "dashboard") {
+    return (
+      <div className="shell">
+        <main className="app-frame">
+          <section className="hero card">
+            <div>
+              <div className="hero-topline">
+                <div className="eyebrow">Hexe Email Node</div>
+                <div className={`status-pill tone-${nodeState.tone}`}>state: {nodeState.label}</div>
+              </div>
+              <h1>Hexe Email Node Setup</h1>
+              <p className="hero-copy">
+                Monitor node trust, provider readiness, and governance health from one place before jumping into setup.
+              </p>
+            </div>
+            <div className="hero-actions">
+              <div className="hero-status">
+                <div className={`status-pill tone-${statusTone(onboarding?.onboarding_status)}`}>
+                  onboarding: {onboarding?.onboarding_status || "loading"}
+                </div>
+                <div className={`status-pill tone-${statusTone(status?.mqtt_connection_status)}`}>
+                  mqtt: {status?.mqtt_connection_status || "loading"}
+                </div>
+              </div>
+              <button className="btn btn-ghost" type="button" onClick={restartOnboarding} disabled={restarting}>
+                {restarting ? "Restarting..." : "Restart Setup"}
+              </button>
+              <button className="btn btn-ghost" type="button" onClick={() => setView("setup")}>
+                Open Setup
+              </button>
+              <button className="btn btn-ghost" type="button" onClick={() => setView("provider")}>
+                Setup Provider
+              </button>
+            </div>
+          </section>
+
+          <section className="dashboard-stack">
+            <article className="card stack">
+              <div className="section-heading">
+                <h2>Node Status</h2>
+                <span className="pill">{setupFlow.current?.label || "Idle"}</span>
+              </div>
+              <div className="status-rail">
+                <div className={`status-pill tone-${statusTone(status?.trust_state)}`}>trust: {status?.trust_state || "untrusted"}</div>
+                <div className={`status-pill tone-${statusTone(status?.capability_declaration_status)}`}>
+                  capabilities: {status?.capability_declaration_status || "pending"}
+                </div>
+                <div className={`status-pill tone-${statusTone(status?.governance_sync_status)}`}>
+                  governance: {status?.governance_sync_status || "pending"}
+                </div>
+                <div className={`status-pill tone-${boolTone(status?.operational_readiness)}`}>
+                  ready: {status?.operational_readiness ? "yes" : "no"}
+                </div>
+              </div>
+              <dl className="facts">
+                <div>
+                  <dt>Node name</dt>
+                  <dd>{bootstrap?.config.node_name || "Not set"}</dd>
+                </div>
+                <div>
+                  <dt>Node ID</dt>
+                  <dd>{status?.node_id || "Pending"}</dd>
+                </div>
+                <div>
+                  <dt>Version</dt>
+                  <dd>{bootstrap?.config.node_software_version || "0.1.0"}</dd>
+                </div>
+                <div>
+                  <dt>Active governance</dt>
+                  <dd>{status?.active_governance_version || "Pending"}</dd>
+                </div>
+                <div>
+                  <dt>Providers</dt>
+                  <dd>{status?.enabled_providers?.join(", ") || "None connected"}</dd>
+                </div>
+                <div>
+                  <dt>Selected capabilities</dt>
+                  <dd>{bootstrap?.config?.selected_task_capabilities?.join(", ") || "None selected"}</dd>
+                </div>
+              </dl>
+              <div className="callout">
+                Current setup stage: {setupFlow.current?.label || "Idle"}.
+                {" "}
+                Use Open Setup for onboarding details and guided next actions.
+              </div>
+            </article>
+          </section>
+        </main>
       </div>
     );
   }
@@ -1023,6 +1115,9 @@ export function App() {
             </div>
             <button className="btn btn-ghost" type="button" onClick={restartOnboarding} disabled={restarting}>
               {restarting ? "Restarting..." : "Restart Setup"}
+            </button>
+            <button className="btn btn-ghost" type="button" onClick={() => setView("dashboard")}>
+              Dashboard
             </button>
             <button className="btn btn-ghost" type="button" onClick={() => setView("provider")}>
               Setup Provider

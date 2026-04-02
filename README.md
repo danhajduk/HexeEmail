@@ -19,6 +19,7 @@ Local defaults today:
 
 - node API: `9003`
 - onboarding UI: `8083`
+- the UI opens on a dashboard view with the node status card and an `Open Setup` path into the guided setup flow
 - Gmail provider setup is available from the UI via `Setup Provider`
 - `./scripts/start.sh` installs Python requirements and starts both API and UI
 

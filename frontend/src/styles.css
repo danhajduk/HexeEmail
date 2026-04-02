@@ -90,6 +90,12 @@
   gap: 24px;
 }
 
+.dashboard-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
 .stack {
   display: flex;
   flex-direction: column;
