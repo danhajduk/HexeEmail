@@ -76,10 +76,25 @@ def build_core_app():
             "public_api_hostname": "a75d480287c33cab.hexe-ai.com",
         }
 
-    @app.post("/api/system/nodes/{node_id}/capabilities")
-    async def declare_capabilities(node_id: str, payload: dict):
-        app.state.capabilities[node_id] = payload
-        return {"ok": True}
+    @app.post("/api/system/nodes/capabilities/declaration")
+    async def declare_capabilities(payload: dict, x_node_trust_token: str | None = Header(default=None)):
+        assert x_node_trust_token == "trust-secret"
+        manifest = payload.get("manifest") if isinstance(payload.get("manifest"), dict) else {}
+        node = manifest.get("node") if isinstance(manifest.get("node"), dict) else {}
+        node_id = str(node.get("node_id") or "").strip()
+        app.state.capabilities[node_id] = manifest
+        return {
+            "ok": True,
+            "acceptance_status": "accepted",
+            "node_id": node_id,
+            "manifest_version": manifest.get("manifest_version"),
+            "accepted_at": "2026-03-20T12:00:00+00:00",
+            "declared_capabilities": manifest.get("declared_task_families") or [],
+            "enabled_providers": manifest.get("enabled_providers") or [],
+            "capability_profile_id": "profile-test",
+            "governance_version": "phase2-test",
+            "governance_issued_at": "2026-03-20T12:00:00+00:00",
+        }
 
     @app.get("/api/system/nodes/governance/current")
     async def fetch_governance(node_id: str, x_node_trust_token: str | None = Header(default=None)):

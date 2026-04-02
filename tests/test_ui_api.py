@@ -181,6 +181,41 @@ async def test_ui_can_restart_onboarding(config, core_client_factory):
 
 
 @pytest.mark.asyncio
+async def test_ui_can_declare_capabilities_explicitly(config, core_client_factory):
+    core_app = build_core_app()
+    service = NodeService(config, core_client=core_client_factory(core_app), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    service.state.trust_state = "trusted"
+    service.state.node_id = "node-1"
+    service.trust_material = service.trust_store.save(
+        TrustMaterial(
+            node_id="node-1",
+            node_type="email-node",
+            paired_core_id="core-1",
+            node_trust_token="trust-secret",
+            operational_mqtt_identity="mqtt-user",
+            operational_mqtt_token="mqtt-secret",
+            operational_mqtt_host="127.0.0.2",
+            operational_mqtt_port=1883,
+        )
+    )
+    service.operator_config = service.operator_config_store.save(
+        service.operator_config.model_copy(
+            update={"selected_task_capabilities": ["task.classification"]}
+        )
+    )
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post("/ui/capabilities/declare")
+
+    await service.stop()
+
+    assert response.status_code == 400
+    assert response.json()["detail"]
+
+
+@pytest.mark.asyncio
 async def test_ui_restart_setup_clears_trust_and_accepts_new_config(config, core_client_factory):
     trusted_config = config.model_copy(update={"core_base_url": "http://core.test", "node_name": "old-node"})
     service = NodeService(trusted_config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())

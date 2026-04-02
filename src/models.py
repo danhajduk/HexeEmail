@@ -109,6 +109,7 @@ class StatusResponse(BaseModel):
     governance_sync_status: str | None = None
     capability_declaration_status: str | None = None
     active_governance_version: str | None = None
+    last_heartbeat_at: datetime | None = None
     operational_readiness: bool = False
     capability_setup: dict[str, object] = Field(default_factory=dict)
 

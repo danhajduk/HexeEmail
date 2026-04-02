@@ -77,6 +77,13 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    @app.post("/ui/capabilities/declare")
+    async def declare_ui_capabilities():
+        try:
+            return await node_service.declare_selected_capabilities()
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     @app.post("/providers/gmail/accounts/{account_id}/connect/start")
     async def start_gmail_connect(account_id: str, request: Request):
         try:

@@ -166,7 +166,7 @@ class NodeService:
         ):
             self._reset_onboarding_state()
         elif previous.selected_task_capabilities != self.operator_config.selected_task_capabilities:
-            await self._sync_post_trust_state()
+            await self._refresh_post_trust_state()
 
         return self.operator_config_response()
 
@@ -191,7 +191,7 @@ class NodeService:
     async def _resume_runtime(self) -> None:
         if self.state.trust_state == "trusted" and self.trust_material is not None:
             LOGGER.info("Trusted state detected, skipping onboarding")
-            await self._sync_post_trust_state()
+            await self._refresh_post_trust_state()
             self._connect_mqtt_if_possible()
             return
 
@@ -540,7 +540,7 @@ class NodeService:
                 },
             )
             self._connect_mqtt_if_possible()
-            asyncio.create_task(self._sync_post_trust_state())
+            asyncio.create_task(self._refresh_post_trust_state())
             return
 
         if finalize.onboarding_status in {"rejected", "expired", "consumed", "invalid"}:
@@ -615,6 +615,7 @@ class NodeService:
             governance_sync_status=self.state.governance_sync_status,
             capability_declaration_status=self.state.capability_declaration_status,
             active_governance_version=self.state.active_governance_version,
+            last_heartbeat_at=self.state.last_heartbeat_at,
             operational_readiness=self.state.operational_readiness,
             capability_setup=self._capability_setup_summary(provider_overview),
         )
@@ -736,7 +737,7 @@ class NodeService:
                 }
             },
         )
-        await self._sync_post_trust_state()
+        await self._refresh_post_trust_state()
         token_record = self.gmail_token_store().load_token(account_record.account_id)
         return GmailOAuthCallbackResponse(
             provider_id="gmail",
@@ -779,7 +780,7 @@ class NodeService:
     async def update_gmail_provider_config(self, payload: GmailOAuthConfig) -> dict[str, object]:
         config = self.gmail_config_store.save(payload)
         validation = self.gmail_config_store.validate(config)
-        await self._sync_post_trust_state()
+        await self._refresh_post_trust_state()
         return {
             "config": config.model_dump(mode="json"),
             "validation": validation.model_dump(mode="json"),
@@ -838,9 +839,22 @@ class NodeService:
             "providers": summaries,
         }
 
-    async def _sync_post_trust_state(self) -> None:
+    async def _refresh_post_trust_state(self) -> None:
         if self.state.trust_state != "trusted" or not self.state.node_id or not self.effective_core_base_url():
             return
+        provider_overview = await self._provider_status_snapshot_async()
+        capability_setup = self._capability_setup_summary(provider_overview)
+        connected_providers = capability_setup.get("provider_selection", {}).get("enabled", [])
+        self.state.enabled_providers = list(connected_providers) if isinstance(connected_providers, list) else []
+        self.state.capability_declaration_status = "pending"
+        self.state.governance_sync_status = "pending"
+        self.state.active_governance_version = None
+        self.state_store.save(self.state)
+        await self._update_operational_readiness()
+
+    async def declare_selected_capabilities(self) -> StatusResponse:
+        if self.state.trust_state != "trusted" or not self.state.node_id or not self.effective_core_base_url():
+            raise ValueError("trusted node context is required before declaring capabilities")
         provider_overview = await self._provider_status_snapshot_async()
         capability_setup = self._capability_setup_summary(provider_overview)
         connected_providers = capability_setup.get("provider_selection", {}).get("enabled", [])
@@ -848,12 +862,14 @@ class NodeService:
         if not capability_setup.get("declaration_allowed"):
             self.state.capability_declaration_status = "pending"
             self.state.governance_sync_status = "pending"
+            self.state.active_governance_version = None
             self.state_store.save(self.state)
             await self._update_operational_readiness()
-            return
+            raise ValueError("capability declaration is not ready yet")
         await self._declare_capabilities(provider_overview)
         await self._sync_governance()
         await self._update_operational_readiness()
+        return await self.status()
 
     async def _declare_capabilities(self, overview: dict[str, object] | None = None) -> CapabilityDeclarationResult:
         overview = overview or await self._provider_status_snapshot_async()
@@ -873,6 +889,7 @@ class NodeService:
         result = await self.capability_client.declare(
             self.effective_core_base_url() or "",
             manifest,
+            trust_token=(self.trust_material.node_trust_token if self.trust_material is not None else ""),
         )
         self.state.capability_declaration_status = "accepted" if result.accepted else "rejected"
         self.state.capability_declared_at = result.submitted_at

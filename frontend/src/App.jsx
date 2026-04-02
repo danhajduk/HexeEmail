@@ -64,6 +64,34 @@ function boolTone(value) {
   return value ? "success" : "neutral";
 }
 
+function formatTelemetryTimestamp(value) {
+  if (!value) {
+    return "-";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(date);
+}
+
+function healthSeverityClass(value, successValues = [], metaValues = []) {
+  if (successValues.includes(value)) {
+    return "severity-indicator severity-success";
+  }
+  if (metaValues.includes(value)) {
+    return "severity-indicator severity-meta";
+  }
+  return "severity-indicator severity-warning";
+}
+
 function deriveNodeState(bootstrap) {
   const onboarding = bootstrap?.onboarding;
   const status = bootstrap?.status;
@@ -122,7 +150,7 @@ function deriveSetupFlow(bootstrap) {
   const sessionCreated = Boolean(onboarding?.session_id);
   const approvalReady = Boolean(onboarding?.approval_url);
   const pendingApproval = onboarding?.onboarding_status === "pending";
-  const inTrustActivation = onboarding?.onboarding_status === "approved" || trusted;
+  const inTrustActivation = onboarding?.onboarding_status === "approved" && !trusted;
 
   const steps = [
     {
@@ -249,8 +277,10 @@ function renderCurrentStageCard({
   setView,
   form,
   saving,
+  declaringCapabilities,
   onCapabilityToggle,
   onSaveConfiguration,
+  onDeclareCapabilities,
 }) {
   const stepId = flow.current?.id;
   const capabilitySetup = status?.capability_setup || {};
@@ -348,9 +378,14 @@ function renderCurrentStageCard({
         title="Capability Declaration"
         tone={statusTone(status?.capability_declaration_status)}
         action={
-          <button className="btn btn-primary" type="button" onClick={onSaveConfiguration} disabled={saving}>
-            {saving ? "Saving..." : "Save Selection"}
-          </button>
+          <div className="actions">
+            <button className="btn btn-ghost" type="button" onClick={onSaveConfiguration} disabled={saving}>
+              {saving ? "Saving..." : "Save Selection"}
+            </button>
+            <button className="btn btn-primary" type="button" onClick={onDeclareCapabilities} disabled={declaringCapabilities}>
+              {declaringCapabilities ? "Declaring..." : "Declare Capabilities"}
+            </button>
+          </div>
         }
       >
         <div className="callout">
@@ -672,11 +707,12 @@ function ProviderSetupPage({
 }
 
 export function App() {
-  const [view, setView] = useState("dashboard");
+  const [view, setView] = useState("setup");
   const [bootstrap, setBootstrap] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [touched, setTouched] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [declaringCapabilities, setDeclaringCapabilities] = useState(false);
   const [starting, setStarting] = useState(false);
   const [restarting, setRestarting] = useState(false);
   const [notice, setNotice] = useState("");
@@ -778,6 +814,20 @@ export function App() {
     };
   }, [view, providerDirty]);
 
+  useEffect(() => {
+    const dashboardReady = Boolean(bootstrap?.status?.operational_readiness);
+    if (view === "provider") {
+      return;
+    }
+    if (dashboardReady && view === "setup") {
+      setView("dashboard");
+      return;
+    }
+    if (!dashboardReady && view === "dashboard") {
+      setView("setup");
+    }
+  }, [bootstrap?.status?.operational_readiness, view]);
+
   function handleChange(event) {
     const { name, value } = event.target;
     setTouched(true);
@@ -851,6 +901,30 @@ export function App() {
       setError(saveError.message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function declareCapabilities() {
+    setDeclaringCapabilities(true);
+    setError("");
+    setNotice("");
+    try {
+      const payload = await fetchJson("/ui/capabilities/declare", {
+        method: "POST",
+      });
+      setNotice(
+        payload.capability_declaration_status === "accepted"
+          ? "Capability declaration submitted."
+          : `Capability declaration status: ${payload.capability_declaration_status || "pending"}.`,
+      );
+      const refreshed = await fetchJson("/ui/bootstrap");
+      startTransition(() => {
+        setBootstrap(refreshed);
+      });
+    } catch (declareError) {
+      setError(declareError.message);
+    } finally {
+      setDeclaringCapabilities(false);
     }
   }
 
@@ -970,6 +1044,7 @@ export function App() {
   const nodeState = deriveNodeState(bootstrap);
   const setupFlow = deriveSetupFlow(bootstrap);
   const nodeSetupVisible = isNodeSetupVisible(bootstrap);
+  const dashboardEnabled = Boolean(status?.operational_readiness);
   if (view === "provider") {
     return (
       <div className="shell">
@@ -991,13 +1066,13 @@ export function App() {
           onSave={saveProviderConfig}
           onValidate={validateProviderConfig}
           onConnect={startProviderConnect}
-          onBack={() => setView("dashboard")}
+          onBack={() => setView(dashboardEnabled ? "dashboard" : "setup")}
         />
       </div>
     );
   }
 
-  if (view === "dashboard") {
+  if (view === "dashboard" && dashboardEnabled) {
     return (
       <div className="shell">
         <main className="app-frame">
@@ -1034,53 +1109,61 @@ export function App() {
           </section>
 
           <section className="dashboard-stack">
-            <article className="card stack">
-              <div className="section-heading">
-                <h2>Node Status</h2>
-                <span className="pill">{setupFlow.current?.label || "Idle"}</span>
-              </div>
-              <div className="status-rail">
-                <div className={`status-pill tone-${statusTone(status?.trust_state)}`}>trust: {status?.trust_state || "untrusted"}</div>
-                <div className={`status-pill tone-${statusTone(status?.capability_declaration_status)}`}>
-                  capabilities: {status?.capability_declaration_status || "pending"}
+            <article className="card node-health-strip dashboard-primary-card">
+              <div className="node-health-strip-grid">
+                <div className="node-health-strip-item">
+                  <span className="muted tiny">Lifecycle</span>
+                  <span className={healthSeverityClass(status?.operational_readiness ? "operational" : "pending", ["operational"])}>
+                    <span className="status-badge status-operational">
+                      {status?.operational_readiness ? "operational" : setupFlow.current?.label || "pending"}
+                    </span>
+                  </span>
                 </div>
-                <div className={`status-pill tone-${statusTone(status?.governance_sync_status)}`}>
-                  governance: {status?.governance_sync_status || "pending"}
+                <div className="node-health-strip-item">
+                  <span className="muted tiny">Trust</span>
+                  <span className={healthSeverityClass(status?.trust_state, ["trusted"])}>
+                    <span className="status-badge status-trusted">{status?.trust_state || "untrusted"}</span>
+                  </span>
                 </div>
-                <div className={`status-pill tone-${boolTone(status?.operational_readiness)}`}>
-                  ready: {status?.operational_readiness ? "yes" : "no"}
+                <div className="node-health-strip-item">
+                  <span className="muted tiny">Core API</span>
+                  <span className={healthSeverityClass(bootstrap?.config?.core_base_url ? "connected" : "pending", ["connected"])}>
+                    <span className={`health-indicator ${bootstrap?.config?.core_base_url ? "health-connected" : "health-pending"}`}>
+                      <span className="health-dot" />
+                      {bootstrap?.config?.core_base_url ? "connected" : "pending"}
+                    </span>
+                  </span>
                 </div>
-              </div>
-              <dl className="facts">
-                <div>
-                  <dt>Node name</dt>
-                  <dd>{bootstrap?.config.node_name || "Not set"}</dd>
+                <div className="node-health-strip-item">
+                  <span className="muted tiny">MQTT</span>
+                  <span className={healthSeverityClass(status?.mqtt_connection_status, ["connected"])}>
+                    <span className={`health-indicator ${status?.mqtt_connection_status === "connected" ? "health-connected" : "health-pending"}`}>
+                      <span className="health-dot" />
+                      {status?.mqtt_connection_status || "pending"}
+                    </span>
+                  </span>
                 </div>
-                <div>
-                  <dt>Node ID</dt>
-                  <dd>{status?.node_id || "Pending"}</dd>
+                <div className="node-health-strip-item">
+                  <span className="muted tiny">Governance</span>
+                  <span className={healthSeverityClass(status?.governance_sync_status, [], ["ok"])}>
+                    <span className={`health-indicator ${status?.governance_sync_status === "ok" ? "health-fresh" : "health-pending"}`}>
+                      <span className="health-dot" />
+                      {status?.governance_sync_status === "ok" ? "fresh" : status?.governance_sync_status || "pending"}
+                    </span>
+                  </span>
                 </div>
-                <div>
-                  <dt>Version</dt>
-                  <dd>{bootstrap?.config.node_software_version || "0.1.0"}</dd>
+                <div className="node-health-strip-item">
+                  <span className="muted tiny">Providers</span>
+                  <span className={healthSeverityClass(status?.enabled_providers?.length ? "configured" : "pending", [], ["configured"])}>
+                    <span className="status-badge status-configured">
+                      {status?.enabled_providers?.length ? "configured" : "pending"}
+                    </span>
+                  </span>
                 </div>
-                <div>
-                  <dt>Active governance</dt>
-                  <dd>{status?.active_governance_version || "Pending"}</dd>
+                <div className="node-health-strip-item">
+                  <span className="muted tiny">Last Telemetry</span>
+                  <code>{formatTelemetryTimestamp(status?.last_heartbeat_at)}</code>
                 </div>
-                <div>
-                  <dt>Providers</dt>
-                  <dd>{status?.enabled_providers?.join(", ") || "None connected"}</dd>
-                </div>
-                <div>
-                  <dt>Selected capabilities</dt>
-                  <dd>{bootstrap?.config?.selected_task_capabilities?.join(", ") || "None selected"}</dd>
-                </div>
-              </dl>
-              <div className="callout">
-                Current setup stage: {setupFlow.current?.label || "Idle"}.
-                {" "}
-                Use Open Setup for onboarding details and guided next actions.
               </div>
             </article>
           </section>
@@ -1116,9 +1199,11 @@ export function App() {
             <button className="btn btn-ghost" type="button" onClick={restartOnboarding} disabled={restarting}>
               {restarting ? "Restarting..." : "Restart Setup"}
             </button>
-            <button className="btn btn-ghost" type="button" onClick={() => setView("dashboard")}>
-              Dashboard
-            </button>
+            {dashboardEnabled ? (
+              <button className="btn btn-ghost" type="button" onClick={() => setView("dashboard")}>
+                Dashboard
+              </button>
+            ) : null}
             <button className="btn btn-ghost" type="button" onClick={() => setView("provider")}>
               Setup Provider
             </button>
@@ -1192,8 +1277,10 @@ export function App() {
                     setView,
                     form,
                     saving,
+                    declaringCapabilities,
                     onCapabilityToggle: handleCapabilityToggle,
                     onSaveConfiguration: saveConfiguration,
+                    onDeclareCapabilities: declareCapabilities,
                   })}
                 </article>
               ) : null}

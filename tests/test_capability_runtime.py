@@ -141,6 +141,7 @@ async def test_trusted_runtime_declares_capabilities_when_provider_and_selection
     )
     core_app.state.sessions["sx_123"]["status"] = "approved"
     await asyncio.sleep(0.08)
+    await service.declare_selected_capabilities()
 
     status = await service.status()
     await service.stop()
@@ -148,6 +149,8 @@ async def test_trusted_runtime_declares_capabilities_when_provider_and_selection
     assert service.state.capability_declaration_status == "accepted"
     assert service.state.governance_sync_status == "ok"
     assert service.state.active_governance_version == "phase2-test"
+    assert core_app.state.capabilities["node-1"]["node"]["node_id"] == "node-1"
+    assert core_app.state.capabilities["node-1"]["manifest_version"] == "1.0"
     assert core_app.state.capabilities["node-1"]["declared_task_families"] == [
         "task.classification",
         "task.summarization",
