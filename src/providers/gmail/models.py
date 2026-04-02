@@ -81,3 +81,17 @@ class GmailOAuthSessionState(BaseModel):
     consumed_at: datetime | None = None
     authorization_url: str | None = None
     public_state: str | None = None
+
+
+class GmailMailboxStatus(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    account_id: str
+    email_address: str | None = None
+    status: Literal["pending", "ok", "error"] = "pending"
+    unread_inbox_count: int = 0
+    unread_today_count: int = 0
+    unread_yesterday_count: int = 0
+    unread_week_count: int = 0
+    checked_at: datetime | None = None
+    detail: str | None = None

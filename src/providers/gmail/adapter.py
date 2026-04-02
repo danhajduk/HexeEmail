@@ -5,9 +5,12 @@ from pathlib import Path
 from logging_utils import get_logger
 from providers.base import EmailProviderAdapter
 from providers.gmail.account_store import GmailAccountStore
+from providers.gmail.mailbox_client import GmailMailboxClient, GmailMailboxClientError
+from providers.gmail.mailbox_status_store import GmailMailboxStatusStore
 from providers.gmail.config_store import GmailProviderConfigError, GmailProviderConfigStore
 from providers.gmail.health import GmailHealthEvaluator
 from providers.gmail.identity import GmailIdentityProbeClient
+from providers.gmail.models import GmailMailboxStatus
 from providers.gmail.state_machine import GmailAccountStateMachine
 from providers.gmail.token_client import GmailTokenExchangeClient
 from providers.gmail.token_store import GmailTokenStore
@@ -26,13 +29,16 @@ class GmailProviderAdapter(EmailProviderAdapter):
         *,
         token_client: GmailTokenExchangeClient | None = None,
         identity_client: GmailIdentityProbeClient | None = None,
+        mailbox_client: GmailMailboxClient | None = None,
     ) -> None:
         self.config_store = GmailProviderConfigStore(runtime_dir)
         self.account_store = GmailAccountStore(runtime_dir)
         self.token_store = GmailTokenStore(runtime_dir)
+        self.mailbox_status_store = GmailMailboxStatusStore(runtime_dir)
         self.state_machine = GmailAccountStateMachine(self.account_store)
         self.token_client = token_client or GmailTokenExchangeClient()
         self.identity_client = identity_client or GmailIdentityProbeClient(self.account_store)
+        self.mailbox_client = mailbox_client or GmailMailboxClient()
         self.health_evaluator = GmailHealthEvaluator()
 
     async def validate_static_config(self) -> ProviderValidationResult:
@@ -144,3 +150,54 @@ class GmailProviderAdapter(EmailProviderAdapter):
             extra={"event_data": {"account_id": account_id, "status": connected.status}},
         )
         return self.account_store.load_account(identity_record.account_id) or identity_record
+
+    async def refresh_mailbox_status(
+        self,
+        account_id: str,
+        *,
+        correlation_id: str | None = None,
+    ) -> GmailMailboxStatus:
+        try:
+            oauth_config = self.config_store.load()
+        except GmailProviderConfigError as exc:
+            snapshot = GmailMailboxStatus(account_id=account_id, status="error", detail=str(exc))
+            return self.mailbox_status_store.save_status(snapshot)
+
+        account_record = self.account_store.load_account(account_id)
+        token_record = await self.token_client.refresh_if_needed(
+            oauth_config,
+            account_id=account_id,
+            token_store=self.token_store,
+            account_store=self.account_store,
+            correlation_id=correlation_id,
+        )
+        if token_record is None:
+            snapshot = GmailMailboxStatus(
+                account_id=account_id,
+                email_address=account_record.email_address if account_record is not None else None,
+                status="pending",
+                detail="gmail token is not available yet",
+            )
+            return self.mailbox_status_store.save_status(snapshot)
+
+        try:
+            snapshot = await self.mailbox_client.fetch_unread_status(
+                token_record=token_record,
+                email_address=account_record.email_address if account_record is not None else None,
+            )
+        except GmailMailboxClientError as exc:
+            snapshot = GmailMailboxStatus(
+                account_id=account_id,
+                email_address=account_record.email_address if account_record is not None else None,
+                status="error",
+                detail=str(exc),
+            )
+        return self.mailbox_status_store.save_status(snapshot)
+
+    async def get_mailbox_status(self, account_id: str) -> GmailMailboxStatus | None:
+        return self.mailbox_status_store.load_status(account_id)
+
+    async def aclose(self) -> None:
+        await self.token_client.aclose()
+        await self.identity_client.aclose()
+        await self.mailbox_client.aclose()

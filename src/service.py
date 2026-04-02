@@ -82,6 +82,7 @@ class NodeService:
         self.state = RuntimeState()
         self.trust_material: TrustMaterial | None = None
         self.polling_task: asyncio.Task | None = None
+        self.gmail_status_task: asyncio.Task | None = None
         self.live = True
         self.ready = False
         self.startup_error: str | None = None
@@ -117,14 +118,20 @@ class NodeService:
             },
         )
         await self._resume_runtime()
+        self._ensure_gmail_status_polling()
 
     async def stop(self) -> None:
         if self.polling_task is not None:
             self.polling_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await self.polling_task
+        if self.gmail_status_task is not None:
+            self.gmail_status_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self.gmail_status_task
         self.mqtt_manager.disconnect()
-        await self.gmail_token_client.aclose()
+        for provider_id in self.provider_registry.provider_ids():
+            await self.provider_registry.get_provider(provider_id).aclose()
         await self.capability_client.aclose()
         await self.governance_client.aclose()
         await self.core_client.aclose()
@@ -630,6 +637,61 @@ class NodeService:
             ui_port=self.config.ui_port,
         )
 
+    async def capability_config_response(self) -> dict[str, object]:
+        provider_overview = await self._provider_status_snapshot_async()
+        capability_setup = self._capability_setup_summary(provider_overview)
+        selection = capability_setup.get("task_capability_selection", {})
+        return {
+            "selected_task_capabilities": self.selected_task_capabilities(),
+            "available_task_capabilities": list(AVAILABLE_TASK_CAPABILITIES),
+            "selection": selection,
+            "declaration_allowed": capability_setup.get("declaration_allowed", False),
+            "blocking_reasons": list(capability_setup.get("blocking_reasons", [])),
+        }
+
+    async def update_capability_config(self, payload: OperatorConfigInput) -> dict[str, object]:
+        selected_task_capabilities = self._normalize_selected_task_capabilities(payload.selected_task_capabilities)
+        self.operator_config = self.operator_config_store.save(
+            self.operator_config.model_copy(update={"selected_task_capabilities": selected_task_capabilities})
+        )
+        await self._refresh_post_trust_state()
+        return await self.capability_config_response()
+
+    async def capability_diagnostics(self) -> dict[str, object]:
+        provider_overview = await self._provider_status_snapshot_async()
+        capability_setup = self._capability_setup_summary(provider_overview)
+        mqtt_health = self._mqtt_health_snapshot()
+        return {
+            "node_id": self.state.node_id,
+            "paired_core_id": self.state.paired_core_id,
+            "trust_state": self.state.trust_state,
+            "operational_readiness": self.state.operational_readiness,
+            "selected_task_capabilities": self.selected_task_capabilities(),
+            "capability_declaration_status": self.state.capability_declaration_status,
+            "capability_declared_at": self.state.capability_declared_at,
+            "governance_sync_status": self.state.governance_sync_status,
+            "active_governance_version": self.state.active_governance_version,
+            "capability_setup": capability_setup,
+            "providers": provider_overview,
+            "mqtt_health": mqtt_health.model_dump(mode="json"),
+        }
+
+    async def resolved_node_capabilities(self) -> dict[str, object]:
+        provider_overview = await self._provider_status_snapshot_async()
+        capability_setup = self._capability_setup_summary(provider_overview)
+        connected_providers = capability_setup.get("provider_selection", {}).get("enabled", [])
+        selected_task_capabilities = self.selected_task_capabilities()
+        return {
+            "node_id": self.state.node_id,
+            "trust_state": self.state.trust_state,
+            "resolved_tasks": selected_task_capabilities,
+            "declared_task_families": selected_task_capabilities,
+            "enabled_providers": list(connected_providers) if isinstance(connected_providers, list) else [],
+            "supported_providers": list(provider_overview.get("supported_providers") or []),
+            "declaration_allowed": capability_setup.get("declaration_allowed", False),
+            "blocking_reasons": list(capability_setup.get("blocking_reasons", [])),
+        }
+
     def onboarding_status(self) -> OnboardingStatusResponse:
         return OnboardingStatusResponse(
             node_name=self.effective_node_name() or "",
@@ -648,6 +710,12 @@ class NodeService:
     async def status(self) -> StatusResponse:
         provider_overview = await self._provider_status_snapshot_async()
         mqtt_health = self._mqtt_health_snapshot()
+        operational_mqtt_host = self.state.operational_mqtt_host or (
+            self.trust_material.operational_mqtt_host if self.trust_material is not None else None
+        )
+        operational_mqtt_port = self.state.operational_mqtt_port or (
+            self.trust_material.operational_mqtt_port if self.trust_material is not None else None
+        )
         return StatusResponse(
             node_name=self.effective_node_name() or "",
             node_type=self.config.node_type,
@@ -657,8 +725,8 @@ class NodeService:
             paired_core_id=self.state.paired_core_id,
             mqtt_connection_status=self.mqtt_manager.status.state,
             mqtt_health=mqtt_health,
-            operational_mqtt_host=self.state.operational_mqtt_host,
-            operational_mqtt_port=self.state.operational_mqtt_port,
+            operational_mqtt_host=operational_mqtt_host,
+            operational_mqtt_port=operational_mqtt_port,
             onboarding_status=self.state.onboarding_status,
             providers=self.provider_registry.provider_ids(),
             required_inputs=self.required_inputs(),
@@ -683,6 +751,99 @@ class NodeService:
             required_inputs=required_inputs,
             can_start_onboarding=not required_inputs and self.state.trust_state != "trusted",
         )
+
+    async def governance_status(self) -> dict[str, object]:
+        return {
+            "node_id": self.state.node_id,
+            "paired_core_id": self.state.paired_core_id,
+            "trust_state": self.state.trust_state,
+            "governance_sync_status": self.state.governance_sync_status,
+            "governance_synced_at": self.state.governance_synced_at,
+            "active_governance_version": self.state.active_governance_version,
+            "operational_readiness": self.state.operational_readiness,
+        }
+
+    async def refresh_governance(self) -> dict[str, object]:
+        if self.state.trust_state != "trusted":
+            raise ValueError("trusted node context is required before governance refresh")
+        snapshot = await self._sync_governance()
+        return {
+            "node_id": self.state.node_id,
+            "present": snapshot.present,
+            "synced_at": snapshot.synced_at,
+            "governance_version": snapshot.governance_version,
+            "last_sync_result": snapshot.last_sync_result,
+            "refresh_interval_s": snapshot.refresh_interval_s,
+            "payload": snapshot.payload,
+        }
+
+    async def services_status(self) -> dict[str, object]:
+        mqtt_health = self._mqtt_health_snapshot()
+        return {
+            "api": {
+                "live": self.live,
+                "ready": self.ready,
+                "startup_error": self.startup_error,
+                "port": self.config.api_port,
+            },
+            "ui": {
+                "port": self.config.ui_port,
+            },
+            "mqtt": {
+                "connection_status": self.mqtt_manager.status.state,
+                "health_status": mqtt_health.health_status,
+                "status_freshness_state": mqtt_health.status_freshness_state,
+                "last_status_report_at": mqtt_health.last_status_report_at,
+            },
+            "providers": {
+                "enabled": list(self.state.enabled_providers),
+                "supported": self.provider_registry.provider_ids(),
+            },
+        }
+
+    async def restart_service(self, target: str) -> dict[str, object]:
+        normalized_target = (target or "").strip().lower()
+        if normalized_target == "mqtt":
+            self.mqtt_manager.disconnect()
+            self._connect_mqtt_if_possible()
+            return {"target": "mqtt", "status": "restarted", "supported": True}
+
+        commands = {
+            "backend": "./scripts/dev.sh",
+            "frontend": "./scripts/ui-dev.sh",
+            "node": "./scripts/start.sh",
+        }
+        if normalized_target in commands:
+            return {
+                "target": normalized_target,
+                "status": "manual_required",
+                "supported": False,
+                "detail": "restart must be triggered by the operator outside the running API process",
+                "recommended_command": commands[normalized_target],
+            }
+
+        raise ValueError(f"unsupported service target: {target}")
+
+    async def recover_node(self) -> dict[str, object]:
+        previous_state = {
+            "trust_state": self.state.trust_state,
+            "onboarding_status": self.state.onboarding_status,
+            "node_id": self.state.node_id,
+        }
+        self._clear_trust_and_onboarding_state()
+        self.state.last_error = None
+        self.state_store.save(self.state)
+        return {
+            "status": "recovered",
+            "supported": True,
+            "recovery_action": "local_state_reset",
+            "previous_state": previous_state,
+            "current_state": {
+                "trust_state": self.state.trust_state,
+                "onboarding_status": self.state.onboarding_status,
+                "node_id": self.state.node_id,
+            },
+        }
 
     async def start_gmail_connect(
         self,
@@ -849,9 +1010,30 @@ class NodeService:
         adapter = self.provider_registry.get_provider("gmail")
         account = next((account for account in await adapter.list_accounts() if account.account_id == account_id), None)
         health = await adapter.get_account_health(account_id)
+        mailbox_status = await adapter.get_mailbox_status(account_id) if hasattr(adapter, "get_mailbox_status") else None
         return {
             "account": account.model_dump(mode="json") if account is not None else None,
             "health": health.model_dump(mode="json"),
+            "mailbox_status": mailbox_status.model_dump(mode="json") if mailbox_status is not None else None,
+        }
+
+    async def gmail_status(self) -> dict[str, object]:
+        adapter = self.provider_registry.get_provider("gmail")
+        accounts = await adapter.list_accounts()
+        statuses: list[dict[str, object]] = []
+        for account in accounts:
+            mailbox_status = await adapter.get_mailbox_status(account.account_id) if hasattr(adapter, "get_mailbox_status") else None
+            statuses.append(
+                {
+                    "account": account.model_dump(mode="json"),
+                    "mailbox_status": mailbox_status.model_dump(mode="json") if mailbox_status is not None else None,
+                }
+            )
+        return {
+            "provider_id": "gmail",
+            "provider_state": await adapter.get_provider_state(),
+            "enabled": adapter.get_enabled_status(),
+            "accounts": statuses,
         }
 
     async def gmail_config_validation(self) -> dict[str, object]:
@@ -906,6 +1088,23 @@ class NodeService:
         self.state_store.save(self.state)
         await self._update_operational_readiness()
 
+    def _ensure_gmail_status_polling(self) -> None:
+        if self.gmail_status_task is None or self.gmail_status_task.done():
+            self.gmail_status_task = asyncio.create_task(self._gmail_status_loop())
+
+    async def _gmail_status_loop(self) -> None:
+        while True:
+            with contextlib.suppress(Exception):
+                await self._refresh_gmail_status()
+            await asyncio.sleep(self.config.gmail_status_poll_interval_seconds)
+
+    async def _refresh_gmail_status(self) -> None:
+        gmail_adapter = self.provider_registry.get_provider("gmail")
+        accounts = await gmail_adapter.list_accounts()
+        for account in accounts:
+            if account.status in {"connected", "token_exchanged", "degraded"}:
+                await gmail_adapter.refresh_mailbox_status(account.account_id)
+
     async def declare_selected_capabilities(self) -> StatusResponse:
         if self.state.trust_state != "trusted" or not self.state.node_id or not self.effective_core_base_url():
             raise ValueError("trusted node context is required before declaring capabilities")
@@ -924,6 +1123,26 @@ class NodeService:
         await self._sync_governance()
         await self._update_operational_readiness()
         return await self.status()
+
+    async def redeclare_capabilities(self, *, force: bool = False) -> StatusResponse:
+        if force:
+            self.state.capability_declaration_status = "pending"
+            self.state_store.save(self.state)
+        return await self.declare_selected_capabilities()
+
+    async def rebuild_capabilities(self, *, force: bool = False) -> dict[str, object]:
+        if force:
+            self.state.capability_declaration_status = "pending"
+            self.state.governance_sync_status = "pending"
+            self.state.active_governance_version = None
+            self.state_store.save(self.state)
+        await self._refresh_post_trust_state()
+        resolved = await self.resolved_node_capabilities()
+        return {
+            "status": "rebuilt",
+            "force_refresh": force,
+            "resolved": resolved,
+        }
 
     async def _declare_capabilities(self, overview: dict[str, object] | None = None) -> CapabilityDeclarationResult:
         overview = overview or await self._provider_status_snapshot_async()

@@ -44,8 +44,7 @@ if it is not present and should be node-owned create a file with the new data in
 Do not edit above this line:
 #######################################################################
 
-[WIP] Task 075: add backend bg process.
-         - Check current unread mails in inbok
-         - check unread mails today, yesterday, this week.
 
-[TODO] Task 076: add backend api and show the status in the gmail status cars.
+[TODO] Task 077: Add Gmail fetch action buttons in the dashboard Gmail view
+[TODO] Task 078: Create a local email fetch database with six-month retention
+[TODO] Task 079: Add Gmail fetch processes for initial teach and time-window refresh

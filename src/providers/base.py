@@ -42,3 +42,6 @@ class EmailProviderAdapter(ABC):
 
     async def watch_mailbox(self, account_id: str) -> None:
         raise NotImplementedError(f"{self.provider_id} does not support watch_mailbox yet")
+
+    async def aclose(self) -> None:
+        return None

@@ -695,6 +695,7 @@ function ProviderSetupPage({
 
 export function App() {
   const [view, setView] = useState("setup");
+  const [dashboardSection, setDashboardSection] = useState("overview");
   const [setupPinned, setSetupPinned] = useState(false);
   const [bootstrap, setBootstrap] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -717,6 +718,9 @@ export function App() {
   const [providerNotice, setProviderNotice] = useState("");
   const [providerError, setProviderError] = useState("");
   const [connectUrl, setConnectUrl] = useState("");
+  const [gmailStatus, setGmailStatus] = useState(null);
+  const [gmailStatusLoading, setGmailStatusLoading] = useState(false);
+  const [gmailStatusError, setGmailStatusError] = useState("");
   const [copyNotice, setCopyNotice] = useState("");
   const [uiUpdatedAt, setUiUpdatedAt] = useState(null);
 
@@ -806,6 +810,43 @@ export function App() {
   }, [view, providerDirty]);
 
   useEffect(() => {
+    if (!((view === "dashboard" && dashboardSection === "gmail") || view === "provider")) {
+      return undefined;
+    }
+
+    let active = true;
+
+    async function loadGmailStatus() {
+      setGmailStatusLoading(true);
+      try {
+        const payload = await fetchJson("/api/gmail/status");
+        if (!active) {
+          return;
+        }
+        setGmailStatus(payload);
+        setGmailStatusError("");
+      } catch (loadError) {
+        if (!active) {
+          return;
+        }
+        setGmailStatusError(loadError.message);
+      } finally {
+        if (active) {
+          setGmailStatusLoading(false);
+        }
+      }
+    }
+
+    loadGmailStatus();
+    const intervalId = window.setInterval(loadGmailStatus, 10000);
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
+  }, [view, dashboardSection]);
+
+  useEffect(() => {
     const dashboardReady = Boolean(bootstrap?.status?.operational_readiness);
     if (view === "provider") {
       return;
@@ -826,6 +867,7 @@ export function App() {
 
   function openDashboard() {
     setSetupPinned(false);
+    setDashboardSection("overview");
     setView("dashboard");
   }
 
@@ -1083,6 +1125,9 @@ export function App() {
   const dashboardEnabled = Boolean(status?.operational_readiness);
   const providerSummary = status?.provider_account_summaries?.gmail || {};
   const providerConnected = providerSummary?.provider_state === "connected";
+  const gmailPrimary = gmailStatus?.accounts?.[0] || null;
+  const gmailPrimaryMailboxStatus = gmailPrimary?.mailbox_status || null;
+  const gmailPrimaryAccount = gmailPrimary?.account || null;
   const mqttHealth = status?.mqtt_health || {};
   const lastHeartbeatAt = mqttHealth?.last_status_report_at || status?.last_heartbeat_at || null;
   const mqttConnected = status?.mqtt_connection_status === "connected" || mqttHealth?.health_status === "connected";
@@ -1182,8 +1227,20 @@ export function App() {
           <section className="operational-shell">
             <aside className="card operational-shell-nav-card">
               <nav className="operational-shell-nav" aria-label="Operational sections">
-                <button type="button" className="btn operational-nav-btn btn-primary">Overview</button>
-                <button type="button" className="btn operational-nav-btn" onClick={openProvider}>Gmail</button>
+                <button
+                  type="button"
+                  className={`btn operational-nav-btn ${dashboardSection === "overview" ? "btn-primary" : ""}`}
+                  onClick={() => setDashboardSection("overview")}
+                >
+                  Overview
+                </button>
+                <button
+                  type="button"
+                  className={`btn operational-nav-btn ${dashboardSection === "gmail" ? "btn-primary" : ""}`}
+                  onClick={() => setDashboardSection("gmail")}
+                >
+                  Gmail
+                </button>
                 <button type="button" className="btn operational-nav-btn">Runtime</button>
                 <button type="button" className="btn operational-nav-btn">Activity</button>
                 <button type="button" className="btn operational-nav-btn">Diagnostics</button>
@@ -1249,6 +1306,57 @@ export function App() {
                 </div>
               </article>
 
+              {dashboardSection === "gmail" ? (
+                <section className="grid operational-dashboard-grid">
+                  <article className="card dashboard-primary-card">
+                    <div className="card-header">
+                      <h2>Gmail Status</h2>
+                      <p className="muted">Background Gmail inbox status and unread counts.</p>
+                    </div>
+                    {gmailStatusError ? <div className="callout callout-danger">{gmailStatusError}</div> : null}
+                    <dl className="facts">
+                      <div>
+                        <dt>Provider State</dt>
+                        <dd>{gmailStatus?.provider_state || providerSummary?.provider_state || "pending"}</dd>
+                      </div>
+                      <div>
+                        <dt>Account</dt>
+                        <dd>{gmailPrimaryAccount?.email_address || gmailPrimaryAccount?.account_id || "Pending"}</dd>
+                      </div>
+                      <div>
+                        <dt>Unread Inbox</dt>
+                        <dd>{gmailPrimaryMailboxStatus?.unread_inbox_count ?? (gmailStatusLoading ? "Loading..." : 0)}</dd>
+                      </div>
+                      <div>
+                        <dt>Unread Today</dt>
+                        <dd>{gmailPrimaryMailboxStatus?.unread_today_count ?? (gmailStatusLoading ? "Loading..." : 0)}</dd>
+                      </div>
+                      <div>
+                        <dt>Unread Yesterday</dt>
+                        <dd>{gmailPrimaryMailboxStatus?.unread_yesterday_count ?? (gmailStatusLoading ? "Loading..." : 0)}</dd>
+                      </div>
+                      <div>
+                        <dt>Unread This Week</dt>
+                        <dd>{gmailPrimaryMailboxStatus?.unread_week_count ?? (gmailStatusLoading ? "Loading..." : 0)}</dd>
+                      </div>
+                    </dl>
+                  </article>
+
+                  <article className="card">
+                    <div className="card-header">
+                      <h2>Gmail Settings</h2>
+                      <p className="muted">Gmail configuration controls will live here.</p>
+                    </div>
+                  </article>
+
+                  <article className="card">
+                    <div className="card-header">
+                      <h2>Gmail Action</h2>
+                      <p className="muted">Gmail actions and connect operations will appear here.</p>
+                    </div>
+                  </article>
+                </section>
+              ) : (
               <section className="grid operational-dashboard-grid">
                   {dashboardWarnings.length ? (
                     <article className="card degraded-state-banner">
@@ -1402,6 +1510,7 @@ export function App() {
                     </div>
                   </article>
               </section>
+              )}
             </div>
           </section>
         </main>
