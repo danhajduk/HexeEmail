@@ -68,3 +68,4 @@ Task 067: Add capabilities: task.classification, task.summarization, task.tracki
 Task 068: Add card for the capability declaration - Completed on 04/01/2026 19:56
 Task 069: Check the core docs for governance sync and implement it - Completed on 04/01/2026 19:59
 Task 070: Create main UI the will have the same header and the node status card under it (dashboard) - Completed on 04/01/2026 20:01
+Task 071: Add app header for the dashboard - Completed on 04/01/2026 20:33

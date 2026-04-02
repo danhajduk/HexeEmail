@@ -92,6 +92,13 @@ function healthSeverityClass(value, successValues = [], metaValues = []) {
   return "severity-indicator severity-warning";
 }
 
+function currentThemeLabel() {
+  if (typeof window === "undefined" || !window.matchMedia) {
+    return "system";
+  }
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
 function deriveNodeState(bootstrap) {
   const onboarding = bootstrap?.onboarding;
   const status = bootstrap?.status;
@@ -729,6 +736,7 @@ export function App() {
   const [providerNotice, setProviderNotice] = useState("");
   const [providerError, setProviderError] = useState("");
   const [connectUrl, setConnectUrl] = useState("");
+  const [copyNotice, setCopyNotice] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -1038,6 +1046,16 @@ export function App() {
     }
   }
 
+  async function copyNodeId() {
+    const nodeId = bootstrap?.status?.node_id;
+    if (!nodeId || typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+      return;
+    }
+    await navigator.clipboard.writeText(nodeId);
+    setCopyNotice("Copied");
+    window.setTimeout(() => setCopyNotice(""), 1600);
+  }
+
   const onboarding = bootstrap?.onboarding;
   const status = bootstrap?.status;
   const requiredInputs = bootstrap?.required_inputs || [];
@@ -1045,6 +1063,7 @@ export function App() {
   const setupFlow = deriveSetupFlow(bootstrap);
   const nodeSetupVisible = isNodeSetupVisible(bootstrap);
   const dashboardEnabled = Boolean(status?.operational_readiness);
+  const providerSummary = status?.provider_account_summaries?.gmail || {};
   if (view === "provider") {
     return (
       <div className="shell">
@@ -1076,35 +1095,50 @@ export function App() {
     return (
       <div className="shell">
         <main className="app-frame">
-          <section className="hero card">
-            <div>
-              <div className="hero-topline">
-                <div className="eyebrow">Hexe Email Node</div>
-                <div className={`status-pill tone-${nodeState.tone}`}>state: {nodeState.label}</div>
+          <section className="card app-header">
+            <div className="app-header-top">
+              <div>
+                <h1>Hexe Email Node</h1>
               </div>
-              <h1>Hexe Email Node Setup</h1>
-              <p className="hero-copy">
-                Monitor node trust, provider readiness, and governance health from one place before jumping into setup.
-              </p>
+              <div className="app-header-status-pills">
+                <span className={healthSeverityClass(status?.operational_readiness ? "operational" : "pending", ["operational"])}>
+                  <span className="status-badge status-operational">
+                    {status?.operational_readiness ? "operational" : nodeState.label}
+                  </span>
+                </span>
+                <span className={healthSeverityClass(providerSummary?.provider_state, ["connected"], ["configured"])}>
+                  <span className="status-badge">
+                    {providerSummary?.provider_state === "connected" ? "Gmail connected" : "Gmail pending"}
+                  </span>
+                </span>
+              </div>
             </div>
-            <div className="hero-actions">
-              <div className="hero-status">
-                <div className={`status-pill tone-${statusTone(onboarding?.onboarding_status)}`}>
-                  onboarding: {onboarding?.onboarding_status || "loading"}
-                </div>
-                <div className={`status-pill tone-${statusTone(status?.mqtt_connection_status)}`}>
-                  mqtt: {status?.mqtt_connection_status || "loading"}
-                </div>
+            <div className="app-header-bottom">
+              <button className="btn btn-ghost app-header-theme-btn" type="button">
+                Theme: {currentThemeLabel()}
+              </button>
+              <div className="app-header-actions">
+                <button className="btn btn-ghost" type="button" onClick={restartOnboarding} disabled={restarting}>
+                  {restarting ? "Restarting..." : "Restart Setup"}
+                </button>
+                <button className="btn btn-ghost" type="button" onClick={() => setView("setup")}>
+                  Open Setup
+                </button>
+                <button className="btn btn-ghost" type="button" onClick={() => setView("provider")}>
+                  Setup Provider
+                </button>
+                <button className="btn btn-ghost" type="button" onClick={copyNodeId} disabled={!status?.node_id}>
+                  {copyNotice || "Copy Node ID"}
+                </button>
               </div>
-              <button className="btn btn-ghost" type="button" onClick={restartOnboarding} disabled={restarting}>
-                {restarting ? "Restarting..." : "Restart Setup"}
-              </button>
-              <button className="btn btn-ghost" type="button" onClick={() => setView("setup")}>
-                Open Setup
-              </button>
-              <button className="btn btn-ghost" type="button" onClick={() => setView("provider")}>
-                Setup Provider
-              </button>
+            </div>
+            <div className="app-header-meta">
+              <span className="muted tiny">
+                Updated: <code>{formatTelemetryTimestamp(status?.last_heartbeat_at)}</code>
+              </span>
+              <span className="muted tiny">
+                Node: <code>{status?.node_id || "pending"}</code>
+              </span>
             </div>
           </section>
 
