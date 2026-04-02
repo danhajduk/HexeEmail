@@ -41,6 +41,11 @@ from version import __version__
 LOGGER = get_logger(__name__)
 TERMINAL_ONBOARDING_STATES = {"approved", "rejected", "expired", "consumed", "invalid"}
 CORE_ID_PATTERN = re.compile(r"^[0-9a-f]{16}$")
+AVAILABLE_TASK_CAPABILITIES = [
+    "task.classification",
+    "task.summarization",
+    "task.tracking",
+]
 
 
 class NodeService:
@@ -88,6 +93,9 @@ class NodeService:
             self.operator_config = OperatorConfig(
                 core_base_url=self._normalize_core_base_url(self.operator_config.core_base_url),
                 node_name=self.operator_config.node_name,
+                selected_task_capabilities=self._normalize_selected_task_capabilities(
+                    self.operator_config.selected_task_capabilities
+                ),
             )
             self.operator_config_store.save(self.operator_config)
         except StateCorruptionError as exc:
@@ -134,19 +142,31 @@ class NodeService:
     def effective_node_name(self) -> str | None:
         return self.operator_config.node_name
 
-    async def update_operator_config(self, payload: OperatorConfigInput) -> OperatorConfigResponse:
-        if self.state.trust_state == "trusted":
-            raise ValueError("cannot change onboarding configuration after trust activation")
+    def selected_task_capabilities(self) -> list[str]:
+        return list(self.operator_config.selected_task_capabilities)
 
+    async def update_operator_config(self, payload: OperatorConfigInput) -> OperatorConfigResponse:
         previous = self.operator_config.model_copy()
         next_config = OperatorConfig(
             core_base_url=self._normalize_core_base_url((payload.core_base_url or "").strip() or None),
             node_name=(payload.node_name or "").strip() or None,
+            selected_task_capabilities=self._normalize_selected_task_capabilities(payload.selected_task_capabilities),
         )
+
+        if self.state.trust_state == "trusted" and (
+            next_config.core_base_url != previous.core_base_url or next_config.node_name != previous.node_name
+        ):
+            raise ValueError("cannot change onboarding configuration after trust activation")
+
         self.operator_config = self.operator_config_store.save(next_config)
 
-        if previous != self.operator_config:
+        if (
+            previous.core_base_url != self.operator_config.core_base_url
+            or previous.node_name != self.operator_config.node_name
+        ):
             self._reset_onboarding_state()
+        elif previous.selected_task_capabilities != self.operator_config.selected_task_capabilities:
+            await self._sync_post_trust_state()
 
         return self.operator_config_response()
 
@@ -157,6 +177,7 @@ class NodeService:
             next_config = OperatorConfig(
                 core_base_url=self._normalize_core_base_url((payload.core_base_url or "").strip() or None),
                 node_name=(payload.node_name or "").strip() or None,
+                selected_task_capabilities=self._normalize_selected_task_capabilities(payload.selected_task_capabilities),
             )
             self.operator_config = self.operator_config_store.save(next_config)
 
@@ -297,6 +318,68 @@ class NodeService:
         if not parsed.scheme:
             return f"http://{value}"
         return value.rstrip("/")
+
+    def _normalize_selected_task_capabilities(self, values: list[str] | None) -> list[str]:
+        available = set(AVAILABLE_TASK_CAPABILITIES)
+        normalized: list[str] = []
+        for value in values or []:
+            candidate = str(value or "").strip()
+            if candidate and candidate in available and candidate not in normalized:
+                normalized.append(candidate)
+        return normalized
+
+    def _capability_setup_summary(self, provider_overview: dict[str, object]) -> dict[str, object]:
+        provider_summaries = provider_overview.get("providers") if isinstance(provider_overview, dict) else {}
+        connected_providers = [
+            provider_id
+            for provider_id, summary in (provider_summaries.items() if isinstance(provider_summaries, dict) else [])
+            if isinstance(summary, dict) and summary.get("provider_state") == "connected"
+        ]
+        selected_capabilities = self.selected_task_capabilities()
+        trust_valid = self.state.trust_state == "trusted"
+        node_identity_valid = bool(self.effective_node_name())
+        provider_selection_valid = bool(connected_providers)
+        task_capability_selection_valid = bool(selected_capabilities)
+        core_runtime_context_valid = bool(self.effective_core_base_url() and self.state.node_id)
+        blocking_reasons: list[str] = []
+        if not trust_valid:
+            blocking_reasons.append("trust not active")
+        if not node_identity_valid:
+            blocking_reasons.append("node identity is incomplete")
+        if not provider_selection_valid:
+            blocking_reasons.append("connect Gmail before declaring capabilities")
+        if not task_capability_selection_valid:
+            blocking_reasons.append("select at least one task capability")
+        if not core_runtime_context_valid:
+            blocking_reasons.append("core runtime context is not ready")
+
+        return {
+            "readiness_flags": {
+                "trust_state_valid": trust_valid,
+                "node_identity_valid": node_identity_valid,
+                "provider_selection_valid": provider_selection_valid,
+                "task_capability_selection_valid": task_capability_selection_valid,
+                "core_runtime_context_valid": core_runtime_context_valid,
+            },
+            "provider_selection": {
+                "configured": provider_selection_valid,
+                "enabled_count": len(connected_providers),
+                "enabled": connected_providers,
+                "supported": {
+                    "cloud": list(provider_overview.get("supported_providers") or []),
+                    "local": [],
+                    "future": [],
+                },
+            },
+            "task_capability_selection": {
+                "configured": task_capability_selection_valid,
+                "selected_count": len(selected_capabilities),
+                "selected": selected_capabilities,
+                "available": list(AVAILABLE_TASK_CAPABILITIES),
+            },
+            "blocking_reasons": blocking_reasons,
+            "declaration_allowed": not blocking_reasons,
+        }
 
     def _resolve_advertised_host(self) -> str:
         targets: list[tuple[str, int]] = []
@@ -492,6 +575,7 @@ class NodeService:
         return OperatorConfigResponse(
             core_base_url=self.effective_core_base_url() or "",
             node_name=self.effective_node_name() or "",
+            selected_task_capabilities=self.selected_task_capabilities(),
             node_type=self.config.node_type,
             node_software_version=self.config.node_software_version,
             api_port=self.config.api_port,
@@ -531,6 +615,7 @@ class NodeService:
             governance_sync_status=self.state.governance_sync_status,
             capability_declaration_status=self.state.capability_declaration_status,
             operational_readiness=self.state.operational_readiness,
+            capability_setup=self._capability_setup_summary(provider_overview),
         )
 
     async def ui_bootstrap(self) -> UiBootstrapResponse:
@@ -755,12 +840,22 @@ class NodeService:
     async def _sync_post_trust_state(self) -> None:
         if self.state.trust_state != "trusted" or not self.state.node_id or not self.effective_core_base_url():
             return
-        await self._declare_capabilities()
+        provider_overview = await self._provider_status_snapshot_async()
+        capability_setup = self._capability_setup_summary(provider_overview)
+        connected_providers = capability_setup.get("provider_selection", {}).get("enabled", [])
+        self.state.enabled_providers = list(connected_providers) if isinstance(connected_providers, list) else []
+        if not capability_setup.get("declaration_allowed"):
+            self.state.capability_declaration_status = "pending"
+            self.state.governance_sync_status = "pending"
+            self.state_store.save(self.state)
+            await self._update_operational_readiness()
+            return
+        await self._declare_capabilities(provider_overview)
         await self._sync_governance()
         await self._update_operational_readiness()
 
-    async def _declare_capabilities(self) -> CapabilityDeclarationResult:
-        overview = await self._provider_status_snapshot_async()
+    async def _declare_capabilities(self, overview: dict[str, object] | None = None) -> CapabilityDeclarationResult:
+        overview = overview or await self._provider_status_snapshot_async()
         enabled_providers: list[str] = []
         for provider_id, provider_summary in overview["providers"].items():
             if isinstance(provider_summary, dict) and provider_summary.get("provider_state") == "connected":
@@ -770,6 +865,7 @@ class NodeService:
             node_type=self.config.node_type,
             node_name=self.effective_node_name() or "",
             node_software_version=self.config.node_software_version,
+            declared_task_families=self.selected_task_capabilities(),
             supported_providers=list(overview["supported_providers"]),
             enabled_providers=enabled_providers,
         )

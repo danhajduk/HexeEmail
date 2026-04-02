@@ -3,7 +3,14 @@ import { startTransition, useEffect, useState } from "react";
 const EMPTY_FORM = {
   core_base_url: "",
   node_name: "",
+  selected_task_capabilities: [],
 };
+
+const TASK_CAPABILITY_OPTIONS = [
+  "task.classification",
+  "task.summarization",
+  "task.tracking",
+];
 
 const EMPTY_PROVIDER_FORM = {
   enabled: false,
@@ -218,10 +225,10 @@ function SetupSidebar({ flow }) {
           const state = step.complete ? "success" : step.current ? "warning" : "neutral";
           return (
             <div key={step.id} className={`flow-step is-${state}`}>
+              {step.complete ? <span className="flow-step-check" aria-label="Completed">✓</span> : null}
               <div className="flow-step-index">{index + 1}</div>
               <div className="flow-step-body">
                 <strong>{step.label}</strong>
-                <span>{step.description}</span>
               </div>
             </div>
           );
@@ -231,8 +238,23 @@ function SetupSidebar({ flow }) {
   );
 }
 
-function renderCurrentStageCard({ flow, bootstrap, status, onboarding, requiredInputs, notice, error, setView }) {
+function renderCurrentStageCard({
+  flow,
+  bootstrap,
+  status,
+  onboarding,
+  requiredInputs,
+  notice,
+  error,
+  setView,
+  form,
+  saving,
+  onCapabilityToggle,
+  onSaveConfiguration,
+}) {
   const stepId = flow.current?.id;
+  const capabilitySetup = status?.capability_setup || {};
+  const capabilitySelection = capabilitySetup?.task_capability_selection || {};
   const approvalLink = onboarding?.approval_url ? (
     <a className="approval-link" href={onboarding.approval_url} target="_blank" rel="noreferrer">
       Open approval URL
@@ -322,10 +344,50 @@ function renderCurrentStageCard({ flow, bootstrap, status, onboarding, requiredI
 
   if (stepId === "capability_declaration") {
     return (
-      <StageCard title="Capability Declaration" tone={statusTone(status?.capability_declaration_status)}>
+      <StageCard
+        title="Capability Declaration"
+        tone={statusTone(status?.capability_declaration_status)}
+        action={
+          <button className="btn btn-primary" type="button" onClick={onSaveConfiguration} disabled={saving}>
+            {saving ? "Saving..." : "Save Selection"}
+          </button>
+        }
+      >
+        <div className="callout">
+          Select the task families this node should declare to Core once Gmail is connected.
+        </div>
+        <div className="capability-list">
+          {TASK_CAPABILITY_OPTIONS.map((capability) => {
+            const selected = form.selected_task_capabilities.includes(capability);
+            return (
+              <button
+                key={capability}
+                className={`capability-option ${selected ? "is-selected" : ""}`}
+                type="button"
+                onClick={() => onCapabilityToggle(capability)}
+              >
+                <span className="capability-check">{selected ? "✓" : ""}</span>
+                <span className="capability-copy">
+                  <strong>{capability}</strong>
+                </span>
+              </button>
+            );
+          })}
+        </div>
         <div className="callout">
           Capability declaration status: {status?.capability_declaration_status || "pending"}.
+          {" "}
+          Selected: {capabilitySelection.selected_count ?? form.selected_task_capabilities.length}.
         </div>
+        {(capabilitySetup?.blocking_reasons || []).length > 0 ? (
+          <ul className="prompt-list">
+            {capabilitySetup.blocking_reasons.map((reason) => (
+              <li key={reason}>{reason}</li>
+            ))}
+          </ul>
+        ) : null}
+        {notice ? <div className="callout callout-success">{notice}</div> : null}
+        {error ? <div className="callout callout-danger">{error}</div> : null}
       </StageCard>
     );
   }
@@ -651,6 +713,7 @@ export function App() {
           setForm({
             core_base_url: payload.config.core_base_url || "",
             node_name: payload.config.node_name || "",
+            selected_task_capabilities: payload.config.selected_task_capabilities || [],
           });
         }
       } catch (fetchError) {
@@ -724,6 +787,19 @@ export function App() {
     }));
   }
 
+  function handleCapabilityToggle(capability) {
+    setTouched(true);
+    setForm((current) => {
+      const selected = current.selected_task_capabilities.includes(capability);
+      return {
+        ...current,
+        selected_task_capabilities: selected
+          ? current.selected_task_capabilities.filter((item) => item !== capability)
+          : [...current.selected_task_capabilities, capability],
+      };
+    });
+  }
+
   function handleProviderChange(event) {
     const { name, value, type, checked } = event.target;
     setProviderDirty(true);
@@ -766,7 +842,11 @@ export function App() {
         body: JSON.stringify(form),
       });
       setTouched(false);
-      setNotice(`Saved onboarding configuration for ${payload.node_name || "this node"}.`);
+      setNotice(
+        bootstrap?.status?.trust_state === "trusted"
+          ? "Capability selection saved."
+          : `Saved onboarding configuration for ${payload.node_name || "this node"}.`,
+      );
     } catch (saveError) {
       setError(saveError.message);
     } finally {
@@ -919,16 +999,14 @@ export function App() {
 
   return (
     <div className="shell">
-      <main className="app-frame app-shell">
-        <SetupSidebar flow={setupFlow} />
-        <div className="main-column">
+      <main className="app-frame">
         <section className="hero card">
           <div>
             <div className="hero-topline">
               <div className="eyebrow">Hexe Email Node</div>
               <div className={`status-pill tone-${nodeState.tone}`}>state: {nodeState.label}</div>
             </div>
-            <h1>Operator Onboarding Console</h1>
+            <h1>Hexe Email Node Setup</h1>
             <p className="hero-copy">
               Configure the target Core, start onboarding, and watch the node move from local setup to trusted
               operational status.
@@ -943,130 +1021,140 @@ export function App() {
                 mqtt: {status?.mqtt_connection_status || "loading"}
               </div>
             </div>
+            <button className="btn btn-ghost" type="button" onClick={restartOnboarding} disabled={restarting}>
+              {restarting ? "Restarting..." : "Restart Setup"}
+            </button>
             <button className="btn btn-ghost" type="button" onClick={() => setView("provider")}>
               Setup Provider
             </button>
           </div>
         </section>
 
-        <section className="content-stack">
-          <article className="card stack">
-            <div className="section-heading">
-              <h2>Node Identity</h2>
-              <span className="pill">UI {bootstrap?.config.ui_port || 8083}</span>
-            </div>
-            <Field
-              label="Core base URL"
-              name="core_base_url"
-              value={form.core_base_url}
-              onChange={handleChange}
-              placeholder="http://192.168.1.10:8000"
-              required
-            />
-            <Field
-              label="Node name"
-              name="node_name"
-              value={form.node_name}
-              onChange={handleChange}
-              placeholder="front-desk-email-node"
-              required
-            />
-            <div className="actions">
-              <button className="btn btn-ghost" type="button" onClick={saveConfiguration} disabled={saving}>
-                {saving ? "Saving..." : "Save"}
-              </button>
-              <button className="btn btn-primary" type="button" onClick={startOnboarding} disabled={starting}>
-                {starting ? "Starting..." : "Start Onboarding"}
-              </button>
-              <button className="btn btn-ghost" type="button" onClick={restartOnboarding} disabled={restarting}>
-                {restarting ? "Restarting..." : "Restart Setup"}
-              </button>
-            </div>
-            {requiredInputs.length > 0 ? <div className="callout callout-warning">Required before onboarding: {requiredInputs.join(", ")}</div> : null}
-          </article>
+        <section className="app-shell">
+          <SetupSidebar flow={setupFlow} />
+          <div className="main-column">
+            <section className="content-stack">
+              {!nodeSetupVisible ? (
+                <article className="card stack">
+                  <div className="section-heading">
+                    <h2>Node Identity</h2>
+                    <span className="pill">UI {bootstrap?.config.ui_port || 8083}</span>
+                  </div>
+                  <Field
+                    label="Core base URL"
+                    name="core_base_url"
+                    value={form.core_base_url}
+                    onChange={handleChange}
+                    placeholder="http://192.168.1.10:8000"
+                    required
+                  />
+                  <Field
+                    label="Node name"
+                    name="node_name"
+                    value={form.node_name}
+                    onChange={handleChange}
+                    placeholder="front-desk-email-node"
+                    required
+                  />
+                  <div className="actions">
+                    <button className="btn btn-ghost" type="button" onClick={saveConfiguration} disabled={saving}>
+                      {saving ? "Saving..." : "Save"}
+                    </button>
+                    <button className="btn btn-primary" type="button" onClick={startOnboarding} disabled={starting}>
+                      {starting ? "Starting..." : "Start Onboarding"}
+                    </button>
+                  </div>
+                  {requiredInputs.length > 0 ? <div className="callout callout-warning">Required before onboarding: {requiredInputs.join(", ")}</div> : null}
+                </article>
+              ) : null}
 
-          {nodeSetupVisible ? (
-            <article className="card stack">
-              <div className="section-heading">
-                <h2>Node Setup</h2>
-                <span className="pill">API {bootstrap?.config.api_port || 9003}</span>
-              </div>
-              <div className="status-rail">
-                <div className={`status-pill tone-${statusTone(onboarding?.onboarding_status)}`}>
-                  lifecycle: {onboarding?.onboarding_status || "not_started"}
-                </div>
-                <div className={`status-pill tone-${statusTone(status?.trust_state)}`}>trust: {status?.trust_state || "untrusted"}</div>
-                <div className={`status-pill tone-${statusTone(status?.governance_sync_status)}`}>
-                  governance: {status?.governance_sync_status || "pending"}
-                </div>
-                <div className={`status-pill tone-${status?.trust_state === "trusted" ? "success" : "neutral"}`}>
-                  core: {status?.trust_state === "trusted" ? "paired" : "not paired"}
-                </div>
-              </div>
-              {renderCurrentStageCard({
-                flow: setupFlow,
-                bootstrap,
-                status,
-                onboarding,
-                requiredInputs,
-                notice,
-                error,
-                setView,
-              })}
-            </article>
-          ) : null}
+              {nodeSetupVisible ? (
+                <article className="card stack">
+                  <div className="section-heading">
+                    <h2>Node Setup</h2>
+                    <span className="pill">API {bootstrap?.config.api_port || 9003}</span>
+                  </div>
+                  <div className="status-rail">
+                    <div className={`status-pill tone-${statusTone(onboarding?.onboarding_status)}`}>
+                      lifecycle: {onboarding?.onboarding_status || "not_started"}
+                    </div>
+                    <div className={`status-pill tone-${statusTone(status?.trust_state)}`}>trust: {status?.trust_state || "untrusted"}</div>
+                    <div className={`status-pill tone-${statusTone(status?.governance_sync_status)}`}>
+                      governance: {status?.governance_sync_status || "pending"}
+                    </div>
+                    <div className={`status-pill tone-${status?.trust_state === "trusted" ? "success" : "neutral"}`}>
+                      core: {status?.trust_state === "trusted" ? "paired" : "not paired"}
+                    </div>
+                  </div>
+                  {renderCurrentStageCard({
+                    flow: setupFlow,
+                    bootstrap,
+                    status,
+                    onboarding,
+                    requiredInputs,
+                    notice,
+                    error,
+                    setView,
+                    form,
+                    saving,
+                    onCapabilityToggle: handleCapabilityToggle,
+                    onSaveConfiguration: saveConfiguration,
+                  })}
+                </article>
+              ) : null}
 
-          <section className="grid">
-            <article className="card stack">
-              <div className="section-heading">
-                <h2>Live Status</h2>
-                <span className="pill">{bootstrap?.config.node_type || "email-node"}</span>
-              </div>
-              <dl className="facts">
-                <div>
-                  <dt>Node name</dt>
-                  <dd>{bootstrap?.config.node_name || "Not set"}</dd>
-                </div>
-                <div>
-                  <dt>Version</dt>
-                  <dd>{bootstrap?.config.node_software_version || "0.1.0"}</dd>
-                </div>
-                <div>
-                  <dt>Trust state</dt>
-                  <dd>{status?.trust_state || "untrusted"}</dd>
-                </div>
-                <div>
-                  <dt>Node ID</dt>
-                  <dd>{status?.node_id || "Pending"}</dd>
-                </div>
-                <div>
-                  <dt>MQTT</dt>
-                  <dd>{status?.mqtt_connection_status || "disconnected"}</dd>
-                </div>
-                <div>
-                  <dt>Providers</dt>
-                  <dd>{status?.providers?.join(", ") || "gmail, smtp, imap, graph"}</dd>
-                </div>
-              </dl>
-            </article>
+              <section className="grid">
+                <article className="card stack">
+                  <div className="section-heading">
+                    <h2>Live Status</h2>
+                    <span className="pill">{bootstrap?.config.node_type || "email-node"}</span>
+                  </div>
+                  <dl className="facts">
+                    <div>
+                      <dt>Node name</dt>
+                      <dd>{bootstrap?.config.node_name || "Not set"}</dd>
+                    </div>
+                    <div>
+                      <dt>Version</dt>
+                      <dd>{bootstrap?.config.node_software_version || "0.1.0"}</dd>
+                    </div>
+                    <div>
+                      <dt>Trust state</dt>
+                      <dd>{status?.trust_state || "untrusted"}</dd>
+                    </div>
+                    <div>
+                      <dt>Node ID</dt>
+                      <dd>{status?.node_id || "Pending"}</dd>
+                    </div>
+                    <div>
+                      <dt>MQTT</dt>
+                      <dd>{status?.mqtt_connection_status || "disconnected"}</dd>
+                    </div>
+                    <div>
+                      <dt>Providers</dt>
+                      <dd>{status?.providers?.join(", ") || "gmail, smtp, imap, graph"}</dd>
+                    </div>
+                  </dl>
+                </article>
 
-            <article className="card stack">
-              <div className="section-heading">
-                <h2>Operator Prompts</h2>
-                <span className="pill">{setupFlow.current?.label || "Idle"}</span>
-              </div>
-              <ul className="prompt-list">
-                {requiredInputs.length > 0 ? <li>Enter the Core base URL and node name, then save or start onboarding.</li> : null}
-                {onboarding?.approval_url ? <li>Open the approval URL in Core and approve the node.</li> : null}
-                {onboarding?.onboarding_status === "pending" ? <li>Keep this page open while finalize polling continues.</li> : null}
-                <li>Use Restart Setup if you need a fresh onboarding session.</li>
-                {status?.trust_state === "trusted" ? <li>The node is trusted. Use Setup Provider to configure Gmail.</li> : null}
-                {!requiredInputs.length && !onboarding?.approval_url && status?.trust_state !== "trusted" ? <li>Start onboarding when you are ready.</li> : null}
-              </ul>
-            </article>
-          </section>
+                <article className="card stack">
+                  <div className="section-heading">
+                    <h2>Operator Prompts</h2>
+                    <span className="pill">{setupFlow.current?.label || "Idle"}</span>
+                  </div>
+                  <ul className="prompt-list">
+                    {requiredInputs.length > 0 ? <li>Enter the Core base URL and node name, then save or start onboarding.</li> : null}
+                    {onboarding?.approval_url ? <li>Open the approval URL in Core and approve the node.</li> : null}
+                    {onboarding?.onboarding_status === "pending" ? <li>Keep this page open while finalize polling continues.</li> : null}
+                    <li>Use Restart Setup if you need a fresh onboarding session.</li>
+                    {status?.trust_state === "trusted" ? <li>The node is trusted. Use Setup Provider to configure Gmail.</li> : null}
+                    {!requiredInputs.length && !onboarding?.approval_url && status?.trust_state !== "trusted" ? <li>Start onboarding when you are ready.</li> : null}
+                  </ul>
+                </article>
+              </section>
+            </section>
+          </div>
         </section>
-        </div>
       </main>
     </div>
   );

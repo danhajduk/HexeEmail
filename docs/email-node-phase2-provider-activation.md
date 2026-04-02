@@ -146,6 +146,7 @@ The node should declare:
   `task.classification`,
   `task.summarization`,
   `task.tracking`
+- only the task families explicitly selected by the operator in the capability declaration setup card
 
 This avoids advertising provider capability before the node can actually execute it.
 
@@ -160,6 +161,16 @@ Phase 2 governance sync is limited to:
 - exposing governance presence and sync status into readiness evaluation
 
 It does not redefine governance policy or alter Core templates.
+
+## Node-Local Setup Payload
+
+The node-local setup payload now includes a `capability_setup` summary so the operator UI can gate declaration work before Core sees a capability manifest.
+
+Current fields include:
+
+- readiness flags for trust, provider setup, task capability selection, and Core runtime context
+- selected and available task capability families
+- blocking reasons when declaration is not yet allowed
 
 ## Readiness Model
 

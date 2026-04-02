@@ -15,6 +15,7 @@ class OperatorConfig(BaseModel):
 
     core_base_url: str | None = None
     node_name: str | None = None
+    selected_task_capabilities: list[str] = Field(default_factory=list)
 
 
 class OperatorConfigInput(BaseModel):
@@ -22,6 +23,7 @@ class OperatorConfigInput(BaseModel):
 
     core_base_url: str | None = None
     node_name: str | None = None
+    selected_task_capabilities: list[str] = Field(default_factory=list)
 
 
 class RuntimeState(BaseModel):
@@ -106,11 +108,13 @@ class StatusResponse(BaseModel):
     governance_sync_status: str | None = None
     capability_declaration_status: str | None = None
     operational_readiness: bool = False
+    capability_setup: dict[str, object] = Field(default_factory=dict)
 
 
 class OperatorConfigResponse(BaseModel):
     core_base_url: str
     node_name: str
+    selected_task_capabilities: list[str] = Field(default_factory=list)
     node_type: str
     node_software_version: str
     api_port: int

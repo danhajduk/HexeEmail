@@ -58,6 +58,7 @@ class OperatorConfigStore(JsonFileStore):
         return OperatorConfig(
             core_base_url=loaded.core_base_url or merged.core_base_url,
             node_name=loaded.node_name or merged.node_name,
+            selected_task_capabilities=loaded.selected_task_capabilities or merged.selected_task_capabilities,
         )
 
     def save(self, config: OperatorConfig) -> OperatorConfig:

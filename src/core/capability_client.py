@@ -37,6 +37,7 @@ class CapabilityManifestBuilder:
         node_type: str,
         node_name: str,
         node_software_version: str,
+        declared_task_families: list[str],
         supported_providers: list[str],
         enabled_providers: list[str],
     ) -> CapabilityManifest:
@@ -45,11 +46,7 @@ class CapabilityManifestBuilder:
             node_type=node_type,
             node_name=node_name,
             node_software_version=node_software_version,
-            declared_task_families=[
-                "task.classification",
-                "task.summarization",
-                "task.tracking",
-            ],
+            declared_task_families=sorted({family.strip() for family in declared_task_families if family.strip()}),
             supported_providers=sorted(supported_providers),
             enabled_providers=sorted(enabled_providers),
             node_features=[

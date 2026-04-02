@@ -38,6 +38,12 @@ async def test_ui_bootstrap_reports_missing_inputs(runtime_dir, core_client_fact
     body = response.json()
     assert body["required_inputs"] == ["core_base_url", "node_name"]
     assert body["config"]["ui_port"] == 8083
+    assert body["config"]["selected_task_capabilities"] == []
+    assert body["status"]["capability_setup"]["task_capability_selection"]["available"] == [
+        "task.classification",
+        "task.summarization",
+        "task.tracking",
+    ]
 
 
 def test_setup_logging_writes_api_log(tmp_path, monkeypatch):
