@@ -721,6 +721,9 @@ export function App() {
   const [gmailStatus, setGmailStatus] = useState(null);
   const [gmailStatusLoading, setGmailStatusLoading] = useState(false);
   const [gmailStatusError, setGmailStatusError] = useState("");
+  const [gmailActionPending, setGmailActionPending] = useState("");
+  const [gmailActionNotice, setGmailActionNotice] = useState("");
+  const [gmailActionError, setGmailActionError] = useState("");
   const [copyNotice, setCopyNotice] = useState("");
   const [uiUpdatedAt, setUiUpdatedAt] = useState(null);
 
@@ -874,6 +877,36 @@ export function App() {
   function openProvider() {
     setSetupPinned(false);
     setView("provider");
+  }
+
+  async function runGmailFetch(window, successLabel) {
+    setGmailActionPending(window);
+    setGmailActionError("");
+    setGmailActionNotice("");
+    try {
+      const payload = await fetchJson(`/api/gmail/fetch/${window}`, { method: "POST" });
+      setGmailStatus((current) => {
+        if (!current || !Array.isArray(current.accounts) || current.accounts.length === 0) {
+          return current;
+        }
+        const [firstAccount, ...restAccounts] = current.accounts;
+        return {
+          ...current,
+          accounts: [
+            {
+              ...firstAccount,
+              message_store: payload.summary || firstAccount.message_store,
+            },
+            ...restAccounts,
+          ],
+        };
+      });
+      setGmailActionNotice(`${successLabel} completed. Stored ${payload.summary?.total_count ?? payload.stored_count ?? 0} emails.`);
+    } catch (actionError) {
+      setGmailActionError(actionError.message);
+    } finally {
+      setGmailActionPending("");
+    }
   }
 
   function handleChange(event) {
@@ -1128,6 +1161,7 @@ export function App() {
   const gmailPrimary = gmailStatus?.accounts?.[0] || null;
   const gmailPrimaryMailboxStatus = gmailPrimary?.mailbox_status || null;
   const gmailPrimaryAccount = gmailPrimary?.account || null;
+  const gmailPrimaryStore = gmailPrimary?.message_store || null;
   const mqttHealth = status?.mqtt_health || {};
   const lastHeartbeatAt = mqttHealth?.last_status_report_at || status?.last_heartbeat_at || null;
   const mqttConnected = status?.mqtt_connection_status === "connected" || mqttHealth?.health_status === "connected";
@@ -1339,6 +1373,14 @@ export function App() {
                         <dt>Unread This Week</dt>
                         <dd>{gmailPrimaryMailboxStatus?.unread_week_count ?? (gmailStatusLoading ? "Loading..." : 0)}</dd>
                       </div>
+                      <div>
+                        <dt>Stored Emails</dt>
+                        <dd>{gmailPrimaryStore?.total_count ?? 0}</dd>
+                      </div>
+                      <div>
+                        <dt>Last Fetch</dt>
+                        <dd>{formatTelemetryTimestamp(gmailPrimaryStore?.latest_fetched_at)}</dd>
+                      </div>
                     </dl>
                   </article>
 
@@ -1355,16 +1397,43 @@ export function App() {
                       <p className="muted">Manual Gmail fetch actions for initial learning and time-window refresh.</p>
                     </div>
                     <div className="stack compact-stack">
-                      <button type="button" className="btn" disabled>
+                      {gmailActionError ? <div className="callout callout-danger">{gmailActionError}</div> : null}
+                      {gmailActionNotice ? <div className="callout callout-success">{gmailActionNotice}</div> : null}
+                      <button
+                        type="button"
+                        className="btn"
+                        disabled={gmailActionPending !== ""}
+                        onClick={() => runGmailFetch("initial_learning", "Initial learning fetch")}
+                      >
                         Fetch Initial Learning
                       </button>
-                      <button type="button" className="btn" disabled>
+                      <button
+                        type="button"
+                        className="btn"
+                        disabled={gmailActionPending !== ""}
+                        onClick={() => runGmailFetch("today", "Today fetch")}
+                      >
+                        Fetch Today Email
+                      </button>
+                      <button
+                        type="button"
+                        className="btn"
+                        disabled={gmailActionPending !== ""}
+                        onClick={() => runGmailFetch("yesterday", "Yesterday fetch")}
+                      >
                         Fetch Yesterday Email
                       </button>
-                      <button type="button" className="btn" disabled>
+                      <button
+                        type="button"
+                        className="btn"
+                        disabled={gmailActionPending !== ""}
+                        onClick={() => runGmailFetch("last_hour", "Last hour fetch")}
+                      >
                         Fetch Last Hour Email
                       </button>
-                      <p className="muted tiny">Buttons are placed now; backend fetch actions will be wired in the next tasks.</p>
+                      <p className="muted tiny">
+                        {gmailActionPending ? "Fetch in progress..." : "Fetch windows use the node local timezone and store up to six months of mail."}
+                      </p>
                     </div>
                   </article>
                 </section>

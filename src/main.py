@@ -197,6 +197,17 @@ def create_app(
     async def gmail_status():
         return await node_service.gmail_status()
 
+    @app.post("/api/gmail/fetch/{window}")
+    async def gmail_fetch(window: str, request: Request, account_id: str = "primary"):
+        try:
+            return await node_service.gmail_fetch_messages(
+                window,
+                account_id=account_id,
+                correlation_id=request.headers.get("X-Correlation-Id"),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     @app.get("/providers/gmail/config")
     async def gmail_provider_config():
         try:

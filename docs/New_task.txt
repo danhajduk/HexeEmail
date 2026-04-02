@@ -44,5 +44,3 @@ if it is not present and should be node-owned create a file with the new data in
 Do not edit above this line:
 #######################################################################
 
-
-[TODO] Task 079: Add Gmail fetch processes for initial teach and time-window refresh

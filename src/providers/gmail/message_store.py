@@ -142,6 +142,27 @@ class GmailMessageStore:
             ).fetchone()
         return int(row["count"]) if row is not None else 0
 
+    def account_summary(self, account_id: str) -> dict[str, object]:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT
+                    COUNT(*) AS total_count,
+                    MAX(received_at) AS latest_received_at,
+                    MAX(fetched_at) AS latest_fetched_at
+                FROM gmail_messages
+                WHERE account_id = ?
+                """,
+                (account_id,),
+            ).fetchone()
+        if row is None:
+            return {"total_count": 0, "latest_received_at": None, "latest_fetched_at": None}
+        return {
+            "total_count": int(row["total_count"] or 0),
+            "latest_received_at": row["latest_received_at"],
+            "latest_fetched_at": row["latest_fetched_at"],
+        }
+
     def _row_to_message(self, row: sqlite3.Row) -> GmailStoredMessage:
         recipients = row["recipients"].split("\n") if row["recipients"] else []
         label_ids = row["label_ids"].split("\n") if row["label_ids"] else []

@@ -10,8 +10,10 @@ from config import AppConfig
 from logging_utils import setup_logging
 from main import create_app
 from models import TrustMaterial
+from providers.gmail.config_store import GmailProviderConfigStore
+from providers.gmail.mailbox_client import GmailMailboxClient
 from providers.gmail.mailbox_status_store import GmailMailboxStatusStore
-from providers.gmail.models import GmailMailboxStatus
+from providers.gmail.models import GmailMailboxStatus, GmailOAuthConfig, GmailTokenRecord
 from service import NodeService
 from tests.helpers import FakeMQTTManager, build_core_app
 
@@ -441,3 +443,75 @@ async def test_gmail_status_api_exposes_mailbox_counts(config, core_client_facto
     assert body["provider_id"] == "gmail"
     assert body["accounts"][0]["mailbox_status"]["unread_inbox_count"] == 12
     assert body["accounts"][0]["mailbox_status"]["unread_today_count"] == 3
+
+
+def build_google_fetch_test_app():
+    app = build_core_app()
+
+    @app.get("/messages")
+    async def list_messages():
+        return {"messages": [{"id": "msg-1"}]}
+
+    @app.get("/messages/{message_id}")
+    async def get_message(message_id: str):
+        return {
+            "id": message_id,
+            "threadId": "thread-1",
+            "labelIds": ["INBOX"],
+            "snippet": "hello world",
+            "internalDate": "1775121600000",
+            "payload": {
+                "headers": [
+                    {"name": "From", "value": "Sender <sender@example.com>"},
+                    {"name": "To", "value": "primary@example.com"},
+                    {"name": "Subject", "value": "Hello"},
+                ]
+            },
+        }
+
+    return app
+
+
+@pytest.mark.asyncio
+async def test_gmail_fetch_api_stores_messages_for_requested_window(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    if service.gmail_status_task is not None:
+        service.gmail_status_task.cancel()
+
+    adapter = service.provider_registry.get_provider("gmail")
+    GmailProviderConfigStore(config.runtime_dir).save(
+        GmailOAuthConfig(enabled=True, client_id="client-id", client_secret_ref="secret", redirect_uri="https://hexe-ai.com/google/gmail/callback")
+    )
+    adapter.account_store.save_account(
+        adapter.state_machine.ensure_account("primary").model_copy(
+            update={"status": "connected", "email_address": "primary@example.com"}
+        )
+    )
+    adapter.token_store.save_token(
+        "primary",
+        GmailTokenRecord(
+            account_id="primary",
+            access_token="access-token",
+            refresh_token="refresh-token",
+            expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=1),
+        ),
+    )
+    adapter.mailbox_client = GmailMailboxClient(transport=ASGITransport(app=build_google_fetch_test_app()))
+    adapter.mailbox_client.MESSAGES_ENDPOINT = "http://google.test/messages"
+    adapter.mailbox_client.MESSAGE_ENDPOINT_TEMPLATE = "http://google.test/messages/{message_id}"
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post("/api/gmail/fetch/last_hour")
+        status_response = await client.get("/api/gmail/status")
+
+    await service.stop()
+
+    assert response.status_code == 200
+    assert response.json()["window"] == "last_hour"
+    assert response.json()["fetched_count"] == 1
+    assert response.json()["summary"]["total_count"] == 1
+
+    assert status_response.status_code == 200
+    assert status_response.json()["accounts"][0]["message_store"]["total_count"] == 1

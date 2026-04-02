@@ -1023,10 +1023,12 @@ class NodeService:
         statuses: list[dict[str, object]] = []
         for account in accounts:
             mailbox_status = await adapter.get_mailbox_status(account.account_id) if hasattr(adapter, "get_mailbox_status") else None
+            message_summary = await adapter.message_store_summary(account.account_id) if hasattr(adapter, "message_store_summary") else None
             statuses.append(
                 {
                     "account": account.model_dump(mode="json"),
                     "mailbox_status": mailbox_status.model_dump(mode="json") if mailbox_status is not None else None,
+                    "message_store": message_summary,
                 }
             )
         return {
@@ -1035,6 +1037,22 @@ class NodeService:
             "enabled": adapter.get_enabled_status(),
             "accounts": statuses,
         }
+
+    async def gmail_fetch_messages(
+        self,
+        window: str,
+        *,
+        account_id: str = "primary",
+        correlation_id: str | None = None,
+    ) -> dict[str, object]:
+        adapter = self.provider_registry.get_provider("gmail")
+        if not hasattr(adapter, "fetch_messages_for_window"):
+            raise ValueError("gmail fetch actions are not available")
+        try:
+            result = await adapter.fetch_messages_for_window(account_id, window=window, correlation_id=correlation_id)
+        except Exception as exc:
+            raise ValueError(str(exc)) from exc
+        return result
 
     async def gmail_config_validation(self) -> dict[str, object]:
         adapter = self.provider_registry.get_provider("gmail")

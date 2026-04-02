@@ -6,11 +6,12 @@ from logging_utils import get_logger
 from providers.base import EmailProviderAdapter
 from providers.gmail.account_store import GmailAccountStore
 from providers.gmail.mailbox_client import GmailMailboxClient, GmailMailboxClientError
+from providers.gmail.message_store import GmailMessageStore
 from providers.gmail.mailbox_status_store import GmailMailboxStatusStore
 from providers.gmail.config_store import GmailProviderConfigError, GmailProviderConfigStore
 from providers.gmail.health import GmailHealthEvaluator
 from providers.gmail.identity import GmailIdentityProbeClient
-from providers.gmail.models import GmailMailboxStatus
+from providers.gmail.models import GmailMailboxStatus, GmailStoredMessage
 from providers.gmail.state_machine import GmailAccountStateMachine
 from providers.gmail.token_client import GmailTokenExchangeClient
 from providers.gmail.token_store import GmailTokenStore
@@ -35,6 +36,7 @@ class GmailProviderAdapter(EmailProviderAdapter):
         self.account_store = GmailAccountStore(runtime_dir)
         self.token_store = GmailTokenStore(runtime_dir)
         self.mailbox_status_store = GmailMailboxStatusStore(runtime_dir)
+        self.message_store = GmailMessageStore(runtime_dir)
         self.state_machine = GmailAccountStateMachine(self.account_store)
         self.token_client = token_client or GmailTokenExchangeClient()
         self.identity_client = identity_client or GmailIdentityProbeClient(self.account_store)
@@ -196,6 +198,48 @@ class GmailProviderAdapter(EmailProviderAdapter):
 
     async def get_mailbox_status(self, account_id: str) -> GmailMailboxStatus | None:
         return self.mailbox_status_store.load_status(account_id)
+
+    async def fetch_messages_for_window(
+        self,
+        account_id: str,
+        *,
+        window: str,
+        correlation_id: str | None = None,
+    ) -> dict[str, object]:
+        try:
+            oauth_config = self.config_store.load()
+        except GmailProviderConfigError as exc:
+            raise GmailMailboxClientError(str(exc)) from exc
+
+        token_record = await self.token_client.refresh_if_needed(
+            oauth_config,
+            account_id=account_id,
+            token_store=self.token_store,
+            account_store=self.account_store,
+            correlation_id=correlation_id,
+        )
+        if token_record is None:
+            raise GmailMailboxClientError("gmail token is not available yet")
+
+        query = self.mailbox_client.build_fetch_query(window)
+        messages = await self.mailbox_client.fetch_messages(token_record=token_record, query=query)
+        stored_count = self.message_store.upsert_messages(messages)
+        summary = self.message_store.account_summary(account_id)
+        return {
+            "provider_id": self.provider_id,
+            "account_id": account_id,
+            "window": window,
+            "query": query,
+            "fetched_count": len(messages),
+            "stored_count": stored_count,
+            "summary": summary,
+        }
+
+    async def list_stored_messages(self, account_id: str, *, limit: int = 100) -> list[GmailStoredMessage]:
+        return self.message_store.list_messages(account_id, limit=limit)
+
+    async def message_store_summary(self, account_id: str) -> dict[str, object]:
+        return self.message_store.account_summary(account_id)
 
     async def aclose(self) -> None:
         await self.token_client.aclose()
