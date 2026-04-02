@@ -677,6 +677,18 @@ function TrainingPage({
   onSelectionChange,
   onSaveBatch,
 }) {
+  const [trainingPage, setTrainingPage] = useState(0);
+  const items = trainingBatch?.items || [];
+  const pageSize = 5;
+  const pageCount = Math.max(1, Math.ceil(items.length / pageSize));
+  const currentPage = Math.min(trainingPage, pageCount - 1);
+  const pageStart = currentPage * pageSize;
+  const visibleItems = items.slice(pageStart, pageStart + pageSize);
+
+  useEffect(() => {
+    setTrainingPage(0);
+  }, [trainingBatch?.count]);
+
   return (
     <main className="app-frame">
       <section className="hero card">
@@ -708,6 +720,21 @@ function TrainingPage({
             <div className="callout">
               Threshold: {trainingStatus?.threshold ?? 0.6}
             </div>
+            <div className="callout">
+              Classified: {trainingStatus?.classification_summary?.classified_count ?? 0}
+            </div>
+            {trainingStatus?.classification_summary?.per_label
+              ? (
+                <div className="training-sidebar-stats">
+                  {Object.entries(trainingStatus.classification_summary.per_label).map(([label, count]) => (
+                    <div key={label} className="training-sidebar-stat">
+                      <span>{label}</span>
+                      <strong>{count}</strong>
+                    </div>
+                  ))}
+                </div>
+                )
+              : null}
             {trainingLoading ? <div className="callout">Loading training status...</div> : null}
             {trainingError ? <div className="callout callout-danger">{trainingError}</div> : null}
             {trainingBatchError ? <div className="callout callout-danger">{trainingBatchError}</div> : null}
@@ -733,9 +760,28 @@ function TrainingPage({
                   <button className="btn btn-primary" type="button" onClick={onSaveBatch} disabled={trainingSavePending}>
                     {trainingSavePending ? "Saving..." : "Save Manual Labels"}
                   </button>
+                  <button
+                    className="btn btn-ghost"
+                    type="button"
+                    onClick={() => setTrainingPage((page) => Math.max(page - 1, 0))}
+                    disabled={currentPage === 0}
+                  >
+                    Previous 5
+                  </button>
+                  <button
+                    className="btn btn-ghost"
+                    type="button"
+                    onClick={() => setTrainingPage((page) => Math.min(page + 1, pageCount - 1))}
+                    disabled={currentPage >= pageCount - 1}
+                  >
+                    Next 5
+                  </button>
+                  <span className="muted tiny training-page-meta">
+                    Showing {pageStart + 1}-{Math.min(pageStart + visibleItems.length, items.length)} of {items.length}
+                  </span>
                 </div>
                 <div className="training-list">
-                  {trainingBatch.items.map((item) => {
+                  {visibleItems.map((item) => {
                     const selected = trainingSelections[item.message_id] || {
                       label: item.local_label || "unknown",
                       confidence: item.local_label_confidence ?? trainingStatus?.threshold ?? 0.6,
@@ -780,6 +826,30 @@ function TrainingPage({
                       </section>
                     );
                   })}
+                </div>
+                <div className="actions">
+                  <button className="btn btn-primary" type="button" onClick={onSaveBatch} disabled={trainingSavePending}>
+                    {trainingSavePending ? "Saving..." : "Save Manual Labels"}
+                  </button>
+                  <button
+                    className="btn btn-ghost"
+                    type="button"
+                    onClick={() => setTrainingPage((page) => Math.max(page - 1, 0))}
+                    disabled={currentPage === 0}
+                  >
+                    Previous 5
+                  </button>
+                  <button
+                    className="btn btn-ghost"
+                    type="button"
+                    onClick={() => setTrainingPage((page) => Math.min(page + 1, pageCount - 1))}
+                    disabled={currentPage >= pageCount - 1}
+                  >
+                    Next 5
+                  </button>
+                  <span className="muted tiny training-page-meta">
+                    Showing {pageStart + 1}-{Math.min(pageStart + visibleItems.length, items.length)} of {items.length}
+                  </span>
                 </div>
               </>
             )}

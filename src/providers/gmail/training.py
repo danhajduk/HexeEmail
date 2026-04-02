@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import json
 import re
 from email.utils import getaddresses, parseaddr
@@ -31,7 +32,7 @@ def flatten_message(message: GmailStoredMessage, *, account_email: str | None = 
         and not cc_addresses
     )
     cc_me = bool(account_email_normalized and any(address.lower() == account_email_normalized for address in cc_addresses))
-    subject = message.subject or headers.get("subject") or None
+    subject = _clean_text(message.subject or headers.get("subject"))
     body_preview = _clean_preview(message.snippet)
     gmail_labels = list(message.label_ids)
     flags = GmailTrainingFlags(
@@ -113,9 +114,16 @@ def _header_map(payload: dict[str, object]) -> dict[str, str]:
 
 
 def _clean_preview(value: str | None) -> str | None:
+    return _clean_text(value)
+
+
+def _clean_text(value: str | None) -> str | None:
     if not value:
         return None
-    return re.sub(r"\s+", " ", value).strip() or None
+    decoded = html.unescape(value)
+    without_tags = re.sub(r"<[^>]+>", " ", decoded)
+    normalized = re.sub(r"\s+", " ", without_tags).strip()
+    return normalized or None
 
 
 def _has_attachment(payload: dict[str, object]) -> bool:

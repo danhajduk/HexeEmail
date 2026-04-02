@@ -1115,6 +1115,7 @@ class NodeService:
             "account_id": account_id,
             "threshold": self.config.gmail_local_classification_threshold,
             "message_store": await adapter.message_store_summary(account_id) if hasattr(adapter, "message_store_summary") else None,
+            "classification_summary": await adapter.local_classification_summary(account_id) if hasattr(adapter, "local_classification_summary") else None,
         }
 
     async def gmail_training_manual_batch(self, *, account_id: str = "primary", limit: int = 40) -> dict[str, object]:

@@ -246,6 +246,9 @@ class GmailProviderAdapter(EmailProviderAdapter):
     async def message_store_summary(self, account_id: str) -> dict[str, object]:
         return self.message_store.account_summary(account_id)
 
+    async def local_classification_summary(self, account_id: str) -> dict[str, object]:
+        return self.message_store.local_classification_summary(account_id)
+
     async def spamhaus_summary(self, account_id: str) -> GmailSpamhausSummary:
         return self.message_store.spamhaus_summary(account_id)
 

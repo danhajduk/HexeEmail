@@ -246,6 +246,44 @@ class GmailMessageStore:
             )
             connection.commit()
 
+    def local_classification_summary(self, account_id: str) -> dict[str, object]:
+        with self._connect() as connection:
+            totals_row = connection.execute(
+                """
+                SELECT
+                    COUNT(*) AS total_count,
+                    SUM(CASE WHEN local_label IS NOT NULL AND local_label != ? THEN 1 ELSE 0 END) AS classified_count,
+                    SUM(CASE WHEN local_label = ? THEN 1 ELSE 0 END) AS unknown_count,
+                    SUM(CASE WHEN manual_classification = 1 THEN 1 ELSE 0 END) AS manual_count
+                FROM gmail_messages
+                WHERE account_id = ?
+                """,
+                (GmailTrainingLabel.UNKNOWN.value, GmailTrainingLabel.UNKNOWN.value, account_id),
+            ).fetchone()
+            rows = connection.execute(
+                """
+                SELECT local_label, COUNT(*) AS count
+                FROM gmail_messages
+                WHERE account_id = ?
+                  AND local_label IS NOT NULL
+                GROUP BY local_label
+                ORDER BY local_label
+                """,
+                (account_id,),
+            ).fetchall()
+        per_label = {
+            row["local_label"]: int(row["count"] or 0)
+            for row in rows
+            if row["local_label"]
+        }
+        return {
+            "total_count": int(totals_row["total_count"] or 0) if totals_row is not None else 0,
+            "classified_count": int(totals_row["classified_count"] or 0) if totals_row is not None else 0,
+            "unknown_count": int(totals_row["unknown_count"] or 0) if totals_row is not None else 0,
+            "manual_count": int(totals_row["manual_count"] or 0) if totals_row is not None else 0,
+            "per_label": per_label,
+        }
+
     def list_messages_pending_spamhaus(self, account_id: str, *, limit: int | None = None) -> list[GmailStoredMessage]:
         query = """
             SELECT

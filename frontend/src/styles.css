@@ -754,6 +754,25 @@
   gap: 14px;
 }
 
+.training-page-meta {
+  align-self: center;
+}
+
+.training-sidebar-stats {
+  display: grid;
+  gap: 8px;
+}
+
+.training-sidebar-stat {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--sx-radius-md);
+  border: 1px solid hsl(var(--sx-border));
+  background: hsl(var(--sx-text) / 0.03);
+}
+
 
 @media (max-width: 900px) {
   .app-frame {
