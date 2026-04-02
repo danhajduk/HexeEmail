@@ -27,3 +27,15 @@ def test_gmail_quota_tracker_enforces_per_user_limit(runtime_dir):
 
     with pytest.raises(GmailQuotaLimitError):
         tracker.reserve("primary", 10, "messages.get", now=now + timedelta(seconds=10))
+
+
+def test_gmail_quota_tracker_reports_wait_time_until_quota_is_available(runtime_dir):
+    tracker = GmailQuotaTracker(runtime_dir)
+    now = datetime(2026, 4, 2, 12, 0, 0).astimezone()
+
+    tracker.reserve("primary", 14000, "messages.list", now=now)
+    tracker.reserve("primary", 900, "messages.get", now=now + timedelta(seconds=10))
+
+    wait_seconds = tracker.seconds_until_available("primary", 500, now=now + timedelta(seconds=20))
+
+    assert wait_seconds == pytest.approx(40.0)

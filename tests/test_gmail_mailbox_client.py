@@ -151,3 +151,69 @@ def test_gmail_mailbox_client_builds_local_time_window_queries():
     assert last_hour_query.startswith("in:inbox after:")
     assert initial_query.startswith("after:")
     assert "in:inbox" not in initial_query
+
+
+@pytest.mark.asyncio
+async def test_gmail_mailbox_client_slows_down_when_quota_usage_crosses_90_percent(monkeypatch):
+    client = GmailMailboxClient(transport=ASGITransport(app=build_google_fetch_app()))
+    client.MESSAGES_ENDPOINT = "http://google.test/messages"
+    token = GmailTokenRecord(account_id="primary", access_token="access-token")
+    sleep_calls: list[float] = []
+
+    class SlowdownQuotaTracker:
+        def snapshot(self, account_id: str):
+            return type(
+                "Snapshot",
+                (),
+                {"used_last_minute": 13500, "limit_per_minute": 15000},
+            )()
+
+        def seconds_until_available(self, account_id: str, units: int):
+            return 0.0
+
+        def reserve(self, account_id: str, units: int, operation: str):
+            return None
+
+    async def fake_sleep(seconds: float):
+        sleep_calls.append(seconds)
+
+    client.quota_tracker = SlowdownQuotaTracker()
+    monkeypatch.setattr("providers.gmail.mailbox_client.asyncio.sleep", fake_sleep)
+
+    await client.fetch_messages(token_record=token, query="in:inbox after:1 before:2")
+    await client.aclose()
+
+    assert sleep_calls == [client.QUOTA_SLOWDOWN_DELAY_SECONDS, client.QUOTA_SLOWDOWN_DELAY_SECONDS]
+
+
+@pytest.mark.asyncio
+async def test_gmail_mailbox_client_pauses_when_quota_usage_crosses_99_percent(monkeypatch):
+    client = GmailMailboxClient(transport=ASGITransport(app=build_google_fetch_app()))
+    client.MESSAGES_ENDPOINT = "http://google.test/messages"
+    token = GmailTokenRecord(account_id="primary", access_token="access-token")
+    sleep_calls: list[float] = []
+
+    class PauseQuotaTracker:
+        def snapshot(self, account_id: str):
+            return type(
+                "Snapshot",
+                (),
+                {"used_last_minute": 14900, "limit_per_minute": 15000},
+            )()
+
+        def seconds_until_available(self, account_id: str, units: int):
+            return 12.0
+
+        def reserve(self, account_id: str, units: int, operation: str):
+            return None
+
+    async def fake_sleep(seconds: float):
+        sleep_calls.append(seconds)
+
+    client.quota_tracker = PauseQuotaTracker()
+    monkeypatch.setattr("providers.gmail.mailbox_client.asyncio.sleep", fake_sleep)
+
+    await client.fetch_messages(token_record=token, query="in:inbox after:1 before:2")
+    await client.aclose()
+
+    assert sleep_calls == [12.0, 12.0]

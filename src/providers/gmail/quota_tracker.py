@@ -67,6 +67,26 @@ class GmailQuotaTracker:
             last_request_at=datetime.fromisoformat(last_request_at) if isinstance(last_request_at, str) else None,
         )
 
+    def seconds_until_available(self, account_id: str, units: int, *, now: datetime | None = None) -> float:
+        local_now = (now or datetime.now().astimezone()).astimezone()
+        payload = self._load_payload()
+        events = self._prune_events(payload.get(account_id, []), local_now)
+        used = sum(int(event.get("units", 0)) for event in events)
+        if used + units <= self.LIMIT_PER_MINUTE:
+            return 0.0
+
+        required_units = (used + units) - self.LIMIT_PER_MINUTE
+        released_units = 0
+        for event in events:
+            released_units += int(event.get("units", 0))
+            event_time = self._event_time(event)
+            if event_time is None:
+                continue
+            wait_seconds = max((event_time + timedelta(seconds=self.WINDOW_SECONDS) - local_now).total_seconds(), 0.0)
+            if released_units >= required_units:
+                return wait_seconds
+        return float(self.WINDOW_SECONDS)
+
     def _load_payload(self) -> dict[str, list[dict[str, object]]]:
         try:
             payload = json.loads(self.path.read_text(encoding="utf-8"))
@@ -86,16 +106,21 @@ class GmailQuotaTracker:
         for event in events:
             if not isinstance(event, dict):
                 continue
-            timestamp = event.get("timestamp")
-            if not isinstance(timestamp, str):
-                continue
-            try:
-                event_time = datetime.fromisoformat(timestamp)
-            except ValueError:
+            event_time = self._event_time(event)
+            if event_time is None:
                 continue
             if event_time >= cutoff:
                 pruned.append(event)
         return pruned
+
+    def _event_time(self, event: dict[str, object]) -> datetime | None:
+        timestamp = event.get("timestamp")
+        if not isinstance(timestamp, str):
+            return None
+        try:
+            return datetime.fromisoformat(timestamp)
+        except ValueError:
+            return None
 
     def _set_mode(self, path: Path, mode: int) -> None:
         try:

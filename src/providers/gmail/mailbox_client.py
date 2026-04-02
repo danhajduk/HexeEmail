@@ -24,6 +24,9 @@ class GmailMailboxClient:
     MESSAGE_LIST_QUOTA_UNITS = 5
     MESSAGE_GET_QUOTA_UNITS = 5
     LABEL_LIST_QUOTA_UNITS = 1
+    QUOTA_SLOWDOWN_THRESHOLD = 0.90
+    QUOTA_PAUSE_THRESHOLD = 0.99
+    QUOTA_SLOWDOWN_DELAY_SECONDS = 0.5
 
     def __init__(
         self,
@@ -284,6 +287,20 @@ class GmailMailboxClient:
         quota_units: int,
     ) -> httpx.Response:
         if self.quota_tracker is not None:
+            snapshot = self.quota_tracker.snapshot(account_id)
+            used_ratio = (
+                snapshot.used_last_minute / snapshot.limit_per_minute
+                if snapshot.limit_per_minute > 0
+                else 0.0
+            )
+            if used_ratio >= self.QUOTA_PAUSE_THRESHOLD:
+                pause_seconds = max(
+                    self.quota_tracker.seconds_until_available(account_id, quota_units),
+                    self.QUOTA_SLOWDOWN_DELAY_SECONDS,
+                )
+                await asyncio.sleep(pause_seconds)
+            elif used_ratio >= self.QUOTA_SLOWDOWN_THRESHOLD:
+                await asyncio.sleep(self.QUOTA_SLOWDOWN_DELAY_SECONDS)
             try:
                 self.quota_tracker.reserve(account_id, quota_units, operation)
             except GmailQuotaLimitError as exc:
