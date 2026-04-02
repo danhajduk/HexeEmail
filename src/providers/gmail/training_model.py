@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 from providers.gmail.runtime import GmailRuntimeLayout
+from providers.gmail.training import NORMALIZATION_VERSION
 
 
 class GmailTrainingModelError(RuntimeError):
@@ -29,6 +30,7 @@ class GmailTrainingModelStore:
                 "train_count": 0,
                 "test_count": 0,
                 "test_accuracy": None,
+                "normalization_version": NORMALIZATION_VERSION,
                 "class_counts": {},
                 "detail": "Model has not been trained yet.",
             }
@@ -39,6 +41,7 @@ class GmailTrainingModelStore:
             "train_count": int(meta.get("train_count", 0) or 0),
             "test_count": int(meta.get("test_count", 0) or 0),
             "test_accuracy": meta.get("test_accuracy"),
+            "normalization_version": meta.get("normalization_version") or NORMALIZATION_VERSION,
             "class_counts": meta.get("class_counts", {}),
             "detail": meta.get("detail") or "Model is available.",
         }
@@ -92,6 +95,7 @@ class GmailTrainingModelStore:
             "train_count": len(train_texts),
             "test_count": len(test_texts),
             "test_accuracy": test_accuracy,
+            "normalization_version": NORMALIZATION_VERSION,
             "class_counts": class_counts,
             "detail": "TF-IDF + LogisticRegression model trained from manual classifications with an 80/20 split.",
         }

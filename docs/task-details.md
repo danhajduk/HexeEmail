@@ -39,3 +39,15 @@ Original task details:
 - show semi-auto results for manual reclassification
 - if classification changes, mark it as manual
 - all manual classifications should use confidence 1.0
+
+## Task 082
+Original task details:
+- normalize every email into a clean, stable flat text format for TF-IDF -> Logistic Regression
+- use the same normalization for training, inference, retraining, and evaluation
+- bump and persist a normalization_version in model metadata when normalization changes
+- output format should include sender, domain, recipient flags, normalized subject, normalized flags, and cleaned body
+- lowercase all normalized text fields and boolean tokens
+- normalize sender email and sender domain
+- replace raw recipient text with recipient flags and bucketed recipient count
+- aggressively normalize subject prefixes and punctuation
+- clean body by decoding entities, removing tags, replacing URLs with `url`, normalizing numbers to `number`, removing noise, truncating to a fixed preview length, and collapsing whitespace

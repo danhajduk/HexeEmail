@@ -156,7 +156,7 @@ class GmailTrainingRecipientFlags(BaseModel):
 
     to_me_only: bool = False
     cc_me: bool = False
-    recipient_count: int = 0
+    recipient_count: str = "rc_1"
 
 
 class GmailTrainingFlags(BaseModel):
