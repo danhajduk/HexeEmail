@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime, timedelta
 import pytest
 from fastapi.responses import JSONResponse
 from httpx import ASGITransport, AsyncClient
@@ -44,6 +45,32 @@ async def test_ui_bootstrap_reports_missing_inputs(runtime_dir, core_client_fact
         "task.summarization",
         "task.tracking",
     ]
+    assert body["status"]["mqtt_health"]["status_freshness_state"] == "inactive"
+    assert body["status"]["mqtt_health"]["health_status"] == "offline"
+
+
+@pytest.mark.asyncio
+async def test_ui_bootstrap_reports_mqtt_health_from_telemetry(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    service.state.trust_state = "trusted"
+    service.state.node_id = "node-1"
+    service.mqtt_manager.status.state = "connected"
+    service.state.last_heartbeat_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(seconds=120)
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/ui/bootstrap")
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"]["mqtt_health"]["status_freshness_state"] == "fresh"
+    assert body["status"]["mqtt_health"]["health_status"] == "connected"
+    assert body["status"]["mqtt_health"]["status_age_s"] is not None
+    assert body["status"]["mqtt_health"]["status_stale_after_s"] == 300
+    assert body["status"]["mqtt_health"]["status_inactive_after_s"] == 1800
 
 
 def test_setup_logging_writes_api_log(tmp_path, monkeypatch):

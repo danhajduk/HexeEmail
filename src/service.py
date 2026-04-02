@@ -18,6 +18,7 @@ from logging_utils import get_logger
 from models import (
     GmailConnectStartResponse,
     GmailOAuthCallbackResponse,
+    MqttHealthResponse,
     OnboardingStatusResponse,
     OperatorConfig,
     OperatorConfigInput,
@@ -559,6 +560,53 @@ class NodeService:
         self.state.last_heartbeat_at = datetime.now(UTC).replace(tzinfo=None)
         self.state_store.save(self.state)
 
+    def _mqtt_health_snapshot(self) -> MqttHealthResponse:
+        stale_after_s = max(30, int(self.config.node_status_stale_after_s))
+        inactive_after_s = max(int(self.config.node_status_inactive_after_s), stale_after_s + 1)
+        connection_state = self.mqtt_manager.status.state
+        last_status_report_at = self.state.last_heartbeat_at
+        status_age_s: int | None = None
+        status_freshness_state = "unknown"
+        health_status: str | None = None
+        status_stale = False
+        status_inactive = False
+
+        if last_status_report_at is not None:
+            age_delta = datetime.now(UTC).replace(tzinfo=None) - last_status_report_at
+            status_age_s = max(0, int(age_delta.total_seconds()))
+            if status_age_s > inactive_after_s:
+                status_inactive = True
+                status_stale = True
+                status_freshness_state = "inactive"
+                health_status = "offline"
+            elif status_age_s > stale_after_s:
+                status_stale = True
+                status_freshness_state = "stale"
+                health_status = "degraded"
+            else:
+                status_freshness_state = "fresh"
+                health_status = "connected" if connection_state == "connected" else "degraded"
+        elif connection_state == "connected":
+            health_status = "unknown"
+        elif connection_state in {"connecting", "reconnecting"}:
+            health_status = "degraded"
+        else:
+            health_status = "offline"
+            status_freshness_state = "inactive"
+            status_inactive = True
+            status_stale = True
+
+        return MqttHealthResponse(
+            health_status=health_status,
+            status_freshness_state=status_freshness_state,
+            status_stale=status_stale,
+            status_inactive=status_inactive,
+            status_age_s=status_age_s,
+            status_stale_after_s=stale_after_s,
+            status_inactive_after_s=inactive_after_s,
+            last_status_report_at=last_status_report_at,
+        )
+
     def health_snapshot(self) -> dict[str, object]:
         ready = self.ready and (self.state.trust_state != "trusted" or self.state.operational_readiness)
         return {
@@ -599,6 +647,7 @@ class NodeService:
 
     async def status(self) -> StatusResponse:
         provider_overview = await self._provider_status_snapshot_async()
+        mqtt_health = self._mqtt_health_snapshot()
         return StatusResponse(
             node_name=self.effective_node_name() or "",
             node_type=self.config.node_type,
@@ -607,6 +656,7 @@ class NodeService:
             node_id=self.state.node_id,
             paired_core_id=self.state.paired_core_id,
             mqtt_connection_status=self.mqtt_manager.status.state,
+            mqtt_health=mqtt_health,
             operational_mqtt_host=self.state.operational_mqtt_host,
             operational_mqtt_port=self.state.operational_mqtt_port,
             onboarding_status=self.state.onboarding_status,

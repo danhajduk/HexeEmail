@@ -93,6 +93,17 @@ class OnboardingStatusResponse(BaseModel):
     required_inputs: list[str] = Field(default_factory=list)
 
 
+class MqttHealthResponse(BaseModel):
+    health_status: str | None = None
+    status_freshness_state: str = "unknown"
+    status_stale: bool = False
+    status_inactive: bool = False
+    status_age_s: int | None = None
+    status_stale_after_s: int
+    status_inactive_after_s: int
+    last_status_report_at: datetime | None = None
+
+
 class StatusResponse(BaseModel):
     node_name: str
     node_type: str
@@ -101,6 +112,7 @@ class StatusResponse(BaseModel):
     node_id: str | None
     paired_core_id: str | None = None
     mqtt_connection_status: str
+    mqtt_health: MqttHealthResponse
     operational_mqtt_host: str | None = None
     operational_mqtt_port: int | None = None
     onboarding_status: OnboardingStatus

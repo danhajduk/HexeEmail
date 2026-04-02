@@ -39,6 +39,8 @@ class AppConfig(BaseSettings):
     onboarding_protocol_version: str = Field(default="1.0", alias="ONBOARDING_PROTOCOL_VERSION")
     onboarding_poll_interval_seconds: float = Field(default=2.0, alias="ONBOARDING_POLL_INTERVAL_SECONDS")
     mqtt_heartbeat_seconds: float = Field(default=30.0, alias="MQTT_HEARTBEAT_SECONDS")
+    node_status_stale_after_s: int = Field(default=300, alias="SYNTHIA_NODE_STATUS_STALE_AFTER_S")
+    node_status_inactive_after_s: int = Field(default=1800, alias="SYNTHIA_NODE_STATUS_INACTIVE_AFTER_S")
     providers: ProviderConfigs = Field(default_factory=ProviderConfigs)
 
     @field_validator("core_base_url", "node_name", mode="before")
