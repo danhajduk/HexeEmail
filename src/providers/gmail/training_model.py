@@ -9,6 +9,7 @@ from pathlib import Path
 
 from providers.gmail.runtime import GmailRuntimeLayout
 from providers.gmail.training import NORMALIZATION_VERSION
+from providers.gmail.models import GmailTrainingDatasetRow, GmailTrainingDatasetSummary
 
 
 class GmailTrainingModelError(RuntimeError):
@@ -43,14 +44,25 @@ class GmailTrainingModelStore:
             "test_accuracy": meta.get("test_accuracy"),
             "normalization_version": meta.get("normalization_version") or NORMALIZATION_VERSION,
             "class_counts": meta.get("class_counts", {}),
+            "weighted_counts": meta.get("weighted_counts", {}),
+            "label_sources": meta.get("label_sources", {}),
+            "excluded_mailbox_labels": meta.get("excluded_mailbox_labels", []),
+            "gmail_mapping_config": meta.get("gmail_mapping_config", {}),
+            "dataset_summary": meta.get("dataset_summary", {}),
             "detail": meta.get("detail") or "Model is available.",
         }
 
-    def train(self, texts: list[str], labels: list[str]) -> dict[str, object]:
-        if len(texts) != len(labels):
-            raise GmailTrainingModelError("training texts and labels must have the same length")
+    def train_classifier(
+        self,
+        dataset: list[GmailTrainingDatasetRow],
+        *,
+        dataset_summary: GmailTrainingDatasetSummary,
+    ) -> dict[str, object]:
+        texts = [row.normalized_text for row in dataset]
+        labels = [row.label.value for row in dataset]
+        weights = [float(row.sample_weight) for row in dataset]
         if len(texts) < 2:
-            raise GmailTrainingModelError("at least two manually classified emails are required to train the model")
+            raise GmailTrainingModelError("at least two classified emails are required to train the model")
         if len(set(labels)) < 2:
             raise GmailTrainingModelError("training requires at least two distinct labels")
 
@@ -68,9 +80,10 @@ class GmailTrainingModelStore:
             raise GmailTrainingModelError("training requires enough manual classifications to support an 80/20 split")
 
         stratify_labels = labels if len(set(labels)) > 1 and min(Counter(labels).values()) >= 2 else None
-        train_texts, test_texts, train_labels, test_labels = train_test_split(
+        train_texts, test_texts, train_labels, test_labels, train_weights, test_weights = train_test_split(
             texts,
             labels,
+            weights,
             test_size=test_count,
             random_state=42,
             stratify=stratify_labels,
@@ -82,13 +95,18 @@ class GmailTrainingModelStore:
                 ("logreg", LogisticRegression(max_iter=1000, class_weight="balanced")),
             ]
         )
-        pipeline.fit(train_texts, train_labels)
-        test_accuracy = float(pipeline.score(test_texts, test_labels)) if test_texts else None
+        pipeline.fit(train_texts, train_labels, logreg__sample_weight=train_weights)
+        test_accuracy = float(pipeline.score(test_texts, test_labels, sample_weight=test_weights)) if test_texts else None
 
         self.layout.training_model_path.write_bytes(pickle.dumps(pipeline))
         self._set_mode(self.layout.training_model_path, 0o600)
 
         class_counts = dict(Counter(labels))
+        weighted_counts: dict[str, float] = {}
+        label_sources: dict[str, int] = {}
+        for row in dataset:
+            weighted_counts[row.label.value] = round(weighted_counts.get(row.label.value, 0.0) + float(row.sample_weight), 4)
+            label_sources[row.label_source] = label_sources.get(row.label_source, 0) + 1
         meta = {
             "trained_at": datetime.now().astimezone().isoformat(),
             "sample_count": sample_count,
@@ -97,11 +115,39 @@ class GmailTrainingModelStore:
             "test_accuracy": test_accuracy,
             "normalization_version": NORMALIZATION_VERSION,
             "class_counts": class_counts,
-            "detail": "TF-IDF + LogisticRegression model trained from manual classifications with an 80/20 split.",
+            "weighted_counts": weighted_counts,
+            "label_sources": label_sources,
+            "excluded_mailbox_labels": dataset_summary.excluded_mailbox_labels,
+            "gmail_mapping_config": dataset_summary.gmail_mapping_config,
+            "dataset_summary": dataset_summary.model_dump(mode="json"),
+            "detail": "TF-IDF + LogisticRegression model trained from weighted local and bootstrap labels with an 80/20 split.",
         }
         self.layout.training_model_meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         self._set_mode(self.layout.training_model_meta_path, 0o600)
         return self.status()
+
+    def train(self, texts: list[str], labels: list[str]) -> dict[str, object]:
+        dataset = [
+            GmailTrainingDatasetRow(
+                account_id="legacy",
+                message_id=f"legacy-{idx}",
+                normalized_text=text,
+                label=label,
+                label_source="manual",
+                sample_weight=1.0,
+                normalization_version=NORMALIZATION_VERSION,
+                received_at=datetime.now().astimezone(),
+            )
+            for idx, (text, label) in enumerate(zip(texts, labels, strict=False))
+        ]
+        summary = GmailTrainingDatasetSummary(
+            total_rows_scanned=len(dataset),
+            included_count=len(dataset),
+            included_by_label_source={"manual": len(dataset)},
+            per_label_counts=dict(Counter(labels)),
+            weighted_counts={label: float(count) for label, count in Counter(labels).items()},
+        )
+        return self.train_classifier(dataset, dataset_summary=summary)
 
     def predict(self, texts: list[str], *, threshold: float) -> list[dict[str, object]]:
         if not texts:

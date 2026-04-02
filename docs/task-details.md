@@ -51,3 +51,15 @@ Original task details:
 - replace raw recipient text with recipient flags and bucketed recipient count
 - aggressively normalize subject prefixes and punctuation
 - clean body by decoding entities, removing tags, replacing URLs with `url`, normalizing numbers to `number`, removing noise, truncating to a fixed preview length, and collapsing whitespace
+
+## Task 083
+Original task details:
+- redesign the email classifier training pipeline around all-mail ingestion from `gmail_messages`
+- exclude SENT, DRAFT, TRASH, and SPAM from training
+- use manual labels as highest-trust samples, weighted local auto labels as secondary samples, and Gmail/rule bootstrap labels as weak supervision
+- keep `unknown` out of training by default
+- keep raw Gmail labels out of TF-IDF input text
+- add Gmail weak-supervision mapping and bootstrap scoring with precedence rules
+- build normalized weighted dataset rows and a dataset summary report
+- train TF-IDF + LogisticRegression with sample weights
+- save richer model metadata including mapping config, excluded labels, and dataset stats

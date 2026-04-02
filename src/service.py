@@ -1116,8 +1116,15 @@ class NodeService:
             "provider_id": "gmail",
             "account_id": account_id,
             "threshold": self.config.gmail_local_classification_threshold,
+            "bootstrap_threshold": self.config.gmail_training_bootstrap_threshold,
             "message_store": await adapter.message_store_summary(account_id) if hasattr(adapter, "message_store_summary") else None,
             "classification_summary": await adapter.local_classification_summary(account_id) if hasattr(adapter, "local_classification_summary") else None,
+            "dataset_summary": await adapter.training_dataset_summary(
+                account_id,
+                bootstrap_threshold=self.config.gmail_training_bootstrap_threshold,
+            )
+            if hasattr(adapter, "training_dataset_summary")
+            else None,
             "model_status": await adapter.training_model_status() if hasattr(adapter, "training_model_status") else None,
         }
 
@@ -1153,7 +1160,10 @@ class NodeService:
         if not hasattr(adapter, "train_local_model"):
             raise ValueError("gmail training actions are not available")
         try:
-            return await adapter.train_local_model(account_id)
+            return await adapter.train_local_model(
+                account_id,
+                bootstrap_threshold=self.config.gmail_training_bootstrap_threshold,
+            )
         except Exception as exc:
             raise ValueError(str(exc)) from exc
 

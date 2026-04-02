@@ -43,6 +43,7 @@ class AppConfig(BaseSettings):
     gmail_status_poll_on_startup: bool = Field(default=True, alias="GMAIL_STATUS_POLL_ON_STARTUP")
     gmail_fetch_poll_on_startup: bool = Field(default=True, alias="GMAIL_FETCH_POLL_ON_STARTUP")
     gmail_local_classification_threshold: float = Field(default=0.6, alias="GMAIL_LOCAL_CLASSIFICATION_THRESHOLD")
+    gmail_training_bootstrap_threshold: float = Field(default=3.0, alias="GMAIL_TRAINING_BOOTSTRAP_THRESHOLD")
     node_status_stale_after_s: int = Field(default=300, alias="SYNTHIA_NODE_STATUS_STALE_AFTER_S")
     node_status_inactive_after_s: int = Field(default=1800, alias="SYNTHIA_NODE_STATUS_INACTIVE_AFTER_S")
     providers: ProviderConfigs = Field(default_factory=ProviderConfigs)

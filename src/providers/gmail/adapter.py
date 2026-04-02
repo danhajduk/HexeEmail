@@ -30,6 +30,7 @@ from providers.gmail.state_machine import GmailAccountStateMachine
 from providers.gmail.token_client import GmailTokenExchangeClient
 from providers.gmail.token_store import GmailTokenStore
 from providers.gmail.training import flatten_message, render_flat_training_text, render_raw_training_text
+from providers.gmail.training import build_training_dataset
 from providers.gmail.training_model import GmailTrainingModelStore
 from providers.models import ProviderAccountRecord, ProviderHealth, ProviderId, ProviderState, ProviderValidationResult
 
@@ -272,6 +273,16 @@ class GmailProviderAdapter(EmailProviderAdapter):
     async def training_model_status(self) -> dict[str, object]:
         return self.training_model_store.status()
 
+    async def training_dataset_summary(self, account_id: str, *, bootstrap_threshold: float) -> dict[str, object]:
+        account_record = self.account_store.load_account(account_id)
+        dataset, summary = build_training_dataset(
+            self.message_store.list_all_messages(account_id),
+            my_addresses=[account_record.email_address] if account_record and account_record.email_address else [],
+            bootstrap_threshold=bootstrap_threshold,
+        )
+        del dataset
+        return summary.model_dump(mode="json")
+
     async def spamhaus_summary(self, account_id: str) -> GmailSpamhausSummary:
         return self.message_store.spamhaus_summary(account_id)
 
@@ -312,14 +323,20 @@ class GmailProviderAdapter(EmailProviderAdapter):
             saved += 1
         return {"provider_id": self.provider_id, "account_id": account_id, "saved_count": saved}
 
-    async def train_local_model(self, account_id: str) -> dict[str, object]:
+    async def train_local_model(self, account_id: str, *, bootstrap_threshold: float) -> dict[str, object]:
         account_record = self.account_store.load_account(account_id)
-        messages = self.message_store.list_manual_training_examples(account_id)
-        flattened = [flatten_message(message, account_email=account_record.email_address if account_record is not None else None) for message in messages]
-        texts = [render_flat_training_text(item) for item in flattened]
-        labels = [item.local_label for item in flattened if item.local_label]
-        status = self.training_model_store.train(texts, labels)
-        return {"provider_id": self.provider_id, "account_id": account_id, "model_status": status}
+        dataset, summary = build_training_dataset(
+            self.message_store.list_all_messages(account_id),
+            my_addresses=[account_record.email_address] if account_record and account_record.email_address else [],
+            bootstrap_threshold=bootstrap_threshold,
+        )
+        status = self.training_model_store.train_classifier(dataset, dataset_summary=summary)
+        return {
+            "provider_id": self.provider_id,
+            "account_id": account_id,
+            "model_status": status,
+            "dataset_summary": summary.model_dump(mode="json"),
+        }
 
     async def semi_auto_training_batch(self, account_id: str, *, threshold: float, limit: int = 20) -> dict[str, object]:
         account_record = self.account_store.load_account(account_id)

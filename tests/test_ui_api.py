@@ -744,12 +744,14 @@ async def test_gmail_training_api_supports_model_training_and_semi_auto_review(c
                 "trained_at": "2026-04-02T12:10:00-07:00",
                 "sample_count": 2,
                 "class_counts": {"direct_human": 1, "invoice": 1},
+                "dataset_summary": {"included_count": 2},
                 "detail": "trained in test",
             }
 
-        def train(self, texts, labels):
-            assert len(texts) == 2
-            assert labels == ["direct_human", "invoice"]
+        def train_classifier(self, dataset, *, dataset_summary):
+            assert len(dataset) == 2
+            assert [row.label.value for row in dataset] == ["direct_human", "invoice"]
+            assert dataset_summary.included_count == 2
             self.trained = True
             return self.status()
 

@@ -265,6 +265,34 @@ class GmailQuotaUsageSnapshot(BaseModel):
     last_request_at: datetime | None = None
 
 
+class GmailTrainingDatasetRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    account_id: str
+    message_id: str
+    normalized_text: str
+    label: GmailTrainingLabel
+    label_source: Literal["manual", "local_auto", "gmail_bootstrap", "rule_bootstrap"]
+    sample_weight: float
+    normalization_version: str
+    received_at: datetime
+
+
+class GmailTrainingDatasetSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    total_rows_scanned: int = 0
+    excluded_mailbox_count: int = 0
+    excluded_no_label_count: int = 0
+    included_count: int = 0
+    included_by_label_source: dict[str, int] = Field(default_factory=dict)
+    per_label_counts: dict[str, int] = Field(default_factory=dict)
+    weighted_counts: dict[str, float] = Field(default_factory=dict)
+    excluded_mailbox_labels: list[str] = Field(default_factory=list)
+    gmail_mapping_config: dict[str, str] = Field(default_factory=dict)
+    bootstrap_threshold: float = 0.0
+
+
 class GmailFetchWindowState(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

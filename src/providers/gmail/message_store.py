@@ -167,6 +167,32 @@ class GmailMessageStore:
             ).fetchone()
         return int(row["count"]) if row is not None else 0
 
+    def list_all_messages(self, account_id: str) -> list[GmailStoredMessage]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    account_id,
+                    message_id,
+                    thread_id,
+                    subject,
+                    sender,
+                    recipients,
+                    snippet,
+                    label_ids,
+                    received_at,
+                    raw_payload,
+                    local_label,
+                    local_label_confidence,
+                    manual_classification
+                FROM gmail_messages
+                WHERE account_id = ?
+                ORDER BY received_at DESC
+                """,
+                (account_id,),
+            ).fetchall()
+        return [self._row_to_message(row) for row in rows]
+
     def account_summary(self, account_id: str) -> dict[str, object]:
         with self._connect() as connection:
             row = connection.execute(
