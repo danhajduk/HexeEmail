@@ -55,7 +55,19 @@ class GmailMailboxClient:
         )
 
     async def _count_query(self, access_token: str, query: str) -> int:
-        return len(await self._list_message_ids(access_token, query))
+        response = await self._client.get(
+            self.MESSAGES_ENDPOINT,
+            params={"q": query, "maxResults": 1, "fields": "resultSizeEstimate"},
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        payload = self._json_payload(response, "gmail mailbox query")
+        if response.is_error:
+            detail = payload.get("error", {}).get("message") if isinstance(payload, dict) else None
+            raise GmailMailboxClientError(detail or f"gmail mailbox query failed with status {response.status_code}")
+        if not isinstance(payload, dict):
+            raise GmailMailboxClientError("gmail mailbox query returned an invalid payload")
+        estimate = payload.get("resultSizeEstimate")
+        return int(estimate) if isinstance(estimate, int) else 0
 
     def _unread_range_query(self, after: datetime, before: datetime) -> str:
         return f"is:unread after:{int(after.timestamp())} before:{int(before.timestamp())}"

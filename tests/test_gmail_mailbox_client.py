@@ -12,25 +12,15 @@ from providers.gmail.models import GmailTokenRecord
 
 def build_google_mailbox_app():
     app = FastAPI()
-    responses = {
-        "is:unread in:inbox": [{"messages": [{"id": f"inbox-{index}"} for index in range(11)]}],
-        "is:unread after:": [
-            {"messages": [{"id": "today-1"}, {"id": "today-2"}, {"id": "today-3"}]},
-            {"messages": [{"id": "yesterday-1"}, {"id": "yesterday-2"}, {"id": "yesterday-3"}, {"id": "yesterday-4"}]},
-            {"messages": [{"id": f"week-{index}"} for index in range(9)]},
-        ],
-    }
-    unread_range_index = {"value": 0}
+    counters = iter([3, 4, 9])
 
     @app.get("/messages")
     async def messages(q: str = Query(default="")):
         if q == "is:unread in:inbox":
-            return responses["is:unread in:inbox"][0]
+            return {"resultSizeEstimate": 11}
         if q.startswith("is:unread after:"):
-            current = unread_range_index["value"]
-            unread_range_index["value"] += 1
-            return responses["is:unread after:"][current]
-        return {"messages": []}
+            return {"resultSizeEstimate": next(counters)}
+        return {"resultSizeEstimate": 0}
 
     return app
 

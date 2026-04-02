@@ -8,6 +8,7 @@ export default defineConfig({
   server: {
     port: 8083,
     proxy: {
+      "/api": apiTarget,
       "/health": apiTarget,
       "/status": apiTarget,
       "/onboarding": apiTarget,

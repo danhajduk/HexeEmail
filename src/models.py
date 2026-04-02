@@ -26,6 +26,24 @@ class OperatorConfigInput(BaseModel):
     selected_task_capabilities: list[str] = Field(default_factory=list)
 
 
+class TaskCapabilitySelectionInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    selected_task_capabilities: list[str] = Field(default_factory=list)
+
+
+class RefreshTriggerRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    force_refresh: bool = False
+
+
+class ServiceRestartRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    target: str
+
+
 class RuntimeState(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

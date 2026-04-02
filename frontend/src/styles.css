@@ -121,9 +121,12 @@
   margin-left: 6px;
 }
 
+.app-header-meta > :last-child {
+  margin-left: auto;
+}
+
 .grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 24px;
 }
 
@@ -174,6 +177,10 @@
 .operational-dashboard-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: start;
+}
+
+.degraded-state-banner {
+  grid-column: 1 / -1;
 }
 
 .card-header {
@@ -654,7 +661,12 @@
 }
 
 .provider-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
+}
+
+.setup-secondary-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .compact-stack {
@@ -663,12 +675,22 @@
 
 
 @media (max-width: 900px) {
+  .app-frame {
+    width: 94vw;
+    max-width: 94vw;
+  }
+
   .app-shell,
-  .hero,
   .operational-shell,
   .dashboard-stack,
-  .grid {
+  .provider-grid,
+  .setup-secondary-grid,
+  .operational-dashboard-grid {
     grid-template-columns: 1fr;
+  }
+
+  .hero {
+    flex-direction: column;
   }
 
   .hero-status {
@@ -693,5 +715,29 @@
 
   .state-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-frame {
+    padding: 12px;
+  }
+
+  .node-health-strip-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-actions,
+  .app-header-actions,
+  .row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .hero-actions .btn,
+  .app-header-actions .btn,
+  .row .btn {
+    width: 100%;
+    justify-content: center;
   }
 }
