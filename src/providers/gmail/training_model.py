@@ -26,6 +26,9 @@ class GmailTrainingModelStore:
                 "trained": False,
                 "trained_at": None,
                 "sample_count": 0,
+                "train_count": 0,
+                "test_count": 0,
+                "test_accuracy": None,
                 "class_counts": {},
                 "detail": "Model has not been trained yet.",
             }
@@ -33,6 +36,9 @@ class GmailTrainingModelStore:
             "trained": True,
             "trained_at": meta.get("trained_at"),
             "sample_count": int(meta.get("sample_count", 0) or 0),
+            "train_count": int(meta.get("train_count", 0) or 0),
+            "test_count": int(meta.get("test_count", 0) or 0),
+            "test_accuracy": meta.get("test_accuracy"),
             "class_counts": meta.get("class_counts", {}),
             "detail": meta.get("detail") or "Model is available.",
         }
@@ -48,9 +54,24 @@ class GmailTrainingModelStore:
         try:
             from sklearn.feature_extraction.text import TfidfVectorizer
             from sklearn.linear_model import LogisticRegression
+            from sklearn.model_selection import train_test_split
             from sklearn.pipeline import Pipeline
         except ModuleNotFoundError as exc:
             raise GmailTrainingModelError("scikit-learn is required for TF-IDF + LogisticRegression training") from exc
+
+        sample_count = len(texts)
+        test_count = max(1, round(sample_count * 0.2))
+        if sample_count - test_count < 2:
+            raise GmailTrainingModelError("training requires enough manual classifications to support an 80/20 split")
+
+        stratify_labels = labels if len(set(labels)) > 1 and min(Counter(labels).values()) >= 2 else None
+        train_texts, test_texts, train_labels, test_labels = train_test_split(
+            texts,
+            labels,
+            test_size=test_count,
+            random_state=42,
+            stratify=stratify_labels,
+        )
 
         pipeline = Pipeline(
             [
@@ -58,7 +79,8 @@ class GmailTrainingModelStore:
                 ("logreg", LogisticRegression(max_iter=1000, class_weight="balanced")),
             ]
         )
-        pipeline.fit(texts, labels)
+        pipeline.fit(train_texts, train_labels)
+        test_accuracy = float(pipeline.score(test_texts, test_labels)) if test_texts else None
 
         self.layout.training_model_path.write_bytes(pickle.dumps(pipeline))
         self._set_mode(self.layout.training_model_path, 0o600)
@@ -66,9 +88,12 @@ class GmailTrainingModelStore:
         class_counts = dict(Counter(labels))
         meta = {
             "trained_at": datetime.now().astimezone().isoformat(),
-            "sample_count": len(texts),
+            "sample_count": sample_count,
+            "train_count": len(train_texts),
+            "test_count": len(test_texts),
+            "test_accuracy": test_accuracy,
             "class_counts": class_counts,
-            "detail": "TF-IDF + LogisticRegression model trained from manual classifications.",
+            "detail": "TF-IDF + LogisticRegression model trained from manual classifications with an 80/20 split.",
         }
         self.layout.training_model_meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         self._set_mode(self.layout.training_model_meta_path, 0o600)

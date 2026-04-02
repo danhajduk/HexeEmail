@@ -733,7 +733,9 @@ function TrainingPage({
               Classified: {trainingStatus?.classification_summary?.classified_count ?? 0}
             </div>
             <div className="callout">
-              Model: {trainingStatus?.model_status?.trained ? `trained (${trainingStatus?.model_status?.sample_count ?? 0})` : "not trained"}
+              Model: {trainingStatus?.model_status?.trained
+                ? `trained (${trainingStatus?.model_status?.train_count ?? 0} train / ${trainingStatus?.model_status?.test_count ?? 0} test)`
+                : "not trained"}
             </div>
             {trainingStatus?.classification_summary?.per_label
               ? (
