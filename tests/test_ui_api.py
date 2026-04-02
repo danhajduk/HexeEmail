@@ -23,6 +23,7 @@ from providers.gmail.models import (
     GmailSpamhausCheck,
     GmailStoredMessage,
     GmailTokenRecord,
+    GmailTrainingLabel,
 )
 from service import NodeService
 from tests.helpers import FakeMQTTManager, build_core_app
@@ -660,6 +661,145 @@ async def test_gmail_training_api_returns_manual_batch_and_saves_labels(config, 
     saved_message = adapter.message_store.list_messages("primary", limit=1)[0]
     assert saved_message.local_label == "direct_human"
     assert saved_message.local_label_confidence == 0.95
+    assert saved_message.manual_classification is True
+
+
+@pytest.mark.asyncio
+async def test_gmail_training_api_supports_model_training_and_semi_auto_review(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    adapter = service.provider_registry.get_provider("gmail")
+    adapter.account_store.save_account(
+        adapter.state_machine.ensure_account("primary").model_copy(
+            update={"status": "connected", "email_address": "primary@example.com"}
+        )
+    )
+    adapter.message_store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="train-1",
+                sender="Sender <sender@example.com>",
+                recipients=["primary@example.com"],
+                subject="Human follow up",
+                snippet="Please review this directly",
+                label_ids=["INBOX"],
+                received_at=datetime(2026, 4, 1, 12, 0, 0).astimezone(),
+            ),
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="train-2",
+                sender="Billing <billing@example.com>",
+                recipients=["primary@example.com"],
+                subject="Invoice ready",
+                snippet="Your invoice is attached",
+                label_ids=["INBOX"],
+                received_at=datetime(2026, 4, 1, 13, 0, 0).astimezone(),
+            ),
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="predict-1",
+                sender="Unknown <unknown@example.com>",
+                recipients=["primary@example.com"],
+                subject="Need attention",
+                snippet="Please check this item",
+                label_ids=["INBOX"],
+                received_at=datetime(2026, 4, 1, 10, 0, 0).astimezone(),
+            ),
+        ],
+        now=datetime(2026, 4, 2, 12, 5, 0).astimezone(),
+    )
+    adapter.message_store.update_local_classification(
+        "primary",
+        "train-1",
+        label=GmailTrainingLabel.DIRECT_HUMAN,
+        confidence=1.0,
+        manual_classification=True,
+    )
+    adapter.message_store.update_local_classification(
+        "primary",
+        "train-2",
+        label=GmailTrainingLabel.INVOICE,
+        confidence=1.0,
+        manual_classification=True,
+    )
+
+    class FakeTrainingModelStore:
+        def __init__(self) -> None:
+            self.trained = False
+
+        def status(self):
+            if not self.trained:
+                return {
+                    "trained": False,
+                    "trained_at": None,
+                    "sample_count": 0,
+                    "class_counts": {},
+                    "detail": "Model has not been trained yet.",
+                }
+            return {
+                "trained": True,
+                "trained_at": "2026-04-02T12:10:00-07:00",
+                "sample_count": 2,
+                "class_counts": {"direct_human": 1, "invoice": 1},
+                "detail": "trained in test",
+            }
+
+        def train(self, texts, labels):
+            assert len(texts) == 2
+            assert labels == ["direct_human", "invoice"]
+            self.trained = True
+            return self.status()
+
+        def predict(self, texts, *, threshold):
+            assert threshold == 0.6
+            assert len(texts) == 1
+            return [
+                {
+                    "predicted_label": "direct_human",
+                    "predicted_confidence": 0.82,
+                    "raw_predicted_label": "direct_human",
+                }
+            ]
+
+    adapter.training_model_store = FakeTrainingModelStore()
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        train_response = await client.post("/api/gmail/training/train-model")
+        batch_response = await client.post("/api/gmail/training/semi-auto-batch")
+        save_response = await client.post(
+            "/api/gmail/training/semi-auto-review",
+            json={
+                "items": [
+                    {
+                        "message_id": "predict-1",
+                        "selected_label": "financial",
+                        "predicted_label": "direct_human",
+                        "predicted_confidence": 0.82,
+                    }
+                ]
+            },
+        )
+
+    await service.stop()
+
+    assert train_response.status_code == 200
+    assert train_response.json()["model_status"]["trained"] is True
+
+    assert batch_response.status_code == 200
+    batch_body = batch_response.json()
+    assert batch_body["source"] == "semi_auto"
+    assert batch_body["count"] == 1
+    assert batch_body["items"][0]["predicted_label"] == "direct_human"
+    assert batch_body["items"][0]["predicted_confidence"] == 0.82
+
+    assert save_response.status_code == 200
+    assert save_response.json()["saved_count"] == 1
+    assert save_response.json()["manual_count"] == 1
+    saved_message = next(message for message in adapter.message_store.list_messages("primary", limit=10) if message.message_id == "predict-1")
+    assert saved_message.local_label == "financial"
+    assert saved_message.local_label_confidence == 1.0
     assert saved_message.manual_classification is True
 
 

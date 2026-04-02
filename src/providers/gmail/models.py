@@ -191,7 +191,7 @@ class GmailManualClassificationInput(BaseModel):
 
     message_id: str
     label: GmailTrainingLabel
-    confidence: float
+    confidence: float = 1.0
 
     @field_validator("confidence")
     @classmethod
@@ -205,6 +205,28 @@ class GmailManualClassificationBatchInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     items: list[GmailManualClassificationInput] = Field(default_factory=list)
+
+
+class GmailSemiAutoClassificationInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    message_id: str
+    selected_label: GmailTrainingLabel
+    predicted_label: GmailTrainingLabel
+    predicted_confidence: float
+
+    @field_validator("predicted_confidence")
+    @classmethod
+    def validate_predicted_confidence(cls, value: float) -> float:
+        if value < 0 or value > 1:
+            raise ValueError("predicted_confidence must be between 0 and 1")
+        return value
+
+
+class GmailSemiAutoClassificationBatchInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    items: list[GmailSemiAutoClassificationInput] = Field(default_factory=list)
 
 
 class GmailSpamhausCheck(BaseModel):

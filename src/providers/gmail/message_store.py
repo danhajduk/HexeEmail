@@ -226,6 +226,73 @@ class GmailMessageStore:
             ).fetchall()
         return [self._row_to_message(row) for row in rows]
 
+    def list_oldest_training_candidates(
+        self,
+        account_id: str,
+        *,
+        limit: int = 20,
+        threshold: float = 0.6,
+    ) -> list[GmailStoredMessage]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    account_id,
+                    message_id,
+                    thread_id,
+                    subject,
+                    sender,
+                    recipients,
+                    snippet,
+                    label_ids,
+                    received_at,
+                    raw_payload,
+                    local_label,
+                    local_label_confidence,
+                    manual_classification
+                FROM gmail_messages
+                WHERE account_id = ?
+                  AND (
+                    local_label IS NULL
+                    OR local_label = ?
+                    OR COALESCE(local_label_confidence, 0) < ?
+                  )
+                ORDER BY received_at ASC
+                LIMIT ?
+                """,
+                (account_id, GmailTrainingLabel.UNKNOWN.value, threshold, limit),
+            ).fetchall()
+        return [self._row_to_message(row) for row in rows]
+
+    def list_manual_training_examples(self, account_id: str) -> list[GmailStoredMessage]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    account_id,
+                    message_id,
+                    thread_id,
+                    subject,
+                    sender,
+                    recipients,
+                    snippet,
+                    label_ids,
+                    received_at,
+                    raw_payload,
+                    local_label,
+                    local_label_confidence,
+                    manual_classification
+                FROM gmail_messages
+                WHERE account_id = ?
+                  AND manual_classification = 1
+                  AND local_label IS NOT NULL
+                  AND local_label != ?
+                ORDER BY received_at DESC
+                """,
+                (account_id, GmailTrainingLabel.UNKNOWN.value),
+            ).fetchall()
+        return [self._row_to_message(row) for row in rows]
+
     def update_local_classification(
         self,
         account_id: str,

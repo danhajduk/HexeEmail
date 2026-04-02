@@ -18,8 +18,10 @@ from providers.gmail.models import (
     GmailMailboxStatus,
     GmailManualClassificationBatchInput,
     GmailQuotaUsageSnapshot,
+    GmailSemiAutoClassificationBatchInput,
     GmailSpamhausSummary,
     GmailStoredMessage,
+    GmailTrainingLabel,
 )
 from providers.gmail.quota_tracker import GmailQuotaTracker
 from providers.gmail.spamhaus_checker import GmailSpamhausChecker
@@ -27,6 +29,7 @@ from providers.gmail.state_machine import GmailAccountStateMachine
 from providers.gmail.token_client import GmailTokenExchangeClient
 from providers.gmail.token_store import GmailTokenStore
 from providers.gmail.training import flatten_message, render_flat_training_text
+from providers.gmail.training_model import GmailTrainingModelStore
 from providers.models import ProviderAccountRecord, ProviderHealth, ProviderId, ProviderState, ProviderValidationResult
 
 
@@ -58,6 +61,7 @@ class GmailProviderAdapter(EmailProviderAdapter):
         if getattr(self.mailbox_client, "quota_tracker", None) is None:
             self.mailbox_client.quota_tracker = self.quota_tracker
         self.spamhaus_checker = GmailSpamhausChecker()
+        self.training_model_store = GmailTrainingModelStore(runtime_dir)
         self.health_evaluator = GmailHealthEvaluator()
 
     async def validate_static_config(self) -> ProviderValidationResult:
@@ -249,6 +253,9 @@ class GmailProviderAdapter(EmailProviderAdapter):
     async def local_classification_summary(self, account_id: str) -> dict[str, object]:
         return self.message_store.local_classification_summary(account_id)
 
+    async def training_model_status(self) -> dict[str, object]:
+        return self.training_model_store.status()
+
     async def spamhaus_summary(self, account_id: str) -> GmailSpamhausSummary:
         return self.message_store.spamhaus_summary(account_id)
 
@@ -264,6 +271,7 @@ class GmailProviderAdapter(EmailProviderAdapter):
             "account_id": account_id,
             "threshold": threshold,
             "count": len(flattened),
+            "source": "manual",
             "items": [
                 {
                     **item.model_dump(mode="json"),
@@ -280,11 +288,72 @@ class GmailProviderAdapter(EmailProviderAdapter):
                 account_id,
                 item.message_id,
                 label=item.label,
-                confidence=item.confidence,
+                confidence=1.0,
                 manual_classification=True,
             )
             saved += 1
         return {"provider_id": self.provider_id, "account_id": account_id, "saved_count": saved}
+
+    async def train_local_model(self, account_id: str) -> dict[str, object]:
+        account_record = self.account_store.load_account(account_id)
+        messages = self.message_store.list_manual_training_examples(account_id)
+        flattened = [flatten_message(message, account_email=account_record.email_address if account_record is not None else None) for message in messages]
+        texts = [render_flat_training_text(item) for item in flattened]
+        labels = [item.local_label for item in flattened if item.local_label]
+        status = self.training_model_store.train(texts, labels)
+        return {"provider_id": self.provider_id, "account_id": account_id, "model_status": status}
+
+    async def semi_auto_training_batch(self, account_id: str, *, threshold: float, limit: int = 20) -> dict[str, object]:
+        account_record = self.account_store.load_account(account_id)
+        messages = self.message_store.list_oldest_training_candidates(account_id, limit=limit, threshold=threshold)
+        flattened = [flatten_message(message, account_email=account_record.email_address if account_record is not None else None) for message in messages]
+        predictions = self.training_model_store.predict(
+            [render_flat_training_text(item) for item in flattened],
+            threshold=threshold,
+        )
+        items: list[dict[str, object]] = []
+        for item, prediction in zip(flattened, predictions, strict=False):
+            predicted_label = prediction["predicted_label"]
+            predicted_confidence = prediction["predicted_confidence"]
+            items.append(
+                {
+                    **item.model_dump(mode="json"),
+                    "flat_text": render_flat_training_text(item),
+                    "predicted_label": predicted_label,
+                    "predicted_confidence": predicted_confidence,
+                    "raw_predicted_label": prediction["raw_predicted_label"],
+                }
+            )
+        return {
+            "provider_id": self.provider_id,
+            "account_id": account_id,
+            "threshold": threshold,
+            "count": len(items),
+            "source": "semi_auto",
+            "items": items,
+        }
+
+    async def save_semi_auto_review(self, account_id: str, batch: GmailSemiAutoClassificationBatchInput) -> dict[str, object]:
+        saved = 0
+        manual_count = 0
+        for item in batch.items:
+            changed = item.selected_label != item.predicted_label
+            self.message_store.update_local_classification(
+                account_id,
+                item.message_id,
+                label=item.selected_label,
+                confidence=1.0 if changed else item.predicted_confidence,
+                manual_classification=changed,
+            )
+            if changed:
+                manual_count += 1
+            saved += 1
+        return {
+            "provider_id": self.provider_id,
+            "account_id": account_id,
+            "saved_count": saved,
+            "manual_count": manual_count,
+        }
 
     async def check_spamhaus_for_stored_messages(self, account_id: str) -> dict[str, object]:
         pending_messages = self.message_store.list_messages_pending_spamhaus(account_id)

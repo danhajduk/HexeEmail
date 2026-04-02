@@ -30,7 +30,7 @@ from models import (
 )
 from providers.gmail.adapter import GmailProviderAdapter
 from providers.gmail.config_store import GmailProviderConfigError, GmailProviderConfigStore
-from providers.gmail.models import GmailManualClassificationBatchInput, GmailOAuthConfig
+from providers.gmail.models import GmailManualClassificationBatchInput, GmailOAuthConfig, GmailSemiAutoClassificationBatchInput
 from providers.gmail.oauth import GmailOAuthSessionManager
 from providers.gmail.token_client import GmailTokenExchangeClient, GmailTokenExchangeError
 from mqtt import MQTTManager
@@ -1116,6 +1116,7 @@ class NodeService:
             "threshold": self.config.gmail_local_classification_threshold,
             "message_store": await adapter.message_store_summary(account_id) if hasattr(adapter, "message_store_summary") else None,
             "classification_summary": await adapter.local_classification_summary(account_id) if hasattr(adapter, "local_classification_summary") else None,
+            "model_status": await adapter.training_model_status() if hasattr(adapter, "training_model_status") else None,
         }
 
     async def gmail_training_manual_batch(self, *, account_id: str = "primary", limit: int = 40) -> dict[str, object]:
@@ -1142,6 +1143,42 @@ class NodeService:
             raise ValueError("gmail training actions are not available")
         try:
             return await adapter.save_manual_classifications(account_id, payload)
+        except Exception as exc:
+            raise ValueError(str(exc)) from exc
+
+    async def gmail_training_train_model(self, *, account_id: str = "primary") -> dict[str, object]:
+        adapter = self.provider_registry.get_provider("gmail")
+        if not hasattr(adapter, "train_local_model"):
+            raise ValueError("gmail training actions are not available")
+        try:
+            return await adapter.train_local_model(account_id)
+        except Exception as exc:
+            raise ValueError(str(exc)) from exc
+
+    async def gmail_training_semi_auto_batch(self, *, account_id: str = "primary", limit: int = 20) -> dict[str, object]:
+        adapter = self.provider_registry.get_provider("gmail")
+        if not hasattr(adapter, "semi_auto_training_batch"):
+            raise ValueError("gmail training actions are not available")
+        try:
+            return await adapter.semi_auto_training_batch(
+                account_id,
+                threshold=self.config.gmail_local_classification_threshold,
+                limit=limit,
+            )
+        except Exception as exc:
+            raise ValueError(str(exc)) from exc
+
+    async def gmail_training_save_semi_auto_review(
+        self,
+        payload: GmailSemiAutoClassificationBatchInput,
+        *,
+        account_id: str = "primary",
+    ) -> dict[str, object]:
+        adapter = self.provider_registry.get_provider("gmail")
+        if not hasattr(adapter, "save_semi_auto_review"):
+            raise ValueError("gmail training actions are not available")
+        try:
+            return await adapter.save_semi_auto_review(account_id, payload)
         except Exception as exc:
             raise ValueError(str(exc)) from exc
 

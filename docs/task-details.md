@@ -27,3 +27,15 @@ Original task details:
 - set threshold to 0.6 first and make it configurable
 - add local label, confidence, and manual classification fields to stored emails
 - manual classify should pick random 40 unclassified or unknown mails and show them for labeling
+
+## Task 081
+Original task details:
+- add TF-IDF and LogisticRegression models to the training flow
+- use flow: flat email text -> TF-IDF -> LogisticRegression
+- create Train Model button under manual classification
+- train from existing manual classifications
+- show training status in the main content while training
+- add Semi Auto Classification button for the 20 oldest unclassified mails
+- show semi-auto results for manual reclassification
+- if classification changes, mark it as manual
+- all manual classifications should use confidence 1.0

@@ -670,10 +670,13 @@ function TrainingPage({
   trainingBatchLoading,
   trainingBatchError,
   trainingSavePending,
+  trainingModelPending,
   trainingNotice,
   trainingSelections,
   onBack,
   onLoadManualBatch,
+  onLoadSemiAutoBatch,
+  onTrainModel,
   onSelectionChange,
   onSaveBatch,
 }) {
@@ -717,11 +720,20 @@ function TrainingPage({
             <button className="btn btn-primary" type="button" onClick={onLoadManualBatch} disabled={trainingBatchLoading}>
               {trainingBatchLoading ? "Loading..." : "Manual Classify"}
             </button>
+            <button className="btn" type="button" onClick={onTrainModel} disabled={trainingModelPending}>
+              {trainingModelPending ? "Training..." : "Train Model"}
+            </button>
+            <button className="btn" type="button" onClick={onLoadSemiAutoBatch} disabled={trainingBatchLoading}>
+              {trainingBatchLoading ? "Loading..." : "Semi Auto Classify"}
+            </button>
             <div className="callout">
               Threshold: {trainingStatus?.threshold ?? 0.6}
             </div>
             <div className="callout">
               Classified: {trainingStatus?.classification_summary?.classified_count ?? 0}
+            </div>
+            <div className="callout">
+              Model: {trainingStatus?.model_status?.trained ? `trained (${trainingStatus?.model_status?.sample_count ?? 0})` : "not trained"}
             </div>
             {trainingStatus?.classification_summary?.per_label
               ? (
@@ -747,7 +759,11 @@ function TrainingPage({
             <div className="card-header">
               <h2>Manual Classification</h2>
               <p className="muted">
-                Random unknown or low-confidence mails are flattened into a consistent training format for local review.
+                {trainingModelPending
+                  ? "Training in progress..."
+                  : trainingBatch?.source === "semi_auto"
+                    ? "Oldest unclassified mails are pre-labeled by the local model and shown here for review."
+                    : "Random unknown or low-confidence mails are flattened into a consistent training format for local review."}
               </p>
             </div>
             {!trainingBatch?.items?.length ? (
@@ -783,8 +799,8 @@ function TrainingPage({
                 <div className="training-list">
                   {visibleItems.map((item) => {
                     const selected = trainingSelections[item.message_id] || {
-                      label: item.local_label || "unknown",
-                      confidence: item.local_label_confidence ?? trainingStatus?.threshold ?? 0.6,
+                      label: item.selected_label || item.predicted_label || item.local_label || "unknown",
+                      confidence: item.predicted_confidence ?? item.local_label_confidence ?? trainingStatus?.threshold ?? 0.6,
                     };
                     return (
                       <section key={item.message_id} className="training-item">
@@ -792,6 +808,11 @@ function TrainingPage({
                           <div>
                             <strong>{item.subject || "(no subject)"}</strong>
                             <div className="muted tiny">{item.sender_email || "-"}</div>
+                            {item.predicted_label ? (
+                              <div className="muted tiny">
+                                Predicted: {item.predicted_label} ({Number(item.predicted_confidence || 0).toFixed(2)})
+                              </div>
+                            ) : null}
                           </div>
                           <span className="pill">{item.message_id}</span>
                         </div>
@@ -1088,6 +1109,7 @@ export function App() {
   const [trainingBatchLoading, setTrainingBatchLoading] = useState(false);
   const [trainingBatchError, setTrainingBatchError] = useState("");
   const [trainingSavePending, setTrainingSavePending] = useState(false);
+  const [trainingModelPending, setTrainingModelPending] = useState(false);
   const [trainingNotice, setTrainingNotice] = useState("");
   const [trainingSelections, setTrainingSelections] = useState({});
   const [copyNotice, setCopyNotice] = useState("");
@@ -1331,7 +1353,7 @@ export function App() {
             item.message_id,
             {
               label: item.local_label || "unknown",
-              confidence: item.local_label_confidence ?? payload.threshold ?? 0.6,
+              confidence: 1.0,
             },
           ]),
         ),
@@ -1340,6 +1362,49 @@ export function App() {
       setTrainingBatchError(loadError.message);
     } finally {
       setTrainingBatchLoading(false);
+    }
+  }
+
+  async function loadTrainingSemiAutoBatch() {
+    setTrainingBatchLoading(true);
+    setTrainingBatchError("");
+    setTrainingNotice("");
+    try {
+      const payload = await fetchJson("/api/gmail/training/semi-auto-batch", { method: "POST" });
+      setTrainingBatch(payload);
+      setTrainingSelections(
+        Object.fromEntries(
+          (payload.items || []).map((item) => [
+            item.message_id,
+            {
+              label: item.predicted_label || "unknown",
+              confidence: item.predicted_confidence ?? payload.threshold ?? 0.6,
+            },
+          ]),
+        ),
+      );
+    } catch (loadError) {
+      setTrainingBatchError(loadError.message);
+    } finally {
+      setTrainingBatchLoading(false);
+    }
+  }
+
+  async function trainLocalModel() {
+    setTrainingModelPending(true);
+    setTrainingBatchError("");
+    setTrainingNotice("");
+    try {
+      const payload = await fetchJson("/api/gmail/training/train-model", { method: "POST" });
+      const refreshedTraining = await fetchJson("/api/gmail/training");
+      setTrainingStatus(refreshedTraining);
+      setTrainingNotice(
+        `Model trained with ${payload.model_status?.sample_count ?? refreshedTraining?.model_status?.sample_count ?? 0} samples.`,
+      );
+    } catch (trainError) {
+      setTrainingBatchError(trainError.message);
+    } finally {
+      setTrainingModelPending(false);
     }
   }
 
@@ -1354,16 +1419,28 @@ export function App() {
   }
 
   async function saveTrainingBatch() {
-    const items = Object.entries(trainingSelections).map(([message_id, selection]) => ({
-      message_id,
-      label: selection.label || "unknown",
-      confidence: Number(selection.confidence ?? trainingStatus?.threshold ?? 0.6),
-    }));
+    const isSemiAuto = trainingBatch?.source === "semi_auto";
+    const items = Object.entries(trainingSelections).map(([message_id, selection]) => {
+      const originalItem = (trainingBatch?.items || []).find((item) => item.message_id === message_id) || {};
+      if (isSemiAuto) {
+        return {
+          message_id,
+          selected_label: selection.label || "unknown",
+          predicted_label: originalItem.predicted_label || "unknown",
+          predicted_confidence: Number(originalItem.predicted_confidence ?? trainingStatus?.threshold ?? 0.6),
+        };
+      }
+      return {
+        message_id,
+        label: selection.label || "unknown",
+        confidence: 1.0,
+      };
+    });
     setTrainingSavePending(true);
     setTrainingBatchError("");
     setTrainingNotice("");
     try {
-      const payload = await fetchJson("/api/gmail/training/manual-classify", {
+      const payload = await fetchJson(isSemiAuto ? "/api/gmail/training/semi-auto-review" : "/api/gmail/training/manual-classify", {
         method: "POST",
         body: JSON.stringify({ items }),
       });
@@ -1695,10 +1772,13 @@ export function App() {
           trainingBatchLoading={trainingBatchLoading}
           trainingBatchError={trainingBatchError}
           trainingSavePending={trainingSavePending}
+          trainingModelPending={trainingModelPending}
           trainingNotice={trainingNotice}
           trainingSelections={trainingSelections}
           onBack={() => (dashboardEnabled ? openDashboard() : openSetup())}
           onLoadManualBatch={loadTrainingManualBatch}
+          onLoadSemiAutoBatch={loadTrainingSemiAutoBatch}
+          onTrainModel={trainLocalModel}
           onSelectionChange={handleTrainingSelectionChange}
           onSaveBatch={saveTrainingBatch}
         />
