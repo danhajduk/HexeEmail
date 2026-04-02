@@ -32,15 +32,15 @@ class GmailMailboxClient:
         unread_inbox_count = await self._count_query(token_record.access_token, "is:unread in:inbox")
         unread_today_count = await self._count_query(
             token_record.access_token,
-            self._range_query(today_start, tomorrow_start),
+            self._unread_range_query(today_start, tomorrow_start),
         )
         unread_yesterday_count = await self._count_query(
             token_record.access_token,
-            self._range_query(yesterday_start, today_start),
+            self._unread_range_query(yesterday_start, today_start),
         )
         unread_week_count = await self._count_query(
             token_record.access_token,
-            self._range_query(week_start, tomorrow_start),
+            self._unread_range_query(week_start, tomorrow_start),
         )
 
         return GmailMailboxStatus(
@@ -55,27 +55,10 @@ class GmailMailboxClient:
         )
 
     async def _count_query(self, access_token: str, query: str) -> int:
-        response = await self._client.get(
-            self.MESSAGES_ENDPOINT,
-            params={"q": query, "maxResults": 1, "fields": "resultSizeEstimate"},
-            headers={"Authorization": f"Bearer {access_token}"},
-        )
-        try:
-            payload = response.json()
-        except ValueError as exc:
-            raise GmailMailboxClientError("gmail mailbox query returned invalid JSON") from exc
+        return len(await self._list_message_ids(access_token, query))
 
-        if response.is_error:
-            detail = payload.get("error", {}).get("message") if isinstance(payload, dict) else None
-            raise GmailMailboxClientError(detail or f"gmail mailbox query failed with status {response.status_code}")
-
-        if not isinstance(payload, dict):
-            raise GmailMailboxClientError("gmail mailbox query returned an invalid payload")
-        estimate = payload.get("resultSizeEstimate")
-        return int(estimate) if isinstance(estimate, int) else 0
-
-    def _range_query(self, after: datetime, before: datetime) -> str:
-        return f"is:unread in:inbox after:{int(after.timestamp())} before:{int(before.timestamp())}"
+    def _unread_range_query(self, after: datetime, before: datetime) -> str:
+        return f"is:unread after:{int(after.timestamp())} before:{int(before.timestamp())}"
 
     def build_fetch_query(self, window: str, *, now: datetime | None = None) -> str:
         local_now = (now or datetime.now()).astimezone()

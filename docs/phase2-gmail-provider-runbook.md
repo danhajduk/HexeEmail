@@ -67,6 +67,37 @@ After a successful callback:
 - governance is fetched again
 - operational readiness can become true once all conditions are satisfied
 
+## Gmail Fetch And Local Store
+
+Once Gmail is connected, the dashboard Gmail section exposes manual fetch actions for:
+
+- initial learning
+- today
+- yesterday
+- last hour
+
+These actions call the local node API:
+
+- `POST /api/gmail/fetch/initial_learning`
+- `POST /api/gmail/fetch/today`
+- `POST /api/gmail/fetch/yesterday`
+- `POST /api/gmail/fetch/last_hour`
+
+Fetched message metadata is stored locally in SQLite at:
+
+- `runtime/providers/gmail/messages.sqlite3`
+
+Retention policy:
+
+- the node keeps up to the most recent six months of fetched Gmail messages
+- records older than six months are pruned during store updates
+
+Current unread counter behavior:
+
+- `Unread Inbox` is limited to `is:unread in:inbox`
+- `Unread Today`, `Unread Yesterday`, and `Unread This Week` count unread mail by time window across Gmail and are not restricted to inbox only
+- counts are based on exact Gmail message matches instead of `resultSizeEstimate`
+
 ## Useful Endpoints
 
 - `GET /providers`
@@ -75,6 +106,11 @@ After a successful callback:
 - `PUT /providers/gmail/config`
 - `GET /providers/gmail/accounts`
 - `GET /providers/gmail/accounts/<account_id>`
+- `GET /api/gmail/status`
+- `POST /api/gmail/fetch/initial_learning`
+- `POST /api/gmail/fetch/today`
+- `POST /api/gmail/fetch/yesterday`
+- `POST /api/gmail/fetch/last_hour`
 - `POST /providers/gmail/accounts/<account_id>/connect/start`
 - `GET /google/gmail/callback`
 - `GET /status`

@@ -22,6 +22,13 @@ Local defaults today:
 - the UI opens on a dashboard view with the node status card and an `Open Setup` path into the guided setup flow
 - Gmail provider setup is available from the UI via `Setup Provider`
 - `./scripts/start.sh` installs Python requirements and starts both API and UI
+- Gmail fetch status is available from `GET /api/gmail/status`
+- Gmail manual fetch actions are available from:
+  - `POST /api/gmail/fetch/initial_learning`
+  - `POST /api/gmail/fetch/today`
+  - `POST /api/gmail/fetch/yesterday`
+  - `POST /api/gmail/fetch/last_hour`
+- fetched Gmail messages are stored in local SQLite at `runtime/providers/gmail/messages.sqlite3`
 
 Gmail provider activation uses a Google `Web application` client with the centralized public HTTPS callback:
 
@@ -33,3 +40,9 @@ Onboarding registration also reports both:
 
 - `ui_endpoint=http://<node-ip>:8083`
 - `api_base_url=http://<node-ip>:9003/api`
+
+Gmail unread counters currently behave as follows:
+
+- `Unread Inbox` uses `is:unread in:inbox`
+- `Unread Today`, `Unread Yesterday`, and `Unread This Week` use exact unread message matches by time window and are not limited to `in:inbox`
+- unread counts are based on exact matched message IDs rather than Gmail `resultSizeEstimate`
