@@ -53,6 +53,10 @@ function statusTone(value) {
   return "neutral";
 }
 
+function boolTone(value) {
+  return value ? "success" : "neutral";
+}
+
 function deriveNodeState(bootstrap) {
   const onboarding = bootstrap?.onboarding;
   const status = bootstrap?.status;
@@ -83,6 +87,276 @@ function deriveNodeState(bootstrap) {
     return { label: "Needs Recovery", tone: "danger" };
   }
   return { label: "Ready To Start", tone: "neutral" };
+}
+
+function isNodeSetupVisible(bootstrap) {
+  const onboarding = bootstrap?.onboarding;
+  const status = bootstrap?.status;
+  return Boolean(
+    onboarding?.session_id ||
+      onboarding?.approval_url ||
+      onboarding?.onboarding_status !== "not_started" ||
+      status?.trust_state !== "untrusted",
+  );
+}
+
+function deriveSetupFlow(bootstrap) {
+  const onboarding = bootstrap?.onboarding;
+  const status = bootstrap?.status;
+  const requiredInputs = bootstrap?.required_inputs || [];
+  const coreConfigured = Boolean(bootstrap?.config?.core_base_url) && !requiredInputs.includes("core_base_url");
+  const nodeNamed = Boolean(bootstrap?.config?.node_name) && !requiredInputs.includes("node_name");
+  const trusted = status?.trust_state === "trusted";
+  const providerSummary = status?.provider_account_summaries?.gmail || {};
+  const providerConnected = providerSummary?.provider_state === "connected";
+  const capabilityCurrent = status?.capability_declaration_status === "accepted";
+  const governanceCurrent = status?.governance_sync_status === "ok";
+  const ready = Boolean(status?.operational_readiness);
+  const sessionCreated = Boolean(onboarding?.session_id);
+  const approvalReady = Boolean(onboarding?.approval_url);
+  const pendingApproval = onboarding?.onboarding_status === "pending";
+  const inTrustActivation = onboarding?.onboarding_status === "approved" || trusted;
+
+  const steps = [
+    {
+      id: "node_identity",
+      label: "Node Identity",
+      complete: nodeNamed,
+      current: !nodeNamed,
+      description: nodeNamed ? bootstrap?.config?.node_name : "Set a node name to establish local identity.",
+    },
+    {
+      id: "core_connection",
+      label: "Core Connection",
+      complete: coreConfigured,
+      current: nodeNamed && !coreConfigured,
+      description: coreConfigured ? bootstrap?.config?.core_base_url : "Set the Core base URL for registration.",
+    },
+    {
+      id: "bootstrap_discovery",
+      label: "Bootstrap Discovery",
+      complete: sessionCreated || trusted,
+      current: nodeNamed && coreConfigured && !sessionCreated && !trusted,
+      description: sessionCreated || trusted ? "Bootstrap metadata resolved from the configured Core." : "Start onboarding to discover bootstrap metadata.",
+    },
+    {
+      id: "registration",
+      label: "Registration",
+      complete: sessionCreated || trusted,
+      current: sessionCreated && !approvalReady && !trusted,
+      description: sessionCreated ? onboarding?.session_id : "Create a node onboarding session in Core.",
+    },
+    {
+      id: "approval",
+      label: "Approval",
+      complete: trusted,
+      current: pendingApproval,
+      description: approvalReady ? "Awaiting operator approval in Core." : "Approval URL will appear here.",
+    },
+    {
+      id: "trust_activation",
+      label: "Trust Activation",
+      complete: trusted,
+      current: inTrustActivation && !ready,
+      description: trusted ? `Trusted as ${status?.node_id || "this node"}` : "Finalize trust activation after approval.",
+    },
+    {
+      id: "provider_setup",
+      label: "Provider Setup",
+      complete: providerConnected,
+      current: trusted && !providerConnected,
+      description: providerConnected ? "Gmail connected." : "Configure and connect Gmail once trust is active.",
+    },
+    {
+      id: "capability_declaration",
+      label: "Capability Declaration",
+      complete: capabilityCurrent,
+      current: providerConnected && !capabilityCurrent,
+      description: capabilityCurrent ? "Capability declaration accepted." : "Waiting for accepted capability declaration.",
+    },
+    {
+      id: "governance_sync",
+      label: "Governance Sync",
+      complete: governanceCurrent,
+      current: capabilityCurrent && !governanceCurrent,
+      description: governanceCurrent ? "Governance snapshot synced." : "Waiting for governance snapshot sync.",
+    },
+    {
+      id: "ready",
+      label: "Ready",
+      complete: ready,
+      current: governanceCurrent && !ready,
+      description: ready ? "Node is operationally ready." : "Final readiness checks are still running.",
+    },
+  ];
+
+  const current = steps.find((step) => step.current) || steps.find((step) => !step.complete) || steps[steps.length - 1];
+  return { steps, current };
+}
+
+function StageCard({ title, tone, children, action }) {
+  return (
+    <article className={`card stack stage-card tone-${tone}`}>
+      <div className="section-heading">
+        <h2>{title}</h2>
+        {action}
+      </div>
+      {children}
+    </article>
+  );
+}
+
+function SetupSidebar({ flow }) {
+  return (
+    <aside className="card stack flow-sidebar">
+      <div className="section-heading">
+        <h2>Setup Flow</h2>
+        <span className="pill">{flow.current?.label || "Idle"}</span>
+      </div>
+      <div className="flow-steps">
+        {flow.steps.map((step, index) => {
+          const state = step.complete ? "success" : step.current ? "warning" : "neutral";
+          return (
+            <div key={step.id} className={`flow-step is-${state}`}>
+              <div className="flow-step-index">{index + 1}</div>
+              <div className="flow-step-body">
+                <strong>{step.label}</strong>
+                <span>{step.description}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </aside>
+  );
+}
+
+function renderCurrentStageCard({ flow, bootstrap, status, onboarding, requiredInputs, notice, error, setView }) {
+  const stepId = flow.current?.id;
+  const approvalLink = onboarding?.approval_url ? (
+    <a className="approval-link" href={onboarding.approval_url} target="_blank" rel="noreferrer">
+      Open approval URL
+    </a>
+  ) : null;
+
+  if (stepId === "core_connection") {
+    return (
+      <StageCard title="Core Connection" tone="warning">
+        <div className="callout callout-warning">
+          {requiredInputs.includes("core_base_url")
+            ? "Enter the Core base URL, then save or start onboarding."
+            : "Core URL is configured and ready for bootstrap discovery."}
+        </div>
+      </StageCard>
+    );
+  }
+
+  if (stepId === "bootstrap_discovery" || stepId === "registration") {
+    return (
+      <StageCard title="Registration" tone={statusTone(onboarding?.onboarding_status)}>
+        <dl className="facts single-column-facts">
+          <div>
+            <dt>Session</dt>
+            <dd>{onboarding?.session_id || "No session yet"}</dd>
+          </div>
+          <div>
+            <dt>Approval URL</dt>
+            <dd>{onboarding?.approval_url || "Will appear after session creation"}</dd>
+          </div>
+        </dl>
+        {notice ? <div className="callout callout-success">{notice}</div> : null}
+        {error ? <div className="callout callout-danger">{error}</div> : null}
+      </StageCard>
+    );
+  }
+
+  if (stepId === "approval") {
+    return (
+      <StageCard title="Approval" tone="warning" action={approvalLink}>
+        <div className="callout">
+          Open the Core approval URL and approve the node. Keep this page open while finalize polling continues.
+        </div>
+        {onboarding?.last_error ? <div className="callout callout-danger">{onboarding.last_error}</div> : null}
+      </StageCard>
+    );
+  }
+
+  if (stepId === "trust_activation") {
+    return (
+      <StageCard title="Trust Activation" tone={statusTone(status?.trust_state)}>
+        <dl className="facts single-column-facts">
+          <div>
+            <dt>Trust state</dt>
+            <dd>{status?.trust_state || "untrusted"}</dd>
+          </div>
+          <div>
+            <dt>Node ID</dt>
+            <dd>{status?.node_id || "Pending"}</dd>
+          </div>
+          <div>
+            <dt>MQTT</dt>
+            <dd>{status?.mqtt_connection_status || "disconnected"}</dd>
+          </div>
+        </dl>
+      </StageCard>
+    );
+  }
+
+  if (stepId === "provider_setup") {
+    return (
+      <StageCard
+        title="Provider Setup"
+        tone={statusTone(status?.provider_account_summaries?.gmail?.provider_state)}
+        action={
+          <button className="btn btn-primary" type="button" onClick={() => setView("provider")}>
+            Setup Provider
+          </button>
+        }
+      >
+        <div className="callout">
+          Trust is active. Configure Gmail and complete the connect flow to move the node into provider-ready state.
+        </div>
+      </StageCard>
+    );
+  }
+
+  if (stepId === "capability_declaration") {
+    return (
+      <StageCard title="Capability Declaration" tone={statusTone(status?.capability_declaration_status)}>
+        <div className="callout">
+          Capability declaration status: {status?.capability_declaration_status || "pending"}.
+        </div>
+      </StageCard>
+    );
+  }
+
+  if (stepId === "governance_sync") {
+    return (
+      <StageCard title="Governance Sync" tone={statusTone(status?.governance_sync_status)}>
+        <div className="callout">Governance sync status: {status?.governance_sync_status || "pending"}.</div>
+      </StageCard>
+    );
+  }
+
+  if (stepId === "ready") {
+    return (
+      <StageCard title="Ready" tone={boolTone(status?.operational_readiness)}>
+        <div className="callout callout-success">
+          The node is fully ready. Gmail is connected, capability declaration is current, and governance sync is healthy.
+        </div>
+      </StageCard>
+    );
+  }
+
+  return (
+    <StageCard title="Node Identity" tone={requiredInputs.length > 0 ? "warning" : "success"}>
+      <div className="callout">
+        Set the local node name and keep this workstation open during the rest of the setup flow.
+      </div>
+      {notice ? <div className="callout callout-success">{notice}</div> : null}
+      {error ? <div className="callout callout-danger">{error}</div> : null}
+    </StageCard>
+  );
 }
 
 function normalizeProviderForm(config) {
@@ -614,6 +888,8 @@ export function App() {
   const status = bootstrap?.status;
   const requiredInputs = bootstrap?.required_inputs || [];
   const nodeState = deriveNodeState(bootstrap);
+  const setupFlow = deriveSetupFlow(bootstrap);
+  const nodeSetupVisible = isNodeSetupVisible(bootstrap);
   if (view === "provider") {
     return (
       <div className="shell">
@@ -643,7 +919,9 @@ export function App() {
 
   return (
     <div className="shell">
-      <main className="app-frame">
+      <main className="app-frame app-shell">
+        <SetupSidebar flow={setupFlow} />
+        <div className="main-column">
         <section className="hero card">
           <div>
             <div className="hero-topline">
@@ -671,10 +949,10 @@ export function App() {
           </div>
         </section>
 
-        <section className="grid">
+        <section className="content-stack">
           <article className="card stack">
             <div className="section-heading">
-              <h2>Setup</h2>
+              <h2>Node Identity</h2>
               <span className="pill">UI {bootstrap?.config.ui_port || 8083}</span>
             </div>
             <Field
@@ -704,94 +982,91 @@ export function App() {
                 {restarting ? "Restarting..." : "Restart Setup"}
               </button>
             </div>
-            {requiredInputs.length > 0 ? (
-              <div className="callout callout-warning">Required before onboarding: {requiredInputs.join(", ")}</div>
-            ) : null}
-            {notice ? <div className="callout callout-success">{notice}</div> : null}
-            {error ? <div className="callout callout-danger">{error}</div> : null}
+            {requiredInputs.length > 0 ? <div className="callout callout-warning">Required before onboarding: {requiredInputs.join(", ")}</div> : null}
           </article>
 
-          <article className="card stack">
-            <div className="section-heading">
-              <h2>Live Status</h2>
-              <span className="pill">{bootstrap?.config.node_type || "email-node"}</span>
-            </div>
-            <dl className="facts">
-              <div>
-                <dt>Node name</dt>
-                <dd>{bootstrap?.config.node_name || "Not set"}</dd>
+          {nodeSetupVisible ? (
+            <article className="card stack">
+              <div className="section-heading">
+                <h2>Node Setup</h2>
+                <span className="pill">API {bootstrap?.config.api_port || 9003}</span>
               </div>
-              <div>
-                <dt>Version</dt>
-                <dd>{bootstrap?.config.node_software_version || "0.1.0"}</dd>
+              <div className="status-rail">
+                <div className={`status-pill tone-${statusTone(onboarding?.onboarding_status)}`}>
+                  lifecycle: {onboarding?.onboarding_status || "not_started"}
+                </div>
+                <div className={`status-pill tone-${statusTone(status?.trust_state)}`}>trust: {status?.trust_state || "untrusted"}</div>
+                <div className={`status-pill tone-${statusTone(status?.governance_sync_status)}`}>
+                  governance: {status?.governance_sync_status || "pending"}
+                </div>
+                <div className={`status-pill tone-${status?.trust_state === "trusted" ? "success" : "neutral"}`}>
+                  core: {status?.trust_state === "trusted" ? "paired" : "not paired"}
+                </div>
               </div>
-              <div>
-                <dt>Trust state</dt>
-                <dd>{status?.trust_state || "untrusted"}</dd>
+              {renderCurrentStageCard({
+                flow: setupFlow,
+                bootstrap,
+                status,
+                onboarding,
+                requiredInputs,
+                notice,
+                error,
+                setView,
+              })}
+            </article>
+          ) : null}
+
+          <section className="grid">
+            <article className="card stack">
+              <div className="section-heading">
+                <h2>Live Status</h2>
+                <span className="pill">{bootstrap?.config.node_type || "email-node"}</span>
               </div>
-              <div>
-                <dt>Node ID</dt>
-                <dd>{status?.node_id || "Pending"}</dd>
+              <dl className="facts">
+                <div>
+                  <dt>Node name</dt>
+                  <dd>{bootstrap?.config.node_name || "Not set"}</dd>
+                </div>
+                <div>
+                  <dt>Version</dt>
+                  <dd>{bootstrap?.config.node_software_version || "0.1.0"}</dd>
+                </div>
+                <div>
+                  <dt>Trust state</dt>
+                  <dd>{status?.trust_state || "untrusted"}</dd>
+                </div>
+                <div>
+                  <dt>Node ID</dt>
+                  <dd>{status?.node_id || "Pending"}</dd>
+                </div>
+                <div>
+                  <dt>MQTT</dt>
+                  <dd>{status?.mqtt_connection_status || "disconnected"}</dd>
+                </div>
+                <div>
+                  <dt>Providers</dt>
+                  <dd>{status?.providers?.join(", ") || "gmail, smtp, imap, graph"}</dd>
+                </div>
+              </dl>
+            </article>
+
+            <article className="card stack">
+              <div className="section-heading">
+                <h2>Operator Prompts</h2>
+                <span className="pill">{setupFlow.current?.label || "Idle"}</span>
               </div>
-              <div>
-                <dt>MQTT</dt>
-                <dd>{status?.mqtt_connection_status || "disconnected"}</dd>
-              </div>
-              <div>
-                <dt>Providers</dt>
-                <dd>{status?.providers?.join(", ") || "gmail, smtp, imap, graph"}</dd>
-              </div>
-            </dl>
-          </article>
+              <ul className="prompt-list">
+                {requiredInputs.length > 0 ? <li>Enter the Core base URL and node name, then save or start onboarding.</li> : null}
+                {onboarding?.approval_url ? <li>Open the approval URL in Core and approve the node.</li> : null}
+                {onboarding?.onboarding_status === "pending" ? <li>Keep this page open while finalize polling continues.</li> : null}
+                <li>Use Restart Setup if you need a fresh onboarding session.</li>
+                {status?.trust_state === "trusted" ? <li>The node is trusted. Use Setup Provider to configure Gmail.</li> : null}
+                {!requiredInputs.length && !onboarding?.approval_url && status?.trust_state !== "trusted" ? <li>Start onboarding when you are ready.</li> : null}
+              </ul>
+            </article>
+          </section>
         </section>
-
-        <section className="grid">
-          <article className="card stack">
-            <div className="section-heading">
-              <h2>Onboarding Timeline</h2>
-              <span className={`status-pill tone-${statusTone(onboarding?.trust_state)}`}>
-                trust: {onboarding?.trust_state || "untrusted"}
-              </span>
-            </div>
-            <div className="timeline">
-              <div className={`timeline-item ${onboarding?.session_id ? "is-active" : ""}`}>
-                <strong>Session</strong>
-                <span>{onboarding?.session_id || "No session yet"}</span>
-              </div>
-              <div className={`timeline-item ${onboarding?.approval_url ? "is-active" : ""}`}>
-                <strong>Approval URL</strong>
-                <span>{onboarding?.approval_url || "Will appear after session creation"}</span>
-              </div>
-              <div className={`timeline-item ${onboarding?.node_id ? "is-active" : ""}`}>
-                <strong>Trust activation</strong>
-                <span>{onboarding?.node_id ? `Trusted as ${onboarding.node_id}` : "Waiting for approval"}</span>
-              </div>
-            </div>
-            {onboarding?.approval_url ? (
-              <a className="approval-link" href={onboarding.approval_url} target="_blank" rel="noreferrer">
-                Open approval URL
-              </a>
-            ) : null}
-            {onboarding?.last_error ? <div className="callout callout-danger">{onboarding.last_error}</div> : null}
-          </article>
-
-          <article className="card stack">
-            <div className="section-heading">
-              <h2>Operator Prompts</h2>
-              <span className="pill">API {bootstrap?.config.api_port || 9003}</span>
-            </div>
-            <ul className="prompt-list">
-              {requiredInputs.length > 0 ? <li>Enter the Core base URL and node name, then start onboarding.</li> : null}
-              {onboarding?.approval_url ? <li>Open the approval URL in Core and approve the node.</li> : null}
-              {onboarding?.onboarding_status === "pending" ? <li>Keep this page open while finalize polling continues.</li> : null}
-              <li>Use Restart Setup if you need a fresh onboarding session.</li>
-              {status?.trust_state === "trusted" ? <li>The node is trusted. Use Setup Provider to configure Gmail.</li> : null}
-              {!requiredInputs.length && !onboarding?.approval_url && status?.trust_state !== "trusted" ? (
-                <li>Start onboarding when you are ready.</li>
-              ) : null}
-            </ul>
-          </article>
-        </section>
+        </div>
       </main>
     </div>
   );

@@ -7,9 +7,22 @@
 }
 
 .app-frame {
-  width: min(1180px, calc(100% - 32px));
+  width: min(90vw, 1600px);
   margin: 0 auto;
   padding: 32px 0 48px;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.main-column {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
 .hero {
@@ -69,7 +82,12 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 24px;
-  margin-bottom: 24px;
+}
+
+.content-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
 .stack {
@@ -163,6 +181,77 @@
   text-transform: capitalize;
   font-size: 13px;
   background: hsl(var(--sx-panel));
+}
+
+.flow-sidebar {
+  position: sticky;
+  top: 24px;
+}
+
+.flow-steps {
+  display: grid;
+  gap: 12px;
+}
+
+.flow-step {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px;
+  border-radius: var(--sx-radius-md);
+  border: 1px solid hsl(var(--sx-border));
+  background: hsl(var(--sx-text) / 0.03);
+}
+
+.flow-step-index {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  border: 1px solid hsl(var(--sx-border));
+  background: hsl(var(--sx-panel));
+}
+
+.flow-step-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.flow-step-body strong {
+  font-size: 15px;
+}
+
+.flow-step-body span {
+  color: hsl(var(--sx-text-muted));
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.flow-step.is-success {
+  border-color: hsl(var(--sx-success) / 0.4);
+  background: hsl(var(--sx-success) / 0.08);
+}
+
+.flow-step.is-warning {
+  border-color: hsl(var(--sx-warning) / 0.4);
+  background: hsl(var(--sx-warning) / 0.08);
+}
+
+.status-rail {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.stage-card {
+  background: hsl(var(--sx-text) / 0.02);
+}
+
+.single-column-facts {
+  grid-template-columns: 1fr;
 }
 
 .tone-success {
@@ -271,14 +360,18 @@
 
 
 @media (max-width: 900px) {
+  .app-shell,
   .hero,
   .grid {
-    display: grid;
     grid-template-columns: 1fr;
   }
 
   .hero-status {
     justify-content: flex-start;
+  }
+
+  .flow-sidebar {
+    position: static;
   }
 
   .facts {
