@@ -21,6 +21,8 @@ from providers.gmail.models import (
     GmailManualClassificationBatchInput,
     GmailMailboxStatus,
     GmailOAuthConfig,
+    GmailSenderReputationInputs,
+    GmailSenderReputationRecord,
     GmailSpamhausCheck,
     GmailStoredMessage,
     GmailTokenRecord,
@@ -671,6 +673,21 @@ async def test_runtime_execute_email_classifier_posts_normalized_email(config, c
         local_label_confidence=0.95,
     )
     adapter.message_store.upsert_messages([older_unknown, newest_unknown, classified_newer])
+    adapter.message_store.upsert_sender_reputation(
+        GmailSenderReputationRecord(
+            account_id="primary",
+            entity_type="email",
+            sender_value="newest@example.com",
+            sender_email="newest@example.com",
+            sender_domain="example.com",
+            reputation_state="blocked",
+            rating=-4.0,
+            inputs=GmailSenderReputationInputs(
+                message_count=2,
+                spamhaus_listed_count=1,
+            ),
+        )
+    )
     app = create_app(config=config, service=service)
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -696,9 +713,16 @@ async def test_runtime_execute_email_classifier_posts_normalized_email(config, c
     assert execution_request["service_id"] == "node-email"
     assert execution_request["customer_id"] == "local-user"
     assert execution_request["timeout_s"] == 60
-    assert execution_request["inputs"]["text"] == normalize_email_for_classifier(
-        newest_unknown,
-        my_addresses=["primary@example.com"],
+    assert execution_request["inputs"]["text"] == (
+        normalize_email_for_classifier(
+            newest_unknown,
+            my_addresses=["primary@example.com"],
+        )
+        + "\n"
+        + "sender_reputation_state: blocked\n"
+        + "sender_reputation_rating: -4.0\n"
+        + "sender_reputation_messages: 2\n"
+        + "sender_reputation_spamhaus_listed: 1"
     )
     assert execution_request["inputs"]["json_schema"] == {
         "type": "object",

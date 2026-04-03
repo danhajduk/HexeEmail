@@ -11,6 +11,8 @@ from providers.gmail.models import GmailOAuthConfig
 from providers.gmail.models import (
     GmailManualClassificationBatchInput,
     GmailManualClassificationInput,
+    GmailSenderReputationInputs,
+    GmailSenderReputationRecord,
     GmailSpamhausCheck,
     GmailStoredMessage,
     GmailTrainingLabel,
@@ -161,6 +163,21 @@ async def test_action_required_email_notification_is_reusable_and_marks_message(
             )
         ]
     )
+    store.upsert_sender_reputation(
+        GmailSenderReputationRecord(
+            account_id="primary",
+            entity_type="email",
+            sender_value="sender@example.com",
+            sender_email="sender@example.com",
+            sender_domain="example.com",
+            reputation_state="risky",
+            rating=-1.5,
+            inputs=GmailSenderReputationInputs(
+                message_count=3,
+                classification_negative_count=2,
+            ),
+        )
+    )
 
     sent = service._notify_for_new_email_classification(
         account_id="primary",
@@ -177,6 +194,7 @@ async def test_action_required_email_notification_is_reusable_and_marks_message(
     assert "Sender <sender@example.com>" in (request.content.message or "")
     assert "Please approve today" in (request.content.message or "")
     assert "0.97" in (request.content.message or "")
+    assert "Sender reputation: risky (-1.50)" in (request.content.message or "")
     assert store.has_notification_label("primary", "msg-1", GmailTrainingLabel.ACTION_REQUIRED.value) is True
 
     sent_again = service._notify_for_new_email_classification(
@@ -275,3 +293,26 @@ async def test_manual_training_save_can_emit_debug_notification(config, core_cli
     assert result["saved_count"] == 1
     assert len(mqtt_manager.notification_requests) == 1
     assert store.has_notification_label("primary", "msg-3", GmailTrainingLabel.ACTION_REQUIRED.value) is True
+
+
+def test_runtime_batch_summary_notification_reports_local_and_ai_counts(config, core_client_factory):
+    mqtt_manager = FakeMQTTManager()
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=mqtt_manager)
+    service.state.trust_state = "trusted"
+    service.state.node_id = "node-1"
+    service.mqtt_manager.status.state = "connected"
+
+    sent = service._send_runtime_batch_classification_summary_notification(
+        batch_size=12,
+        local_processed=7,
+        ai_completed=3,
+        ai_attempted=5,
+    )
+
+    assert sent is True
+    assert len(mqtt_manager.notification_requests) == 1
+    request = mqtt_manager.notification_requests[0]
+    assert request.content is not None
+    assert "Classified locally: 7" in (request.content.message or "")
+    assert "Classified by AI node: 3" in (request.content.message or "")
+    assert "AI attempted: 5" in (request.content.message or "")

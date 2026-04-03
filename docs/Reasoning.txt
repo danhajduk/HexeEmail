@@ -40,6 +40,12 @@ Verification: `npm run build` passed in `frontend/`.
 Task #090
 Step objective: Use sender reputation in classification and notifications.
 Chosen fix: Thread sender reputation into the local/runtime classification helper outputs and add reputation state/rating context to operator-facing notifications and debug surfaces so risky senders are easier to spot.
-What changed: Task 090 marked in progress after the backend and UI reputation surfaces were completed.
-Verification: Queue state advanced and sender reputation is now visible to the operator.
+What changed: Added sender reputation context to action-required/order notifications, appended sender reputation state/rating signals to AI-node email classification inputs when available, surfaced sender reputation in runtime classification results, and documented the operator-visible behavior in a dedicated sender reputation note.
+Verification: `python -m py_compile src/service.py tests/test_notifications.py tests/test_ui_api.py` passed. `npm run build` passed in `frontend/`.
+###########
+Task #091
+Step objective: Fetch six months for initial Gmail learning.
+Chosen fix: Extend the initial-learning Gmail fetch query window from three months to six months so the first learning import matches the existing six-month local retention policy.
+What changed: Task 091 marked in progress after sender reputation task series completion.
+Verification: Queue state advanced and the next step is isolated to the Gmail fetch query/runtime docs path.
 ###########

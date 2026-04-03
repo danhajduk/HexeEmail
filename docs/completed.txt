@@ -87,3 +87,4 @@ Task 086: Add sender reputation storage based on DB ratings - Completed on 04/03
 Task 087: Build sender reputation aggregation and update flow - Completed on 04/03/2026 16:10
 Task 088: Expose sender reputation in backend APIs - Completed on 04/03/2026 16:10
 Task 089: Show sender reputation in the UI - Completed on 04/03/2026 16:10
+Task 090: Use sender reputation in classification and notifications - Completed on 04/03/2026 16:10

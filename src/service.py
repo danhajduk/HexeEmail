@@ -6,6 +6,7 @@ import json
 import re
 import socket
 import uuid
+from email.utils import parseaddr
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from urllib.parse import urlparse
@@ -953,6 +954,7 @@ class NodeService:
         sender: str | None,
         subject: str | None,
         confidence: float | None,
+        sender_reputation: dict[str, object] | None,
         message_id: str,
         source_component: str,
     ) -> bool:
@@ -979,9 +981,17 @@ class NodeService:
         confidence_text = f"{confidence:.2f}" if confidence is not None else "unknown"
         sender_text = (sender or "Unknown sender").strip() or "Unknown sender"
         subject_text = (subject or "(no subject)").strip() or "(no subject)"
+        sender_reputation_text = self._sender_reputation_notification_text(sender_reputation)
+        message_lines = [
+            f"From: {sender_text}",
+            f"Subject: {subject_text}",
+            f"Confidence: {confidence_text}",
+        ]
+        if sender_reputation_text:
+            message_lines.append(sender_reputation_text)
         return self.send_user_notification(
             title=spec["title"],
-            message=f"From: {sender_text}\nSubject: {subject_text}\nConfidence: {confidence_text}",
+            message="\n".join(message_lines),
             severity=spec["severity"],
             urgency=spec["urgency"],
             dedupe_key=f"gmail-classification-{classification_label.value}-{message_id}",
@@ -994,6 +1004,7 @@ class NodeService:
                 "sender": sender,
                 "subject": subject,
                 "confidence": confidence,
+                "sender_reputation": sender_reputation,
             },
         )
 
@@ -1014,17 +1025,78 @@ class NodeService:
         message = adapter.message_store.get_message(account_id, message_id)
         if message is None:
             return False
+        sender_reputation = self._sender_reputation_context(account_id, sender=message.sender)
         sent = self.send_email_classification_notification(
             classification_label=classification_label,
             sender=message.sender,
             subject=message.subject,
             confidence=confidence,
+            sender_reputation=sender_reputation,
             message_id=message_id,
             source_component=source_component,
         )
         if sent:
             adapter.message_store.mark_notification_label_sent(account_id, message_id, classification_label.value)
         return sent
+
+    def _sender_reputation_context(self, account_id: str, *, sender: str | None) -> dict[str, object] | None:
+        adapter = self.provider_registry.get_provider("gmail")
+        _, sender_email = parseaddr(sender or "")
+        sender_email = sender_email.strip().lower()
+        sender_domain = sender_email.split("@", 1)[1].strip().lower() if "@" in sender_email else ""
+        email_record = (
+            adapter.message_store.get_sender_reputation(account_id, entity_type="email", sender_value=sender_email)
+            if sender_email
+            else None
+        )
+        domain_record = (
+            adapter.message_store.get_sender_reputation(account_id, entity_type="domain", sender_value=sender_domain)
+            if sender_domain
+            else None
+        )
+        preferred = email_record or domain_record
+        if preferred is None:
+            return None
+        return {
+            "sender_email": sender_email or None,
+            "sender_domain": sender_domain or None,
+            "preferred": preferred.model_dump(mode="json"),
+            "email": email_record.model_dump(mode="json") if email_record is not None else None,
+            "domain": domain_record.model_dump(mode="json") if domain_record is not None else None,
+        }
+
+    def _sender_reputation_notification_text(self, sender_reputation: dict[str, object] | None) -> str | None:
+        if not isinstance(sender_reputation, dict):
+            return None
+        preferred = sender_reputation.get("preferred")
+        if not isinstance(preferred, dict):
+            return None
+        state = preferred.get("reputation_state") or "neutral"
+        rating = preferred.get("rating")
+        sender_value = preferred.get("sender_value") or sender_reputation.get("sender_domain") or sender_reputation.get("sender_email")
+        rating_text = f"{float(rating):.2f}" if isinstance(rating, (int, float)) else "unknown"
+        return f"Sender reputation: {state} ({rating_text}) [{sender_value}]"
+
+    def _build_ai_classifier_input_text(
+        self,
+        message,
+        *,
+        my_addresses: list[str] | None,
+        sender_reputation: dict[str, object] | None,
+    ) -> str:
+        normalized_text = normalize_email_for_classifier(message, my_addresses=my_addresses)
+        if not isinstance(sender_reputation, dict):
+            return normalized_text
+        preferred = sender_reputation.get("preferred")
+        if not isinstance(preferred, dict):
+            return normalized_text
+        reputation_lines = [
+            f"sender_reputation_state: {preferred.get('reputation_state') or 'neutral'}",
+            f"sender_reputation_rating: {preferred.get('rating') if preferred.get('rating') is not None else 'unknown'}",
+            f"sender_reputation_messages: {preferred.get('inputs', {}).get('message_count', 0) if isinstance(preferred.get('inputs'), dict) else 0}",
+            f"sender_reputation_spamhaus_listed: {preferred.get('inputs', {}).get('spamhaus_listed_count', 0) if isinstance(preferred.get('inputs'), dict) else 0}",
+        ]
+        return f"{normalized_text}\n" + "\n".join(reputation_lines)
 
     def _send_runtime_batch_classification_summary_notification(
         self,
@@ -1760,7 +1832,12 @@ class NodeService:
         adapter = self.provider_registry.get_provider("gmail")
         account_record = adapter.account_store.load_account(account_id)
         my_addresses = [account_record.email_address] if account_record is not None and account_record.email_address else []
-        normalized_text = normalize_email_for_classifier(message, my_addresses=my_addresses)
+        sender_reputation = self._sender_reputation_context(account_id, sender=message.sender)
+        normalized_text = self._build_ai_classifier_input_text(
+            message,
+            my_addresses=my_addresses,
+            sender_reputation=sender_reputation,
+        )
 
         task_id = self._next_email_classify_task_id()
         trace_id = correlation_id or f"trace-email-{uuid.uuid4().hex}"
@@ -1885,6 +1962,7 @@ class NodeService:
             "request_payload": request_body,
             "execution": execution_payload,
             "parsed_output": parsed_classifier_output,
+            "sender_reputation": sender_reputation,
         }
         AI_LOGGER.info(
             "AI classifier execution completed",

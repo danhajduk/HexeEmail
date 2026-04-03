@@ -60,11 +60,11 @@ Do not edit above this line:
        - surface sender reputation on the gmail/training flows
        - show sender/domain rating, reputation state, and supporting counts
        - make it easy to inspect why a sender has a given reputation
-[WIP] Task 090: Use sender reputation in classification and notifications
-      - include sender reputation in local/runtime classification helper flows where useful
-      - surface high-risk or low-reputation senders in notifications/debug outputs
-      - document how sender reputation affects operator-visible behavior
-[TODO] Task 091: Fetch six months for initial Gmail learning
+[DONE] Task 090: Use sender reputation in classification and notifications
+       - include sender reputation in local/runtime classification helper flows where useful
+       - surface high-risk or low-reputation senders in notifications/debug outputs
+       - document how sender reputation affects operator-visible behavior
+[WIP] Task 091: Fetch six months for initial Gmail learning
       - change the initial Gmail learning fetch window from 3 months to 6 months
       - keep the initial learning window aligned with the local 6 month retention window
       - update tests and docs that still reference the 3 month initial fetch range
