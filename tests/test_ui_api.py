@@ -957,6 +957,56 @@ async def test_gmail_status_api_exposes_classification_summary(config, core_clie
     assert body["accounts"][0]["classification_summary"]["high_confidence_count"] == 1
 
 
+@pytest.mark.asyncio
+async def test_gmail_status_api_exposes_sender_reputation_summary(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    if service.gmail_status_task is not None:
+        service.gmail_status_task.cancel()
+    service.state.trust_state = "trusted"
+    service.state.node_id = "node-1"
+    adapter = service.provider_registry.get_provider("gmail")
+    adapter.account_store.save_account(
+        adapter.state_machine.ensure_account("primary").model_copy(
+            update={"status": "connected", "email_address": "primary@example.com"}
+        )
+    )
+    adapter.message_store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="msg-1",
+                subject="Review",
+                sender="Alerts <alerts@example.com>",
+                recipients=["primary@example.com"],
+                snippet="Please review",
+                received_at=datetime(2026, 4, 2, 12, 0, 0).astimezone(),
+            )
+        ]
+    )
+    adapter.message_store.update_local_classification(
+        "primary",
+        "msg-1",
+        label=GmailTrainingLabel.ACTION_REQUIRED,
+        confidence=1.0,
+        manual_classification=True,
+    )
+    await adapter.refresh_sender_reputations("primary")
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/gmail/status")
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    sender_reputation = body["accounts"][0]["sender_reputation"]
+    assert sender_reputation["total_count"] == 2
+    assert sender_reputation["records"][0]["sender_value"] in {"alerts@example.com", "example.com"}
+    assert sender_reputation["by_state"]["neutral"] == 2
+
+
 def build_google_fetch_test_app():
     app = build_core_app()
 
@@ -1504,6 +1554,70 @@ async def test_gmail_training_status_includes_manual_and_high_confidence_counts(
     body = response.json()
     assert body["classification_summary"]["manual_count"] == 1
     assert body["classification_summary"]["high_confidence_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_gmail_reputation_detail_api_exposes_record_and_recent_messages(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    adapter = service.provider_registry.get_provider("gmail")
+    adapter.account_store.save_account(
+        adapter.state_machine.ensure_account("primary").model_copy(
+            update={"status": "connected", "email_address": "primary@example.com"}
+        )
+    )
+    adapter.message_store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="msg-1",
+                sender="Alerts <alerts@example.com>",
+                recipients=["primary@example.com"],
+                subject="Need review",
+                snippet="Please review",
+                label_ids=["INBOX"],
+                received_at=datetime(2026, 4, 1, 12, 0, 0).astimezone(),
+            )
+        ],
+        now=datetime(2026, 4, 2, 12, 5, 0).astimezone(),
+    )
+    adapter.message_store.update_local_classification(
+        "primary",
+        "msg-1",
+        label=GmailTrainingLabel.ACTION_REQUIRED,
+        confidence=1.0,
+        manual_classification=True,
+    )
+    adapter.message_store.upsert_spamhaus_check(
+        GmailSpamhausCheck(
+            account_id="primary",
+            message_id="msg-1",
+            sender_email="alerts@example.com",
+            sender_domain="example.com",
+            checked=True,
+            listed=False,
+            status="clean",
+        ),
+        now=datetime(2026, 4, 2, 12, 6, 0).astimezone(),
+    )
+    await adapter.refresh_sender_reputations("primary")
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get(
+            "/api/gmail/reputation/detail",
+            params={"entity_type": "email", "sender_value": "alerts@example.com"},
+        )
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["record"]["sender_value"] == "alerts@example.com"
+    assert body["record"]["inputs"]["classification_positive_count"] == 1
+    assert body["record"]["inputs"]["spamhaus_clean_count"] == 1
+    assert body["related_message_count"] == 1
+    assert body["recent_messages"][0]["message_id"] == "msg-1"
 
 
 @pytest.mark.asyncio

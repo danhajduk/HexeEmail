@@ -52,11 +52,11 @@ Do not edit above this line:
        - compute sender reputation from stored message ratings and existing checks
        - update reputation when new emails are fetched or reclassified
        - keep the aggregation reusable for runtime, training, and ui usage
-[WIP] Task 088: Expose sender reputation in backend APIs
-      - add api responses for sender reputation summary and sender detail
-      - include counts, reputation bucket, last seen, and rating inputs used
-      - keep the api shape compatible with the current gmail status/dashboard patterns
-[TODO] Task 089: Show sender reputation in the UI
+[DONE] Task 088: Expose sender reputation in backend APIs
+       - add api responses for sender reputation summary and sender detail
+       - include counts, reputation bucket, last seen, and rating inputs used
+       - keep the api shape compatible with the current gmail status/dashboard patterns
+[WIP] Task 089: Show sender reputation in the UI
       - surface sender reputation on the gmail/training flows
       - show sender/domain rating, reputation state, and supporting counts
       - make it easy to inspect why a sender has a given reputation

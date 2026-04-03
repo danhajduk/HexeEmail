@@ -28,6 +28,12 @@ Verification: `python -m py_compile src/providers/gmail/reputation.py src/provid
 Task #088
 Step objective: Expose sender reputation in backend APIs.
 Chosen fix: Add sender reputation summary/detail read methods in the Gmail adapter and surface them through the existing service/UI API structure so the dashboard and training views can consume reputation data without querying the DB directly.
-What changed: Task 088 marked in progress after the aggregation flow was wired and verified.
-Verification: Queue state advanced and sender reputation records are now available for API shaping.
+What changed: Added sender reputation summary/detail API methods in the Gmail adapter, exposed sender reputation summary on the Gmail status and training payloads, added dedicated `/api/gmail/reputation` and `/api/gmail/reputation/detail` routes, and covered the new payload shape with UI API regression tests.
+Verification: `python -m py_compile src/providers/gmail/adapter.py src/providers/gmail/reputation.py src/providers/gmail/message_store.py src/service.py src/main.py tests/test_ui_api.py tests/test_gmail_adapter.py` passed. `python -m pytest tests/test_ui_api.py tests/test_gmail_adapter.py` could not run because `pytest` is not installed in this environment.
+###########
+Task #089
+Step objective: Show sender reputation in the UI.
+Chosen fix: Reuse the new Gmail status/training sender reputation payloads and add a lightweight inspectable detail view in the existing Gmail/training screens so operators can see state, scores, and why a sender is classified that way.
+What changed: Task 089 marked in progress after the backend payloads and detail endpoint were added.
+Verification: Queue state advanced and UI-facing sender reputation data is available.
 ###########

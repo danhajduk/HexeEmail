@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from email.utils import parseaddr
 from datetime import datetime
 from pathlib import Path
 
@@ -281,6 +282,73 @@ class GmailProviderAdapter(EmailProviderAdapter):
         )
         return self.message_store.replace_sender_reputations(account_id, records)
 
+    async def sender_reputation_summary(self, account_id: str, *, limit: int = 20) -> dict[str, object]:
+        records = self.message_store.list_sender_reputations(account_id, limit=limit)
+        all_records = self.message_store.list_sender_reputations(account_id, limit=10000)
+        by_state: dict[str, int] = {}
+        latest_updated_at = None
+        for record in all_records:
+            by_state[record.reputation_state] = by_state.get(record.reputation_state, 0) + 1
+            if latest_updated_at is None or (
+                record.updated_at is not None and record.updated_at > latest_updated_at
+            ):
+                latest_updated_at = record.updated_at
+        return {
+            "account_id": account_id,
+            "total_count": len(all_records),
+            "by_state": by_state,
+            "latest_updated_at": latest_updated_at,
+            "records": [record.model_dump(mode="json") for record in records],
+        }
+
+    async def sender_reputation_detail(
+        self,
+        account_id: str,
+        *,
+        entity_type: str,
+        sender_value: str,
+        message_limit: int = 10,
+    ) -> dict[str, object] | None:
+        record = self.message_store.get_sender_reputation(
+            account_id,
+            entity_type=entity_type,
+            sender_value=sender_value,
+        )
+        if record is None:
+            return None
+        recent_messages = []
+        for message in self.message_store.list_all_messages(account_id):
+            sender_email = self._normalize_sender_email(message.sender)
+            sender_domain = self._extract_sender_domain(sender_email)
+            matches = (
+                entity_type == "email" and sender_email == sender_value
+            ) or (
+                entity_type == "domain" and sender_domain == sender_value
+            )
+            if not matches:
+                continue
+            recent_messages.append(
+                {
+                    "message_id": message.message_id,
+                    "subject": message.subject,
+                    "sender": message.sender,
+                    "received_at": message.received_at,
+                    "local_label": message.local_label,
+                    "local_label_confidence": message.local_label_confidence,
+                    "manual_classification": message.manual_classification,
+                }
+            )
+            if len(recent_messages) >= message_limit:
+                break
+        return {
+            "account_id": account_id,
+            "entity_type": entity_type,
+            "sender_value": sender_value,
+            "record": record.model_dump(mode="json"),
+            "related_message_count": int(record.inputs.message_count),
+            "recent_messages": recent_messages,
+        }
+
     async def training_model_status(self) -> dict[str, object]:
         return self.training_model_store.status()
 
@@ -534,3 +602,12 @@ class GmailProviderAdapter(EmailProviderAdapter):
         await self.token_client.aclose()
         await self.identity_client.aclose()
         await self.mailbox_client.aclose()
+
+    def _normalize_sender_email(self, value: str | None) -> str:
+        _, address = parseaddr(value or "")
+        return address.strip().lower()
+
+    def _extract_sender_domain(self, sender_email: str) -> str:
+        if "@" not in sender_email:
+            return ""
+        return sender_email.split("@", 1)[1].strip().lower()

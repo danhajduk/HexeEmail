@@ -85,3 +85,4 @@ Task 084: Notifications for the "action_required" emails - Completed on 04/03/20
 Task 085: Notifications for the "order" emails - Completed on 04/03/2026 15:41
 Task 086: Add sender reputation storage based on DB ratings - Completed on 04/03/2026 16:10
 Task 087: Build sender reputation aggregation and update flow - Completed on 04/03/2026 16:10
+Task 088: Expose sender reputation in backend APIs - Completed on 04/03/2026 16:10

@@ -289,6 +289,30 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    @app.get("/api/gmail/reputation")
+    async def gmail_sender_reputation(account_id: str = "primary", limit: int = 20):
+        try:
+            return await node_service.gmail_sender_reputation_summary(account_id=account_id, limit=limit)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.get("/api/gmail/reputation/detail")
+    async def gmail_sender_reputation_detail(
+        entity_type: str,
+        sender_value: str,
+        account_id: str = "primary",
+        message_limit: int = 10,
+    ):
+        try:
+            return await node_service.gmail_sender_reputation_detail(
+                account_id=account_id,
+                entity_type=entity_type,
+                sender_value=sender_value,
+                message_limit=message_limit,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     @app.post("/api/gmail/training/manual-batch")
     async def gmail_training_manual_batch(account_id: str = "primary", limit: int = 40):
         try:

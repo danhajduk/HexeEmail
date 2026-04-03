@@ -2303,6 +2303,11 @@ class NodeService:
                 if hasattr(adapter, "local_classification_summary")
                 else None
             )
+            sender_reputation = (
+                await adapter.sender_reputation_summary(account.account_id)
+                if hasattr(adapter, "sender_reputation_summary")
+                else None
+            )
             spamhaus_summary = await adapter.spamhaus_summary(account.account_id) if hasattr(adapter, "spamhaus_summary") else None
             quota_usage = await adapter.quota_usage_summary(account.account_id) if hasattr(adapter, "quota_usage_summary") else None
             statuses.append(
@@ -2312,6 +2317,7 @@ class NodeService:
                     "labels": labels,
                     "message_store": message_summary,
                     "classification_summary": classification_summary,
+                    "sender_reputation": sender_reputation,
                     "spamhaus": spamhaus_summary.model_dump(mode="json") if spamhaus_summary is not None else None,
                     "quota_usage": quota_usage.model_dump(mode="json") if quota_usage is not None else None,
                 }
@@ -2494,6 +2500,7 @@ class NodeService:
             "bootstrap_threshold": self.config.gmail_training_bootstrap_threshold,
             "message_store": await adapter.message_store_summary(account_id) if hasattr(adapter, "message_store_summary") else None,
             "classification_summary": await adapter.local_classification_summary(account_id) if hasattr(adapter, "local_classification_summary") else None,
+            "sender_reputation": await adapter.sender_reputation_summary(account_id) if hasattr(adapter, "sender_reputation_summary") else None,
             "dataset_summary": await adapter.training_dataset_summary(
                 account_id,
                 bootstrap_threshold=self.config.gmail_training_bootstrap_threshold,
@@ -2502,6 +2509,40 @@ class NodeService:
             else None,
             "model_status": await adapter.training_model_status() if hasattr(adapter, "training_model_status") else None,
         }
+
+    async def gmail_sender_reputation_summary(
+        self,
+        *,
+        account_id: str = "primary",
+        limit: int = 20,
+    ) -> dict[str, object]:
+        adapter = self.provider_registry.get_provider("gmail")
+        if not hasattr(adapter, "sender_reputation_summary"):
+            raise ValueError("gmail sender reputation is not available")
+        return await adapter.sender_reputation_summary(account_id, limit=limit)
+
+    async def gmail_sender_reputation_detail(
+        self,
+        *,
+        account_id: str = "primary",
+        entity_type: str,
+        sender_value: str,
+        message_limit: int = 10,
+    ) -> dict[str, object]:
+        adapter = self.provider_registry.get_provider("gmail")
+        if not hasattr(adapter, "sender_reputation_detail"):
+            raise ValueError("gmail sender reputation is not available")
+        if entity_type not in {"email", "domain"}:
+            raise ValueError("entity_type must be email or domain")
+        detail = await adapter.sender_reputation_detail(
+            account_id,
+            entity_type=entity_type,
+            sender_value=sender_value.strip().lower(),
+            message_limit=message_limit,
+        )
+        if detail is None:
+            raise ValueError("sender reputation record was not found")
+        return detail
 
     async def gmail_training_manual_batch(self, *, account_id: str = "primary", limit: int = 40) -> dict[str, object]:
         adapter = self.provider_registry.get_provider("gmail")
