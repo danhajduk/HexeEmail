@@ -46,6 +46,12 @@ Verification: `python -m py_compile src/service.py tests/test_notifications.py t
 Task #091
 Step objective: Fetch six months for initial Gmail learning.
 Chosen fix: Extend the initial-learning Gmail fetch query window from three months to six months so the first learning import matches the existing six-month local retention policy.
-What changed: Task 091 marked in progress after sender reputation task series completion.
-Verification: Queue state advanced and the next step is isolated to the Gmail fetch query/runtime docs path.
+What changed: Updated the Gmail mailbox client so `initial_learning` fetches six months of mail, refreshed the mailbox-client query regression to assert the exact six-month window, and updated the fetch-status documentation to match the new initial learning range.
+Verification: `python -m py_compile src/providers/gmail/mailbox_client.py tests/test_gmail_mailbox_client.py` passed.
+###########
+Task #092
+Step objective: Schedule hourly batch classification for newest unclassified emails.
+Chosen fix: Reuse the existing runtime batch classification flow inside the minute-based Gmail scheduler loop, adding a persisted hourly slot key so the batch job only runs once per hour around `:00` even if the scheduler checks multiple times.
+What changed: Added persisted hourly batch slot tracking to runtime state, wired the Gmail scheduler loop to trigger the existing 100-message batch classification flow once per hour near minute `00`, and added regression coverage for the once-per-slot behavior.
+Verification: `python -m py_compile src/models.py src/service.py src/providers/gmail/mailbox_client.py tests/test_gmail_mailbox_client.py tests/test_ui_api.py` passed. `python -m pytest ...` still could not run because `pytest` is not installed in this environment.
 ###########

@@ -1827,3 +1827,23 @@ def test_due_gmail_fetch_windows_catch_up_missed_slot_in_local_timezone(config, 
 
     assert ("today", service._gmail_fetch_slot_key("today", now)) in due_windows
     assert ("last_hour", service._gmail_fetch_slot_key("last_hour", now)) in due_windows
+
+
+@pytest.mark.asyncio
+async def test_scheduled_hourly_batch_classification_runs_once_per_slot(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    calls: list[str | None] = []
+
+    async def fake_runtime_execute_email_classifier_batch(payload, *, correlation_id=None):
+        calls.append(payload.target_api_base_url)
+        return {"ok": True, "batch_size": 0, "local_processed": 0, "ai_total": 0, "ai_completed": 0, "ai_results": []}
+
+    service.runtime_execute_email_classifier_batch = fake_runtime_execute_email_classifier_batch  # type: ignore[method-assign]
+    slot_time = datetime(2026, 4, 2, 7, 0, 0).astimezone()
+
+    await service._run_due_hourly_batch_classification(slot_time)
+    await service._run_due_hourly_batch_classification(slot_time.replace(minute=4))
+
+    assert calls == ["http://127.0.0.1:9002"]
+    assert service.state.gmail_hourly_batch_classification_slot_key == service._gmail_hourly_batch_slot_key(slot_time)
+    assert service._gmail_hourly_batch_slot_key(slot_time.replace(minute=5)) is None

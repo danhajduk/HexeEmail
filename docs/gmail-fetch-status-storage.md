@@ -86,7 +86,7 @@ Current fetch query behavior:
 
 `initial_learning`:
 
-- fetches inbox mail for the last three months
+- fetches inbox mail for the last six months
 - intended as the first population pass for local learning/classification workflows
 
 `today`:

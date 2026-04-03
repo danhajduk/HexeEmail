@@ -2940,6 +2940,7 @@ class NodeService:
                         }
                     },
                 )
+        await self._run_due_hourly_batch_classification(now)
 
     def _due_gmail_fetch_windows(self, now: datetime, schedule_state) -> list[tuple[str, str]]:
         due: list[tuple[str, str]] = []
@@ -2972,6 +2973,36 @@ class NodeService:
             due.append(("last_hour", schedule_map["last_hour"]))
 
         return due
+
+    async def _run_due_hourly_batch_classification(self, now: datetime) -> None:
+        slot_key = self._gmail_hourly_batch_slot_key(now)
+        if slot_key is None or self.state.gmail_hourly_batch_classification_slot_key == slot_key:
+            return
+        try:
+            LOGGER.info(
+                "Scheduled hourly Gmail batch classification starting",
+                extra={"event_data": {"slot_key": slot_key}},
+            )
+            await self.runtime_execute_email_classifier_batch(
+                RuntimePromptExecutionRequestInput(target_api_base_url="http://127.0.0.1:9002")
+            )
+            self.state.gmail_hourly_batch_classification_slot_key = slot_key
+            self.state_store.save(self.state)
+            LOGGER.info(
+                "Scheduled hourly Gmail batch classification completed",
+                extra={"event_data": {"slot_key": slot_key}},
+            )
+        except Exception as exc:
+            LOGGER.error(
+                "Scheduled hourly Gmail batch classification failed",
+                extra={"event_data": {"slot_key": slot_key, "detail": str(exc)}},
+            )
+
+    def _gmail_hourly_batch_slot_key(self, now: datetime) -> str | None:
+        local_now = now.astimezone()
+        if local_now.minute >= 5:
+            return None
+        return local_now.replace(minute=0, second=0, microsecond=0).isoformat()
 
     def _gmail_fetch_slot_key(self, window: str, now: datetime) -> str | None:
         local_now = now.astimezone()

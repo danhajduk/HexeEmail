@@ -145,6 +145,7 @@ class RuntimeState(BaseModel):
     active_governance_version: str | None = None
     operational_readiness: bool = False
     runtime_email_classify_counter: int = 0
+    gmail_hourly_batch_classification_slot_key: str | None = None
     gmail_last_hour_pipeline_state: dict[str, object] = Field(default_factory=dict)
     gmail_fetch_scheduler_state: dict[str, object] = Field(default_factory=dict)
     runtime_task_state: dict[str, object] = Field(default_factory=dict)

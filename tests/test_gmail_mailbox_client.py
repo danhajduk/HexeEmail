@@ -150,11 +150,12 @@ def test_gmail_mailbox_client_builds_local_time_window_queries():
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     yesterday_start = today_start - timedelta(days=1)
     next_second = now + timedelta(seconds=1)
+    initial_start = now.replace(year=2025, month=10, day=2)
 
     assert today_query == f"after:{int(today_start.timestamp())} before:{int(next_second.timestamp())}"
     assert yesterday_query == f"after:{int(yesterday_start.timestamp())} before:{int(today_start.timestamp())}"
     assert last_hour_query == f"after:{int((now - timedelta(hours=1)).timestamp())} before:{int(next_second.timestamp())}"
-    assert initial_query.startswith("after:")
+    assert initial_query == f"after:{int(initial_start.timestamp())} before:{int(next_second.timestamp())}"
     assert "in:inbox" not in today_query
     assert "in:inbox" not in yesterday_query
     assert "in:inbox" not in last_hour_query

@@ -144,7 +144,7 @@ class GmailMailboxClient:
         next_second = local_now + timedelta(seconds=1)
 
         if window == "initial_learning":
-            start = self._months_ago(local_now, 3)
+            start = self._months_ago(local_now, 6)
             return self._all_mail_range_query(start, next_second)
         if window == "yesterday":
             return self._all_mail_range_query(yesterday_start, today_start)
