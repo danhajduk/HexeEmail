@@ -255,6 +255,30 @@ function backendUnavailableMessage(error) {
   return error || "backend unavailable";
 }
 
+function senderReputationTone(value) {
+  if (value === "trusted") {
+    return "success";
+  }
+  if (value === "risky") {
+    return "warning";
+  }
+  if (value === "blocked") {
+    return "danger";
+  }
+  return "neutral";
+}
+
+function formatSenderReputationInputs(inputs) {
+  const value = inputs || {};
+  return [
+    `${value.message_count ?? 0} msgs`,
+    `+${value.classification_positive_count ?? 0}`,
+    `-${value.classification_negative_count ?? 0}`,
+    `clean ${value.spamhaus_clean_count ?? 0}`,
+    `listed ${value.spamhaus_listed_count ?? 0}`,
+  ].join(" · ");
+}
+
 function BackendUnavailableScreen({
   apiBase,
   error,
@@ -290,6 +314,105 @@ function BackendUnavailableScreen({
         </div>
       </article>
     </section>
+  );
+}
+
+function SenderReputationPanel({
+  summary,
+  detail,
+  loading,
+  error,
+  onInspect,
+  onClear,
+  emptyMessage = "No sender reputation records yet.",
+}) {
+  const records = summary?.records || [];
+
+  return (
+    <div className="sender-reputation-panel stack compact-stack">
+      <div className="sender-reputation-summary-grid">
+        <div className="callout">Records: {summary?.total_count ?? 0}</div>
+        <div className="callout">Trusted: {summary?.by_state?.trusted ?? 0}</div>
+        <div className="callout">Risky: {summary?.by_state?.risky ?? 0}</div>
+        <div className="callout">Blocked: {summary?.by_state?.blocked ?? 0}</div>
+      </div>
+      {records.length ? (
+        <div className="sender-reputation-list">
+          {records.map((record) => (
+            <div key={`${record.entity_type}:${record.sender_value}`} className="sender-reputation-item">
+              <div>
+                <div className="sender-reputation-item-top">
+                  <strong>{record.sender_value}</strong>
+                  <span className={`status-pill tone-${senderReputationTone(record.reputation_state)}`}>
+                    {record.reputation_state}
+                  </span>
+                </div>
+                <div className="muted tiny">
+                  Rating {Number(record.rating ?? 0).toFixed(2)} · {formatSenderReputationInputs(record.inputs)}
+                </div>
+              </div>
+              <button
+                className="btn btn-ghost"
+                type="button"
+                onClick={() => onInspect(record.entity_type, record.sender_value)}
+                disabled={loading}
+              >
+                Inspect
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="callout">{emptyMessage}</div>
+      )}
+      {error ? <div className="callout callout-danger">{error}</div> : null}
+      {detail ? (
+        <div className="sender-reputation-detail">
+          <div className="sender-reputation-detail-header">
+            <div>
+              <strong>{detail.record?.sender_value}</strong>
+              <div className="muted tiny">
+                {detail.record?.entity_type} · rating {Number(detail.record?.rating ?? 0).toFixed(2)}
+              </div>
+            </div>
+            <div className="actions">
+              <span className={`status-pill tone-${senderReputationTone(detail.record?.reputation_state)}`}>
+                {detail.record?.reputation_state || "neutral"}
+              </span>
+              <button className="btn btn-ghost" type="button" onClick={onClear}>
+                Clear
+              </button>
+            </div>
+          </div>
+          <dl className="facts single-column-facts">
+            <div>
+              <dt>Last Seen</dt>
+              <dd>{formatTelemetryTimestamp(detail.record?.last_seen_at)}</dd>
+            </div>
+            <div>
+              <dt>Updated</dt>
+              <dd>{formatTelemetryTimestamp(detail.record?.updated_at)}</dd>
+            </div>
+            <div>
+              <dt>Inputs</dt>
+              <dd>{formatSenderReputationInputs(detail.record?.inputs)}</dd>
+            </div>
+          </dl>
+          {(detail.recent_messages || []).length ? (
+            <div className="sender-reputation-recent-list">
+              {detail.recent_messages.map((message) => (
+                <div key={message.message_id} className="sender-reputation-recent-item">
+                  <strong>{message.subject || "(no subject)"}</strong>
+                  <div className="muted tiny">
+                    {message.message_id} · {message.local_label || "unclassified"} · {formatTelemetryTimestamp(message.received_at)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -882,7 +1005,12 @@ function TrainingPage({
   trainingModelPending,
   trainingNotice,
   trainingSelections,
+  senderReputationDetail,
+  senderReputationLoading,
+  senderReputationError,
   onBack,
+  onClearSenderReputationDetail,
+  onInspectSenderReputation,
   onLoadClassifiedLabelBatch,
   onLoadManualBatch,
   onLoadSemiAutoBatch,
@@ -975,6 +1103,15 @@ function TrainingPage({
                 </div>
                 )
               : null}
+            <SenderReputationPanel
+              summary={trainingStatus?.sender_reputation}
+              detail={senderReputationDetail}
+              loading={senderReputationLoading}
+              error={senderReputationError}
+              onInspect={onInspectSenderReputation}
+              onClear={onClearSenderReputationDetail}
+              emptyMessage="Load or classify mail to build sender reputation."
+            />
             {trainingLoading ? <div className="callout">Loading training status...</div> : null}
             {trainingError ? <div className="callout callout-danger">{trainingError}</div> : null}
             {trainingBatchError ? <div className="callout callout-danger">{trainingBatchError}</div> : null}
@@ -1045,6 +1182,18 @@ function TrainingPage({
                           <div className="callout">
                             Model Prediction: {item.predicted_label || "unknown"} ({Number(item.predicted_confidence || 0).toFixed(2)})
                             {item.predicted_label === "unknown" && item.raw_predicted_label ? `, top guess was ${item.raw_predicted_label}` : ""}
+                          </div>
+                        ) : null}
+                        {item.sender_email || item.sender_domain ? (
+                          <div className="training-item-meta-actions">
+                            <button
+                              className="btn btn-ghost"
+                              type="button"
+                              onClick={() => onInspectSenderReputation(item.sender_email ? "email" : "domain", item.sender_email || item.sender_domain)}
+                              disabled={senderReputationLoading}
+                            >
+                              Inspect Sender Reputation
+                            </button>
                           </div>
                         ) : null}
                         <pre className="training-flat-text">{item.raw_text || item.flat_text}</pre>
@@ -1367,6 +1516,9 @@ export function App() {
   const [trainingModelPending, setTrainingModelPending] = useState(false);
   const [trainingNotice, setTrainingNotice] = useState("");
   const [trainingSelections, setTrainingSelections] = useState({});
+  const [senderReputationDetail, setSenderReputationDetail] = useState(null);
+  const [senderReputationLoading, setSenderReputationLoading] = useState(false);
+  const [senderReputationError, setSenderReputationError] = useState("");
   const [copyNotice, setCopyNotice] = useState("");
   const [uiUpdatedAt, setUiUpdatedAt] = useState(null);
   const [backendReachable, setBackendReachable] = useState(true);
@@ -2191,6 +2343,29 @@ export function App() {
     }
   }
 
+  async function loadSenderReputationDetail(entityType, senderValue) {
+    if (!senderValue) {
+      return;
+    }
+    setSenderReputationLoading(true);
+    setSenderReputationError("");
+    try {
+      const payload = await fetchJson(
+        `/api/gmail/reputation/detail?entity_type=${encodeURIComponent(entityType)}&sender_value=${encodeURIComponent(senderValue)}`,
+      );
+      setSenderReputationDetail(payload);
+    } catch (loadError) {
+      setSenderReputationError(loadError.message);
+    } finally {
+      setSenderReputationLoading(false);
+    }
+  }
+
+  function clearSenderReputationDetail() {
+    setSenderReputationDetail(null);
+    setSenderReputationError("");
+  }
+
   async function trainLocalModel() {
     setTrainingModelPending(true);
     setTrainingBatchError("");
@@ -2532,6 +2707,7 @@ export function App() {
   const gmailPrimaryAccount = gmailPrimary?.account || null;
   const gmailPrimaryStore = gmailPrimary?.message_store || null;
   const gmailPrimaryClassification = gmailPrimary?.classification_summary || null;
+  const gmailPrimarySenderReputation = gmailPrimary?.sender_reputation || null;
   const gmailPrimarySpamhaus = gmailPrimary?.spamhaus || null;
   const gmailPrimaryQuotaUsage = gmailPrimary?.quota_usage || null;
   const gmailFetchSchedule = gmailStatus?.fetch_schedule || null;
@@ -2641,7 +2817,12 @@ export function App() {
           trainingModelPending={trainingModelPending}
           trainingNotice={trainingNotice}
           trainingSelections={trainingSelections}
+          senderReputationDetail={senderReputationDetail}
+          senderReputationLoading={senderReputationLoading}
+          senderReputationError={senderReputationError}
           onBack={() => (dashboardEnabled ? openDashboard() : openSetup())}
+          onClearSenderReputationDetail={clearSenderReputationDetail}
+          onInspectSenderReputation={loadSenderReputationDetail}
           onLoadClassifiedLabelBatch={loadClassifiedLabelBatch}
           onLoadManualBatch={loadTrainingManualBatch}
           onLoadSemiAutoBatch={loadTrainingSemiAutoBatch}
@@ -2855,6 +3036,21 @@ export function App() {
                         <dd>{gmailPrimaryQuotaUsage?.remaining_last_minute ?? 15000}</dd>
                       </div>
                     </dl>
+                  </article>
+
+                  <article className="card">
+                    <div className="card-header">
+                      <h2>Sender Reputation</h2>
+                      <p className="muted">Sender email and domain reputation derived from local classifications and Spamhaus checks.</p>
+                    </div>
+                    <SenderReputationPanel
+                      summary={gmailPrimarySenderReputation}
+                      detail={senderReputationDetail}
+                      loading={senderReputationLoading}
+                      error={senderReputationError}
+                      onInspect={loadSenderReputationDetail}
+                      onClear={clearSenderReputationDetail}
+                    />
                   </article>
 
                   <article className="card">

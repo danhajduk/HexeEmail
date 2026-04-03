@@ -34,6 +34,12 @@ Verification: `python -m py_compile src/providers/gmail/adapter.py src/providers
 Task #089
 Step objective: Show sender reputation in the UI.
 Chosen fix: Reuse the new Gmail status/training sender reputation payloads and add a lightweight inspectable detail view in the existing Gmail/training screens so operators can see state, scores, and why a sender is classified that way.
-What changed: Task 089 marked in progress after the backend payloads and detail endpoint were added.
-Verification: Queue state advanced and UI-facing sender reputation data is available.
+What changed: Added a shared sender reputation panel to the Gmail dashboard and Training page, surfaced summary counts and top sender/domain records from the new backend payloads, and added inspect actions that load detailed inputs and recent contributing messages without leaving the current screen.
+Verification: `npm run build` passed in `frontend/`.
+###########
+Task #090
+Step objective: Use sender reputation in classification and notifications.
+Chosen fix: Thread sender reputation into the local/runtime classification helper outputs and add reputation state/rating context to operator-facing notifications and debug surfaces so risky senders are easier to spot.
+What changed: Task 090 marked in progress after the backend and UI reputation surfaces were completed.
+Verification: Queue state advanced and sender reputation is now visible to the operator.
 ###########

@@ -56,11 +56,11 @@ Do not edit above this line:
        - add api responses for sender reputation summary and sender detail
        - include counts, reputation bucket, last seen, and rating inputs used
        - keep the api shape compatible with the current gmail status/dashboard patterns
-[WIP] Task 089: Show sender reputation in the UI
-      - surface sender reputation on the gmail/training flows
-      - show sender/domain rating, reputation state, and supporting counts
-      - make it easy to inspect why a sender has a given reputation
-[TODO] Task 090: Use sender reputation in classification and notifications
+[DONE] Task 089: Show sender reputation in the UI
+       - surface sender reputation on the gmail/training flows
+       - show sender/domain rating, reputation state, and supporting counts
+       - make it easy to inspect why a sender has a given reputation
+[WIP] Task 090: Use sender reputation in classification and notifications
       - include sender reputation in local/runtime classification helper flows where useful
       - surface high-risk or low-reputation senders in notifications/debug outputs
       - document how sender reputation affects operator-visible behavior
