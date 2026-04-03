@@ -705,6 +705,64 @@ class GmailMessageStore:
             rows = connection.execute(query, tuple(params)).fetchall()
         return [self._row_to_sender_reputation(row) for row in rows]
 
+    def replace_sender_reputations(
+        self,
+        account_id: str,
+        records: list[GmailSenderReputationRecord],
+        *,
+        now: datetime | None = None,
+    ) -> list[GmailSenderReputationRecord]:
+        updated_at = now or datetime.now().astimezone()
+        with self._connect() as connection:
+            connection.execute(
+                """
+                DELETE FROM gmail_sender_reputation
+                WHERE account_id = ?
+                """,
+                (account_id,),
+            )
+            connection.executemany(
+                """
+                INSERT INTO gmail_sender_reputation (
+                    account_id,
+                    entity_type,
+                    sender_value,
+                    sender_email,
+                    sender_domain,
+                    reputation_state,
+                    rating,
+                    message_count,
+                    classification_positive_count,
+                    classification_negative_count,
+                    spamhaus_clean_count,
+                    spamhaus_listed_count,
+                    last_seen_at,
+                    updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        record.account_id,
+                        record.entity_type,
+                        record.sender_value,
+                        record.sender_email,
+                        record.sender_domain,
+                        record.reputation_state,
+                        record.rating,
+                        record.inputs.message_count,
+                        record.inputs.classification_positive_count,
+                        record.inputs.classification_negative_count,
+                        record.inputs.spamhaus_clean_count,
+                        record.inputs.spamhaus_listed_count,
+                        record.last_seen_at.isoformat() if record.last_seen_at else None,
+                        (record.updated_at or updated_at).isoformat(),
+                    )
+                    for record in records
+                ],
+            )
+            connection.commit()
+        return [record.model_copy(update={"updated_at": record.updated_at or updated_at}) for record in records]
+
     def local_classification_summary(self, account_id: str, *, high_confidence_threshold: float = 0.92) -> dict[str, object]:
         with self._connect() as connection:
             totals_row = connection.execute(
@@ -813,6 +871,41 @@ class GmailMessageStore:
                 (account_id, message_id),
             ).fetchone()
         return bool(row["checked"]) if row is not None else False
+
+    def list_spamhaus_checks(self, account_id: str) -> list[GmailSpamhausCheck]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    account_id,
+                    message_id,
+                    sender_email,
+                    sender_domain,
+                    checked,
+                    listed,
+                    status,
+                    checked_at,
+                    detail
+                FROM gmail_spamhaus_checks
+                WHERE account_id = ?
+                ORDER BY checked_at DESC, message_id ASC
+                """,
+                (account_id,),
+            ).fetchall()
+        return [
+            GmailSpamhausCheck(
+                account_id=row["account_id"],
+                message_id=row["message_id"],
+                sender_email=row["sender_email"],
+                sender_domain=row["sender_domain"],
+                checked=bool(row["checked"]),
+                listed=bool(row["listed"]),
+                status=row["status"],
+                checked_at=datetime.fromisoformat(row["checked_at"]) if row["checked_at"] else None,
+                detail=row["detail"],
+            )
+            for row in rows
+        ]
 
     def upsert_spamhaus_check(self, check: GmailSpamhausCheck, *, now: datetime | None = None) -> GmailSpamhausCheck:
         checked_at = (check.checked_at or now or datetime.now().astimezone()).isoformat() if check.checked else None

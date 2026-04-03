@@ -1026,6 +1026,36 @@ class NodeService:
             adapter.message_store.mark_notification_label_sent(account_id, message_id, classification_label.value)
         return sent
 
+    def _send_runtime_batch_classification_summary_notification(
+        self,
+        *,
+        batch_size: int,
+        local_processed: int,
+        ai_completed: int,
+        ai_attempted: int = 0,
+    ) -> bool:
+        return self.send_user_notification(
+            title="Manual batch classification completed",
+            message=(
+                f"Batch size: {batch_size}\n"
+                f"Classified locally: {local_processed}\n"
+                f"Classified by AI node: {ai_completed}\n"
+                f"AI attempted: {ai_attempted}"
+            ),
+            severity="info",
+            urgency="notification",
+            dedupe_key=f"runtime-batch-classification-{datetime.now(UTC).isoformat()}",
+            event_type="runtime_batch_classification_completed",
+            summary="Manual batch classification completed",
+            source_component="runtime_batch_classification",
+            data={
+                "batch_size": batch_size,
+                "local_processed": local_processed,
+                "ai_completed": ai_completed,
+                "ai_attempted": ai_attempted,
+            },
+        )
+
     def _mqtt_health_snapshot(self) -> MqttHealthResponse:
         stale_after_s = max(30, int(self.config.node_status_stale_after_s))
         inactive_after_s = max(int(self.config.node_status_inactive_after_s), stale_after_s + 1)
@@ -1535,9 +1565,17 @@ class NodeService:
                 started_at=current.get("started_at") or started_at,
                 updated_at=now,
             )
+            self._send_runtime_batch_classification_summary_notification(
+                batch_size=0,
+                local_processed=0,
+                ai_completed=0,
+                ai_attempted=0,
+            )
             return result
 
         local_processed, ai_candidates = self._classify_candidates_locally(account_id=account_id, candidates=candidates)
+        if local_processed > 0 and hasattr(adapter, "refresh_sender_reputations"):
+            await adapter.refresh_sender_reputations(account_id)
         ai_total = len(ai_candidates)
         progress_payload = {
             "mode": "batch",
@@ -1662,6 +1700,12 @@ class NodeService:
             usage_summary_response=None,
             started_at=current.get("started_at") or started_at,
             updated_at=datetime.now(UTC).isoformat(),
+        )
+        self._send_runtime_batch_classification_summary_notification(
+            batch_size=len(candidates),
+            local_processed=local_processed,
+            ai_completed=ai_succeeded,
+            ai_attempted=len(ai_results),
         )
         return final_result
 
@@ -1901,6 +1945,10 @@ class NodeService:
             results.append(result)
             if on_result is not None:
                 await on_result(result, len(results), succeeded)
+        if succeeded > 0:
+            adapter = self.provider_registry.get_provider("gmail")
+            if hasattr(adapter, "refresh_sender_reputations"):
+                await adapter.refresh_sender_reputations(account_id)
         return results, succeeded
 
     def onboarding_status(self) -> OnboardingStatusResponse:
@@ -2370,6 +2418,8 @@ class NodeService:
             local_stage_status = "idle"
             local_detail = "No last-hour unknown emails needed local classification."
             local_count, ai_candidates = self._classify_candidates_locally(account_id=account_id, candidates=local_candidates)
+            if local_count > 0 and hasattr(adapter, "refresh_sender_reputations"):
+                await adapter.refresh_sender_reputations(account_id)
             if local_candidates and local_count > 0:
                 local_stage_status = "completed"
                 local_detail = f"Locally classified {local_count} last-hour emails."

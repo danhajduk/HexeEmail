@@ -8,7 +8,15 @@ from httpx import ASGITransport
 
 from providers.gmail.adapter import GmailProviderAdapter
 from providers.gmail.config_store import GmailProviderConfigStore
-from providers.gmail.models import GmailOAuthConfig, GmailSpamhausCheck, GmailStoredMessage, GmailTokenRecord
+from providers.gmail.models import (
+    GmailManualClassificationBatchInput,
+    GmailManualClassificationInput,
+    GmailOAuthConfig,
+    GmailSpamhausCheck,
+    GmailStoredMessage,
+    GmailTokenRecord,
+    GmailTrainingLabel,
+)
 from providers.gmail.token_client import GmailTokenExchangeClient
 from providers.gmail.identity import GmailIdentityProbeClient
 from providers.models import ProviderAccountRecord, ProviderId
@@ -433,3 +441,184 @@ async def test_gmail_adapter_initial_learning_fetch_does_not_require_schedule_sl
 
     assert result["window"] == "initial_learning"
     assert result["stored_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_gmail_adapter_fetch_updates_sender_reputation(tmp_path):
+    GmailProviderConfigStore(tmp_path).save(
+        GmailOAuthConfig(
+            enabled=True,
+            client_id="client-id",
+            client_secret_ref="secret",
+            redirect_uri="https://email-node.example.com/api/providers/gmail/oauth/callback",
+        )
+    )
+    adapter = GmailProviderAdapter(tmp_path)
+    adapter.account_store.save_account(
+        ProviderAccountRecord(
+            provider_id=ProviderId.GMAIL,
+            account_id="primary",
+            status="connected",
+            email_address="primary@example.com",
+        )
+    )
+    adapter.token_store.save_token(
+        "primary",
+        GmailTokenRecord(
+            account_id="primary",
+            access_token="access-token",
+            refresh_token="refresh-token",
+            expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=1),
+        ),
+    )
+
+    class SenderMailboxClient:
+        quota_tracker = None
+
+        def build_fetch_query(self, window: str, *, now=None) -> str:
+            return f"query:{window}"
+
+        async def iter_message_batches(self, *, token_record, query):
+            yield [
+                GmailStoredMessage(
+                    account_id="primary",
+                    message_id="msg-1",
+                    sender="Alerts <alerts@example.com>",
+                    subject="Please review",
+                    received_at=datetime(2026, 4, 2, 8, 0, 0).astimezone(),
+                )
+            ]
+
+    adapter.mailbox_client = SenderMailboxClient()
+
+    await adapter.fetch_messages_for_window("primary", window="today")
+
+    email_record = adapter.message_store.get_sender_reputation(
+        "primary",
+        entity_type="email",
+        sender_value="alerts@example.com",
+    )
+    domain_record = adapter.message_store.get_sender_reputation(
+        "primary",
+        entity_type="domain",
+        sender_value="example.com",
+    )
+
+    assert email_record is not None
+    assert email_record.inputs.message_count == 1
+    assert domain_record is not None
+    assert domain_record.inputs.message_count == 1
+
+
+@pytest.mark.asyncio
+async def test_gmail_adapter_rating_updates_refresh_sender_reputation(tmp_path):
+    GmailProviderConfigStore(tmp_path).save(
+        GmailOAuthConfig(
+            enabled=True,
+            client_id="client-id",
+            client_secret_ref="secret",
+            redirect_uri="https://email-node.example.com/api/providers/gmail/oauth/callback",
+        )
+    )
+    adapter = GmailProviderAdapter(tmp_path)
+    adapter.account_store.save_account(
+        ProviderAccountRecord(
+            provider_id=ProviderId.GMAIL,
+            account_id="primary",
+            status="connected",
+            email_address="primary@example.com",
+        )
+    )
+    adapter.message_store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="msg-1",
+                sender="Alerts <alerts@example.com>",
+                subject="Please approve",
+                recipients=["primary@example.com"],
+                received_at=datetime(2026, 4, 2, 8, 0, 0).astimezone(),
+            )
+        ],
+        now=datetime(2026, 4, 2, 8, 5, 0).astimezone(),
+    )
+    adapter.message_store.upsert_spamhaus_check(
+        GmailSpamhausCheck(
+            account_id="primary",
+            message_id="msg-1",
+            sender_email="alerts@example.com",
+            sender_domain="example.com",
+            checked=True,
+            listed=False,
+            status="clean",
+        ),
+        now=datetime(2026, 4, 2, 8, 10, 0).astimezone(),
+    )
+
+    await adapter.save_manual_classifications(
+        "primary",
+        GmailManualClassificationBatchInput(
+            items=[
+                GmailManualClassificationInput(
+                    message_id="msg-1",
+                    label=GmailTrainingLabel.ACTION_REQUIRED,
+                )
+            ]
+        ),
+    )
+
+    email_record = adapter.message_store.get_sender_reputation(
+        "primary",
+        entity_type="email",
+        sender_value="alerts@example.com",
+    )
+    assert email_record is not None
+    assert email_record.inputs.classification_positive_count == 1
+    assert email_record.inputs.spamhaus_clean_count == 1
+    assert email_record.rating == 1.25
+
+    class ListedSpamhausChecker:
+        async def check_sender(self, *, account_id: str, message_id: str, sender: str | None):
+            return GmailSpamhausCheck(
+                account_id=account_id,
+                message_id=message_id,
+                sender_email="alerts@example.com",
+                sender_domain="example.com",
+                checked=True,
+                listed=True,
+                status="listed",
+            )
+
+    adapter.message_store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="msg-2",
+                sender="Alerts <alerts@example.com>",
+                subject="Follow up",
+                recipients=["primary@example.com"],
+                received_at=datetime(2026, 4, 2, 9, 0, 0).astimezone(),
+            )
+        ],
+        now=datetime(2026, 4, 2, 9, 5, 0).astimezone(),
+    )
+    adapter.spamhaus_checker = ListedSpamhausChecker()
+
+    await adapter.check_spamhaus_for_stored_messages("primary")
+
+    email_record = adapter.message_store.get_sender_reputation(
+        "primary",
+        entity_type="email",
+        sender_value="alerts@example.com",
+    )
+    domain_record = adapter.message_store.get_sender_reputation(
+        "primary",
+        entity_type="domain",
+        sender_value="example.com",
+    )
+
+    assert email_record is not None
+    assert email_record.inputs.spamhaus_listed_count == 1
+    assert email_record.reputation_state == "blocked"
+    assert domain_record is not None
+    assert domain_record.reputation_state == "blocked"

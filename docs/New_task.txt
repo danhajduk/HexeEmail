@@ -48,11 +48,11 @@ Do not edit above this line:
        - create sender reputation records in the local db
        - persist sender email, sender domain, rating, score inputs, and last updated time
        - base the stored reputation on the ratings/signals already present in the db
-[WIP] Task 087: Build sender reputation aggregation and update flow
-      - compute sender reputation from stored message ratings and existing checks
-      - update reputation when new emails are fetched or reclassified
-      - keep the aggregation reusable for runtime, training, and ui usage
-[TODO] Task 088: Expose sender reputation in backend APIs
+[DONE] Task 087: Build sender reputation aggregation and update flow
+       - compute sender reputation from stored message ratings and existing checks
+       - update reputation when new emails are fetched or reclassified
+       - keep the aggregation reusable for runtime, training, and ui usage
+[WIP] Task 088: Expose sender reputation in backend APIs
       - add api responses for sender reputation summary and sender detail
       - include counts, reputation bucket, last seen, and rating inputs used
       - keep the api shape compatible with the current gmail status/dashboard patterns

@@ -19,12 +19,14 @@ from providers.gmail.models import (
     GmailMailboxStatus,
     GmailManualClassificationBatchInput,
     GmailQuotaUsageSnapshot,
+    GmailSenderReputationRecord,
     GmailSemiAutoClassificationBatchInput,
     GmailSpamhausSummary,
     GmailStoredMessage,
     GmailTrainingLabel,
 )
 from providers.gmail.quota_tracker import GmailQuotaTracker
+from providers.gmail.reputation import build_sender_reputation_records
 from providers.gmail.spamhaus_checker import GmailSpamhausChecker
 from providers.gmail.state_machine import GmailAccountStateMachine
 from providers.gmail.token_client import GmailTokenExchangeClient
@@ -236,6 +238,7 @@ class GmailProviderAdapter(EmailProviderAdapter):
             window_state.last_run_reason = window_reason
             window_state.last_slot_key = slot_key
             self.fetch_schedule_store.save_state(schedule_state)
+        await self.refresh_sender_reputations(account_id)
         return {
             "provider_id": self.provider_id,
             "account_id": account_id,
@@ -270,6 +273,13 @@ class GmailProviderAdapter(EmailProviderAdapter):
 
     async def local_classification_summary(self, account_id: str) -> dict[str, object]:
         return self.message_store.local_classification_summary(account_id)
+
+    async def refresh_sender_reputations(self, account_id: str) -> list[GmailSenderReputationRecord]:
+        records = build_sender_reputation_records(
+            self.message_store.list_all_messages(account_id),
+            self.message_store.list_spamhaus_checks(account_id),
+        )
+        return self.message_store.replace_sender_reputations(account_id, records)
 
     async def training_model_status(self) -> dict[str, object]:
         return self.training_model_store.status()
@@ -335,6 +345,7 @@ class GmailProviderAdapter(EmailProviderAdapter):
                 manual_classification=True,
             )
             saved += 1
+        await self.refresh_sender_reputations(account_id)
         return {"provider_id": self.provider_id, "account_id": account_id, "saved_count": saved}
 
     async def train_local_model(
@@ -473,6 +484,7 @@ class GmailProviderAdapter(EmailProviderAdapter):
             if changed:
                 manual_count += 1
             saved += 1
+        await self.refresh_sender_reputations(account_id)
         return {
             "provider_id": self.provider_id,
             "account_id": account_id,
@@ -500,6 +512,7 @@ class GmailProviderAdapter(EmailProviderAdapter):
                 error_count += 1
 
         summary = self.message_store.spamhaus_summary(account_id)
+        await self.refresh_sender_reputations(account_id)
         return {
             "provider_id": self.provider_id,
             "account_id": account_id,

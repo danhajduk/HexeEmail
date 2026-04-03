@@ -22,6 +22,12 @@ Verification: `python -m py_compile src/providers/gmail/models.py src/providers/
 Task #087
 Step objective: Build a reusable sender reputation aggregation and update flow.
 Chosen fix: Compute sender reputation from the message/spamhaus/classification data already stored locally, then persist the derived sender email and sender domain records through the new store helpers so runtime, training, and UI code can all read the same results.
-What changed: Task 087 marked in progress after Task 086 completed so the next implementation step can focus on aggregation logic rather than storage.
-Verification: Queue state advanced and storage helpers are ready for aggregation wiring.
+What changed: Added a reusable Gmail sender reputation aggregation module that derives sender email/domain records from stored messages, local classifications, and Spamhaus checks, added store helpers for replacing account reputations and listing Spamhaus checks, and wired the refresh flow into Gmail fetches, Spamhaus updates, manual review saves, semi-auto review saves, and runtime local/AI classification passes.
+Verification: `python -m py_compile src/providers/gmail/reputation.py src/providers/gmail/message_store.py src/providers/gmail/adapter.py src/service.py tests/test_gmail_adapter.py tests/test_gmail_message_store.py` passed. Runtime tests still could not be executed because `pytest` is not installed in this environment.
+###########
+Task #088
+Step objective: Expose sender reputation in backend APIs.
+Chosen fix: Add sender reputation summary/detail read methods in the Gmail adapter and surface them through the existing service/UI API structure so the dashboard and training views can consume reputation data without querying the DB directly.
+What changed: Task 088 marked in progress after the aggregation flow was wired and verified.
+Verification: Queue state advanced and sender reputation records are now available for API shaping.
 ###########
