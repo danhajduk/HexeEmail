@@ -2476,7 +2476,18 @@ class NodeService:
         if not hasattr(adapter, "save_manual_classifications"):
             raise ValueError("gmail training actions are not available")
         try:
-            return await adapter.save_manual_classifications(account_id, payload)
+            result = await adapter.save_manual_classifications(account_id, payload)
+            # Debug-only visibility: surface the same user notifications when Training-page
+            # manual classification saves assign action_required/order labels.
+            for item in payload.items:
+                self._notify_for_new_email_classification(
+                    account_id=account_id,
+                    message_id=item.message_id,
+                    classification_label=item.label,
+                    confidence=1.0,
+                    source_component="gmail_training_manual_classification",
+                )
+            return result
         except Exception as exc:
             raise ValueError(str(exc)) from exc
 
@@ -2536,7 +2547,18 @@ class NodeService:
         if not hasattr(adapter, "save_semi_auto_review"):
             raise ValueError("gmail training actions are not available")
         try:
-            return await adapter.save_semi_auto_review(account_id, payload)
+            result = await adapter.save_semi_auto_review(account_id, payload)
+            # Debug-only visibility: surface the same user notifications when Training-page
+            # review saves assign action_required/order labels.
+            for item in payload.items:
+                self._notify_for_new_email_classification(
+                    account_id=account_id,
+                    message_id=item.message_id,
+                    classification_label=item.selected_label,
+                    confidence=1.0 if item.selected_label != item.predicted_label else item.predicted_confidence,
+                    source_component="gmail_training_semi_auto_review",
+                )
+            return result
         except Exception as exc:
             raise ValueError(str(exc)) from exc
 

@@ -8,7 +8,13 @@ import pytest
 from providers.gmail.config_store import GmailProviderConfigStore
 from providers.gmail.message_store import GmailMessageStore
 from providers.gmail.models import GmailOAuthConfig
-from providers.gmail.models import GmailStoredMessage, GmailTrainingLabel
+from providers.gmail.models import (
+    GmailManualClassificationBatchInput,
+    GmailManualClassificationInput,
+    GmailSpamhausCheck,
+    GmailStoredMessage,
+    GmailTrainingLabel,
+)
 from providers.models import ProviderAccountRecord, ProviderId
 from service import NodeService
 from tests.helpers import FakeMQTTManager, build_core_app
@@ -222,3 +228,50 @@ async def test_order_email_notification_uses_order_flag(config, core_client_fact
     assert request.delivery is not None
     assert request.delivery.urgency == "notification"
     assert store.has_notification_label("primary", "msg-2", GmailTrainingLabel.ORDER.value) is True
+
+
+@pytest.mark.asyncio
+async def test_manual_training_save_can_emit_debug_notification(config, core_client_factory):
+    mqtt_manager = FakeMQTTManager()
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=mqtt_manager)
+    service.state.trust_state = "trusted"
+    service.state.node_id = "node-1"
+    service.mqtt_manager.status.state = "connected"
+
+    store = GmailMessageStore(config.runtime_dir)
+    store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="msg-3",
+                subject="Please review immediately",
+                sender="Ops <ops@example.com>",
+                received_at=datetime(2026, 4, 3, 12, 0, 0),
+            )
+        ]
+    )
+    adapter = service.provider_registry.get_provider("gmail")
+    store.upsert_spamhaus_check(
+        GmailSpamhausCheck(
+            account_id="primary",
+            message_id="msg-3",
+            checked=True,
+            listed=False,
+            status="clean",
+        )
+    )
+
+    payload = GmailManualClassificationBatchInput(
+        items=[
+            GmailManualClassificationInput(
+                message_id="msg-3",
+                label=GmailTrainingLabel.ACTION_REQUIRED,
+                confidence=1.0,
+            )
+        ]
+    )
+    result = await service.gmail_training_save_manual_classifications(payload)
+
+    assert result["saved_count"] == 1
+    assert len(mqtt_manager.notification_requests) == 1
+    assert store.has_notification_label("primary", "msg-3", GmailTrainingLabel.ACTION_REQUIRED.value) is True
