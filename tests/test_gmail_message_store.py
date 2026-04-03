@@ -3,7 +3,13 @@ from __future__ import annotations
 from datetime import datetime
 
 from providers.gmail.message_store import GmailMessageStore
-from providers.gmail.models import GmailSpamhausCheck, GmailStoredMessage, GmailTrainingLabel
+from providers.gmail.models import (
+    GmailSenderReputationInputs,
+    GmailSenderReputationRecord,
+    GmailSpamhausCheck,
+    GmailStoredMessage,
+    GmailTrainingLabel,
+)
 
 
 def test_gmail_message_store_persists_messages(runtime_dir):
@@ -198,3 +204,83 @@ def test_gmail_message_store_tracks_notification_flags_per_label(runtime_dir):
 
     assert store.has_notification_label("primary", "msg-1", GmailTrainingLabel.ACTION_REQUIRED.value) is True
     assert store.has_notification_label("primary", "msg-1", GmailTrainingLabel.ORDER.value) is False
+
+
+def test_gmail_message_store_persists_sender_reputation_records(runtime_dir):
+    store = GmailMessageStore(runtime_dir)
+
+    saved = store.upsert_sender_reputation(
+        GmailSenderReputationRecord(
+            account_id="primary",
+            entity_type="email",
+            sender_value="alerts@example.com",
+            sender_email="alerts@example.com",
+            sender_domain="example.com",
+            reputation_state="trusted",
+            rating=3.5,
+            inputs=GmailSenderReputationInputs(
+                message_count=8,
+                classification_positive_count=5,
+                classification_negative_count=1,
+                spamhaus_clean_count=2,
+                spamhaus_listed_count=0,
+            ),
+            last_seen_at=datetime(2026, 4, 2, 12, 0, 0),
+        ),
+        now=datetime(2026, 4, 2, 12, 30, 0),
+    )
+
+    loaded = store.get_sender_reputation(
+        "primary",
+        entity_type="email",
+        sender_value="alerts@example.com",
+    )
+
+    assert saved.updated_at == datetime(2026, 4, 2, 12, 30, 0)
+    assert loaded is not None
+    assert loaded.entity_type == "email"
+    assert loaded.sender_domain == "example.com"
+    assert loaded.reputation_state == "trusted"
+    assert loaded.rating == 3.5
+    assert loaded.inputs.message_count == 8
+    assert loaded.inputs.classification_positive_count == 5
+    assert loaded.inputs.spamhaus_clean_count == 2
+
+
+def test_gmail_message_store_lists_sender_reputation_records_by_recency(runtime_dir):
+    store = GmailMessageStore(runtime_dir)
+
+    store.upsert_sender_reputation(
+        GmailSenderReputationRecord(
+            account_id="primary",
+            entity_type="domain",
+            sender_value="example.com",
+            sender_domain="example.com",
+            reputation_state="neutral",
+            rating=0.5,
+            inputs=GmailSenderReputationInputs(message_count=4),
+        ),
+        now=datetime(2026, 4, 2, 12, 0, 0),
+    )
+    store.upsert_sender_reputation(
+        GmailSenderReputationRecord(
+            account_id="primary",
+            entity_type="email",
+            sender_value="alerts@example.com",
+            sender_email="alerts@example.com",
+            sender_domain="example.com",
+            reputation_state="risky",
+            rating=-1.25,
+            inputs=GmailSenderReputationInputs(
+                message_count=2,
+                spamhaus_listed_count=1,
+            ),
+        ),
+        now=datetime(2026, 4, 2, 13, 0, 0),
+    )
+
+    all_records = store.list_sender_reputations("primary", limit=10)
+    email_records = store.list_sender_reputations("primary", entity_type="email", limit=10)
+
+    assert [record.sender_value for record in all_records] == ["alerts@example.com", "example.com"]
+    assert [record.sender_value for record in email_records] == ["alerts@example.com"]

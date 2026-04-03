@@ -265,6 +265,31 @@ class GmailQuotaUsageSnapshot(BaseModel):
     last_request_at: datetime | None = None
 
 
+class GmailSenderReputationInputs(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    message_count: int = 0
+    classification_positive_count: int = 0
+    classification_negative_count: int = 0
+    spamhaus_clean_count: int = 0
+    spamhaus_listed_count: int = 0
+
+
+class GmailSenderReputationRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    account_id: str
+    entity_type: Literal["email", "domain"]
+    sender_value: str
+    sender_email: str | None = None
+    sender_domain: str | None = None
+    reputation_state: Literal["trusted", "neutral", "risky", "blocked"] = "neutral"
+    rating: float = 0.0
+    inputs: GmailSenderReputationInputs = Field(default_factory=GmailSenderReputationInputs)
+    last_seen_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
 class GmailTrainingDatasetRow(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

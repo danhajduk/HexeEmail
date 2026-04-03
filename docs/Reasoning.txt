@@ -13,3 +13,15 @@ Verification: `python -m py_compile src/*.py src/core/*.py src/providers/*.py sr
 #############
 All Tasks completed 04/03/2026 15:41:43
 #############
+Task #086
+Step objective: Add sender reputation storage based on DB ratings/signals.
+Chosen fix: Add sender reputation records to the local Gmail storage layer so later aggregation and API tasks can reuse one persisted shape instead of duplicating sender/domain score data.
+What changed: Reused the existing sender reputation Pydantic models, added a `gmail_sender_reputation` SQLite table to the Gmail message store, implemented reusable upsert/get/list helpers for sender email and domain records, and added store-level regression coverage for persistence and recency ordering.
+Verification: `python -m py_compile src/providers/gmail/models.py src/providers/gmail/message_store.py tests/test_gmail_message_store.py` passed. `python -m pytest tests/test_gmail_message_store.py` could not run because `pytest` is not installed in this environment.
+###########
+Task #087
+Step objective: Build a reusable sender reputation aggregation and update flow.
+Chosen fix: Compute sender reputation from the message/spamhaus/classification data already stored locally, then persist the derived sender email and sender domain records through the new store helpers so runtime, training, and UI code can all read the same results.
+What changed: Task 087 marked in progress after Task 086 completed so the next implementation step can focus on aggregation logic rather than storage.
+Verification: Queue state advanced and storage helpers are ready for aggregation wiring.
+###########

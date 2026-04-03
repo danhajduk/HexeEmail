@@ -6,7 +6,15 @@ import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from providers.gmail.models import GmailMailboxStatus, GmailSpamhausCheck, GmailSpamhausSummary, GmailStoredMessage, GmailTrainingLabel
+from providers.gmail.models import (
+    GmailMailboxStatus,
+    GmailSenderReputationInputs,
+    GmailSenderReputationRecord,
+    GmailSpamhausCheck,
+    GmailSpamhausSummary,
+    GmailStoredMessage,
+    GmailTrainingLabel,
+)
 from providers.gmail.runtime import GmailRuntimeLayout
 
 
@@ -68,6 +76,33 @@ class GmailMessageStore:
             )
             connection.execute(
                 "CREATE INDEX IF NOT EXISTS idx_gmail_spamhaus_checks_account_checked ON gmail_spamhaus_checks(account_id, checked_at DESC)"
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS gmail_sender_reputation (
+                    account_id TEXT NOT NULL,
+                    entity_type TEXT NOT NULL,
+                    sender_value TEXT NOT NULL,
+                    sender_email TEXT,
+                    sender_domain TEXT,
+                    reputation_state TEXT NOT NULL DEFAULT 'neutral',
+                    rating REAL NOT NULL DEFAULT 0,
+                    message_count INTEGER NOT NULL DEFAULT 0,
+                    classification_positive_count INTEGER NOT NULL DEFAULT 0,
+                    classification_negative_count INTEGER NOT NULL DEFAULT 0,
+                    spamhaus_clean_count INTEGER NOT NULL DEFAULT 0,
+                    spamhaus_listed_count INTEGER NOT NULL DEFAULT 0,
+                    last_seen_at TEXT,
+                    updated_at TEXT,
+                    PRIMARY KEY (account_id, entity_type, sender_value)
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_gmail_sender_reputation_account_updated
+                ON gmail_sender_reputation(account_id, updated_at DESC)
+                """
             )
             connection.commit()
         self._set_mode(self.path, 0o600)
@@ -540,6 +575,136 @@ class GmailMessageStore:
             )
             connection.commit()
 
+    def upsert_sender_reputation(
+        self,
+        record: GmailSenderReputationRecord,
+        *,
+        now: datetime | None = None,
+    ) -> GmailSenderReputationRecord:
+        updated_at = record.updated_at or now or datetime.now().astimezone()
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO gmail_sender_reputation (
+                    account_id,
+                    entity_type,
+                    sender_value,
+                    sender_email,
+                    sender_domain,
+                    reputation_state,
+                    rating,
+                    message_count,
+                    classification_positive_count,
+                    classification_negative_count,
+                    spamhaus_clean_count,
+                    spamhaus_listed_count,
+                    last_seen_at,
+                    updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(account_id, entity_type, sender_value) DO UPDATE SET
+                    sender_email=excluded.sender_email,
+                    sender_domain=excluded.sender_domain,
+                    reputation_state=excluded.reputation_state,
+                    rating=excluded.rating,
+                    message_count=excluded.message_count,
+                    classification_positive_count=excluded.classification_positive_count,
+                    classification_negative_count=excluded.classification_negative_count,
+                    spamhaus_clean_count=excluded.spamhaus_clean_count,
+                    spamhaus_listed_count=excluded.spamhaus_listed_count,
+                    last_seen_at=excluded.last_seen_at,
+                    updated_at=excluded.updated_at
+                """,
+                (
+                    record.account_id,
+                    record.entity_type,
+                    record.sender_value,
+                    record.sender_email,
+                    record.sender_domain,
+                    record.reputation_state,
+                    record.rating,
+                    record.inputs.message_count,
+                    record.inputs.classification_positive_count,
+                    record.inputs.classification_negative_count,
+                    record.inputs.spamhaus_clean_count,
+                    record.inputs.spamhaus_listed_count,
+                    record.last_seen_at.isoformat() if record.last_seen_at else None,
+                    updated_at.isoformat(),
+                ),
+            )
+            connection.commit()
+        return record.model_copy(update={"updated_at": updated_at})
+
+    def get_sender_reputation(
+        self,
+        account_id: str,
+        *,
+        entity_type: str,
+        sender_value: str,
+    ) -> GmailSenderReputationRecord | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT
+                    account_id,
+                    entity_type,
+                    sender_value,
+                    sender_email,
+                    sender_domain,
+                    reputation_state,
+                    rating,
+                    message_count,
+                    classification_positive_count,
+                    classification_negative_count,
+                    spamhaus_clean_count,
+                    spamhaus_listed_count,
+                    last_seen_at,
+                    updated_at
+                FROM gmail_sender_reputation
+                WHERE account_id = ?
+                  AND entity_type = ?
+                  AND sender_value = ?
+                LIMIT 1
+                """,
+                (account_id, entity_type, sender_value),
+            ).fetchone()
+        return self._row_to_sender_reputation(row) if row is not None else None
+
+    def list_sender_reputations(
+        self,
+        account_id: str,
+        *,
+        entity_type: str | None = None,
+        limit: int = 100,
+    ) -> list[GmailSenderReputationRecord]:
+        query = """
+            SELECT
+                account_id,
+                entity_type,
+                sender_value,
+                sender_email,
+                sender_domain,
+                reputation_state,
+                rating,
+                message_count,
+                classification_positive_count,
+                classification_negative_count,
+                spamhaus_clean_count,
+                spamhaus_listed_count,
+                last_seen_at,
+                updated_at
+            FROM gmail_sender_reputation
+            WHERE account_id = ?
+        """
+        params: list[object] = [account_id]
+        if entity_type is not None:
+            query = f"{query}\n  AND entity_type = ?"
+            params.append(entity_type)
+        query = f"{query}\nORDER BY updated_at DESC, sender_value ASC\nLIMIT ?"
+        params.append(limit)
+        with self._connect() as connection:
+            rows = connection.execute(query, tuple(params)).fetchall()
+        return [self._row_to_sender_reputation(row) for row in rows]
+
     def local_classification_summary(self, account_id: str, *, high_confidence_threshold: float = 0.92) -> dict[str, object]:
         with self._connect() as connection:
             totals_row = connection.execute(
@@ -792,6 +957,26 @@ class GmailMessageStore:
             local_label=row["local_label"] if "local_label" in row.keys() else None,
             local_label_confidence=row["local_label_confidence"] if "local_label_confidence" in row.keys() else None,
             manual_classification=bool(row["manual_classification"]) if "manual_classification" in row.keys() else False,
+        )
+
+    def _row_to_sender_reputation(self, row: sqlite3.Row) -> GmailSenderReputationRecord:
+        return GmailSenderReputationRecord(
+            account_id=row["account_id"],
+            entity_type=row["entity_type"],
+            sender_value=row["sender_value"],
+            sender_email=row["sender_email"],
+            sender_domain=row["sender_domain"],
+            reputation_state=row["reputation_state"],
+            rating=float(row["rating"] or 0.0),
+            inputs=GmailSenderReputationInputs(
+                message_count=int(row["message_count"] or 0),
+                classification_positive_count=int(row["classification_positive_count"] or 0),
+                classification_negative_count=int(row["classification_negative_count"] or 0),
+                spamhaus_clean_count=int(row["spamhaus_clean_count"] or 0),
+                spamhaus_listed_count=int(row["spamhaus_listed_count"] or 0),
+            ),
+            last_seen_at=datetime.fromisoformat(row["last_seen_at"]) if row["last_seen_at"] else None,
+            updated_at=datetime.fromisoformat(row["updated_at"]) if row["updated_at"] else None,
         )
 
     def _six_month_cutoff(self, now: datetime) -> datetime:

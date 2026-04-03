@@ -43,3 +43,31 @@ if it is not present and should be node-owned create a file with the new data in
 
 Do not edit above this line:
 #######################################################################
+
+[DONE] Task 086: Add sender reputation storage based on DB ratings
+       - create sender reputation records in the local db
+       - persist sender email, sender domain, rating, score inputs, and last updated time
+       - base the stored reputation on the ratings/signals already present in the db
+[WIP] Task 087: Build sender reputation aggregation and update flow
+      - compute sender reputation from stored message ratings and existing checks
+      - update reputation when new emails are fetched or reclassified
+      - keep the aggregation reusable for runtime, training, and ui usage
+[TODO] Task 088: Expose sender reputation in backend APIs
+      - add api responses for sender reputation summary and sender detail
+      - include counts, reputation bucket, last seen, and rating inputs used
+      - keep the api shape compatible with the current gmail status/dashboard patterns
+[TODO] Task 089: Show sender reputation in the UI
+      - surface sender reputation on the gmail/training flows
+      - show sender/domain rating, reputation state, and supporting counts
+      - make it easy to inspect why a sender has a given reputation
+[TODO] Task 090: Use sender reputation in classification and notifications
+      - include sender reputation in local/runtime classification helper flows where useful
+      - surface high-risk or low-reputation senders in notifications/debug outputs
+      - document how sender reputation affects operator-visible behavior
+[TODO] Task 091: Fetch six months for initial Gmail learning
+      - change the initial Gmail learning fetch window from 3 months to 6 months
+      - keep the initial learning window aligned with the local 6 month retention window
+      - update tests and docs that still reference the 3 month initial fetch range
+[TODO] Task 092: Schedule hourly batch classification for newest unclassified emails
+      - every hour at 00 minutes classify 100 newest unclassified emails
+      - run it in batch using the same flow as the existing button-triggered batch classification
