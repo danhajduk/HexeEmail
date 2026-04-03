@@ -1102,7 +1102,7 @@ class NodeService:
         self,
         *,
         batch_size: int,
-        local_processed: int,
+        local_classified: int,
         ai_completed: int,
         ai_attempted: int = 0,
     ) -> bool:
@@ -1110,7 +1110,7 @@ class NodeService:
             title="Manual batch classification completed",
             message=(
                 f"Batch size: {batch_size}\n"
-                f"Classified locally: {local_processed}\n"
+                f"Successfully classified locally: {local_classified}\n"
                 f"Classified by AI node: {ai_completed}\n"
                 f"AI attempted: {ai_attempted}"
             ),
@@ -1122,7 +1122,7 @@ class NodeService:
             source_component="runtime_batch_classification",
             data={
                 "batch_size": batch_size,
-                "local_processed": local_processed,
+                "local_classified": local_classified,
                 "ai_completed": ai_completed,
                 "ai_attempted": ai_attempted,
             },
@@ -1639,13 +1639,14 @@ class NodeService:
             )
             self._send_runtime_batch_classification_summary_notification(
                 batch_size=0,
-                local_processed=0,
+                local_classified=0,
                 ai_completed=0,
                 ai_attempted=0,
             )
             return result
 
         local_processed, ai_candidates = self._classify_candidates_locally(account_id=account_id, candidates=candidates)
+        local_classified = max(local_processed - len(ai_candidates), 0)
         if local_processed > 0 and hasattr(adapter, "refresh_sender_reputations"):
             await adapter.refresh_sender_reputations(account_id)
         ai_total = len(ai_candidates)
@@ -1654,6 +1655,7 @@ class NodeService:
             "stage": "ai" if ai_total > 0 else "completed",
             "batch_size": len(candidates),
             "local_processed": local_processed,
+            "local_classified": local_classified,
             "ai_total": ai_total,
             "ai_completed": 0,
             "ai_attempted": 0,
@@ -1665,9 +1667,9 @@ class NodeService:
             request_status="running" if ai_total > 0 else "executed",
             last_step="execute_batch",
             detail=(
-                f"Local classification processed {local_processed} emails. Sending {ai_total} unknown emails to the AI node..."
+                f"Local classification successfully classified {local_classified} emails. Sending {ai_total} unknown emails to the AI node..."
                 if ai_total > 0
-                else f"Local classification processed {local_processed} emails. No unknown emails needed AI classification."
+                else f"Local classification successfully classified {local_classified} emails. No unknown emails needed AI classification."
             ),
             preview_response=current.get("preview_response"),
             resolve_response=current.get("resolve_response"),
@@ -1713,6 +1715,7 @@ class NodeService:
                     "stage": "ai" if attempted < ai_total else "completed",
                     "batch_size": len(candidates),
                     "local_processed": local_processed,
+                    "local_classified": local_classified,
                     "ai_total": ai_total,
                     "ai_completed": succeeded,
                     "ai_attempted": attempted,
@@ -1751,6 +1754,7 @@ class NodeService:
             "ok": True,
             "batch_size": len(candidates),
             "local_processed": local_processed,
+            "local_classified": local_classified,
             "ai_total": ai_total,
             "ai_attempted": len(ai_results),
             "ai_completed": ai_succeeded,
@@ -1761,7 +1765,7 @@ class NodeService:
             request_status="executed",
             last_step="execute_batch",
             detail=(
-                f"Runtime batch classification completed. Local processed {local_processed} emails, AI attempted {len(ai_results)} unknown emails, and applied {ai_succeeded} classifications."
+                f"Runtime batch classification completed. Local classified {local_classified} emails successfully, AI attempted {len(ai_results)} unknown emails, and classified {ai_succeeded} emails."
             ),
             preview_response=current.get("preview_response"),
             resolve_response=current.get("resolve_response"),
@@ -1775,7 +1779,7 @@ class NodeService:
         )
         self._send_runtime_batch_classification_summary_notification(
             batch_size=len(candidates),
-            local_processed=local_processed,
+            local_classified=local_classified,
             ai_completed=ai_succeeded,
             ai_attempted=len(ai_results),
         )

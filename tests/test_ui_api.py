@@ -815,6 +815,7 @@ async def test_runtime_execute_email_classifier_batch_registers_prompt_and_class
     assert body["ok"] is True
     assert body["batch_size"] == 2
     assert body["local_processed"] == 0
+    assert body["local_classified"] == 0
     assert body["ai_total"] == 2
     assert body["ai_attempted"] == 2
     assert body["ai_completed"] == 2
@@ -1836,7 +1837,15 @@ async def test_scheduled_hourly_batch_classification_runs_once_per_slot(config, 
 
     async def fake_runtime_execute_email_classifier_batch(payload, *, correlation_id=None):
         calls.append(payload.target_api_base_url)
-        return {"ok": True, "batch_size": 0, "local_processed": 0, "ai_total": 0, "ai_completed": 0, "ai_results": []}
+        return {
+            "ok": True,
+            "batch_size": 0,
+            "local_processed": 0,
+            "local_classified": 0,
+            "ai_total": 0,
+            "ai_completed": 0,
+            "ai_results": [],
+        }
 
     service.runtime_execute_email_classifier_batch = fake_runtime_execute_email_classifier_batch  # type: ignore[method-assign]
     slot_time = datetime(2026, 4, 2, 7, 0, 0).astimezone()

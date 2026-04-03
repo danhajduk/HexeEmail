@@ -2172,6 +2172,7 @@ export function App() {
         stage: "local",
         batch_size: 0,
         local_processed: 0,
+        local_classified: 0,
         ai_total: 0,
         ai_completed: 0,
         progress_percent: 0,
@@ -2186,17 +2187,17 @@ export function App() {
       });
       const refreshedStatus = await fetchJson("/api/gmail/status");
       setGmailStatus(refreshedStatus);
-      setRuntimeTaskStatus((current) => ({
-        ...current,
-        request_status: "executed",
-        last_step: "execute_batch",
-        detail: `Runtime batch classification completed. Local processed ${payload.local_processed ?? 0} emails, AI attempted ${payload.ai_attempted ?? 0}, and applied ${payload.ai_completed ?? 0} classifications.`,
-        execution_response: payload,
-        updated_at: new Date().toISOString(),
-      }));
-      setRuntimeTaskNotice(
-        `Runtime batch completed. Local processed ${payload.local_processed ?? 0} emails, AI attempted ${payload.ai_attempted ?? 0}, and applied ${payload.ai_completed ?? 0} classifications.`,
-      );
+        setRuntimeTaskStatus((current) => ({
+          ...current,
+          request_status: "executed",
+          last_step: "execute_batch",
+          detail: `Runtime batch classification completed. Local classified ${payload.local_classified ?? 0} emails successfully, AI attempted ${payload.ai_attempted ?? 0}, and classified ${payload.ai_completed ?? 0} emails.`,
+          execution_response: payload,
+          updated_at: new Date().toISOString(),
+        }));
+        setRuntimeTaskNotice(
+          `Runtime batch completed. Local classified ${payload.local_classified ?? 0} emails successfully, AI attempted ${payload.ai_attempted ?? 0}, and classified ${payload.ai_completed ?? 0} emails.`,
+        );
       return payload;
     } catch (taskError) {
       setRuntimeTaskError(taskError.message);
@@ -3182,7 +3183,7 @@ export function App() {
                             />
                           </div>
                           <div className="muted tiny">
-                            Stage: {runtimeBatchExecution?.stage || "-"} | Local Processed: {runtimeBatchExecution?.local_processed ?? 0} | Batch Size: {runtimeBatchExecution?.batch_size ?? 0}
+                            Stage: {runtimeBatchExecution?.stage || "-"} | Local Classified: {runtimeBatchExecution?.local_classified ?? 0} | Batch Size: {runtimeBatchExecution?.batch_size ?? 0}
                           </div>
                           {runtimeBatchExecution?.last_execution?.error_code || runtimeBatchExecution?.last_execution?.error_message ? (
                             <div className="callout callout-danger">

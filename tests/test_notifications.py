@@ -304,7 +304,7 @@ def test_runtime_batch_summary_notification_reports_local_and_ai_counts(config, 
 
     sent = service._send_runtime_batch_classification_summary_notification(
         batch_size=12,
-        local_processed=7,
+        local_classified=7,
         ai_completed=3,
         ai_attempted=5,
     )
@@ -313,6 +313,6 @@ def test_runtime_batch_summary_notification_reports_local_and_ai_counts(config, 
     assert len(mqtt_manager.notification_requests) == 1
     request = mqtt_manager.notification_requests[0]
     assert request.content is not None
-    assert "Classified locally: 7" in (request.content.message or "")
+    assert "Successfully classified locally: 7" in (request.content.message or "")
     assert "Classified by AI node: 3" in (request.content.message or "")
     assert "AI attempted: 5" in (request.content.message or "")
