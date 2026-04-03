@@ -23,6 +23,11 @@ Local defaults today:
 - Gmail provider setup is available from the UI via `Setup Provider`
 - `./scripts/start.sh` installs Python requirements and starts both API and UI
 - Gmail fetch status is available from `GET /api/gmail/status`
+- Core service routing helpers are available from:
+  - `POST /api/tasks/routing/preview`
+  - `POST /api/core/services/resolve`
+  - `POST /api/core/services/authorize`
+- the Runtime dashboard section includes status, settings, and action cards for previewing, resolving, and authorizing Core-routed task requests
 - Gmail manual fetch actions are available from:
   - `POST /api/gmail/fetch/initial_learning`
   - `POST /api/gmail/fetch/today`

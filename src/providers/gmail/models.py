@@ -297,7 +297,7 @@ class GmailFetchWindowState(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     last_run_at: datetime | None = None
-    last_run_reason: Literal["manual", "scheduled"] | None = None
+    last_run_reason: Literal["manual", "scheduled", "auto"] | None = None
     last_slot_key: str | None = None
 
 

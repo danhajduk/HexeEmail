@@ -6,6 +6,11 @@ from typing import Any
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
+from logging_utils import get_logger
+
+
+LOGGER = get_logger(__name__)
+
 
 class FinalizeRoute(BaseModel):
     method: str = "GET"
@@ -76,6 +81,73 @@ class TrustStatusResponse(BaseModel):
     message: str | None = None
 
 
+class ServiceResolveRequest(BaseModel):
+    node_id: str
+    task_family: str
+    type: str | None = None
+    task_context: dict[str, Any] = Field(default_factory=dict)
+    preferred_provider: str | None = None
+
+
+class ServiceResolveResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    ok: bool = True
+    node_id: str | None = None
+    task_family: str | None = None
+    service_id: str | None = None
+    provider: str | None = None
+    model_id: str | None = None
+
+
+class ServiceAuthorizeRequest(BaseModel):
+    node_id: str
+    task_family: str
+    type: str | None = None
+    task_context: dict[str, Any] = Field(default_factory=dict)
+    service_id: str
+    provider: str
+    model_id: str | None = None
+
+
+class ServiceAuthorizeResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    ok: bool = True
+    node_id: str | None = None
+    task_family: str | None = None
+    service_id: str | None = None
+    provider: str | None = None
+    model_id: str | None = None
+    authorized: bool | None = None
+    authorization_id: str | None = None
+
+
+class NodeBudgetUsageSummaryRequest(BaseModel):
+    node_id: str
+    service: str = "ai.inference"
+    grant_id: str
+    provider: str | None = None
+    model_id: str | None = None
+    task_family: str | None = None
+    period_start: str | None = None
+    period_end: str | None = None
+    used_requests: int = 0
+    used_tokens: int = 0
+    used_cost_cents: int = 0
+    denials: int = 0
+    error_counts: dict[str, Any] | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class NodeBudgetUsageSummaryResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    ok: bool = True
+    node_id: str | None = None
+    report: dict[str, Any] | None = None
+
+
 class CoreApiClient:
     def __init__(self, *, transport: httpx.AsyncBaseTransport | None = None, timeout: float = 10.0) -> None:
         self.transport = transport
@@ -99,22 +171,42 @@ class CoreApiClient:
     ) -> OnboardingSessionResponse:
         payload = request.model_dump(mode="json")
         headers = {"X-Correlation-Id": correlation_id}
+        LOGGER.info(
+            "Creating onboarding session with Core",
+            extra={"event_data": {"base_url": base_url, "node_name": request.node_name, "node_type": request.node_type}},
+        )
 
         async with self._client(base_url) as client:
             for attempt in range(2):
                 response = await client.post("/api/system/nodes/onboarding/sessions", json=payload, headers=headers)
                 if response.status_code in (200, 201):
+                    LOGGER.info(
+                        "Core onboarding session created",
+                        extra={"event_data": {"status_code": response.status_code, "attempt": attempt + 1}},
+                    )
                     return self._parse_onboarding_session_response(response.json())
 
                 if response.status_code == 409:
                     reusable_session = self._extract_reusable_session(response.json())
                     if reusable_session is not None:
+                        LOGGER.info(
+                            "Reusing existing Core onboarding session",
+                            extra={"event_data": {"status_code": response.status_code, "session_id": reusable_session.session_id}},
+                        )
                         return reusable_session
 
                 if response.status_code >= 500 and attempt == 0:
+                    LOGGER.warning(
+                        "Core onboarding session create failed, retrying",
+                        extra={"event_data": {"status_code": response.status_code, "attempt": attempt + 1}},
+                    )
                     await asyncio.sleep(0.5)
                     continue
 
+                LOGGER.warning(
+                    "Core onboarding session create failed",
+                    extra={"event_data": {"status_code": response.status_code, "attempt": attempt + 1}},
+                )
                 response.raise_for_status()
 
         raise RuntimeError("failed to create onboarding session")
@@ -158,6 +250,10 @@ class CoreApiClient:
         node_nonce: str,
         correlation_id: str,
     ) -> FinalizeResponse:
+        LOGGER.info(
+            "Finalizing onboarding with Core",
+            extra={"event_data": {"base_url": base_url, "session_id": session_id}},
+        )
         async with self._client(base_url) as client:
             response = await client.get(
                 f"/api/system/nodes/onboarding/sessions/{session_id}/finalize",
@@ -165,6 +261,10 @@ class CoreApiClient:
                 headers={"X-Correlation-Id": correlation_id},
             )
             response.raise_for_status()
+            LOGGER.info(
+                "Core onboarding finalize completed",
+                extra={"event_data": {"status_code": response.status_code, "session_id": session_id}},
+            )
             return FinalizeResponse.model_validate(response.json())
 
     async def get_platform_identity(self, base_url: str) -> PlatformIdentityResponse:
@@ -180,6 +280,10 @@ class CoreApiClient:
         trust_token: str,
         correlation_id: str,
     ) -> TrustStatusResponse:
+        LOGGER.info(
+            "Fetching trust status from Core",
+            extra={"event_data": {"base_url": base_url, "node_id": node_id}},
+        )
         async with self._client(base_url) as client:
             response = await client.get(
                 f"/api/system/nodes/trust-status/{node_id}",
@@ -189,4 +293,120 @@ class CoreApiClient:
                 },
             )
             response.raise_for_status()
+            LOGGER.info(
+                "Core trust status fetched",
+                extra={"event_data": {"status_code": response.status_code, "node_id": node_id}},
+            )
             return TrustStatusResponse.model_validate(response.json())
+
+    async def resolve_service(
+        self,
+        base_url: str,
+        request: ServiceResolveRequest,
+        *,
+        trust_token: str,
+        correlation_id: str | None = None,
+    ) -> ServiceResolveResponse:
+        headers: dict[str, str] = {"X-Node-Trust-Token": trust_token}
+        if correlation_id:
+            headers["X-Correlation-Id"] = correlation_id
+        LOGGER.info(
+            "Resolving service with Core",
+            extra={
+                "event_data": {
+                    "base_url": base_url,
+                    "node_id": request.node_id,
+                    "task_family": request.task_family,
+                    "preferred_provider": request.preferred_provider,
+                }
+            },
+        )
+        async with self._client(base_url) as client:
+            response = await client.post(
+                "/api/system/nodes/services/resolve",
+                json=request.model_dump(mode="json"),
+                headers=headers,
+            )
+            response.raise_for_status()
+            LOGGER.info(
+                "Core service resolve completed",
+                extra={"event_data": {"status_code": response.status_code, "task_family": request.task_family}},
+            )
+            return ServiceResolveResponse.model_validate(response.json())
+
+    async def authorize_service(
+        self,
+        base_url: str,
+        request: ServiceAuthorizeRequest,
+        *,
+        trust_token: str,
+        correlation_id: str | None = None,
+    ) -> ServiceAuthorizeResponse:
+        headers: dict[str, str] = {"X-Node-Trust-Token": trust_token}
+        if correlation_id:
+            headers["X-Correlation-Id"] = correlation_id
+        LOGGER.info(
+            "Authorizing service with Core",
+            extra={
+                "event_data": {
+                    "base_url": base_url,
+                    "node_id": request.node_id,
+                    "task_family": request.task_family,
+                    "service_id": request.service_id,
+                    "provider": request.provider,
+                }
+            },
+        )
+        async with self._client(base_url) as client:
+            response = await client.post(
+                "/api/system/nodes/services/authorize",
+                json=request.model_dump(mode="json"),
+                headers=headers,
+            )
+            response.raise_for_status()
+            LOGGER.info(
+                "Core service authorize completed",
+                extra={
+                    "event_data": {
+                        "status_code": response.status_code,
+                        "task_family": request.task_family,
+                        "service_id": request.service_id,
+                    }
+                },
+            )
+            return ServiceAuthorizeResponse.model_validate(response.json())
+
+    async def report_budget_usage_summary(
+        self,
+        base_url: str,
+        request: NodeBudgetUsageSummaryRequest,
+        *,
+        trust_token: str,
+        correlation_id: str | None = None,
+    ) -> NodeBudgetUsageSummaryResponse:
+        headers: dict[str, str] = {"X-Node-Trust-Token": trust_token}
+        if correlation_id:
+            headers["X-Correlation-Id"] = correlation_id
+        LOGGER.info(
+            "Reporting budget usage summary to Core",
+            extra={
+                "event_data": {
+                    "base_url": base_url,
+                    "node_id": request.node_id,
+                    "service": request.service,
+                    "grant_id": request.grant_id,
+                }
+            },
+        )
+        async with self._client(base_url) as client:
+            response = await client.post(
+                "/api/system/nodes/budgets/usage-summary",
+                json=request.model_dump(mode="json"),
+                headers=headers,
+            )
+            response.raise_for_status()
+            LOGGER.info(
+                "Core budget usage summary accepted",
+                extra={"event_data": {"status_code": response.status_code, "node_id": request.node_id}},
+            )
+            return NodeBudgetUsageSummaryResponse.model_validate(response.json())

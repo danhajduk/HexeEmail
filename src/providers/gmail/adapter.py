@@ -228,7 +228,7 @@ class GmailProviderAdapter(EmailProviderAdapter):
             fetched_count += len(batch_messages)
             stored_count += self.message_store.upsert_messages(batch_messages)
         summary = self.message_store.account_summary(account_id)
-        window_reason = "scheduled" if reason == "scheduled" else "manual"
+        window_reason = reason if reason in {"scheduled", "manual", "auto"} else "manual"
         if window in {"yesterday", "today", "last_hour"}:
             schedule_state = self.fetch_schedule_store.load_state()
             window_state = getattr(schedule_state, window)

@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import re
 import socket
 import uuid
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from urllib.parse import urlparse
 
@@ -13,18 +15,30 @@ from config import AppConfig
 from core.capability_client import CapabilityClient, CapabilityDeclarationResult, CapabilityManifestBuilder
 from core.governance_client import GovernanceClient, GovernanceSnapshot
 from core.readiness import OperationalReadinessEvaluator
-from core_client import CoreApiClient, FinalizeResponse, OnboardingSessionRequest
+from core_client import (
+    CoreApiClient,
+    FinalizeResponse,
+    OnboardingSessionRequest,
+    ServiceAuthorizeRequest,
+    ServiceResolveRequest,
+)
 from logging_utils import get_logger
 from models import (
     GmailConnectStartResponse,
     GmailOAuthCallbackResponse,
+    CoreServiceAuthorizeRequestInput,
+    CoreServiceResolveRequestInput,
     MqttHealthResponse,
     OnboardingStatusResponse,
     OperatorConfig,
     OperatorConfigInput,
     OperatorConfigResponse,
+    RuntimeDirectExecutionRequestInput,
+    RuntimePromptExecutionRequestInput,
     RuntimeState,
     StatusResponse,
+    TaskRoutingPreviewResponse,
+    TaskRoutingRequestInput,
     TrustMaterial,
     UiBootstrapResponse,
 )
@@ -33,6 +47,7 @@ from providers.gmail.config_store import GmailProviderConfigError, GmailProvider
 from providers.gmail.models import GmailManualClassificationBatchInput, GmailOAuthConfig, GmailSemiAutoClassificationBatchInput, GmailTrainingLabel
 from providers.gmail.oauth import GmailOAuthSessionManager
 from providers.gmail.token_client import GmailTokenExchangeClient, GmailTokenExchangeError
+from providers.gmail.training import normalize_email_for_classifier
 from mqtt import MQTTManager
 from providers.registry import ProviderRegistry
 from state_store import OperatorConfigStore, RuntimeStateStore, StateCorruptionError, TrustMaterialStore
@@ -40,6 +55,8 @@ from version import __version__
 
 
 LOGGER = get_logger(__name__)
+AI_LOGGER = get_logger("hexe.ai.runtime")
+GMAIL_POLL_LOGGER = get_logger("hexe.providers.gmail.polling")
 TERMINAL_ONBOARDING_STATES = {"approved", "rejected", "expired", "consumed", "invalid"}
 CORE_ID_PATTERN = re.compile(r"^[0-9a-f]{16}$")
 AVAILABLE_TASK_CAPABILITIES = [
@@ -87,6 +104,203 @@ class NodeService:
         self.live = True
         self.ready = False
         self.startup_error: str | None = None
+
+    @staticmethod
+    def _default_runtime_task_state() -> dict[str, object]:
+        return {
+            "request_status": "idle",
+            "last_step": "none",
+            "detail": "No runtime task request has been started yet.",
+            "preview_response": None,
+            "resolve_response": None,
+            "authorize_response": None,
+            "registration_request_payload": None,
+            "execution_request_payload": None,
+            "execution_response": None,
+            "usage_summary_response": None,
+            "started_at": None,
+            "updated_at": None,
+        }
+
+    def _runtime_task_state(self) -> dict[str, object]:
+        state = dict(self._default_runtime_task_state())
+        persisted = self.state.runtime_task_state if isinstance(self.state.runtime_task_state, dict) else {}
+        state.update(persisted)
+        return state
+
+    def _save_runtime_task_state(self, **updates: object) -> dict[str, object]:
+        state = self._runtime_task_state()
+        state.update(updates)
+        self.state.runtime_task_state = state
+        self.state_store.save(self.state)
+        return state
+
+    @staticmethod
+    def _default_gmail_last_hour_pipeline_state() -> dict[str, object]:
+        return {
+            "mode": "idle",
+            "status": "idle",
+            "detail": "No last-hour pipeline run yet.",
+            "started_at": None,
+            "updated_at": None,
+            "last_completed_at": None,
+            "stages": {
+                "fetch": {"status": "idle", "detail": "Waiting", "count": 0},
+                "spamhaus": {"status": "idle", "detail": "Waiting", "count": 0},
+                "local_classification": {"status": "idle", "detail": "Waiting", "count": 0},
+                "ai_classification": {"status": "idle", "detail": "Waiting", "count": 0},
+            },
+        }
+
+    @staticmethod
+    def _default_gmail_fetch_scheduler_state() -> dict[str, object]:
+        return {
+            "loop_enabled": False,
+            "loop_active": False,
+            "status": "idle",
+            "detail": "Gmail fetch scheduler has not started yet.",
+            "last_checked_at": None,
+            "last_due_windows": [],
+            "last_attempt_at": None,
+            "last_success_at": None,
+            "last_error_at": None,
+            "last_error": None,
+        }
+
+    def _gmail_fetch_scheduler_state(self) -> dict[str, object]:
+        state = dict(self._default_gmail_fetch_scheduler_state())
+        persisted = (
+            self.state.gmail_fetch_scheduler_state
+            if isinstance(self.state.gmail_fetch_scheduler_state, dict)
+            else {}
+        )
+        state.update(persisted)
+        state["loop_enabled"] = bool(self.config.gmail_fetch_poll_on_startup)
+        state["loop_active"] = bool(self.gmail_fetch_task is not None and not self.gmail_fetch_task.done())
+        return state
+
+    def _save_gmail_fetch_scheduler_state(self, **updates: object) -> dict[str, object]:
+        state = self._gmail_fetch_scheduler_state()
+        state.update(updates)
+        self.state.gmail_fetch_scheduler_state = state
+        self.state_store.save(self.state)
+        return state
+
+    def _gmail_last_hour_pipeline_state(self) -> dict[str, object]:
+        state = dict(self._default_gmail_last_hour_pipeline_state())
+        persisted = (
+            self.state.gmail_last_hour_pipeline_state
+            if isinstance(self.state.gmail_last_hour_pipeline_state, dict)
+            else {}
+        )
+        state.update(persisted)
+        default_stages = dict(self._default_gmail_last_hour_pipeline_state()["stages"])
+        persisted_stages = persisted.get("stages") if isinstance(persisted.get("stages"), dict) else {}
+        default_stages.update(persisted_stages)
+        state["stages"] = default_stages
+        return state
+
+    def _save_gmail_last_hour_pipeline_state(self, **updates: object) -> dict[str, object]:
+        state = self._gmail_last_hour_pipeline_state()
+        state.update(updates)
+        self.state.gmail_last_hour_pipeline_state = state
+        self.state_store.save(self.state)
+        return state
+
+    def _next_email_classify_task_id(self) -> str:
+        next_counter = int(self.state.runtime_email_classify_counter or 0) + 1
+        self.state.runtime_email_classify_counter = next_counter
+        self.state_store.save(self.state)
+        return f"email-classify-{next_counter:03d}"
+
+    @staticmethod
+    def _parse_classifier_output(output: object) -> dict[str, object] | None:
+        if not isinstance(output, dict):
+            return None
+        if any(key in output for key in ("label", "confidence", "rationale")):
+            return output
+        result = output.get("result")
+        if isinstance(result, dict) and any(key in result for key in ("label", "confidence", "rationale", "category", "score")):
+            return result
+        text = output.get("text")
+        if not isinstance(text, str):
+            return None
+        try:
+            parsed = json.loads(text)
+        except Exception:
+            return None
+        return parsed if isinstance(parsed, dict) else None
+
+    @staticmethod
+    def _normalize_classifier_label(label: object) -> GmailTrainingLabel | None:
+        if label is None:
+            return None
+        normalized = str(label).strip().lower()
+        if not normalized:
+            return None
+        normalized = normalized.replace("-", "_").replace(" ", "_")
+        alias_map = {
+            "action": GmailTrainingLabel.ACTION_REQUIRED,
+            "actionrequired": GmailTrainingLabel.ACTION_REQUIRED,
+            "action_required": GmailTrainingLabel.ACTION_REQUIRED,
+            "directhuman": GmailTrainingLabel.DIRECT_HUMAN,
+            "direct_human": GmailTrainingLabel.DIRECT_HUMAN,
+            "human": GmailTrainingLabel.DIRECT_HUMAN,
+            "person": GmailTrainingLabel.DIRECT_HUMAN,
+            "finance": GmailTrainingLabel.FINANCIAL,
+            "financial": GmailTrainingLabel.FINANCIAL,
+            "orders": GmailTrainingLabel.ORDER,
+            "order": GmailTrainingLabel.ORDER,
+            "billing": GmailTrainingLabel.INVOICE,
+            "bill": GmailTrainingLabel.INVOICE,
+            "receipt": GmailTrainingLabel.INVOICE,
+            "invoice": GmailTrainingLabel.INVOICE,
+            "shipping": GmailTrainingLabel.SHIPMENT,
+            "shipment": GmailTrainingLabel.SHIPMENT,
+            "delivery": GmailTrainingLabel.SHIPMENT,
+            "security": GmailTrainingLabel.SECURITY,
+            "system": GmailTrainingLabel.SYSTEM,
+            "newsletter": GmailTrainingLabel.NEWSLETTER,
+            "newsletters": GmailTrainingLabel.NEWSLETTER,
+            "marketing": GmailTrainingLabel.MARKETING,
+            "promo": GmailTrainingLabel.MARKETING,
+            "promotion": GmailTrainingLabel.MARKETING,
+            "promotions": GmailTrainingLabel.MARKETING,
+            "unknown": GmailTrainingLabel.UNKNOWN,
+            "other": GmailTrainingLabel.UNKNOWN,
+        }
+        if normalized in alias_map:
+            return alias_map[normalized]
+        compact = normalized.replace("_", "")
+        if compact in alias_map:
+            return alias_map[compact]
+        try:
+            return GmailTrainingLabel(normalized)
+        except Exception:
+            return None
+
+    @staticmethod
+    def _normalize_classifier_confidence(confidence: object) -> float | None:
+        if confidence is None:
+            return None
+        if isinstance(confidence, str):
+            normalized = confidence.strip().rstrip("%")
+            if not normalized:
+                return None
+            try:
+                value = float(normalized)
+            except Exception:
+                return None
+            if "%" in confidence or value > 1:
+                value = value / 100.0
+        else:
+            try:
+                value = float(confidence)
+            except Exception:
+                return None
+            if value > 1:
+                value = value / 100.0
+        return max(0.0, min(1.0, value))
 
     async def start(self) -> None:
         try:
@@ -700,6 +914,742 @@ class NodeService:
             "blocking_reasons": list(capability_setup.get("blocking_reasons", [])),
         }
 
+    async def task_routing_preview(self, payload: TaskRoutingRequestInput) -> TaskRoutingPreviewResponse:
+        selected_task_capabilities = self.selected_task_capabilities()
+        requested_node_type = (payload.requested_node_type or "").strip() or None
+        requested_provider = (payload.requested_provider or "").strip() or None
+        local_node_type = self.config.node_type
+        capability_declared = self.state.capability_declaration_status == "accepted"
+        local_family_match = payload.task_family in selected_task_capabilities
+        node_type_match = requested_node_type in {None, local_node_type}
+        local_node_can_execute = local_family_match and node_type_match
+        should_delegate_to_core = requested_node_type is not None and requested_node_type != local_node_type
+
+        if should_delegate_to_core:
+            detail = (
+                f"Task requests for node type {requested_node_type} should be sent to Core for routing; "
+                f"this node is {local_node_type}."
+            )
+        elif not local_family_match:
+            detail = "This node has not selected that task family locally, so Core routing is recommended."
+            should_delegate_to_core = True
+        elif not capability_declared:
+            detail = "This node can describe the task intent locally, but Core should only route after capability declaration is accepted."
+        else:
+            detail = "This node can accept this task family locally under the current node-type selection."
+
+        return TaskRoutingPreviewResponse(
+            task_family=payload.task_family,
+            requested_node_type=requested_node_type,
+            requested_provider=requested_provider,
+            local_node_type=local_node_type,
+            local_selected_task_capabilities=selected_task_capabilities,
+            local_node_can_execute=local_node_can_execute,
+            should_delegate_to_core=should_delegate_to_core,
+            capability_declared=capability_declared,
+            detail=detail,
+        )
+
+    async def core_service_resolve(
+        self,
+        payload: CoreServiceResolveRequestInput,
+        *,
+        correlation_id: str | None = None,
+    ) -> dict[str, object]:
+        if self.state.trust_state != "trusted" or not self.state.node_id or not self.effective_core_base_url():
+            raise ValueError("trusted node context is required before resolving a Core service")
+        if self.trust_material is None:
+            raise ValueError("trust material is not available")
+        try:
+            response = await self.core_client.resolve_service(
+                self.effective_core_base_url() or "",
+            ServiceResolveRequest(
+                node_id=self.state.node_id,
+                task_family=payload.task_family,
+                type=payload.type,
+                task_context=payload.task_context,
+                preferred_provider=payload.preferred_provider,
+            ),
+                trust_token=self.trust_material.node_trust_token,
+                correlation_id=correlation_id,
+            )
+        except Exception as exc:
+            raise ValueError(str(exc)) from exc
+        payload = response.model_dump(mode="json")
+        now = datetime.now(UTC).isoformat()
+        current = self._runtime_task_state()
+        self._save_runtime_task_state(
+            request_status="resolved",
+            last_step="resolve",
+            detail=f"Resolved {payload.get('selected_service_id') or payload.get('service_id') or 'service'} for {payload.get('task_family') or payload.task_family}.",
+            preview_response=current.get("preview_response"),
+            resolve_response=payload,
+            authorize_response=current.get("authorize_response"),
+            execution_response=current.get("execution_response"),
+            usage_summary_response=current.get("usage_summary_response"),
+            started_at=current.get("started_at") or now,
+            updated_at=now,
+        )
+        return payload
+
+    async def core_service_authorize(
+        self,
+        payload: CoreServiceAuthorizeRequestInput,
+        *,
+        correlation_id: str | None = None,
+    ) -> dict[str, object]:
+        if self.state.trust_state != "trusted" or not self.state.node_id or not self.effective_core_base_url():
+            raise ValueError("trusted node context is required before authorizing a Core service")
+        if self.trust_material is None:
+            raise ValueError("trust material is not available")
+        try:
+            response = await self.core_client.authorize_service(
+                self.effective_core_base_url() or "",
+                ServiceAuthorizeRequest(
+                    node_id=self.state.node_id,
+                    task_family=payload.task_family,
+                    type=payload.type,
+                    task_context=payload.task_context,
+                    service_id=payload.service_id,
+                    provider=payload.provider,
+                    model_id=payload.model_id,
+                ),
+                trust_token=self.trust_material.node_trust_token,
+                correlation_id=correlation_id,
+            )
+        except Exception as exc:
+            raise ValueError(str(exc)) from exc
+        payload = response.model_dump(mode="json")
+        now = datetime.now(UTC).isoformat()
+        current = self._runtime_task_state()
+        authorized = bool(payload.get("authorized") is True or payload.get("token") or payload.get("grant_id"))
+        self._save_runtime_task_state(
+            request_status="authorized" if authorized else "rejected",
+            last_step="authorize",
+            detail=(
+                f"Authorized {payload.get('service_id') or 'service'} with {payload.get('provider') or ''}"
+                if authorized
+                else "Core did not authorize the requested service."
+            ),
+            preview_response=current.get("preview_response"),
+            resolve_response=current.get("resolve_response"),
+            authorize_response=payload,
+            execution_response=current.get("execution_response"),
+            usage_summary_response=current.get("usage_summary_response"),
+            started_at=current.get("started_at") or now,
+            updated_at=now,
+        )
+        return payload
+
+    async def runtime_execute_authorized_task(
+        self,
+        payload: RuntimeDirectExecutionRequestInput,
+        *,
+        correlation_id: str | None = None,
+    ) -> dict[str, object]:
+        target_base_url = str(payload.target_api_base_url or "http://127.0.0.1:9002").strip().rstrip("/")
+        normalized_target_base_url = target_base_url[:-4] if target_base_url.endswith("/api") else target_base_url
+        registration_id = f"runtime-{uuid.uuid4().hex}"
+        request_body = self._email_classifier_prompt_registration_payload()
+
+        try:
+            registration_payload = await self._register_email_classifier_prompt(normalized_target_base_url)
+        except Exception as exc:
+            response_payload: dict[str, object] | None = None
+            message = str(exc)
+            if isinstance(exc, httpx.HTTPStatusError) and exc.response is not None:
+                try:
+                    response_body = exc.response.json()
+                except Exception:
+                    response_body = exc.response.text
+                response_payload = {
+                    "status_code": exc.response.status_code,
+                    "body": response_body,
+                }
+                message = f"{message}: {response_body}"
+            now = datetime.now(UTC).isoformat()
+            current = self._runtime_task_state()
+            self._save_runtime_task_state(
+                request_status="failed",
+                last_step="register",
+                detail=message,
+                preview_response=current.get("preview_response"),
+                resolve_response=current.get("resolve_response"),
+                authorize_response=current.get("authorize_response"),
+                registration_request_payload=request_body,
+                execution_response=response_payload,
+                usage_summary_response=None,
+                started_at=current.get("started_at") or now,
+                updated_at=now,
+            )
+            error = ValueError(message)
+            error.detail = {
+                "message": message,
+                "request_payload": request_body,
+                "response_payload": response_payload,
+            }
+            raise error from exc
+
+        result = {
+            "ok": True,
+            "task_id": registration_id,
+            "trace_id": correlation_id or registration_id,
+            "target_api_base_url": normalized_target_base_url,
+            "request_payload": request_body,
+            "registration": registration_payload,
+            "usage_summary": None,
+        }
+        now = datetime.now(UTC).isoformat()
+        current = self._runtime_task_state()
+        self._save_runtime_task_state(
+            request_status="registered",
+            last_step="register",
+            detail="Registered prompt.email.classifier on the AI node prompt service.",
+            preview_response=current.get("preview_response"),
+            resolve_response=current.get("resolve_response"),
+            authorize_response=current.get("authorize_response"),
+            registration_request_payload=result["request_payload"],
+            execution_response=result["registration"],
+            usage_summary_response=None,
+            started_at=current.get("started_at") or now,
+            updated_at=now,
+        )
+        return result
+
+    def _email_classifier_prompt_registration_payload(self) -> dict[str, object]:
+        return {
+            "prompt_id": "prompt.email.classifier",
+            "service_id": "node-email",
+            "task_family": "task.classification",
+            "prompt_name": "Email Classifier",
+            "owner_service": "node-email",
+            "privacy_class": "internal",
+            "status": "active",
+            "execution_policy": {
+                "allow_direct_execution": True,
+                "allow_version_pinning": True,
+            },
+            "provider_preferences": {
+                "preferred_providers": ["openai"],
+            },
+            "constraints": {
+                "max_timeout_s": 60,
+                "structured_output_required": True,
+            },
+            "metadata": {
+                "purpose": "classify incoming email into email-node categories",
+                "labels": [
+                    "action_required",
+                    "direct_human",
+                    "financial",
+                    "order",
+                    "invoice",
+                    "shipment",
+                    "security",
+                    "system",
+                    "newsletter",
+                    "marketing",
+                    "unknown",
+                ],
+            },
+            "definition": {
+                "system_prompt": (
+                    "You are an email classification service for the Email Node. "
+                    "Classify the email into exactly one of the following labels: "
+                    "action_required, direct_human, financial, order, invoice, shipment, "
+                    "security, system, newsletter, marketing, unknown. Use the normalized "
+                    "email input as the source of truth. Be strict and prefer the most "
+                    "specific correct label. Classification guidance: action_required = "
+                    "direct action needed by the recipient; direct_human = person-to-person "
+                    "or community/personal message not primarily automated marketing; "
+                    "financial = banking, account balance, payments, loans, statements, "
+                    "financial activity unless a more specific invoice label clearly applies; "
+                    "order = order placed, order confirmation, purchase confirmation; "
+                    "invoice = bill, invoice, statement, receipt, charge record, payment "
+                    "receipt; shipment = shipped, out for delivery, delivered, pickup ready, "
+                    "travel/delivery status; security = fraud alerts, blocked activity, "
+                    "password resets, suspicious sign-in, account protection, website/app "
+                    "blocked, security monitoring; system = operational notices, "
+                    "product/account updates, app/account state changes, reminders, "
+                    "claims/repair status, task updates, service notifications; newsletter = "
+                    "digest, roundup, editorial updates, forum/news/community/event "
+                    "newsletters; marketing = promotions, discounts, offers, sales, product "
+                    "pushes, invitations to buy/apply/upgrade; unknown = only when the "
+                    "message does not fit any label with reasonable confidence. If multiple "
+                    "labels seem possible, choose the most specific one. Return JSON only "
+                    "with keys: label, confidence, rationale. confidence must be a number "
+                    "from 0.0 to 1.0. rationale must be short, one sentence max."
+                ),
+                "template_variables": ["normalized_text"],
+                "default_inputs": {},
+            },
+            "version": "v1",
+        }
+
+    async def _register_email_classifier_prompt(self, target_api_base_url: str) -> dict[str, object]:
+        request_body = self._email_classifier_prompt_registration_payload()
+        try:
+            AI_LOGGER.info(
+                "Registering email classifier prompt with AI node",
+                extra={"event_data": {"target_api_base_url": target_api_base_url}},
+            )
+            async with httpx.AsyncClient(
+                base_url=target_api_base_url,
+                timeout=self.core_client.timeout,
+                transport=self.core_client.transport,
+            ) as client:
+                registration_response = await client.post("/api/prompts/services", json=request_body)
+                registration_response.raise_for_status()
+                AI_LOGGER.info(
+                    "AI prompt registration completed",
+                    extra={"event_data": {"status_code": registration_response.status_code}},
+                )
+                return registration_response.json()
+        except Exception as exc:
+            AI_LOGGER.error(
+                "AI prompt registration failed",
+                extra={"event_data": {"target_api_base_url": target_api_base_url, "detail": str(exc)}},
+            )
+            raise ValueError(str(exc)) from exc
+
+    async def runtime_execute_email_classifier(
+        self,
+        payload: RuntimePromptExecutionRequestInput,
+        *,
+        correlation_id: str | None = None,
+    ) -> dict[str, object]:
+        adapter = self.provider_registry.get_provider("gmail")
+        account_id = "primary"
+        newest_unknown_message = adapter.message_store.get_newest_unknown_message(account_id)
+        if newest_unknown_message is None:
+            raise ValueError("no newest unknown Gmail message is available")
+        return await self._execute_email_classifier_for_message(
+            account_id=account_id,
+            message=newest_unknown_message,
+            target_api_base_url=payload.target_api_base_url,
+            correlation_id=correlation_id,
+            persist_runtime_state=True,
+        )
+
+    async def runtime_execute_email_classifier_batch(
+        self,
+        payload: RuntimePromptExecutionRequestInput,
+        *,
+        correlation_id: str | None = None,
+    ) -> dict[str, object]:
+        adapter = self.provider_registry.get_provider("gmail")
+        account_id = "primary"
+        batch_target_api_base_url = payload.target_api_base_url
+        started_at = datetime.now(UTC).isoformat()
+        current = self._runtime_task_state()
+        self._save_runtime_task_state(
+            request_status="running",
+            last_step="execute_batch",
+            detail="Preparing runtime batch classification for 100 Gmail messages...",
+            preview_response=current.get("preview_response"),
+            resolve_response=current.get("resolve_response"),
+            authorize_response=current.get("authorize_response"),
+            registration_request_payload=current.get("registration_request_payload"),
+            execution_request_payload=None,
+            execution_response={
+                "mode": "batch",
+                "stage": "local",
+                "batch_size": 0,
+                "local_processed": 0,
+                "ai_total": 0,
+                "ai_completed": 0,
+                "progress_percent": 0,
+                "last_message_id": None,
+                "completed_messages": [],
+            },
+            usage_summary_response=None,
+            started_at=current.get("started_at") or started_at,
+            updated_at=started_at,
+        )
+
+        candidates = adapter.message_store.list_oldest_training_candidates(
+            account_id,
+            limit=100,
+            threshold=self.config.gmail_local_classification_threshold,
+        )
+        if not candidates:
+            now = datetime.now(UTC).isoformat()
+            result = {
+                "ok": True,
+                "batch_size": 0,
+                "local_processed": 0,
+                "ai_total": 0,
+                "ai_completed": 0,
+                "ai_results": [],
+            }
+            self._save_runtime_task_state(
+                request_status="executed",
+                last_step="execute_batch",
+                detail="No Gmail messages were available for runtime batch classification.",
+                preview_response=current.get("preview_response"),
+                resolve_response=current.get("resolve_response"),
+                authorize_response=current.get("authorize_response"),
+                registration_request_payload=current.get("registration_request_payload"),
+                execution_request_payload=None,
+                execution_response=result,
+                usage_summary_response=None,
+                started_at=current.get("started_at") or started_at,
+                updated_at=now,
+            )
+            return result
+
+        local_processed, ai_candidates = self._classify_candidates_locally(account_id=account_id, candidates=candidates)
+        ai_total = len(ai_candidates)
+        progress_payload = {
+            "mode": "batch",
+            "stage": "ai" if ai_total > 0 else "completed",
+            "batch_size": len(candidates),
+            "local_processed": local_processed,
+            "ai_total": ai_total,
+            "ai_completed": 0,
+            "ai_attempted": 0,
+            "progress_percent": 0 if ai_total > 0 else 100,
+            "last_message_id": None,
+            "completed_messages": [],
+        }
+        self._save_runtime_task_state(
+            request_status="running" if ai_total > 0 else "executed",
+            last_step="execute_batch",
+            detail=(
+                f"Local classification processed {local_processed} emails. Sending {ai_total} unknown emails to the AI node..."
+                if ai_total > 0
+                else f"Local classification processed {local_processed} emails. No unknown emails needed AI classification."
+            ),
+            preview_response=current.get("preview_response"),
+            resolve_response=current.get("resolve_response"),
+            authorize_response=current.get("authorize_response"),
+            registration_request_payload=current.get("registration_request_payload"),
+            execution_request_payload=None,
+            execution_response=progress_payload,
+            usage_summary_response=None,
+            started_at=current.get("started_at") or started_at,
+            updated_at=datetime.now(UTC).isoformat(),
+        )
+
+        async def save_batch_progress(result: dict[str, object], attempted: int, succeeded: int) -> None:
+            LOGGER.info(
+                "Runtime batch AI response received",
+                extra={
+                    "event_data": {
+                        "attempted": attempted,
+                        "ai_total": ai_total,
+                        "message_id": result.get("message_id"),
+                        "classification_applied": bool(result.get("classification_applied")),
+                        "parsed_output": result.get("parsed_output"),
+                        "execution": result.get("execution"),
+                    }
+                },
+            )
+            progress_percent = int((attempted / ai_total) * 100) if ai_total > 0 else 100
+            self._save_runtime_task_state(
+                request_status="running" if attempted < ai_total else "executed",
+                last_step="execute_batch",
+                detail=(
+                    f"AI classification progress: attempted {attempted}/{ai_total}, applied {succeeded} classifications."
+                    if ai_total > 0
+                    else "No unknown emails needed AI classification."
+                ),
+                preview_response=current.get("preview_response"),
+                resolve_response=current.get("resolve_response"),
+                authorize_response=current.get("authorize_response"),
+                registration_request_payload=current.get("registration_request_payload"),
+                execution_request_payload=result["request_payload"],
+                execution_response={
+                    "mode": "batch",
+                    "stage": "ai" if attempted < ai_total else "completed",
+                    "batch_size": len(candidates),
+                    "local_processed": local_processed,
+                    "ai_total": ai_total,
+                    "ai_completed": succeeded,
+                    "ai_attempted": attempted,
+                    "progress_percent": progress_percent,
+                    "last_message_id": result["message_id"],
+                    "completed_messages": [],
+                    "last_execution": result["execution"],
+                },
+                usage_summary_response=None,
+                started_at=current.get("started_at") or started_at,
+                updated_at=datetime.now(UTC).isoformat(),
+            )
+
+        raw_ai_results, _ = await self._execute_email_classifier_for_messages(
+            account_id=account_id,
+            messages=ai_candidates,
+            target_api_base_url=batch_target_api_base_url,
+            correlation_id=correlation_id,
+            on_result=save_batch_progress,
+        )
+        ai_results: list[dict[str, object]] = []
+        ai_succeeded = 0
+        for index, result in enumerate(raw_ai_results, start=1):
+            if result.get("classification_applied"):
+                ai_succeeded += 1
+            ai_results.append(
+                {
+                    "message_id": result["message_id"],
+                    "task_id": result["task_id"],
+                    "classification_applied": bool(result.get("classification_applied")),
+                    "execution": result["execution"],
+                    "request_payload": result["request_payload"],
+                }
+            )
+        final_result = {
+            "ok": True,
+            "batch_size": len(candidates),
+            "local_processed": local_processed,
+            "ai_total": ai_total,
+            "ai_attempted": len(ai_results),
+            "ai_completed": ai_succeeded,
+            "ai_failed": len(ai_results) - ai_succeeded,
+            "ai_results": ai_results,
+        }
+        self._save_runtime_task_state(
+            request_status="executed",
+            last_step="execute_batch",
+            detail=(
+                f"Runtime batch classification completed. Local processed {local_processed} emails, AI attempted {len(ai_results)} unknown emails, and applied {ai_succeeded} classifications."
+            ),
+            preview_response=current.get("preview_response"),
+            resolve_response=current.get("resolve_response"),
+            authorize_response=current.get("authorize_response"),
+            registration_request_payload=current.get("registration_request_payload"),
+            execution_request_payload=ai_results[-1]["request_payload"] if ai_results else None,
+            execution_response=final_result,
+            usage_summary_response=None,
+            started_at=current.get("started_at") or started_at,
+            updated_at=datetime.now(UTC).isoformat(),
+        )
+        return final_result
+
+    def _classify_candidates_locally(self, *, account_id: str, candidates: list) -> tuple[int, list]:
+        adapter = self.provider_registry.get_provider("gmail")
+        model_status = adapter.training_model_store.status()
+        if not candidates:
+            return 0, []
+        if not bool(model_status.get("trained")):
+            return 0, list(candidates)
+
+        account_record = adapter.account_store.load_account(account_id)
+        my_addresses = [account_record.email_address] if account_record is not None and account_record.email_address else []
+        texts = [normalize_email_for_classifier(message, my_addresses=my_addresses) for message in candidates]
+        predictions = adapter.training_model_store.predict(texts, threshold=self.config.gmail_local_classification_threshold)
+
+        local_processed = 0
+        ai_candidates = []
+        for message, prediction in zip(candidates, predictions, strict=False):
+            predicted_label = GmailTrainingLabel(str(prediction["predicted_label"]))
+            predicted_confidence = float(prediction["predicted_confidence"])
+            adapter.message_store.update_local_classification(
+                account_id,
+                message.message_id,
+                label=predicted_label,
+                confidence=predicted_confidence,
+                manual_classification=False,
+            )
+            local_processed += 1
+            if predicted_label == GmailTrainingLabel.UNKNOWN:
+                ai_candidates.append(message)
+        return local_processed, ai_candidates
+
+    async def _execute_email_classifier_for_message(
+        self,
+        *,
+        account_id: str,
+        message,
+        target_api_base_url: str | None,
+        correlation_id: str | None,
+        persist_runtime_state: bool,
+    ) -> dict[str, object]:
+        target_base_url = str(target_api_base_url or "http://127.0.0.1:9002").strip().rstrip("/")
+        normalized_target_base_url = target_base_url[:-4] if target_base_url.endswith("/api") else target_base_url
+        adapter = self.provider_registry.get_provider("gmail")
+        account_record = adapter.account_store.load_account(account_id)
+        my_addresses = [account_record.email_address] if account_record is not None and account_record.email_address else []
+        normalized_text = normalize_email_for_classifier(message, my_addresses=my_addresses)
+
+        task_id = self._next_email_classify_task_id()
+        trace_id = correlation_id or f"trace-email-{uuid.uuid4().hex}"
+        request_body = {
+            "task_id": task_id,
+            "prompt_id": "prompt.email.classifier",
+            "prompt_version": "v1",
+            "task_family": "task.classification",
+            "requested_by": "node-email",
+            "service_id": "node-email",
+            "customer_id": "local-user",
+            "trace_id": trace_id,
+            "inputs": {
+                "text": normalized_text,
+                "json_schema": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "label": {
+                            "type": "string",
+                            "enum": [
+                                "action_required",
+                                "direct_human",
+                                "financial",
+                                "order",
+                                "invoice",
+                                "shipment",
+                                "security",
+                                "system",
+                                "newsletter",
+                                "marketing",
+                                "unknown",
+                            ],
+                        },
+                        "confidence": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1,
+                        },
+                        "rationale": {
+                            "type": "string",
+                        },
+                    },
+                    "required": ["label", "confidence", "rationale"],
+                },
+            },
+            "timeout_s": 60,
+        }
+
+        try:
+            AI_LOGGER.info(
+                "Executing email classifier against AI node",
+                extra={
+                    "event_data": {
+                        "target_api_base_url": normalized_target_base_url,
+                        "message_id": message.message_id,
+                        "task_id": task_id,
+                    }
+                },
+            )
+            async with httpx.AsyncClient(
+                base_url=normalized_target_base_url,
+                timeout=self.core_client.timeout,
+                transport=self.core_client.transport,
+            ) as client:
+                execution_response = await client.post("/api/execution/direct", json=request_body)
+                execution_response.raise_for_status()
+                execution_payload = execution_response.json()
+        except Exception as exc:
+            AI_LOGGER.error(
+                "AI classifier execution failed",
+                extra={
+                    "event_data": {
+                        "target_api_base_url": normalized_target_base_url,
+                        "message_id": message.message_id,
+                        "task_id": task_id,
+                        "detail": str(exc),
+                    }
+                },
+            )
+            raise ValueError(str(exc)) from exc
+
+        classifier_output = self._parse_classifier_output(
+            execution_payload.get("output") if isinstance(execution_payload, dict) else None
+        )
+        classification_applied = False
+        parsed_classifier_output = None
+        if classifier_output is not None:
+            label = classifier_output.get("label", classifier_output.get("category"))
+            confidence = classifier_output.get("confidence", classifier_output.get("score"))
+            parsed_label = self._normalize_classifier_label(label)
+            parsed_confidence = self._normalize_classifier_confidence(confidence)
+            parsed_classifier_output = {
+                "raw": classifier_output,
+                "normalized_label": parsed_label.value if parsed_label is not None else None,
+                "normalized_confidence": parsed_confidence,
+            }
+            if parsed_label is not None and parsed_confidence is not None:
+                adapter.message_store.update_local_classification(
+                    account_id,
+                    message.message_id,
+                    label=parsed_label,
+                    confidence=parsed_confidence,
+                    manual_classification=False,
+                )
+                classification_applied = True
+
+        result = {
+            "ok": True,
+            "task_id": task_id,
+            "trace_id": trace_id,
+            "target_api_base_url": normalized_target_base_url,
+            "message_id": message.message_id,
+            "classification_applied": classification_applied,
+            "request_payload": request_body,
+            "execution": execution_payload,
+            "parsed_output": parsed_classifier_output,
+        }
+        AI_LOGGER.info(
+            "AI classifier execution completed",
+            extra={
+                "event_data": {
+                    "target_api_base_url": normalized_target_base_url,
+                    "message_id": message.message_id,
+                    "task_id": task_id,
+                    "classification_applied": classification_applied,
+                    "normalized_label": (
+                        parsed_classifier_output.get("normalized_label")
+                        if isinstance(parsed_classifier_output, dict)
+                        else None
+                    ),
+                }
+            },
+        )
+        if persist_runtime_state:
+            now = datetime.now(UTC).isoformat()
+            current = self._runtime_task_state()
+            self._save_runtime_task_state(
+                request_status="executed",
+                last_step="execute",
+                detail=f"Executed prompt.email.classifier for newest unknown email {message.message_id} on the AI node.",
+                preview_response=current.get("preview_response"),
+                resolve_response=current.get("resolve_response"),
+                authorize_response=current.get("authorize_response"),
+                registration_request_payload=current.get("registration_request_payload"),
+                execution_request_payload=result["request_payload"],
+                execution_response=result["execution"],
+                usage_summary_response=None,
+                started_at=current.get("started_at") or now,
+                updated_at=now,
+            )
+        return result
+
+    async def _execute_email_classifier_for_messages(
+        self,
+        *,
+        account_id: str,
+        messages: list,
+        target_api_base_url: str | None,
+        correlation_id: str | None,
+        on_result: Callable[[dict[str, object], int, int], Awaitable[None]] | None = None,
+    ) -> tuple[list[dict[str, object]], int]:
+        results: list[dict[str, object]] = []
+        succeeded = 0
+        for message in messages:
+            result = await self._execute_email_classifier_for_message(
+                account_id=account_id,
+                message=message,
+                target_api_base_url=target_api_base_url,
+                correlation_id=correlation_id,
+                persist_runtime_state=False,
+            )
+            if result.get("classification_applied"):
+                succeeded += 1
+            results.append(result)
+            if on_result is not None:
+                await on_result(result, len(results), succeeded)
+        return results, succeeded
+
     def onboarding_status(self) -> OnboardingStatusResponse:
         return OnboardingStatusResponse(
             node_name=self.effective_node_name() or "",
@@ -758,6 +1708,7 @@ class NodeService:
             status=await self.status(),
             required_inputs=required_inputs,
             can_start_onboarding=not required_inputs and self.state.trust_state != "trusted",
+            runtime_task_state=self._runtime_task_state(),
         )
 
     async def governance_status(self) -> dict[str, object]:
@@ -1042,6 +1993,11 @@ class NodeService:
             )
             labels = await adapter.available_labels(account.account_id) if hasattr(adapter, "available_labels") else None
             message_summary = await adapter.message_store_summary(account.account_id) if hasattr(adapter, "message_store_summary") else None
+            classification_summary = (
+                await adapter.local_classification_summary(account.account_id)
+                if hasattr(adapter, "local_classification_summary")
+                else None
+            )
             spamhaus_summary = await adapter.spamhaus_summary(account.account_id) if hasattr(adapter, "spamhaus_summary") else None
             quota_usage = await adapter.quota_usage_summary(account.account_id) if hasattr(adapter, "quota_usage_summary") else None
             statuses.append(
@@ -1050,6 +2006,7 @@ class NodeService:
                     "mailbox_status": mailbox_status.model_dump(mode="json") if mailbox_status is not None else None,
                     "labels": labels,
                     "message_store": message_summary,
+                    "classification_summary": classification_summary,
                     "spamhaus": spamhaus_summary.model_dump(mode="json") if spamhaus_summary is not None else None,
                     "quota_usage": quota_usage.model_dump(mode="json") if quota_usage is not None else None,
                 }
@@ -1059,6 +2016,8 @@ class NodeService:
             "provider_state": await adapter.get_provider_state(),
             "enabled": adapter.get_enabled_status(),
             "fetch_schedule": fetch_schedule.model_dump(mode="json") if fetch_schedule is not None else None,
+            "fetch_scheduler": self._gmail_fetch_scheduler_state(),
+            "last_hour_pipeline": self._gmail_last_hour_pipeline_state(),
             "accounts": statuses,
         }
 
@@ -1088,9 +2047,118 @@ class NodeService:
                     store_unread_messages=False,
                     correlation_id=correlation_id,
                 )
+            if window == "last_hour":
+                result["pipeline"] = await self._run_last_hour_pipeline(
+                    account_id=account_id,
+                    mode=reason,
+                    fetched_count=int(result.get("fetched_count") or 0),
+                    correlation_id=correlation_id,
+                )
         except Exception as exc:
             raise ValueError(str(exc)) from exc
         return result
+
+    async def _run_last_hour_pipeline(
+        self,
+        *,
+        account_id: str,
+        mode: str,
+        fetched_count: int,
+        correlation_id: str | None,
+    ) -> dict[str, object]:
+        started_at = datetime.now(UTC).isoformat()
+        state = self._save_gmail_last_hour_pipeline_state(
+            mode=mode,
+            status="running",
+            detail="Running last-hour Gmail pipeline...",
+            started_at=started_at,
+            updated_at=started_at,
+            stages={
+                "fetch": {
+                    "status": "completed",
+                    "detail": f"Fetched {fetched_count} last-hour emails.",
+                    "count": fetched_count,
+                },
+                "spamhaus": {"status": "running", "detail": "Checking pending Spamhaus items...", "count": 0},
+                "local_classification": {"status": "idle", "detail": "Waiting", "count": 0},
+                "ai_classification": {"status": "idle", "detail": "Waiting", "count": 0},
+            },
+        )
+        adapter = self.provider_registry.get_provider("gmail")
+        try:
+            spamhaus_summary = await adapter.spamhaus_summary(account_id)
+            spamhaus_count = 0
+            spamhaus_detail = "No pending Spamhaus items."
+            spamhaus_status = "idle"
+            if spamhaus_summary.pending_count > 0:
+                spamhaus_result = await adapter.check_spamhaus_for_stored_messages(account_id)
+                spamhaus_count = int(spamhaus_result.get("checked_count") or 0)
+                spamhaus_detail = f"Checked {spamhaus_count} pending Spamhaus items."
+                spamhaus_status = "completed"
+            state["stages"]["spamhaus"] = {
+                "status": spamhaus_status,
+                "detail": spamhaus_detail,
+                "count": spamhaus_count,
+            }
+            self._save_gmail_last_hour_pipeline_state(stages=state["stages"], updated_at=datetime.now(UTC).isoformat())
+
+            last_hour_start = datetime.now().astimezone() - timedelta(hours=1)
+            recent_messages = adapter.message_store.list_messages_received_since(account_id, since=last_hour_start)
+            checked_ids = adapter.message_store.list_spamhaus_checked_message_ids(account_id)
+            local_candidates = [
+                message
+                for message in recent_messages
+                if message.message_id in checked_ids and (message.local_label is None or message.local_label == GmailTrainingLabel.UNKNOWN.value)
+            ]
+            local_stage_status = "idle"
+            local_detail = "No last-hour unknown emails needed local classification."
+            local_count, ai_candidates = self._classify_candidates_locally(account_id=account_id, candidates=local_candidates)
+            if local_candidates and local_count > 0:
+                local_stage_status = "completed"
+                local_detail = f"Locally classified {local_count} last-hour emails."
+            elif local_candidates:
+                local_stage_status = "idle"
+                local_detail = "Skipped local classification because no trained local model is available."
+            state["stages"]["local_classification"] = {
+                "status": local_stage_status,
+                "detail": local_detail,
+                "count": local_count,
+            }
+            self._save_gmail_last_hour_pipeline_state(stages=state["stages"], updated_at=datetime.now(UTC).isoformat())
+
+            ai_results, _ = await self._execute_email_classifier_for_messages(
+                account_id=account_id,
+                messages=ai_candidates,
+                target_api_base_url="http://127.0.0.1:9002",
+                correlation_id=correlation_id,
+            )
+            ai_count = len(ai_results)
+            state["stages"]["ai_classification"] = {
+                "status": "completed" if ai_count > 0 else "idle",
+                "detail": (
+                    f"Sent {ai_count} last-hour unknown emails to the AI node."
+                    if ai_count > 0
+                    else "No last-hour unknown emails needed AI classification."
+                ),
+                "count": ai_count,
+            }
+            completed_at = datetime.now(UTC).isoformat()
+            return self._save_gmail_last_hour_pipeline_state(
+                status="completed",
+                detail="Last-hour Gmail pipeline completed.",
+                stages=state["stages"],
+                updated_at=completed_at,
+                last_completed_at=completed_at,
+            )
+        except Exception as exc:
+            failed_at = datetime.now(UTC).isoformat()
+            return self._save_gmail_last_hour_pipeline_state(
+                mode=mode,
+                status="failed",
+                detail=str(exc),
+                stages=state["stages"],
+                updated_at=failed_at,
+            )
 
     async def gmail_config_validation(self) -> dict[str, object]:
         adapter = self.provider_registry.get_provider("gmail")
@@ -1264,49 +2332,157 @@ class NodeService:
 
     def _ensure_gmail_status_polling(self) -> None:
         if self.gmail_status_task is None or self.gmail_status_task.done():
+            GMAIL_POLL_LOGGER.info(
+                "Gmail status polling loop starting",
+                extra={"event_data": {"interval_seconds": self.config.gmail_status_poll_interval_seconds}},
+            )
             self.gmail_status_task = asyncio.create_task(self._gmail_status_loop())
 
     def _ensure_gmail_fetch_polling(self) -> None:
         if self.gmail_fetch_task is None or self.gmail_fetch_task.done():
+            self._save_gmail_fetch_scheduler_state(
+                loop_enabled=True,
+                loop_active=True,
+                status="running",
+                detail="Gmail fetch scheduler loop is running.",
+                last_error=None,
+                last_error_at=None,
+            )
             self.gmail_fetch_task = asyncio.create_task(self._gmail_fetch_loop())
 
     async def _gmail_status_loop(self) -> None:
         while True:
-            with contextlib.suppress(Exception):
+            try:
                 await self._refresh_gmail_status()
+            except Exception as exc:
+                GMAIL_POLL_LOGGER.error(
+                    "Gmail status polling loop failed",
+                    extra={"event_data": {"detail": str(exc)}},
+                )
             await asyncio.sleep(self.config.gmail_status_poll_interval_seconds)
 
     async def _refresh_gmail_status(self) -> None:
         gmail_adapter = self.provider_registry.get_provider("gmail")
         accounts = await gmail_adapter.list_accounts()
+        eligible_accounts = [account for account in accounts if account.status in {"connected", "token_exchanged", "degraded"}]
+        GMAIL_POLL_LOGGER.info(
+            "Gmail status polling pass started",
+            extra={
+                "event_data": {
+                    "account_count": len(accounts),
+                    "eligible_account_count": len(eligible_accounts),
+                }
+            },
+        )
         for account in accounts:
             if account.status in {"connected", "token_exchanged", "degraded"}:
-                await gmail_adapter.refresh_mailbox_status(account.account_id)
+                mailbox_status = await gmail_adapter.refresh_mailbox_status(account.account_id)
+                GMAIL_POLL_LOGGER.info(
+                    "Gmail status polling pass refreshed account",
+                    extra={
+                        "event_data": {
+                            "account_id": account.account_id,
+                            "checked_at": mailbox_status.checked_at.isoformat(),
+                            "unread_inbox_count": mailbox_status.unread_inbox_count,
+                            "unread_today_count": mailbox_status.unread_today_count,
+                            "unread_last_hour_count": mailbox_status.unread_last_hour_count,
+                        }
+                    },
+                )
 
     async def _gmail_fetch_loop(self) -> None:
         while True:
-            with contextlib.suppress(Exception):
+            try:
                 await self._run_due_gmail_fetches()
+            except Exception as exc:
+                failed_at = datetime.now(UTC).isoformat()
+                self._save_gmail_fetch_scheduler_state(
+                    loop_enabled=True,
+                    loop_active=True,
+                    status="error",
+                    detail="Gmail fetch scheduler loop hit an error.",
+                    last_error=str(exc),
+                    last_error_at=failed_at,
+                    last_checked_at=failed_at,
+                )
+                LOGGER.error(
+                    "Scheduled Gmail fetch loop failed",
+                    extra={"event_data": {"detail": str(exc)}},
+                )
             await asyncio.sleep(self._seconds_until_next_minute())
 
     async def _run_due_gmail_fetches(self) -> None:
         gmail_adapter = self.provider_registry.get_provider("gmail")
         if not gmail_adapter.get_enabled_status():
+            self._save_gmail_fetch_scheduler_state(
+                status="idle",
+                detail="Gmail fetch scheduler is idle because Gmail is disabled.",
+                last_checked_at=datetime.now(UTC).isoformat(),
+                last_due_windows=[],
+            )
             return
         accounts = await gmail_adapter.list_accounts()
         eligible_accounts = [account for account in accounts if account.status in {"connected", "token_exchanged", "degraded"}]
         if not eligible_accounts:
+            self._save_gmail_fetch_scheduler_state(
+                status="idle",
+                detail="Gmail fetch scheduler is idle because no eligible Gmail account is connected.",
+                last_checked_at=datetime.now(UTC).isoformat(),
+                last_due_windows=[],
+            )
             return
 
         schedule_state = await gmail_adapter.fetch_schedule_state() if hasattr(gmail_adapter, "fetch_schedule_state") else None
-        due_windows = self._due_gmail_fetch_windows(datetime.now().astimezone(), schedule_state)
+        now = datetime.now().astimezone()
+        due_windows = self._due_gmail_fetch_windows(now, schedule_state)
+        checked_at = datetime.now(UTC).isoformat()
+        self._save_gmail_fetch_scheduler_state(
+            status="running" if due_windows else "idle",
+            detail=(
+                f"Scheduled Gmail fetch due for {', '.join(window for window, _ in due_windows)}."
+                if due_windows
+                else "No scheduled Gmail fetch windows are due right now."
+            ),
+            last_checked_at=checked_at,
+            last_due_windows=[{"window": window, "slot_key": slot_key} for window, slot_key in due_windows],
+        )
         for account in eligible_accounts:
             for window, slot_key in due_windows:
+                attempt_at = datetime.now(UTC).isoformat()
+                LOGGER.info(
+                    "Scheduled Gmail fetch attempt",
+                    extra={
+                        "event_data": {
+                            "account_id": account.account_id,
+                            "window": window,
+                            "slot_key": slot_key,
+                        }
+                    },
+                )
                 await self.gmail_fetch_messages(
                     window,
                     account_id=account.account_id,
                     reason="scheduled",
                     slot_key=slot_key,
+                )
+                success_at = datetime.now(UTC).isoformat()
+                self._save_gmail_fetch_scheduler_state(
+                    status="completed",
+                    detail=f"Scheduled Gmail fetch completed for {window}.",
+                    last_attempt_at=attempt_at,
+                    last_success_at=success_at,
+                    last_error=None,
+                    last_error_at=None,
+                )
+                LOGGER.info(
+                    "Scheduled Gmail fetch completed",
+                    extra={
+                        "event_data": {
+                            "account_id": account.account_id,
+                            "window": window,
+                            "slot_key": slot_key,
+                        }
+                    },
                 )
 
     def _due_gmail_fetch_windows(self, now: datetime, schedule_state) -> list[tuple[str, str]]:
@@ -1320,15 +2496,23 @@ class NodeService:
             return []
 
         yesterday_state = getattr(schedule_state, "yesterday", None)
-        if now.hour == 0 and now.minute == 1 and schedule_map["yesterday"] and getattr(yesterday_state, "last_slot_key", None) != schedule_map["yesterday"]:
+        if (
+            schedule_map["yesterday"]
+            and (now.hour > 0 or (now.hour == 0 and now.minute >= 1))
+            and getattr(yesterday_state, "last_slot_key", None) != schedule_map["yesterday"]
+        ):
             due.append(("yesterday", schedule_map["yesterday"]))
 
         today_state = getattr(schedule_state, "today", None)
-        if now.minute == 0 and now.hour % 6 == 0 and schedule_map["today"] and getattr(today_state, "last_slot_key", None) != schedule_map["today"]:
+        if (
+            schedule_map["today"]
+            and getattr(today_state, "last_slot_key", None) != schedule_map["today"]
+            and now.hour // 6 == int(schedule_map["today"].rsplit(":", 1)[-1])
+        ):
             due.append(("today", schedule_map["today"]))
 
         last_hour_state = getattr(schedule_state, "last_hour", None)
-        if now.minute == 0 and schedule_map["last_hour"] and getattr(last_hour_state, "last_slot_key", None) != schedule_map["last_hour"]:
+        if schedule_map["last_hour"] and getattr(last_hour_state, "last_slot_key", None) != schedule_map["last_hour"]:
             due.append(("last_hour", schedule_map["last_hour"]))
 
         return due
@@ -1340,7 +2524,7 @@ class NodeService:
         if window == "today":
             return f"{local_now.date().isoformat()}:{local_now.hour // 6}"
         if window == "last_hour":
-            slot_time = local_now.replace(minute=0, second=0, microsecond=0)
+            slot_time = local_now.replace(minute=(local_now.minute // 5) * 5, second=0, microsecond=0)
             return slot_time.isoformat()
         return None
 

@@ -5,6 +5,11 @@ from datetime import UTC, datetime
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
+from logging_utils import get_logger
+
+
+LOGGER = get_logger(__name__)
+
 
 class GovernanceSnapshot(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -43,6 +48,16 @@ class GovernanceClient:
         refresh_interval_s: int | None = None
 
         if current_governance_version:
+            LOGGER.info(
+                "Refreshing governance with Core",
+                extra={
+                    "event_data": {
+                        "base_url": base_url,
+                        "node_id": node_id,
+                        "current_governance_version": current_governance_version,
+                    }
+                },
+            )
             refresh_response = await self._client.post(
                 f"{base_url.rstrip('/')}{self.REFRESH_PATH}",
                 json={
@@ -52,6 +67,10 @@ class GovernanceClient:
                 headers=headers,
             )
             if refresh_response.is_error:
+                LOGGER.warning(
+                    "Governance refresh failed",
+                    extra={"event_data": {"status_code": refresh_response.status_code, "node_id": node_id}},
+                )
                 return GovernanceSnapshot(
                     node_id=node_id,
                     present=False,
@@ -73,6 +92,16 @@ class GovernanceClient:
                 bundle = refresh_body.get("governance_bundle")
                 if isinstance(bundle, dict):
                     payload = bundle
+                    LOGGER.info(
+                        "Governance refresh returned bundle",
+                        extra={
+                            "event_data": {
+                                "node_id": node_id,
+                                "governance_version": governance_version,
+                                "refresh_interval_s": refresh_interval_s,
+                            }
+                        },
+                    )
                     return GovernanceSnapshot(
                         node_id=node_id,
                         present=True,
@@ -82,6 +111,10 @@ class GovernanceClient:
                         payload=payload,
                     )
 
+        LOGGER.info(
+            "Fetching current governance from Core",
+            extra={"event_data": {"base_url": base_url, "node_id": node_id}},
+        )
         response = await self._client.get(
             f"{base_url.rstrip('/')}{self.CURRENT_PATH}",
             params={"node_id": node_id},
@@ -99,6 +132,22 @@ class GovernanceClient:
                     payload = bundle if isinstance(bundle, dict) else {}
             except ValueError:
                 payload = {}
+        if response.is_error:
+            LOGGER.warning(
+                "Governance fetch failed",
+                extra={"event_data": {"status_code": response.status_code, "node_id": node_id}},
+            )
+        else:
+            LOGGER.info(
+                "Governance fetch completed",
+                extra={
+                    "event_data": {
+                        "status_code": response.status_code,
+                        "node_id": node_id,
+                        "governance_version": governance_version,
+                    }
+                },
+            )
         return GovernanceSnapshot(
             node_id=node_id,
             present=not response.is_error,

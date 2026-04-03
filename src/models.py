@@ -32,6 +32,73 @@ class TaskCapabilitySelectionInput(BaseModel):
     selected_task_capabilities: list[str] = Field(default_factory=list)
 
 
+class TaskRoutingRequestInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    task_family: str
+    requested_node_type: str | None = None
+    requested_provider: str | None = None
+    inputs: dict[str, object] = Field(default_factory=dict)
+    constraints: dict[str, object] = Field(default_factory=dict)
+
+
+class TaskRoutingPreviewResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    task_family: str
+    requested_node_type: str | None = None
+    requested_provider: str | None = None
+    local_node_type: str
+    local_selected_task_capabilities: list[str] = Field(default_factory=list)
+    local_node_can_execute: bool = False
+    should_delegate_to_core: bool = False
+    capability_declared: bool = False
+    detail: str
+
+
+class CoreServiceResolveRequestInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    task_family: str
+    type: str | None = None
+    task_context: dict[str, object] = Field(default_factory=dict)
+    preferred_provider: str | None = None
+
+
+class CoreServiceAuthorizeRequestInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    task_family: str
+    type: str | None = None
+    task_context: dict[str, object] = Field(default_factory=dict)
+    service_id: str
+    provider: str
+    model_id: str | None = None
+
+
+class RuntimeDirectExecutionRequestInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    task_family: str
+    target_api_base_url: str | None = None
+    service_token: str | None = None
+    grant_id: str | None = None
+    service_id: str | None = None
+    provider: str | None = None
+    model_id: str | None = None
+    content_type: str = "email"
+    subject: str | None = None
+    body: str | None = None
+
+
+class RuntimePromptExecutionRequestInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    target_api_base_url: str | None = None
+    subject: str | None = None
+    body: str | None = None
+
+
 class RefreshTriggerRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -72,6 +139,10 @@ class RuntimeState(BaseModel):
     governance_synced_at: datetime | None = None
     active_governance_version: str | None = None
     operational_readiness: bool = False
+    runtime_email_classify_counter: int = 0
+    gmail_last_hour_pipeline_state: dict[str, object] = Field(default_factory=dict)
+    gmail_fetch_scheduler_state: dict[str, object] = Field(default_factory=dict)
+    runtime_task_state: dict[str, object] = Field(default_factory=dict)
 
 
 class TrustMaterial(BaseModel):
@@ -164,6 +235,7 @@ class UiBootstrapResponse(BaseModel):
     status: StatusResponse
     required_inputs: list[str]
     can_start_onboarding: bool
+    runtime_task_state: dict[str, object] = Field(default_factory=dict)
 
 
 class GmailConnectStartResponse(BaseModel):

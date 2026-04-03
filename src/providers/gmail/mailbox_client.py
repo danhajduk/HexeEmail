@@ -147,11 +147,11 @@ class GmailMailboxClient:
             start = self._months_ago(local_now, 3)
             return self._all_mail_range_query(start, next_second)
         if window == "yesterday":
-            return self._inbox_date_query(yesterday_start - timedelta(days=1), today_start)
+            return self._all_mail_range_query(yesterday_start, today_start)
         if window == "today":
-            return self._inbox_after_date_query(yesterday_start)
+            return self._all_mail_range_query(today_start, next_second)
         if window == "last_hour":
-            return self._inbox_range_query(local_now - timedelta(hours=1), next_second)
+            return self._all_mail_range_query(local_now - timedelta(hours=1), next_second)
         raise GmailMailboxClientError(f"unsupported gmail fetch window: {window}")
 
     async def fetch_messages(self, *, token_record: GmailTokenRecord, query: str) -> list[GmailStoredMessage]:

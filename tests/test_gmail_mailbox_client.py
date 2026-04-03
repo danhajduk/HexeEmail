@@ -65,7 +65,7 @@ def build_google_fetch_app():
     async def list_messages(q: str = Query(default=""), pageToken: str | None = None):
         if pageToken:
             return {"messages": []}
-        assert q == "is:unread" or q.startswith("in:inbox after:") or (q.startswith("after:") and "in:inbox" not in q)
+        assert q == "is:unread" or q.startswith("after:")
         return {"messages": [{"id": "msg-1"}]}
 
     @app.get("/messages/{message_id}")
@@ -140,16 +140,24 @@ async def test_gmail_mailbox_client_fetches_labels():
 
 def test_gmail_mailbox_client_builds_local_time_window_queries():
     client = GmailMailboxClient()
+    now = datetime(2026, 4, 2, 15, 30, 0).astimezone()
 
-    today_query = client.build_fetch_query("today", now=datetime(2026, 4, 2, 15, 30, 0).astimezone())
-    yesterday_query = client.build_fetch_query("yesterday", now=datetime(2026, 4, 2, 15, 30, 0).astimezone())
-    last_hour_query = client.build_fetch_query("last_hour", now=datetime(2026, 4, 2, 15, 30, 0).astimezone())
-    initial_query = client.build_fetch_query("initial_learning", now=datetime(2026, 4, 2, 15, 30, 0).astimezone())
+    today_query = client.build_fetch_query("today", now=now)
+    yesterday_query = client.build_fetch_query("yesterday", now=now)
+    last_hour_query = client.build_fetch_query("last_hour", now=now)
+    initial_query = client.build_fetch_query("initial_learning", now=now)
 
-    assert today_query == "in:inbox after:2026/4/1"
-    assert yesterday_query == "in:inbox after:2026/3/31 before:2026/4/2"
-    assert last_hour_query.startswith("in:inbox after:")
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    yesterday_start = today_start - timedelta(days=1)
+    next_second = now + timedelta(seconds=1)
+
+    assert today_query == f"after:{int(today_start.timestamp())} before:{int(next_second.timestamp())}"
+    assert yesterday_query == f"after:{int(yesterday_start.timestamp())} before:{int(today_start.timestamp())}"
+    assert last_hour_query == f"after:{int((now - timedelta(hours=1)).timestamp())} before:{int(next_second.timestamp())}"
     assert initial_query.startswith("after:")
+    assert "in:inbox" not in today_query
+    assert "in:inbox" not in yesterday_query
+    assert "in:inbox" not in last_hour_query
     assert "in:inbox" not in initial_query
 
 

@@ -1,0 +1,14 @@
+[Unit]
+Description=Hexe Email Node Backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=__APP_DIR__
+ExecStart=/usr/bin/env bash __APP_DIR__/scripts/run-from-env.sh backend
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target

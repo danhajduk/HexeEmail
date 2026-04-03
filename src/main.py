@@ -6,7 +6,17 @@ from fastapi import FastAPI, HTTPException, Request
 
 from config import AppConfig
 from logging_utils import correlation_id_middleware, setup_logging
-from models import OperatorConfigInput, RefreshTriggerRequest, ServiceRestartRequest, TaskCapabilitySelectionInput
+from models import (
+    CoreServiceAuthorizeRequestInput,
+    CoreServiceResolveRequestInput,
+    OperatorConfigInput,
+    RefreshTriggerRequest,
+    RuntimeDirectExecutionRequestInput,
+    RuntimePromptExecutionRequestInput,
+    ServiceRestartRequest,
+    TaskCapabilitySelectionInput,
+    TaskRoutingRequestInput,
+)
 from providers.gmail.models import GmailManualClassificationBatchInput, GmailOAuthConfig, GmailSemiAutoClassificationBatchInput, GmailTrainingLabel
 from service import NodeService
 
@@ -115,6 +125,63 @@ def create_app(
     @app.get("/api/capabilities/node/resolved")
     async def resolved_node_capabilities():
         return await node_service.resolved_node_capabilities()
+
+    @app.post("/api/tasks/routing/preview")
+    async def task_routing_preview(payload: TaskRoutingRequestInput):
+        try:
+            return await node_service.task_routing_preview(payload)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/api/core/services/resolve")
+    async def core_service_resolve(payload: CoreServiceResolveRequestInput, request: Request):
+        try:
+            return await node_service.core_service_resolve(
+                payload,
+                correlation_id=request.headers.get("X-Correlation-Id"),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/api/core/services/authorize")
+    async def core_service_authorize(payload: CoreServiceAuthorizeRequestInput, request: Request):
+        try:
+            return await node_service.core_service_authorize(
+                payload,
+                correlation_id=request.headers.get("X-Correlation-Id"),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/api/runtime/execute-authorized-task")
+    async def runtime_execute_authorized_task(payload: RuntimeDirectExecutionRequestInput, request: Request):
+        try:
+            return await node_service.runtime_execute_authorized_task(
+                payload,
+                correlation_id=request.headers.get("X-Correlation-Id"),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=getattr(exc, "detail", str(exc))) from exc
+
+    @app.post("/api/runtime/execute-email-classifier")
+    async def runtime_execute_email_classifier(payload: RuntimePromptExecutionRequestInput, request: Request):
+        try:
+            return await node_service.runtime_execute_email_classifier(
+                payload,
+                correlation_id=request.headers.get("X-Correlation-Id"),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/api/runtime/execute-email-classifier-batch")
+    async def runtime_execute_email_classifier_batch(payload: RuntimePromptExecutionRequestInput, request: Request):
+        try:
+            return await node_service.runtime_execute_email_classifier_batch(
+                payload,
+                correlation_id=request.headers.get("X-Correlation-Id"),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @app.get("/api/governance/status")
     async def governance_status():

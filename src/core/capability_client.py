@@ -5,6 +5,11 @@ from datetime import UTC, datetime
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
+from logging_utils import get_logger
+
+
+LOGGER = get_logger(__name__)
+
 
 class CapabilityManifest(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -83,6 +88,16 @@ class CapabilityClient:
         if correlation_id:
             headers["X-Correlation-Id"] = correlation_id
         headers["X-Node-Trust-Token"] = trust_token
+        LOGGER.info(
+            "Submitting capability declaration to Core",
+            extra={
+                "event_data": {
+                    "base_url": base_url,
+                    "declared_task_families": manifest.declared_task_families,
+                    "enabled_providers": manifest.enabled_providers,
+                }
+            },
+        )
         response = await self._client.post(
             f"{base_url.rstrip('/')}{self.DECLARE_PATH}",
             json={"manifest": manifest.model_dump(mode="json")},
@@ -100,7 +115,15 @@ class CapabilityClient:
                         detail = raw_detail.get("message") if isinstance(raw_detail.get("message"), str) else None
             except ValueError:
                 detail = None
+            LOGGER.warning(
+                "Capability declaration rejected",
+                extra={"event_data": {"status_code": response.status_code, "detail": detail}},
+            )
             return CapabilityDeclarationResult(accepted=False, detail=detail, manifest=manifest)
+        LOGGER.info(
+            "Capability declaration accepted",
+            extra={"event_data": {"status_code": response.status_code, "enabled_providers": manifest.enabled_providers}},
+        )
         return CapabilityDeclarationResult(accepted=True, manifest=manifest)
 
     async def aclose(self) -> None:

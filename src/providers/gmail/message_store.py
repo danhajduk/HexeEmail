@@ -75,6 +75,22 @@ class GmailMessageStore:
             return 0
         fetched_at = (now or datetime.now().astimezone()).isoformat()
         with self._connect() as connection:
+            unique_message_ids = list(dict.fromkeys(message.message_id for message in messages))
+            existing_ids: set[str] = set()
+            account_id = messages[0].account_id
+            for start in range(0, len(unique_message_ids), 500):
+                batch_ids = unique_message_ids[start : start + 500]
+                placeholders = ",".join("?" for _ in batch_ids)
+                rows = connection.execute(
+                    f"""
+                    SELECT message_id
+                    FROM gmail_messages
+                    WHERE account_id = ?
+                      AND message_id IN ({placeholders})
+                    """,
+                    (account_id, *batch_ids),
+                ).fetchall()
+                existing_ids.update(row["message_id"] for row in rows)
             connection.executemany(
                 """
                 INSERT INTO gmail_messages (
@@ -88,8 +104,11 @@ class GmailMessageStore:
                     label_ids,
                     received_at,
                     fetched_at,
-                    raw_payload
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    raw_payload,
+                    local_label,
+                    local_label_confidence,
+                    manual_classification
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(account_id, message_id) DO UPDATE SET
                     thread_id=excluded.thread_id,
                     subject=excluded.subject,
@@ -99,7 +118,16 @@ class GmailMessageStore:
                     label_ids=excluded.label_ids,
                     received_at=excluded.received_at,
                     fetched_at=excluded.fetched_at,
-                    raw_payload=excluded.raw_payload
+                    raw_payload=excluded.raw_payload,
+                    local_label=COALESCE(excluded.local_label, gmail_messages.local_label),
+                    local_label_confidence=CASE
+                        WHEN excluded.local_label IS NOT NULL THEN excluded.local_label_confidence
+                        ELSE gmail_messages.local_label_confidence
+                    END,
+                    manual_classification=CASE
+                        WHEN excluded.local_label IS NOT NULL THEN excluded.manual_classification
+                        ELSE gmail_messages.manual_classification
+                    END
                 """,
                 [
                     (
@@ -114,13 +142,16 @@ class GmailMessageStore:
                         message.received_at.isoformat(),
                         fetched_at,
                         message.raw_payload,
+                        message.local_label,
+                        message.local_label_confidence,
+                        int(bool(message.manual_classification)),
                     )
                     for message in messages
                 ],
             )
             connection.commit()
         self.enforce_retention(now=now)
-        return len(messages)
+        return sum(1 for message_id in unique_message_ids if message_id not in existing_ids)
 
     def enforce_retention(self, *, now: datetime | None = None) -> int:
         cutoff = self._six_month_cutoff(now or datetime.now().astimezone())
@@ -193,6 +224,33 @@ class GmailMessageStore:
             ).fetchall()
         return [self._row_to_message(row) for row in rows]
 
+    def list_messages_received_since(self, account_id: str, *, since: datetime) -> list[GmailStoredMessage]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    account_id,
+                    message_id,
+                    thread_id,
+                    subject,
+                    sender,
+                    recipients,
+                    snippet,
+                    label_ids,
+                    received_at,
+                    raw_payload,
+                    local_label,
+                    local_label_confidence,
+                    manual_classification
+                FROM gmail_messages
+                WHERE account_id = ?
+                  AND received_at >= ?
+                ORDER BY received_at DESC
+                """,
+                (account_id, since.isoformat()),
+            ).fetchall()
+        return [self._row_to_message(row) for row in rows]
+
     def account_summary(self, account_id: str) -> dict[str, object]:
         with self._connect() as connection:
             row = connection.execute(
@@ -251,6 +309,37 @@ class GmailMessageStore:
                 (account_id, GmailTrainingLabel.UNKNOWN.value, threshold, limit),
             ).fetchall()
         return [self._row_to_message(row) for row in rows]
+
+    def get_newest_unknown_message(self, account_id: str) -> GmailStoredMessage | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT
+                    account_id,
+                    message_id,
+                    thread_id,
+                    subject,
+                    sender,
+                    recipients,
+                    snippet,
+                    label_ids,
+                    received_at,
+                    raw_payload,
+                    local_label,
+                    local_label_confidence,
+                    manual_classification
+                FROM gmail_messages
+                WHERE account_id = ?
+                  AND (
+                    local_label IS NULL
+                    OR local_label = ?
+                  )
+                ORDER BY received_at DESC
+                LIMIT 1
+                """,
+                (account_id, GmailTrainingLabel.UNKNOWN.value),
+            ).fetchone()
+        return self._row_to_message(row) if row is not None else None
 
     def list_oldest_training_candidates(
         self,

@@ -21,6 +21,33 @@ const EMPTY_PROVIDER_FORM = {
     "https://www.googleapis.com/auth/gmail.send\nhttps://www.googleapis.com/auth/gmail.readonly\nhttps://www.googleapis.com/auth/gmail.modify",
 };
 
+const EMPTY_RUNTIME_TASK_FORM = {
+  requested_node_type: "ai",
+  task_family: "task.classification",
+  content_type: "email",
+  preferred_provider: "openai",
+  preferred_model: "",
+  service_id: "",
+  target_api_base_url: "http://127.0.0.1:9002",
+  email_subject: "",
+  email_body: "",
+};
+
+const EMPTY_RUNTIME_TASK_STATUS = {
+  request_status: "idle",
+  last_step: "none",
+  detail: "No runtime task request has been started yet.",
+  preview_response: null,
+  resolve_response: null,
+  authorize_response: null,
+  registration_request_payload: null,
+  execution_request_payload: null,
+  execution_response: null,
+  usage_summary_response: null,
+  started_at: null,
+  updated_at: null,
+};
+
 const TRAINING_LABEL_OPTIONS = [
   "action_required",
   "direct_human",
@@ -34,6 +61,42 @@ const TRAINING_LABEL_OPTIONS = [
   "marketing",
   "unknown",
 ];
+
+const DASHBOARD_SECTIONS = new Set(["overview", "gmail", "runtime"]);
+
+function parseHashRoute(hash) {
+  const normalized = String(hash || "").replace(/^#\/?/, "").replace(/^\/+|\/+$/g, "");
+  if (!normalized) {
+    return { view: "setup", dashboardSection: "overview" };
+  }
+
+  const [head, tail] = normalized.split("/");
+  if (head === "dashboard") {
+    const section = DASHBOARD_SECTIONS.has(tail) ? tail : "overview";
+    return { view: "dashboard", dashboardSection: section };
+  }
+  if (head === "provider") {
+    return { view: "provider", dashboardSection: "overview" };
+  }
+  if (head === "training") {
+    return { view: "training", dashboardSection: "overview" };
+  }
+  return { view: "setup", dashboardSection: "overview" };
+}
+
+function buildHashRoute(view, dashboardSection) {
+  if (view === "dashboard") {
+    const section = DASHBOARD_SECTIONS.has(dashboardSection) ? dashboardSection : "overview";
+    return `#/dashboard/${section}`;
+  }
+  if (view === "provider") {
+    return "#/provider";
+  }
+  if (view === "training") {
+    return "#/training";
+  }
+  return "#/setup";
+}
 
 async function fetchJson(url, options) {
   const response = await fetch(url, {
@@ -54,7 +117,11 @@ async function fetchJson(url, options) {
   }
 
   if (!response.ok) {
-    throw new Error(payload.detail || "Request failed");
+    const detail = payload?.detail;
+    const message = (detail && typeof detail === "object" && detail.message) || payload.detail || "Request failed";
+    const error = new Error(message);
+    error.serverPayload = payload;
+    throw error;
   }
   if (!contentType.includes("application/json")) {
     throw new Error("Server returned HTML instead of JSON. Check that the API proxy points to the node backend.");
@@ -107,11 +174,57 @@ function healthSeverityClass(value, successValues = [], metaValues = []) {
   return "severity-indicator severity-warning";
 }
 
+function runtimeAuthorizationGranted(payload) {
+  if (!payload || typeof payload !== "object") {
+    return false;
+  }
+  if (payload.authorized === true) {
+    return true;
+  }
+  return Boolean(payload.token || payload.authorization_id || payload.grant_id);
+}
+
+function runtimeTaskStateHasContent(payload) {
+  if (!payload || typeof payload !== "object") {
+    return false;
+  }
+  if (payload.last_step && payload.last_step !== "none") {
+    return true;
+  }
+  return Boolean(
+    payload.preview_response ||
+      payload.resolve_response ||
+      payload.authorize_response ||
+      payload.registration_request_payload ||
+      payload.execution_request_payload ||
+      payload.execution_response ||
+      payload.usage_summary_response,
+  );
+}
+
 function currentThemeLabel() {
   if (typeof window === "undefined" || !window.matchMedia) {
     return "system";
   }
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function parseRuntimeExecutionOutput(output) {
+  if (!output || typeof output !== "object") {
+    return null;
+  }
+  if (output.label || output.confidence !== undefined || output.rationale) {
+    return output;
+  }
+  if (typeof output.text !== "string") {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(output.text);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
 }
 
 function formatValue(value, fallback = "pending") {
@@ -159,9 +272,63 @@ function buildGmailWindowSettings(fetchSchedule) {
       label: "Last Hour",
       fetchedAt: fetchSchedule?.last_hour?.last_run_at,
       runReason: fetchSchedule?.last_hour?.last_run_reason,
-      schedule: "top of every hour",
+      schedule: "00, 05, 10, 15, ...",
     },
   ];
+}
+
+function schedulerStatusTone(value) {
+  if (value === "completed") {
+    return "success";
+  }
+  if (value === "running") {
+    return "warning";
+  }
+  if (value === "error") {
+    return "danger";
+  }
+  return "neutral";
+}
+
+function buildGmailLastHourPipelinePills(pipeline) {
+  const stages = pipeline?.stages || {};
+  const now = Date.now();
+  const completedAt = pipeline?.last_completed_at ? new Date(pipeline.last_completed_at).getTime() : null;
+  const completionExpired = completedAt !== null && !Number.isNaN(completedAt) && now - completedAt >= 10000;
+  const normalizeStageStatus = (value) => {
+    if (value === "failed") {
+      return "error";
+    }
+    if (value === "running") {
+      return "in_progress";
+    }
+    if (value === "completed" && completionExpired) {
+      return "idle";
+    }
+    if (value === "completed") {
+      return "completed";
+    }
+    return "idle";
+  };
+  return [
+    { key: "fetch", label: "Fetch", value: normalizeStageStatus(stages.fetch?.status || "idle") },
+    { key: "spamhaus", label: "Spamhaus", value: normalizeStageStatus(stages.spamhaus?.status || "idle") },
+    { key: "local", label: "Local", value: normalizeStageStatus(stages.local_classification?.status || "idle") },
+    { key: "ai", label: "AI", value: normalizeStageStatus(stages.ai_classification?.status || "idle") },
+  ];
+}
+
+function pipelineStageClass(value) {
+  if (value === "completed") {
+    return "pipeline-pill pipeline-pill-completed";
+  }
+  if (value === "in_progress") {
+    return "pipeline-pill pipeline-pill-in-progress";
+  }
+  if (value === "error") {
+    return "pipeline-pill pipeline-pill-error";
+  }
+  return "pipeline-pill pipeline-pill-idle";
 }
 
 function telemetryFreshnessIndicatorClass(value) {
@@ -677,6 +844,7 @@ function TrainingPage({
   onLoadClassifiedLabelBatch,
   onLoadManualBatch,
   onLoadSemiAutoBatch,
+  onLoadSemiAutoBatch300,
   onTrainModel,
   onTrainHighConfidenceModel,
   onSelectionChange,
@@ -730,6 +898,9 @@ function TrainingPage({
             </button>
             <button className="btn" type="button" onClick={onLoadSemiAutoBatch} disabled={trainingBatchLoading}>
               {trainingBatchLoading ? "Loading..." : "Semi Auto Classify"}
+            </button>
+            <button className="btn" type="button" onClick={onLoadSemiAutoBatch300} disabled={trainingBatchLoading}>
+              {trainingBatchLoading ? "Loading..." : "Semi Auto 300"}
             </button>
             <div className="callout">
               Threshold: {trainingStatus?.threshold ?? 0.6}
@@ -825,14 +996,15 @@ function TrainingPage({
                           <div>
                             <strong>{item.subject || "(no subject)"}</strong>
                             <div className="muted tiny">{item.sender_email || "-"}</div>
-                            {item.predicted_label ? (
-                              <div className="muted tiny">
-                                Predicted: {item.predicted_label} ({Number(item.predicted_confidence || 0).toFixed(2)})
-                              </div>
-                            ) : null}
                           </div>
                           <span className="pill">{item.message_id}</span>
                         </div>
+                        {trainingBatch?.source === "semi_auto" && (item.predicted_label || item.raw_predicted_label) ? (
+                          <div className="callout">
+                            Model Prediction: {item.predicted_label || "unknown"} ({Number(item.predicted_confidence || 0).toFixed(2)})
+                            {item.predicted_label === "unknown" && item.raw_predicted_label ? `, top guess was ${item.raw_predicted_label}` : ""}
+                          </div>
+                        ) : null}
                         <pre className="training-flat-text">{item.raw_text || item.flat_text}</pre>
                         <div className="training-controls">
                           <label className="field">
@@ -1107,8 +1279,9 @@ function ProviderSetupPage({
 }
 
 export function App() {
-  const [view, setView] = useState("setup");
-  const [dashboardSection, setDashboardSection] = useState("overview");
+  const initialRoute = parseHashRoute(typeof window !== "undefined" ? window.location.hash : "");
+  const [view, setView] = useState(initialRoute.view);
+  const [dashboardSection, setDashboardSection] = useState(initialRoute.dashboardSection);
   const [setupPinned, setSetupPinned] = useState(false);
   const [bootstrap, setBootstrap] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -1131,6 +1304,11 @@ export function App() {
   const [providerNotice, setProviderNotice] = useState("");
   const [providerError, setProviderError] = useState("");
   const [connectUrl, setConnectUrl] = useState("");
+  const [runtimeTaskForm, setRuntimeTaskForm] = useState(EMPTY_RUNTIME_TASK_FORM);
+  const [runtimeTaskPending, setRuntimeTaskPending] = useState("");
+  const [runtimeTaskError, setRuntimeTaskError] = useState("");
+  const [runtimeTaskNotice, setRuntimeTaskNotice] = useState("");
+  const [runtimeTaskStatus, setRuntimeTaskStatus] = useState(EMPTY_RUNTIME_TASK_STATUS);
   const [gmailStatus, setGmailStatus] = useState(null);
   const [gmailStatusLoading, setGmailStatusLoading] = useState(false);
   const [gmailStatusError, setGmailStatusError] = useState("");
@@ -1151,6 +1329,28 @@ export function App() {
   const [uiUpdatedAt, setUiUpdatedAt] = useState(null);
 
   useEffect(() => {
+    function applyHashRoute() {
+      const route = parseHashRoute(window.location.hash);
+      setView(route.view);
+      setDashboardSection(route.dashboardSection);
+      setSetupPinned(route.view === "setup");
+    }
+
+    applyHashRoute();
+    window.addEventListener("hashchange", applyHashRoute);
+    return () => {
+      window.removeEventListener("hashchange", applyHashRoute);
+    };
+  }, []);
+
+  useEffect(() => {
+    const nextHash = buildHashRoute(view, dashboardSection);
+    if (window.location.hash !== nextHash) {
+      window.location.hash = nextHash;
+    }
+  }, [view, dashboardSection]);
+
+  useEffect(() => {
     let active = true;
 
     async function loadBootstrap() {
@@ -1163,6 +1363,11 @@ export function App() {
         startTransition(() => {
           setBootstrap(payload);
           setProviderStatus(payload.status);
+          setRuntimeTaskStatus((current) =>
+            runtimeTaskStateHasContent(payload.runtime_task_state)
+              ? { ...EMPTY_RUNTIME_TASK_STATUS, ...(payload.runtime_task_state || {}) }
+              : current,
+          );
           setUiUpdatedAt(new Date().toISOString());
         });
 
@@ -1325,9 +1530,9 @@ export function App() {
     setView("setup");
   }
 
-  function openDashboard() {
+  function openDashboard(section = "overview") {
     setSetupPinned(false);
-    setDashboardSection("overview");
+    setDashboardSection(DASHBOARD_SECTIONS.has(section) ? section : "overview");
     setView("dashboard");
   }
 
@@ -1341,6 +1546,448 @@ export function App() {
     setView("training");
   }
 
+  function handleRuntimeTaskFormChange(event) {
+    const { name, value } = event.target;
+    setRuntimeTaskForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  }
+
+  function buildRuntimePreviewPayload() {
+    return {
+      task_family: runtimeTaskForm.task_family,
+      requested_node_type: runtimeTaskForm.requested_node_type,
+      requested_provider: runtimeTaskForm.preferred_provider,
+      inputs: {
+        content_type: runtimeTaskForm.content_type,
+      },
+      constraints: {},
+    };
+  }
+
+  function buildRuntimeResolvePayload() {
+    return {
+      task_family: runtimeTaskForm.task_family,
+      type: runtimeTaskForm.requested_node_type,
+      task_context: {
+        content_type: runtimeTaskForm.content_type,
+      },
+      preferred_provider: runtimeTaskForm.preferred_provider,
+    };
+  }
+
+  function buildRuntimeAuthorizePayload(resolvePayload) {
+    const selectedServiceId =
+      runtimeTaskForm.service_id ||
+      resolvePayload?.selected_service_id ||
+      resolvePayload?.service_id ||
+      runtimeTaskStatus?.resolve_response?.selected_service_id ||
+      runtimeTaskStatus?.resolve_response?.service_id ||
+      "";
+    const selectedProvider =
+      resolvePayload?.provider || runtimeTaskStatus?.resolve_response?.provider || runtimeTaskForm.preferred_provider;
+    const selectedModel =
+      resolvePayload?.model_id || runtimeTaskStatus?.resolve_response?.model_id || runtimeTaskForm.preferred_model;
+    return {
+      task_family: runtimeTaskForm.task_family,
+      type: runtimeTaskForm.requested_node_type,
+      task_context: {
+        content_type: runtimeTaskForm.content_type,
+      },
+      service_id: selectedServiceId,
+      provider: selectedProvider,
+      ...(selectedModel ? { model_id: selectedModel } : {}),
+    };
+  }
+
+  function buildRuntimeExecutionPayload() {
+    const authorizePayload = runtimeTaskStatus?.authorize_response || {};
+    const resolvedPayload = runtimeTaskStatus?.resolve_response || {};
+    const resolvedCandidate =
+      Array.isArray(resolvedPayload?.candidates) && resolvedPayload.candidates.length > 0 ? resolvedPayload.candidates[0] : null;
+    return {
+      task_family: runtimeTaskForm.task_family,
+      target_api_base_url:
+        runtimeTaskForm.target_api_base_url ||
+        authorizePayload?.resolution?.provider_api_base_url ||
+        resolvedCandidate?.provider_api_base_url ||
+        "http://127.0.0.1:9002",
+      service_token: authorizePayload.token || "",
+      grant_id: authorizePayload.grant_id || "",
+      service_id:
+        runtimeTaskForm.service_id ||
+        authorizePayload.service_id ||
+        authorizePayload?.resolution?.service_id ||
+        resolvedPayload.selected_service_id ||
+        resolvedPayload.service_id ||
+        "",
+      provider: authorizePayload.provider || resolvedPayload.provider || runtimeTaskForm.preferred_provider,
+      ...(authorizePayload.model_id || runtimeTaskForm.preferred_model
+        ? { model_id: authorizePayload.model_id || runtimeTaskForm.preferred_model }
+        : {}),
+      content_type: runtimeTaskForm.content_type,
+      subject: runtimeTaskForm.email_subject,
+      body: runtimeTaskForm.email_body,
+    };
+  }
+
+  async function runRuntimePreview() {
+    const now = new Date().toISOString();
+    setRuntimeTaskPending("preview");
+    setRuntimeTaskError("");
+    setRuntimeTaskNotice("");
+    setRuntimeTaskStatus((current) => ({
+      ...current,
+      request_status: "running",
+      last_step: "preview",
+      started_at: current.started_at || now,
+      updated_at: now,
+      detail: "Previewing task routing...",
+    }));
+    try {
+      const payload = await fetchJson("/api/tasks/routing/preview", {
+        method: "POST",
+        body: JSON.stringify(buildRuntimePreviewPayload()),
+      });
+      setRuntimeTaskStatus((current) => ({
+        ...current,
+        request_status: "previewed",
+        last_step: "preview",
+        detail: payload.detail || "Routing preview completed.",
+        preview_response: payload,
+        updated_at: new Date().toISOString(),
+      }));
+      setRuntimeTaskNotice("Routing preview completed.");
+      return payload;
+    } catch (taskError) {
+      setRuntimeTaskError(taskError.message);
+      setRuntimeTaskStatus((current) => ({
+        ...current,
+        request_status: "failed",
+        last_step: "preview",
+        detail: taskError.message,
+        updated_at: new Date().toISOString(),
+      }));
+      throw taskError;
+    } finally {
+      setRuntimeTaskPending("");
+    }
+  }
+
+  async function runRuntimeResolve() {
+    const now = new Date().toISOString();
+    setRuntimeTaskPending("resolve");
+    setRuntimeTaskError("");
+    setRuntimeTaskNotice("");
+    setRuntimeTaskStatus((current) => ({
+      ...current,
+      request_status: "running",
+      last_step: "resolve",
+      started_at: current.started_at || now,
+      updated_at: now,
+      detail: "Resolving service through Core...",
+    }));
+    try {
+      const payload = await fetchJson("/api/core/services/resolve", {
+        method: "POST",
+        body: JSON.stringify(buildRuntimeResolvePayload()),
+      });
+      setRuntimeTaskStatus((current) => ({
+        ...current,
+        request_status: "resolved",
+        last_step: "resolve",
+        detail: `Resolved ${payload.selected_service_id || payload.service_id || "service"} for ${payload.task_family || runtimeTaskForm.task_family}.`,
+        resolve_response: payload,
+        updated_at: new Date().toISOString(),
+      }));
+      setRuntimeTaskNotice("Core resolve completed.");
+      return payload;
+    } catch (taskError) {
+      setRuntimeTaskError(taskError.message);
+      setRuntimeTaskStatus((current) => ({
+        ...current,
+        request_status: "failed",
+        last_step: "resolve",
+        detail: taskError.message,
+        updated_at: new Date().toISOString(),
+      }));
+      throw taskError;
+    } finally {
+      setRuntimeTaskPending("");
+    }
+  }
+
+  async function runRuntimeAuthorize(resolvePayload = null) {
+    const now = new Date().toISOString();
+    setRuntimeTaskPending("authorize");
+    setRuntimeTaskError("");
+    setRuntimeTaskNotice("");
+    setRuntimeTaskStatus((current) => ({
+      ...current,
+      request_status: "running",
+      last_step: "authorize",
+      started_at: current.started_at || now,
+      updated_at: now,
+      detail: "Authorizing service through Core...",
+    }));
+    try {
+      const payload = await fetchJson("/api/core/services/authorize", {
+        method: "POST",
+        body: JSON.stringify(buildRuntimeAuthorizePayload(resolvePayload)),
+      });
+      const authorized = runtimeAuthorizationGranted(payload);
+      setRuntimeTaskStatus((current) => ({
+        ...current,
+        request_status: authorized ? "authorized" : "rejected",
+        last_step: "authorize",
+        detail: authorized
+          ? `Authorized ${payload.service_id || "service"} with ${payload.provider || runtimeTaskForm.preferred_provider}${payload.model_id ? `/${payload.model_id}` : ""}.`
+          : "Core did not authorize the requested service.",
+        authorize_response: payload,
+        updated_at: new Date().toISOString(),
+      }));
+      setRuntimeTaskNotice(authorized ? "Core authorize completed." : "Core authorize was not granted.");
+      return payload;
+    } catch (taskError) {
+      setRuntimeTaskError(taskError.message);
+      setRuntimeTaskStatus((current) => ({
+        ...current,
+        request_status: "failed",
+        last_step: "authorize",
+        detail: taskError.message,
+        updated_at: new Date().toISOString(),
+      }));
+      throw taskError;
+    } finally {
+      setRuntimeTaskPending("");
+    }
+  }
+
+  async function runRuntimeResolveFlow() {
+    const now = new Date().toISOString();
+    setRuntimeTaskError("");
+    setRuntimeTaskNotice("");
+    setRuntimeTaskStatus({
+      request_status: "running",
+      last_step: "start",
+      detail: "Starting runtime resolve flow...",
+      preview_response: null,
+      resolve_response: null,
+      authorize_response: null,
+      started_at: now,
+      updated_at: now,
+    });
+    try {
+      await runRuntimePreview();
+      await runRuntimeResolve();
+      setRuntimeTaskNotice("Runtime resolve flow completed.");
+    } catch {
+      // Step handlers already set status and error.
+    }
+  }
+
+  async function runRuntimeRegisterPrompt() {
+    const now = new Date().toISOString();
+    const fallbackRequestPayload = {
+      prompt_id: "prompt.email.classifier",
+      service_id: "node-email",
+      task_family: "task.classification",
+      prompt_name: "Email Classifier",
+      owner_service: "node-email",
+      privacy_class: "internal",
+      status: "active",
+      execution_policy: {
+        allow_direct_execution: true,
+        allow_version_pinning: true,
+      },
+      provider_preferences: {
+        preferred_providers: ["openai"],
+      },
+      constraints: {
+        max_timeout_s: 60,
+        structured_output_required: true,
+      },
+      metadata: {
+        purpose: "classify incoming email into email-node categories",
+        labels: [
+          "action_required",
+          "direct_human",
+          "financial",
+          "order",
+          "invoice",
+          "shipment",
+          "security",
+          "system",
+          "newsletter",
+          "marketing",
+          "unknown",
+        ],
+      },
+      definition: {
+        system_prompt:
+          "You are an email classification service for the Email Node. Classify the email into exactly one of the following labels: action_required, direct_human, financial, order, invoice, shipment, security, system, newsletter, marketing, unknown. Use the normalized email input as the source of truth. Be strict and prefer the most specific correct label. Classification guidance: action_required = direct action needed by the recipient; direct_human = person-to-person or community/personal message not primarily automated marketing; financial = banking, account balance, payments, loans, statements, financial activity unless a more specific invoice label clearly applies; order = order placed, order confirmation, purchase confirmation; invoice = bill, invoice, statement, receipt, charge record, payment receipt; shipment = shipped, out for delivery, delivered, pickup ready, travel/delivery status; security = fraud alerts, blocked activity, password resets, suspicious sign-in, account protection, website/app blocked, security monitoring; system = operational notices, product/account updates, app/account state changes, reminders, claims/repair status, task updates, service notifications; newsletter = digest, roundup, editorial updates, forum/news/community/event newsletters; marketing = promotions, discounts, offers, sales, product pushes, invitations to buy/apply/upgrade; unknown = only when the message does not fit any label with reasonable confidence. If multiple labels seem possible, choose the most specific one. Return JSON only with keys: label, confidence, rationale. confidence must be a number from 0.0 to 1.0. rationale must be short, one sentence max.",
+        template_variables: ["normalized_text"],
+        default_inputs: {},
+      },
+      version: "v1",
+    };
+    setRuntimeTaskPending("register");
+    setRuntimeTaskError("");
+    setRuntimeTaskNotice("");
+    setRuntimeTaskStatus((current) => ({
+      ...current,
+      request_status: "running",
+      last_step: "register",
+      started_at: current.started_at || now,
+      updated_at: now,
+      detail: "Registering prompt.email.classifier on the AI node prompt service...",
+      registration_request_payload: fallbackRequestPayload,
+    }));
+    try {
+      const payload = await fetchJson("/api/runtime/execute-authorized-task", {
+        method: "POST",
+        body: JSON.stringify(buildRuntimeExecutionPayload()),
+      });
+      setRuntimeTaskStatus((current) => ({
+        ...current,
+        request_status: "registered",
+        last_step: "register",
+        detail: "Registered prompt.email.classifier on the AI node prompt service.",
+        registration_request_payload: payload.request_payload || null,
+        execution_response: payload.registration || null,
+        usage_summary_response: payload.usage_summary || null,
+        updated_at: new Date().toISOString(),
+      }));
+      setRuntimeTaskNotice("Prompt registration completed.");
+      return payload;
+    } catch (taskError) {
+      setRuntimeTaskError(taskError.message);
+      const serverDetail = taskError.serverPayload?.detail;
+      setRuntimeTaskStatus((current) => ({
+        ...current,
+        request_status: "failed",
+        last_step: "register",
+        detail: taskError.message,
+        registration_request_payload:
+          (serverDetail && typeof serverDetail === "object" && serverDetail.request_payload) ||
+          current.registration_request_payload,
+        execution_response:
+          (serverDetail && typeof serverDetail === "object" && serverDetail.response_payload) ||
+          current.execution_response,
+        updated_at: new Date().toISOString(),
+      }));
+      throw taskError;
+    } finally {
+      setRuntimeTaskPending("");
+    }
+  }
+
+  async function runRuntimeExecuteEmailClassifier() {
+    const now = new Date().toISOString();
+    setRuntimeTaskPending("execute");
+    setRuntimeTaskError("");
+    setRuntimeTaskNotice("");
+    setRuntimeTaskStatus((current) => ({
+      ...current,
+      request_status: "running",
+      last_step: "execute",
+      started_at: current.started_at || now,
+      updated_at: now,
+      detail: "Sending the newest unknown Gmail message to prompt.email.classifier on the AI node...",
+    }));
+    try {
+      const payload = await fetchJson("/api/runtime/execute-email-classifier", {
+        method: "POST",
+        body: JSON.stringify({
+          target_api_base_url: runtimeTaskForm.target_api_base_url,
+        }),
+      });
+      setRuntimeTaskStatus((current) => ({
+        ...current,
+        request_status: "executed",
+        last_step: "execute",
+        detail: `Executed prompt.email.classifier for newest unknown email ${payload.message_id || "-"}.`,
+        execution_request_payload: payload.request_payload || null,
+        execution_response: payload.execution || null,
+        usage_summary_response: null,
+        updated_at: new Date().toISOString(),
+      }));
+      setRuntimeTaskNotice(`Email classification request completed for ${payload.message_id || "latest unknown message"}.`);
+      return payload;
+    } catch (taskError) {
+      setRuntimeTaskError(taskError.message);
+      setRuntimeTaskStatus((current) => ({
+        ...current,
+        request_status: "failed",
+        last_step: "execute",
+        detail: taskError.message,
+        updated_at: new Date().toISOString(),
+      }));
+      throw taskError;
+    } finally {
+      setRuntimeTaskPending("");
+    }
+  }
+
+  async function runRuntimeExecuteEmailClassifierBatch() {
+    const now = new Date().toISOString();
+    setRuntimeTaskPending("execute_batch");
+    setRuntimeTaskError("");
+    setRuntimeTaskNotice("");
+    setRuntimeTaskStatus((current) => ({
+      ...current,
+      request_status: "running",
+      last_step: "execute_batch",
+      started_at: current.started_at || now,
+      updated_at: now,
+      detail: "Running local classification for 100 mails and sending remaining unknown mails to the AI node...",
+      execution_response: {
+        mode: "batch",
+        stage: "local",
+        batch_size: 0,
+        local_processed: 0,
+        ai_total: 0,
+        ai_completed: 0,
+        progress_percent: 0,
+      },
+    }));
+    try {
+      const payload = await fetchJson("/api/runtime/execute-email-classifier-batch", {
+        method: "POST",
+        body: JSON.stringify({
+          target_api_base_url: runtimeTaskForm.target_api_base_url,
+        }),
+      });
+      const refreshedStatus = await fetchJson("/api/gmail/status");
+      setGmailStatus(refreshedStatus);
+      setRuntimeTaskStatus((current) => ({
+        ...current,
+        request_status: "executed",
+        last_step: "execute_batch",
+        detail: `Runtime batch classification completed. Local processed ${payload.local_processed ?? 0} emails, AI attempted ${payload.ai_attempted ?? 0}, and applied ${payload.ai_completed ?? 0} classifications.`,
+        execution_response: payload,
+        updated_at: new Date().toISOString(),
+      }));
+      setRuntimeTaskNotice(
+        `Runtime batch completed. Local processed ${payload.local_processed ?? 0} emails, AI attempted ${payload.ai_attempted ?? 0}, and applied ${payload.ai_completed ?? 0} classifications.`,
+      );
+      return payload;
+    } catch (taskError) {
+      setRuntimeTaskError(taskError.message);
+      setRuntimeTaskStatus((current) => ({
+        ...current,
+        request_status: "failed",
+        last_step: "execute_batch",
+        detail: taskError.message,
+        updated_at: new Date().toISOString(),
+      }));
+      throw taskError;
+    } finally {
+      setRuntimeTaskPending("");
+    }
+  }
+
   async function runGmailFetch(window, successLabel) {
     setGmailActionPending(window);
     setGmailActionError("");
@@ -1349,7 +1996,20 @@ export function App() {
       const payload = await fetchJson(`/api/gmail/fetch/${window}`, { method: "POST" });
       const refreshedStatus = await fetchJson("/api/gmail/status");
       setGmailStatus(refreshedStatus);
-      setGmailActionNotice(`${successLabel} completed. Stored ${payload.summary?.total_count ?? payload.stored_count ?? 0} emails.`);
+      const newMailCount = Number(payload.stored_count ?? 0);
+      const fetchedCount = Number(payload.fetched_count ?? 0);
+      const pipelineDetail =
+        payload.pipeline?.detail &&
+        payload.pipeline.detail !== "Last-hour Gmail pipeline completed."
+          ? ` ${payload.pipeline.detail}`
+          : "";
+      const resultDetail =
+        newMailCount > 0
+          ? `Added ${newMailCount} new emails to the SQL store.`
+          : fetchedCount > 0
+            ? "No new emails were added to the SQL store."
+            : "No emails matched this fetch window.";
+      setGmailActionNotice(`${successLabel} completed. ${resultDetail}${pipelineDetail}`);
     } catch (actionError) {
       setGmailActionError(actionError.message);
     } finally {
@@ -1401,11 +2061,19 @@ export function App() {
   }
 
   async function loadTrainingSemiAutoBatch() {
+    return loadTrainingSemiAutoBatchWithLimit(20);
+  }
+
+  async function loadTrainingSemiAutoBatch300() {
+    return loadTrainingSemiAutoBatchWithLimit(300);
+  }
+
+  async function loadTrainingSemiAutoBatchWithLimit(limit) {
     setTrainingBatchLoading(true);
     setTrainingBatchError("");
     setTrainingNotice("");
     try {
-      const payload = await fetchJson("/api/gmail/training/semi-auto-batch", { method: "POST" });
+      const payload = await fetchJson(`/api/gmail/training/semi-auto-batch?limit=${encodeURIComponent(limit)}`, { method: "POST" });
       setTrainingBatch(payload);
       setTrainingSelections(
         Object.fromEntries(
@@ -1790,14 +2458,60 @@ export function App() {
   const gmailPrimaryMailboxStatus = gmailPrimary?.mailbox_status || null;
   const gmailPrimaryAccount = gmailPrimary?.account || null;
   const gmailPrimaryStore = gmailPrimary?.message_store || null;
+  const gmailPrimaryClassification = gmailPrimary?.classification_summary || null;
   const gmailPrimarySpamhaus = gmailPrimary?.spamhaus || null;
   const gmailPrimaryQuotaUsage = gmailPrimary?.quota_usage || null;
   const gmailFetchSchedule = gmailStatus?.fetch_schedule || null;
+  const gmailFetchScheduler = gmailStatus?.fetch_scheduler || null;
+  const gmailLastHourPipeline = gmailStatus?.last_hour_pipeline || null;
+  const gmailLastHourPipelinePills = buildGmailLastHourPipelinePills(gmailLastHourPipeline);
   const gmailWindowSettings = buildGmailWindowSettings(gmailFetchSchedule);
   const mqttHealth = status?.mqtt_health || {};
   const lastHeartbeatAt = mqttHealth?.last_status_report_at || status?.last_heartbeat_at || null;
   const mqttConnected = status?.mqtt_connection_status === "connected" || mqttHealth?.health_status === "connected";
   const mqttTelemetryFresh = mqttHealth?.status_freshness_state === "fresh";
+  const runtimeResolved = runtimeTaskStatus?.resolve_response || null;
+  const runtimeAuthorized = runtimeTaskStatus?.authorize_response || null;
+  const runtimePreview = runtimeTaskStatus?.preview_response || null;
+  const runtimeRegistrationRequest = runtimeTaskStatus?.registration_request_payload || null;
+  const runtimeExecutionRequest = runtimeTaskStatus?.execution_request_payload || null;
+  const runtimeExecution = runtimeTaskStatus?.execution_response || null;
+  const runtimeUsageSummary = runtimeTaskStatus?.usage_summary_response || null;
+  const runtimeExecutionMetrics = runtimeExecution?.metrics || null;
+  const runtimeExecutionOutput = parseRuntimeExecutionOutput(runtimeExecution?.output);
+  const runtimeLastStep = runtimeTaskStatus?.last_step || "none";
+  const runtimeBatchExecution = runtimeLastStep === "execute_batch" ? runtimeExecution : null;
+  const runtimeBatchProgressPercent = Math.max(0, Math.min(100, Number(runtimeBatchExecution?.progress_percent ?? 0)));
+  let runtimeLastPayloadLabel = "";
+  let runtimeLastPayload = null;
+  let runtimeLastResponseLabel = "";
+  let runtimeLastResponse = null;
+
+  if (runtimeLastStep === "register") {
+    runtimeLastPayloadLabel = "Prompt Registration Payload";
+    runtimeLastPayload = runtimeRegistrationRequest;
+    runtimeLastResponseLabel = "Prompt Registration Response";
+    runtimeLastResponse = runtimeExecution;
+  } else if (runtimeLastStep === "execute") {
+    runtimeLastPayloadLabel = "Direct AI Request Payload";
+    runtimeLastPayload = runtimeExecutionRequest;
+    runtimeLastResponseLabel = "Execution Response";
+    runtimeLastResponse = runtimeExecution;
+  } else if (runtimeLastStep === "execute_batch") {
+    runtimeLastPayloadLabel = "Last Direct AI Request Payload";
+    runtimeLastPayload = runtimeExecutionRequest;
+    runtimeLastResponseLabel = "Batch Execution Response";
+    runtimeLastResponse = runtimeExecution;
+  } else if (runtimeLastStep === "authorize") {
+    runtimeLastResponseLabel = "Authorize Response";
+    runtimeLastResponse = runtimeAuthorized;
+  } else if (runtimeLastStep === "resolve") {
+    runtimeLastResponseLabel = "Resolve Response";
+    runtimeLastResponse = runtimeResolved;
+  } else if (runtimeLastStep === "preview") {
+    runtimeLastResponseLabel = "Preview Response";
+    runtimeLastResponse = runtimePreview;
+  }
   const dashboardWarnings = deriveDashboardWarnings({
     status,
     providerConnected,
@@ -1858,6 +2572,7 @@ export function App() {
           onLoadClassifiedLabelBatch={loadClassifiedLabelBatch}
           onLoadManualBatch={loadTrainingManualBatch}
           onLoadSemiAutoBatch={loadTrainingSemiAutoBatch}
+          onLoadSemiAutoBatch300={loadTrainingSemiAutoBatch300}
           onTrainModel={trainLocalModel}
           onTrainHighConfidenceModel={trainHighConfidenceModel}
           onSelectionChange={handleTrainingSelectionChange}
@@ -1927,18 +2642,24 @@ export function App() {
                 <button
                   type="button"
                   className={`btn operational-nav-btn ${dashboardSection === "overview" ? "btn-primary" : ""}`}
-                  onClick={() => setDashboardSection("overview")}
+                  onClick={() => openDashboard("overview")}
                 >
                   Overview
                 </button>
                 <button
                   type="button"
                   className={`btn operational-nav-btn ${dashboardSection === "gmail" ? "btn-primary" : ""}`}
-                  onClick={() => setDashboardSection("gmail")}
+                  onClick={() => openDashboard("gmail")}
                 >
                   Gmail
                 </button>
-                <button type="button" className="btn operational-nav-btn">Runtime</button>
+                <button
+                  type="button"
+                  className={`btn operational-nav-btn ${dashboardSection === "runtime" ? "btn-primary" : ""}`}
+                  onClick={() => openDashboard("runtime")}
+                >
+                  Runtime
+                </button>
                 <button type="button" className="btn operational-nav-btn">Activity</button>
                 <button type="button" className="btn operational-nav-btn">Diagnostics</button>
               </nav>
@@ -2033,6 +2754,14 @@ export function App() {
                         <dd>{gmailPrimaryStore?.total_count ?? 0}</dd>
                       </div>
                       <div>
+                        <dt>Classified Emails</dt>
+                        <dd>{gmailPrimaryClassification?.classified_count ?? 0}</dd>
+                      </div>
+                      <div>
+                        <dt>High Confidence</dt>
+                        <dd>{gmailPrimaryClassification?.high_confidence_count ?? 0}</dd>
+                      </div>
+                      <div>
                         <dt>Spamhaus Checked</dt>
                         <dd>{gmailPrimarySpamhaus?.checked_count ?? 0}</dd>
                       </div>
@@ -2060,6 +2789,31 @@ export function App() {
                       <h2>Gmail Settings</h2>
                       <p className="muted">Scheduled Gmail fetch windows for operational refresh.</p>
                     </div>
+                    <dl className="facts">
+                      <div>
+                        <dt>Scheduler</dt>
+                        <dd>
+                          <span className={healthSeverityClass(gmailFetchScheduler?.status, ["completed"], ["running"])}>
+                            <span className="status-badge">
+                              {gmailFetchScheduler?.loop_active ? "active" : "inactive"}
+                            </span>
+                          </span>
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Last Check</dt>
+                        <dd>{formatScheduleTimestamp(gmailFetchScheduler?.last_checked_at)}</dd>
+                      </div>
+                      <div>
+                        <dt>Last Success</dt>
+                        <dd>{formatScheduleTimestamp(gmailFetchScheduler?.last_success_at)}</dd>
+                      </div>
+                      <div>
+                        <dt>Last Error</dt>
+                        <dd>{gmailFetchScheduler?.last_error || "-"}</dd>
+                      </div>
+                    </dl>
+                    <p className="muted tiny">{gmailFetchScheduler?.detail || "Scheduler status unavailable."}</p>
                     <div className="gmail-settings-grid">
                       {gmailWindowSettings.map((windowSetting) => (
                         <section key={windowSetting.key} className="gmail-settings-window">
@@ -2139,6 +2893,38 @@ export function App() {
                         Poll Last Hour
                       </button>
                       </div>
+                      <button
+                        type="button"
+                        className="btn"
+                        disabled={runtimeTaskPending !== "" || gmailActionPending !== ""}
+                        onClick={runRuntimeExecuteEmailClassifierBatch}
+                      >
+                        {runtimeTaskPending === "execute_batch" ? "Processing..." : "Local Classify 100, Send Unknown To AI"}
+                      </button>
+                      {runtimeBatchExecution ? (
+                        <div className="stack compact-stack">
+                          <div className="muted tiny">
+                            AI Batch Progress: {runtimeBatchExecution?.ai_attempted ?? runtimeBatchExecution?.ai_completed ?? 0}/{runtimeBatchExecution?.ai_total ?? 0}
+                          </div>
+                          <div className="runtime-progress-shell">
+                            <div
+                              className="runtime-progress-bar"
+                              style={{ width: `${runtimeBatchProgressPercent}%` }}
+                            />
+                          </div>
+                          <div className="muted tiny">
+                            Stage: {runtimeBatchExecution?.stage || "-"} | Local Processed: {runtimeBatchExecution?.local_processed ?? 0} | Batch Size: {runtimeBatchExecution?.batch_size ?? 0}
+                          </div>
+                          {runtimeBatchExecution?.last_execution?.error_code || runtimeBatchExecution?.last_execution?.error_message ? (
+                            <div className="callout callout-danger">
+                              Last AI execution failed: {runtimeBatchExecution?.last_execution?.error_code || "error"}
+                              {runtimeBatchExecution?.last_execution?.error_message
+                                ? ` (${runtimeBatchExecution.last_execution.error_message})`
+                                : ""}
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
                       <p className="muted tiny">
                         {gmailActionPending
                           ? gmailActionPending === "spamhaus"
@@ -2146,6 +2932,253 @@ export function App() {
                             : "Fetch in progress..."
                           : "Scheduled fetches use the node local timezone and store up to six months of mail."}
                       </p>
+                      <div className="row gmail-fetch-row gmail-pipeline-row">
+                        {gmailLastHourPipelinePills.map((stage) => (
+                          <span key={stage.key} className={pipelineStageClass(stage.value)}>
+                            {stage.label}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </article>
+                </section>
+              ) : dashboardSection === "runtime" ? (
+                <section className="grid operational-dashboard-grid">
+                  <article className="card dashboard-primary-card">
+                    <div className="card-header">
+                      <h2>Runtime Status</h2>
+                      <p className="muted">Latest Core routing state and AI-node prompt registration status for the current task request.</p>
+                    </div>
+                    {runtimeTaskError ? <div className="callout callout-danger">{runtimeTaskError}</div> : null}
+                    {runtimeTaskNotice ? <div className="callout callout-success">{runtimeTaskNotice}</div> : null}
+                    <dl className="facts">
+                      <div>
+                        <dt>Request Status</dt>
+                        <dd>{runtimeTaskStatus?.request_status || "idle"}</dd>
+                      </div>
+                      <div>
+                        <dt>Last Step</dt>
+                        <dd>{runtimeTaskStatus?.last_step || "none"}</dd>
+                      </div>
+                      <div>
+                        <dt>Requested Node Type</dt>
+                        <dd>{runtimeTaskForm.requested_node_type}</dd>
+                      </div>
+                      <div>
+                        <dt>Task Family</dt>
+                        <dd>{runtimeTaskForm.task_family}</dd>
+                      </div>
+                      <div>
+                        <dt>Resolved Service</dt>
+                        <dd>{runtimeResolved?.selected_service_id || runtimeResolved?.service_id || "-"}</dd>
+                      </div>
+                      <div>
+                        <dt>Resolved Provider</dt>
+                        <dd>{runtimeResolved?.provider || "-"}</dd>
+                      </div>
+                      <div>
+                        <dt>Resolved Model</dt>
+                        <dd>{runtimeResolved?.model_id || "-"}</dd>
+                      </div>
+                      <div>
+                        <dt>Authorization</dt>
+                        <dd>{runtimeAuthorized ? (runtimeAuthorizationGranted(runtimeAuthorized) ? "authorized" : "rejected") : "-"}</dd>
+                      </div>
+                      <div>
+                        <dt>Authorization ID</dt>
+                        <dd>{runtimeAuthorized?.authorization_id || "-"}</dd>
+                      </div>
+                      <div>
+                        <dt>Grant ID</dt>
+                        <dd>{runtimeAuthorized?.grant_id || "-"}</dd>
+                      </div>
+                      <div>
+                        <dt>Started</dt>
+                        <dd>{formatTelemetryTimestamp(runtimeTaskStatus?.started_at)}</dd>
+                      </div>
+                      <div>
+                        <dt>Updated</dt>
+                        <dd>{formatTelemetryTimestamp(runtimeTaskStatus?.updated_at)}</dd>
+                      </div>
+                      <div>
+                        <dt>Execution Status</dt>
+                        <dd>{runtimeExecution?.status || "-"}</dd>
+                      </div>
+                      <div>
+                        <dt>Output Label</dt>
+                        <dd>{runtimeExecutionOutput?.label || "-"}</dd>
+                      </div>
+                      <div>
+                        <dt>Output Confidence</dt>
+                        <dd>{runtimeExecutionOutput?.confidence ?? "-"}</dd>
+                      </div>
+                      <div>
+                        <dt>Output Rationale</dt>
+                        <dd>{runtimeExecutionOutput?.rationale || "-"}</dd>
+                      </div>
+                      <div>
+                        <dt>Provider Used</dt>
+                        <dd>{runtimeExecution?.provider_used || "-"}</dd>
+                      </div>
+                      <div>
+                        <dt>Model Used</dt>
+                        <dd>{runtimeExecution?.model_used || "-"}</dd>
+                      </div>
+                      <div>
+                        <dt>Total Tokens</dt>
+                        <dd>{runtimeExecutionMetrics?.total_tokens ?? "-"}</dd>
+                      </div>
+                      <div>
+                        <dt>Completed</dt>
+                        <dd>{formatTelemetryTimestamp(runtimeExecution?.completed_at)}</dd>
+                      </div>
+                    </dl>
+                    <div className="callout">
+                      {runtimeTaskStatus?.detail || "No runtime task request has been started yet."}
+                    </div>
+                  </article>
+
+                  <article className="card">
+                    <div className="card-header">
+                      <h2>Runtime Settings</h2>
+                      <p className="muted">Configure the task request that will be previewed, resolved, and authorized through Core.</p>
+                    </div>
+                    <div className="stack compact-stack">
+                      <label className="field">
+                        <span className="field-label">Requested Node Type</span>
+                        <select name="requested_node_type" value={runtimeTaskForm.requested_node_type} onChange={handleRuntimeTaskFormChange}>
+                          <option value="ai">ai</option>
+                          <option value="email">email</option>
+                        </select>
+                      </label>
+                      <label className="field">
+                        <span className="field-label">Task Family</span>
+                        <select name="task_family" value={runtimeTaskForm.task_family} onChange={handleRuntimeTaskFormChange}>
+                          <option value="task.classification">task.classification</option>
+                          <option value="task.summarization">task.summarization</option>
+                          <option value="task.tracking">task.tracking</option>
+                        </select>
+                      </label>
+                      <label className="field">
+                        <span className="field-label">Content Type</span>
+                        <input name="content_type" value={runtimeTaskForm.content_type} onChange={handleRuntimeTaskFormChange} />
+                      </label>
+                      <label className="field">
+                        <span className="field-label">Preferred Provider</span>
+                        <input name="preferred_provider" value={runtimeTaskForm.preferred_provider} onChange={handleRuntimeTaskFormChange} />
+                      </label>
+                      <label className="field">
+                        <span className="field-label">Preferred Model</span>
+                        <input name="preferred_model" value={runtimeTaskForm.preferred_model} onChange={handleRuntimeTaskFormChange} />
+                      </label>
+                      <label className="field">
+                        <span className="field-label">Service ID</span>
+                        <input
+                          name="service_id"
+                          value={runtimeTaskForm.service_id}
+                          onChange={handleRuntimeTaskFormChange}
+                          placeholder="node-service:node-123e4567-e89b-42d3-a456-426614174000:openai"
+                        />
+                      </label>
+                      <label className="field">
+                        <span className="field-label">AI Node API Base URL</span>
+                        <input
+                          name="target_api_base_url"
+                          value={runtimeTaskForm.target_api_base_url}
+                          onChange={handleRuntimeTaskFormChange}
+                          placeholder={
+                            (Array.isArray(runtimeResolved?.candidates) && runtimeResolved.candidates[0]?.provider_api_base_url) ||
+                            "http://10.0.0.100:9002/api"
+                          }
+                        />
+                      </label>
+                      <label className="field">
+                        <span className="field-label">Email Subject</span>
+                        <input name="email_subject" value={runtimeTaskForm.email_subject} onChange={handleRuntimeTaskFormChange} />
+                      </label>
+                      <label className="field">
+                        <span className="field-label">Email Body</span>
+                        <textarea name="email_body" rows="6" value={runtimeTaskForm.email_body} onChange={handleRuntimeTaskFormChange} />
+                      </label>
+                    </div>
+                  </article>
+
+                  <article className="card">
+                    <div className="card-header">
+                      <h2>Runtime Actions</h2>
+                      <p className="muted">Start with preview + resolve, then authorize the selected or manually provided service through Core.</p>
+                    </div>
+                    <div className="stack compact-stack">
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        disabled={runtimeTaskPending !== ""}
+                        onClick={runRuntimeResolveFlow}
+                      >
+                        {runtimeTaskPending === "preview" || runtimeTaskPending === "resolve" || runtimeTaskPending === "authorize"
+                          ? "Running..."
+                          : "Start Task Resolve"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        disabled={
+                          runtimeTaskPending !== "" ||
+                          !(
+                            runtimeTaskForm.service_id ||
+                            runtimeResolved?.selected_service_id ||
+                            runtimeResolved?.service_id
+                          )
+                        }
+                        onClick={() => runRuntimeAuthorize()}
+                      >
+                        {runtimeTaskPending === "authorize" ? "Authorizing..." : "Start Task Authorize"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        disabled={runtimeTaskPending !== ""}
+                        onClick={runRuntimeRegisterPrompt}
+                      >
+                        {runtimeTaskPending === "register" ? "Registering..." : "Register Prompt On AI Node"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        disabled={runtimeTaskPending !== ""}
+                        onClick={runRuntimeExecuteEmailClassifier}
+                      >
+                        {runtimeTaskPending === "execute" ? "Sending..." : "Send Newest Unknown Mail To Classifier"}
+                      </button>
+                      <div className="row gmail-fetch-row">
+                        <button type="button" className="btn" disabled={runtimeTaskPending !== ""} onClick={runRuntimePreview}>
+                          Debug Preview
+                        </button>
+                        <button type="button" className="btn" disabled={runtimeTaskPending !== ""} onClick={runRuntimeResolve}>
+                          Debug Resolve
+                        </button>
+                        <button
+                          type="button"
+                          className="btn"
+                          disabled={runtimeTaskPending !== ""}
+                          onClick={() => runRuntimeAuthorize(runtimeResolved)}
+                        >
+                          Debug Authorize
+                        </button>
+                      </div>
+                      <p className="muted tiny">
+                        {runtimeTaskPending
+                          ? `Running ${runtimeTaskPending} step...`
+                          : "Use the main buttons for resolve, authorize, prompt registration, sending the newest unknown stored Gmail message to the classifier, or running the 100-mail local-plus-AI batch."}
+                      </p>
+                      {(runtimePreview || runtimeResolved || runtimeAuthorized || runtimeExecution) ? (
+                        <div className="callout">
+                          Preview: <code>{runtimePreview?.detail || "-"}</code><br />
+                          Resolve: <code>{runtimeResolved?.selected_service_id || runtimeResolved?.service_id || "-"}</code><br />
+                          Authorize: <code>{runtimeAuthorized?.grant_id || runtimeAuthorized?.authorization_id || "-"}</code><br />
+                          Execute: <code>{runtimeExecution?.status || "-"}</code>
+                        </div>
+                      ) : null}
                     </div>
                   </article>
                 </section>

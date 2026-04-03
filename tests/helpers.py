@@ -24,6 +24,12 @@ def build_core_app():
     app.state.capabilities = {}
     app.state.governance = {}
     app.state.governance_refresh_requests = []
+    app.state.service_resolve_requests = []
+    app.state.service_authorize_requests = []
+    app.state.execution_direct_requests = []
+    app.state.prompt_service_lifecycle_requests = []
+    app.state.prompt_service_registration_requests = []
+    app.state.usage_summary_requests = []
 
     @app.post("/api/system/nodes/onboarding/sessions")
     async def create_session(payload: dict):
@@ -129,6 +135,107 @@ def build_core_app():
             "governance_version": payload.get("current_governance_version") or "phase2-test",
             "updated": False,
             "refresh_interval_s": 120,
+        }
+
+    @app.post("/api/system/nodes/services/resolve")
+    async def resolve_service(payload: dict, x_node_trust_token: str | None = Header(default=None)):
+        assert x_node_trust_token == "trust-secret"
+        app.state.service_resolve_requests.append(payload)
+        return {
+            "ok": True,
+            "node_id": payload.get("node_id"),
+            "task_family": payload.get("task_family"),
+            "service_id": None,
+            "provider": None,
+            "model_id": None,
+            "task_context": payload.get("task_context") or {},
+            "selected_service_id": "summary-service",
+            "candidates": [
+                {
+                    "service_id": "summary-service",
+                    "provider_node_id": "node-provider-1",
+                    "provider_api_base_url": "http://10.0.0.100:9002/api",
+                    "service_type": "node-runtime",
+                    "provider": payload.get("preferred_provider") or "openai",
+                    "models_allowed": ["gpt-5-mini", "gpt-5.4-nano"],
+                    "required_scopes": [f"service.execute:{payload.get('task_family')}"],
+                    "auth_mode": "service_token",
+                    "grant_id": "grant:provider-node:node",
+                    "resolution_mode": "catalog_governance_budget",
+                    "health_status": "healthy",
+                    "declared_capacity": {},
+                }
+            ],
+        }
+
+    @app.post("/api/system/nodes/services/authorize")
+    async def authorize_service(payload: dict, x_node_trust_token: str | None = Header(default=None)):
+        assert x_node_trust_token == "trust-secret"
+        app.state.service_authorize_requests.append(payload)
+        return {
+            "ok": True,
+            "node_id": payload.get("node_id"),
+            "task_family": payload.get("task_family"),
+            "service_id": payload.get("service_id"),
+            "provider": payload.get("provider"),
+            "model_id": payload.get("model_id"),
+            "authorized": True,
+            "authorization_id": "auth-1",
+            "grant_id": "grant:provider-node:node",
+            "token": "service-token-1",
+        }
+
+    @app.post("/api/execution/direct")
+    async def execute_direct(payload: dict, authorization: str | None = Header(default=None)):
+        app.state.execution_direct_requests.append(payload)
+        return {
+            "task_id": payload.get("task_id"),
+            "status": "completed",
+            "output": {
+                "label": "marketing",
+                "confidence": 0.91,
+                "rationale": "Promotional language and offer-style content.",
+            },
+            "metrics": {
+                "total_tokens": 123,
+            },
+            "error_code": None,
+            "error_message": None,
+            "provider_used": payload.get("requested_provider") or "openai",
+            "model_used": payload.get("requested_model") or "gpt-5-mini",
+            "completed_at": "2026-04-02T12:34:56-07:00",
+        }
+
+    @app.post("/api/prompts/services/prompt.email.classifier/lifecycle")
+    async def retire_prompt_service(payload: dict):
+        app.state.prompt_service_lifecycle_requests.append(payload)
+        return {
+            "ok": True,
+            "prompt_id": "prompt.email.classifier",
+            "state": payload.get("state"),
+            "reason": payload.get("reason"),
+        }
+
+    @app.post("/api/prompts/services")
+    async def register_prompt_service(payload: dict):
+        app.state.prompt_service_registration_requests.append(payload)
+        return {
+            "ok": True,
+            "prompt_id": payload.get("prompt_id"),
+            "service_id": payload.get("service_id"),
+            "status": payload.get("status"),
+            "version": payload.get("version"),
+            "registered_at": "2026-04-02T22:05:00+00:00",
+        }
+
+    @app.post("/api/system/nodes/budgets/usage-summary")
+    async def report_usage_summary(payload: dict, x_node_trust_token: str | None = Header(default=None)):
+        assert x_node_trust_token == "trust-secret"
+        app.state.usage_summary_requests.append(payload)
+        return {
+            "ok": True,
+            "node_id": payload.get("node_id"),
+            "report": payload,
         }
 
     return app

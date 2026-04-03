@@ -251,6 +251,15 @@
   flex: 1 1 0;
 }
 
+.gmail-pipeline-row {
+  flex-wrap: nowrap;
+}
+
+.gmail-pipeline-row .pipeline-pill {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
 .gmail-settings-grid {
   display: grid;
   gap: 14px;
@@ -481,6 +490,51 @@
   text-transform: capitalize;
   font-size: 13px;
   background: hsl(var(--sx-panel));
+}
+
+.pipeline-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 84px;
+  padding: 8px 12px;
+  border-radius: var(--sx-radius-pill);
+  border: 1px solid currentColor;
+  font-size: 13px;
+  line-height: 1;
+  background: hsl(var(--sx-panel));
+}
+
+.pipeline-pill-completed {
+  color: hsl(var(--sx-success));
+}
+
+.pipeline-pill-in-progress {
+  color: hsl(var(--sx-warning));
+}
+
+.pipeline-pill-error {
+  color: hsl(0 72% 58%);
+}
+
+.pipeline-pill-idle {
+  color: hsl(var(--sx-accent));
+}
+
+.runtime-progress-shell {
+  width: 100%;
+  height: 12px;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid hsl(var(--sx-border));
+  background: hsl(var(--sx-text) / 0.08);
+}
+
+.runtime-progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, hsl(var(--sx-accent)), hsl(var(--sx-success)));
+  transition: width 180ms ease;
 }
 
 .flow-sidebar {
@@ -835,6 +889,11 @@
   .app-header-actions,
   .row {
     flex-direction: column;
+    align-items: stretch;
+  }
+
+  .gmail-pipeline-row {
+    flex-direction: row;
     align-items: stretch;
   }
 

@@ -3,11 +3,12 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime, timedelta
 import pytest
+from fastapi import Header
 from fastapi.responses import JSONResponse
 from httpx import ASGITransport, AsyncClient
 
 from config import AppConfig
-from logging_utils import setup_logging
+from logging_utils import _next_six_hour_boundary_epoch, setup_logging
 from main import create_app
 from models import TrustMaterial
 from providers.gmail.config_store import GmailProviderConfigStore
@@ -25,6 +26,7 @@ from providers.gmail.models import (
     GmailTokenRecord,
     GmailTrainingLabel,
 )
+from providers.gmail.training import normalize_email_for_classifier
 from service import NodeService
 from tests.helpers import FakeMQTTManager, build_core_app
 
@@ -117,10 +119,48 @@ def test_setup_logging_writes_api_log(tmp_path, monkeypatch):
 
     setup_logging(level=logging.INFO)
     logging.getLogger("test.api").info("api log smoke test")
+    logging.getLogger("providers.gmail.test").info("provider log smoke test")
+    logging.getLogger("core_client").info("core log smoke test")
+    logging.getLogger("hexe.ai.runtime").info("ai log smoke test")
+    logging.getLogger("mqtt").info("mqtt log smoke test")
 
-    log_path = tmp_path / "runtime" / "logs" / "api.log"
-    assert log_path.exists()
-    assert "api log smoke test" in log_path.read_text(encoding="utf-8")
+    log_dir = tmp_path / "runtime" / "logs"
+    api_log_path = log_dir / "api.log"
+    provider_log_path = log_dir / "providers.log"
+    core_log_path = log_dir / "core.log"
+    ai_log_path = log_dir / "ai.log"
+    mqtt_log_path = log_dir / "mqtt.log"
+    app_log_path = log_dir / "app.log"
+
+    assert api_log_path.exists()
+    assert "api log smoke test" in api_log_path.read_text(encoding="utf-8")
+    assert provider_log_path.exists()
+    assert "provider log smoke test" in provider_log_path.read_text(encoding="utf-8")
+    assert core_log_path.exists()
+    assert "core log smoke test" in core_log_path.read_text(encoding="utf-8")
+    assert ai_log_path.exists()
+    assert "ai log smoke test" in ai_log_path.read_text(encoding="utf-8")
+    assert mqtt_log_path.exists()
+    assert "mqtt log smoke test" in mqtt_log_path.read_text(encoding="utf-8")
+    assert app_log_path.exists()
+    app_log_text = app_log_path.read_text(encoding="utf-8")
+    assert "api log smoke test" in app_log_text
+    assert "provider log smoke test" in app_log_text
+
+
+def test_logging_rotation_aligns_to_six_hour_boundaries():
+    assert datetime.fromtimestamp(
+        _next_six_hour_boundary_epoch(datetime(2024, 5, 1, 1, 15, 0).astimezone().timestamp())
+    ).strftime("%Y-%m-%d %H:%M:%S") == "2024-05-01 06:00:00"
+    assert datetime.fromtimestamp(
+        _next_six_hour_boundary_epoch(datetime(2024, 5, 1, 7, 15, 0).astimezone().timestamp())
+    ).strftime("%Y-%m-%d %H:%M:%S") == "2024-05-01 12:00:00"
+    assert datetime.fromtimestamp(
+        _next_six_hour_boundary_epoch(datetime(2024, 5, 1, 13, 15, 0).astimezone().timestamp())
+    ).strftime("%Y-%m-%d %H:%M:%S") == "2024-05-01 18:00:00"
+    assert datetime.fromtimestamp(
+        _next_six_hour_boundary_epoch(datetime(2024, 5, 1, 19, 15, 0).astimezone().timestamp())
+    ).strftime("%Y-%m-%d %H:%M:%S") == "2024-05-02 00:00:00"
 
 
 @pytest.mark.asyncio
@@ -443,6 +483,377 @@ async def test_more_shared_api_routes_resolved_rebuild_and_recover(config, core_
 
 
 @pytest.mark.asyncio
+async def test_task_routing_preview_supports_requested_node_type(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    service.state.trust_state = "trusted"
+    service.state.node_id = "node-1"
+    service.state.capability_declaration_status = "accepted"
+    service.operator_config = service.operator_config_store.save(
+        service.operator_config.model_copy(update={"selected_task_capabilities": ["task.classification"]})
+    )
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/tasks/routing/preview",
+            json={
+                "task_family": "task.classification",
+                "requested_node_type": "ai-node",
+                "inputs": {"message_id": "msg-1"},
+            },
+        )
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["task_family"] == "task.classification"
+    assert body["requested_node_type"] == "ai"
+    assert body["local_node_type"] == "email-node"
+    assert body["local_node_can_execute"] is False
+    assert body["should_delegate_to_core"] is True
+
+
+@pytest.mark.asyncio
+async def test_core_service_resolve_and_authorize_routes_forward_trusted_node_context(config, core_client_factory):
+    core_app = build_core_app()
+    service = NodeService(config, core_client=core_client_factory(core_app), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    service.state.trust_state = "trusted"
+    service.state.node_id = "node-abc123"
+    service.trust_material = service.trust_store.save(
+        TrustMaterial(
+            node_id="node-abc123",
+            node_type="email-node",
+            paired_core_id="core-1",
+            node_trust_token="trust-secret",
+            operational_mqtt_identity="mqtt-user",
+            operational_mqtt_token="mqtt-secret",
+            operational_mqtt_host="127.0.0.2",
+            operational_mqtt_port=1883,
+        )
+    )
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resolve_response = await client.post(
+            "/api/core/services/resolve",
+            json={
+                "task_family": "task.summarization",
+                "type": "ai",
+                "task_context": {"content_type": "email"},
+                "preferred_provider": "openai",
+            },
+        )
+        authorize_response = await client.post(
+            "/api/core/services/authorize",
+            json={
+                "task_family": "task.summarization",
+                "type": "ai",
+                "task_context": {"content_type": "email"},
+                "service_id": "summary-service",
+                "provider": "openai",
+            },
+        )
+
+    await service.stop()
+
+    assert resolve_response.status_code == 200
+    assert resolve_response.json()["selected_service_id"] == "summary-service"
+    assert authorize_response.status_code == 200
+    assert authorize_response.json()["authorized"] is True
+
+    assert core_app.state.service_resolve_requests == [
+        {
+            "node_id": "node-abc123",
+            "task_family": "task.summarization",
+            "type": "ai",
+            "task_context": {"content_type": "email"},
+            "preferred_provider": "openai",
+        }
+    ]
+    assert core_app.state.service_authorize_requests == [
+        {
+            "node_id": "node-abc123",
+            "task_family": "task.summarization",
+            "type": "ai",
+            "task_context": {"content_type": "email"},
+            "service_id": "summary-service",
+            "provider": "openai",
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_runtime_execute_authorized_task_registers_email_classifier_prompt(config, core_client_factory):
+    core_app = build_core_app()
+    service = NodeService(config, core_client=core_client_factory(core_app), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/runtime/execute-authorized-task",
+            json={
+                "task_family": "task.classification",
+                "target_api_base_url": "http://10.0.0.100:9002",
+            },
+        )
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["registration"]["prompt_id"] == "prompt.email.classifier"
+    assert body["registration"]["service_id"] == "node-email"
+    assert body["registration"]["status"] == "active"
+    assert body["usage_summary"] is None
+
+    assert core_app.state.prompt_service_lifecycle_requests == []
+    assert len(core_app.state.prompt_service_registration_requests) == 1
+    registration_request = core_app.state.prompt_service_registration_requests[0]
+    assert registration_request["prompt_id"] == "prompt.email.classifier"
+    assert registration_request["service_id"] == "node-email"
+    assert registration_request["task_family"] == "task.classification"
+    assert registration_request["provider_preferences"] == {"preferred_providers": ["openai"]}
+    assert registration_request["constraints"] == {
+        "max_timeout_s": 60,
+        "structured_output_required": True,
+    }
+    assert registration_request["definition"]["template_variables"] == ["normalized_text"]
+    assert core_app.state.execution_direct_requests == []
+    assert core_app.state.usage_summary_requests == []
+
+
+@pytest.mark.asyncio
+async def test_runtime_execute_email_classifier_posts_normalized_email(config, core_client_factory):
+    core_app = build_core_app()
+    service = NodeService(config, core_client=core_client_factory(core_app), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    adapter = service.provider_registry.get_provider("gmail")
+    adapter.account_store.save_account(
+        adapter.state_machine.ensure_account("primary").model_copy(
+            update={"status": "connected", "email_address": "primary@example.com"}
+        )
+    )
+    older_unknown = GmailStoredMessage(
+        account_id="primary",
+        message_id="unknown-older",
+        subject="Older",
+        sender="Older Sender <older@example.com>",
+        recipients=["primary@example.com"],
+        snippet="older unknown body",
+        received_at=datetime(2026, 4, 2, 10, 0, 0).astimezone(),
+        local_label="unknown",
+        local_label_confidence=0.2,
+    )
+    newest_unknown = GmailStoredMessage(
+        account_id="primary",
+        message_id="unknown-newest",
+        subject="Newest",
+        sender="Newest Sender <newest@example.com>",
+        recipients=["primary@example.com"],
+        snippet="please classify newest unknown",
+        received_at=datetime(2026, 4, 2, 12, 0, 0).astimezone(),
+        local_label="unknown",
+        local_label_confidence=0.1,
+    )
+    classified_newer = GmailStoredMessage(
+        account_id="primary",
+        message_id="classified-newer",
+        subject="Already known",
+        sender="Known Sender <known@example.com>",
+        recipients=["primary@example.com"],
+        snippet="already classified",
+        received_at=datetime(2026, 4, 2, 13, 0, 0).astimezone(),
+        local_label="marketing",
+        local_label_confidence=0.95,
+    )
+    adapter.message_store.upsert_messages([older_unknown, newest_unknown, classified_newer])
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/runtime/execute-email-classifier",
+            json={
+                "target_api_base_url": "http://10.0.0.100:9002",
+            },
+        )
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["execution"]["status"] == "completed"
+    assert body["message_id"] == "unknown-newest"
+    assert len(core_app.state.execution_direct_requests) == 1
+    execution_request = core_app.state.execution_direct_requests[0]
+    assert execution_request["prompt_id"] == "prompt.email.classifier"
+    assert execution_request["prompt_version"] == "v1"
+    assert execution_request["task_family"] == "task.classification"
+    assert execution_request["requested_by"] == "node-email"
+    assert execution_request["service_id"] == "node-email"
+    assert execution_request["customer_id"] == "local-user"
+    assert execution_request["timeout_s"] == 60
+    assert execution_request["inputs"]["text"] == normalize_email_for_classifier(
+        newest_unknown,
+        my_addresses=["primary@example.com"],
+    )
+    assert execution_request["inputs"]["json_schema"] == {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "label": {
+                "type": "string",
+                "enum": [
+                    "action_required",
+                    "direct_human",
+                    "financial",
+                    "order",
+                    "invoice",
+                    "shipment",
+                    "security",
+                    "system",
+                    "newsletter",
+                    "marketing",
+                    "unknown",
+                ],
+            },
+            "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+            },
+            "rationale": {
+                "type": "string",
+            },
+        },
+        "required": ["label", "confidence", "rationale"],
+    }
+    updated_message = next(message for message in adapter.message_store.list_messages("primary", limit=10) if message.message_id == "unknown-newest")
+    assert updated_message.local_label == "marketing"
+    assert updated_message.local_label_confidence == 0.91
+    assert updated_message.manual_classification is False
+
+
+@pytest.mark.asyncio
+async def test_runtime_execute_email_classifier_batch_registers_prompt_and_classifies_unknowns(config, core_client_factory):
+    core_app = build_core_app()
+    service = NodeService(config, core_client=core_client_factory(core_app), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    adapter = service.provider_registry.get_provider("gmail")
+    adapter.account_store.save_account(
+        adapter.state_machine.ensure_account("primary").model_copy(
+            update={"status": "connected", "email_address": "primary@example.com"}
+        )
+    )
+    adapter.message_store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="unknown-1",
+                subject="First unknown",
+                sender="First Sender <first@example.com>",
+                recipients=["primary@example.com"],
+                snippet="please classify first",
+                received_at=datetime(2026, 4, 2, 10, 0, 0).astimezone(),
+                local_label="unknown",
+                local_label_confidence=0.1,
+            ),
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="unknown-2",
+                subject="Second unknown",
+                sender="Second Sender <second@example.com>",
+                recipients=["primary@example.com"],
+                snippet="please classify second",
+                received_at=datetime(2026, 4, 2, 11, 0, 0).astimezone(),
+                local_label="unknown",
+                local_label_confidence=0.2,
+            ),
+        ]
+    )
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/runtime/execute-email-classifier-batch",
+            json={
+                "target_api_base_url": "http://10.0.0.100:9002",
+            },
+        )
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is True
+    assert body["batch_size"] == 2
+    assert body["local_processed"] == 0
+    assert body["ai_total"] == 2
+    assert body["ai_attempted"] == 2
+    assert body["ai_completed"] == 2
+    assert len(core_app.state.prompt_service_registration_requests) == 0
+    assert len(core_app.state.execution_direct_requests) == 2
+
+    updated_messages = {message.message_id: message for message in adapter.message_store.list_messages("primary", limit=10)}
+    assert updated_messages["unknown-1"].local_label == "marketing"
+    assert updated_messages["unknown-2"].local_label == "marketing"
+    assert service.state.runtime_task_state["request_status"] == "executed"
+    assert service.state.runtime_task_state["last_step"] == "execute_batch"
+
+
+def test_runtime_classifier_output_normalization_helpers(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+
+    parsed = service._parse_classifier_output(
+        {
+            "result": {
+                "category": "Direct Human",
+                "score": "91%",
+                "rationale": "Looks like a person-to-person email.",
+            }
+        }
+    )
+
+    assert parsed is not None
+    assert service._normalize_classifier_label(parsed.get("category")) == GmailTrainingLabel.DIRECT_HUMAN
+    assert service._normalize_classifier_confidence(parsed.get("score")) == 0.91
+
+
+@pytest.mark.asyncio
+async def test_ui_bootstrap_restores_persisted_runtime_task_state(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    service.state.runtime_task_state = {
+        "request_status": "authorized",
+        "last_step": "authorize",
+        "detail": "Saved runtime authorize state.",
+        "preview_response": {"detail": "previewed"},
+        "resolve_response": {"selected_service_id": "svc-1"},
+        "authorize_response": {"grant_id": "grant-1", "token": "tok-1"},
+        "execution_response": None,
+        "usage_summary_response": None,
+        "started_at": "2026-04-02T20:00:00+00:00",
+        "updated_at": "2026-04-02T20:01:00+00:00",
+    }
+    service.state_store.save(service.state)
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/node/bootstrap")
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["runtime_task_state"]["request_status"] == "authorized"
+    assert body["runtime_task_state"]["resolve_response"]["selected_service_id"] == "svc-1"
+    assert body["runtime_task_state"]["authorize_response"]["grant_id"] == "grant-1"
+
+
+@pytest.mark.asyncio
 async def test_gmail_status_api_exposes_mailbox_counts(config, core_client_factory):
     service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
     await service.start()
@@ -479,6 +890,71 @@ async def test_gmail_status_api_exposes_mailbox_counts(config, core_client_facto
     assert body["accounts"][0]["mailbox_status"]["unread_inbox_count"] == 12
     assert body["accounts"][0]["mailbox_status"]["unread_today_count"] == 3
     assert body["accounts"][0]["mailbox_status"]["unread_last_hour_count"] == 2
+    assert body["accounts"][0]["classification_summary"]["classified_count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_gmail_status_api_exposes_classification_summary(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    if service.gmail_status_task is not None:
+        service.gmail_status_task.cancel()
+    service.state.trust_state = "trusted"
+    service.state.node_id = "node-1"
+    adapter = service.provider_registry.get_provider("gmail")
+    adapter.account_store.save_account(
+        adapter.state_machine.ensure_account("primary").model_copy(
+            update={"status": "connected", "email_address": "primary@example.com"}
+        )
+    )
+    adapter.message_store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="manual-1",
+                subject="Manual label",
+                sender="manual@example.com",
+                recipients=["primary@example.com"],
+                snippet="manual",
+                received_at=datetime(2026, 4, 2, 12, 0, 0).astimezone(),
+            ),
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="high-1",
+                subject="High confidence",
+                sender="high@example.com",
+                recipients=["primary@example.com"],
+                snippet="high",
+                received_at=datetime(2026, 4, 2, 12, 5, 0).astimezone(),
+            ),
+        ]
+    )
+    adapter.message_store.update_local_classification(
+        "primary",
+        "manual-1",
+        label=GmailTrainingLabel.DIRECT_HUMAN,
+        confidence=1.0,
+        manual_classification=True,
+    )
+    adapter.message_store.update_local_classification(
+        "primary",
+        "high-1",
+        label=GmailTrainingLabel.MARKETING,
+        confidence=0.95,
+        manual_classification=False,
+    )
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/gmail/status")
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["accounts"][0]["classification_summary"]["classified_count"] == 2
+    assert body["accounts"][0]["classification_summary"]["manual_count"] == 1
+    assert body["accounts"][0]["classification_summary"]["high_confidence_count"] == 1
 
 
 def build_google_fetch_test_app():
@@ -1159,6 +1635,23 @@ async def test_gmail_status_api_exposes_fetch_schedule_state(config, core_client
     assert body["fetch_schedule"]["today"]["last_run_reason"] == "manual"
 
 
+def test_gmail_fetch_schedule_state_accepts_auto_reason(runtime_dir):
+    store = GmailFetchScheduleStore(runtime_dir)
+    store.save_state(
+        GmailFetchScheduleState(
+            last_hour=GmailFetchWindowState(
+                last_run_at=datetime(2026, 4, 2, 7, 5, 0),
+                last_run_reason="auto",
+                last_slot_key="2026-04-02T07:05:00+00:00",
+            )
+        )
+    )
+
+    state = store.load_state()
+
+    assert state.last_hour.last_run_reason == "auto"
+
+
 def test_due_gmail_fetch_windows_match_requested_schedule(config, core_client_factory):
     service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
     schedule_state = GmailFetchScheduleState()
@@ -1171,5 +1664,28 @@ def test_due_gmail_fetch_windows_match_requested_schedule(config, core_client_fa
     assert any(window == "last_hour" for window, _ in due_at_0600)
 
     due_at_0700 = service._due_gmail_fetch_windows(datetime(2026, 4, 2, 7, 0, 0).astimezone(), schedule_state)
-    assert ("today", "2026-04-02:1") not in due_at_0700
     assert any(window == "last_hour" for window, _ in due_at_0700)
+
+    due_at_0701 = service._due_gmail_fetch_windows(datetime(2026, 4, 2, 7, 1, 0).astimezone(), schedule_state)
+    assert not any(window == "last_hour" for window, _ in due_at_0701)
+
+    due_at_0705 = service._due_gmail_fetch_windows(datetime(2026, 4, 2, 7, 5, 0).astimezone(), schedule_state)
+    assert any(window == "last_hour" for window, _ in due_at_0705)
+
+    due_at_1801 = service._due_gmail_fetch_windows(datetime(2026, 4, 2, 18, 1, 0).astimezone(), schedule_state)
+    assert ("today", "2026-04-02:3") in due_at_1801
+    assert any(window == "last_hour" for window, _ in due_at_1801)
+
+
+def test_due_gmail_fetch_windows_catch_up_missed_slot_in_local_timezone(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    now = datetime(2026, 4, 2, 18, 1, 0).astimezone()
+    schedule_state = GmailFetchScheduleState(
+        today=GmailFetchWindowState(last_slot_key="2026-04-02:2"),
+        last_hour=GmailFetchWindowState(last_slot_key="2026-04-02T17:55:00+00:00"),
+    )
+
+    due_windows = service._due_gmail_fetch_windows(now, schedule_state)
+
+    assert ("today", service._gmail_fetch_slot_key("today", now)) in due_windows
+    assert ("last_hour", service._gmail_fetch_slot_key("last_hour", now)) in due_windows
