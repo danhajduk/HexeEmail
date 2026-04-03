@@ -1,0 +1,6 @@
+Task #084
+Step objective: Add notification support for newly classified action-required emails.
+Chosen fix: Reuse the existing node-to-Core MQTT notification path and add per-message notification dedupe in Gmail message storage so notifications only fire once for new qualifying classifications.
+What changed: Added boolean notification flags in Gmail message storage, added a reusable classified-email notification helper in NodeService, and wired action-required notifications into both local-model and AI-model classification updates.
+Verification: `python -m py_compile src/*.py src/core/*.py src/providers/*.py src/providers/gmail/*.py tests/test_gmail_message_store.py tests/test_notifications.py` passed. Direct runtime smoke test could not run because this environment is missing Python dependencies such as `pydantic`.
+###########

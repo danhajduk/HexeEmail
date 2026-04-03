@@ -3,19 +3,27 @@ from __future__ import annotations
 from fastapi import FastAPI, Header
 
 from mqtt import MQTTManager
+from models import NodeNotificationRequest
 
 
 class FakeMQTTManager(MQTTManager):
     def __init__(self) -> None:
         super().__init__(heartbeat_seconds=0.01)
         self.connected_with = None
+        self.notification_requests: list[NodeNotificationRequest] = []
 
     def connect(self, trust_material) -> None:
         self.connected_with = trust_material
         self.status.state = "connected"
+        if self.on_connected is not None:
+            self.on_connected()
 
     def disconnect(self) -> None:
         self.status.state = "disconnected"
+
+    def publish_notification_request(self, request: NodeNotificationRequest) -> bool:
+        self.notification_requests.append(NodeNotificationRequest.model_validate_json(request.model_dump_json()))
+        return True
 
 
 def build_core_app():

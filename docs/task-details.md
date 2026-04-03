@@ -63,3 +63,14 @@ Original task details:
 - build normalized weighted dataset rows and a dataset summary report
 - train TF-IDF + LogisticRegression with sample weights
 - save richer model metadata including mapping config, excluded labels, and dataset stats
+
+## Task 084
+Original task details:
+- Implement user notifications for the new emails with the `action_required` classification
+- include sender and subject
+- for now we can include the confidence level during the debug stage
+- Make the email notifications a separate re-usable function
+
+## Task 085
+Original task details:
+- repeat Task 084 for the `order` classification

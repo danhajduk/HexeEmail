@@ -48,6 +48,8 @@ class GmailMessageStore:
             self._ensure_column(connection, "gmail_messages", "local_label", "TEXT")
             self._ensure_column(connection, "gmail_messages", "local_label_confidence", "REAL")
             self._ensure_column(connection, "gmail_messages", "manual_classification", "INTEGER NOT NULL DEFAULT 0")
+            self._ensure_column(connection, "gmail_messages", "action_required_notification_sent", "INTEGER NOT NULL DEFAULT 0")
+            self._ensure_column(connection, "gmail_messages", "order_notification_sent", "INTEGER NOT NULL DEFAULT 0")
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS gmail_spamhaus_checks (
@@ -341,6 +343,33 @@ class GmailMessageStore:
             ).fetchone()
         return self._row_to_message(row) if row is not None else None
 
+    def get_message(self, account_id: str, message_id: str) -> GmailStoredMessage | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT
+                    account_id,
+                    message_id,
+                    thread_id,
+                    subject,
+                    sender,
+                    recipients,
+                    snippet,
+                    label_ids,
+                    received_at,
+                    raw_payload,
+                    local_label,
+                    local_label_confidence,
+                    manual_classification
+                FROM gmail_messages
+                WHERE account_id = ?
+                  AND message_id = ?
+                LIMIT 1
+                """,
+                (account_id, message_id),
+            ).fetchone()
+        return self._row_to_message(row) if row is not None else None
+
     def list_oldest_training_candidates(
         self,
         account_id: str,
@@ -459,6 +488,55 @@ class GmailMessageStore:
                 WHERE account_id = ? AND message_id = ?
                 """,
                 (label.value, confidence, 1 if manual_classification else 0, account_id, message_id),
+            )
+            connection.commit()
+
+    def has_notification_label(self, account_id: str, message_id: str, label: str) -> bool:
+        column_name = self._notification_flag_column_for_label(label)
+        if column_name is None:
+            return False
+        with self._connect() as connection:
+            row = connection.execute(
+                f"""
+                SELECT {column_name} AS notification_sent
+                FROM gmail_messages
+                WHERE account_id = ?
+                  AND message_id = ?
+                LIMIT 1
+                """,
+                (account_id, message_id),
+            ).fetchone()
+        if row is None:
+            return False
+        return bool(row["notification_sent"])
+
+    def mark_notification_label_sent(self, account_id: str, message_id: str, label: str) -> None:
+        column_name = self._notification_flag_column_for_label(label)
+        if column_name is None:
+            return
+        with self._connect() as connection:
+            row = connection.execute(
+                f"""
+                SELECT {column_name} AS notification_sent
+                FROM gmail_messages
+                WHERE account_id = ?
+                  AND message_id = ?
+                LIMIT 1
+                """,
+                (account_id, message_id),
+            ).fetchone()
+            if row is None:
+                return
+            if bool(row["notification_sent"]):
+                return
+            connection.execute(
+                f"""
+                UPDATE gmail_messages
+                SET {column_name} = 1
+                WHERE account_id = ?
+                  AND message_id = ?
+                """,
+                (account_id, message_id),
             )
             connection.commit()
 
@@ -729,6 +807,13 @@ class GmailMessageStore:
         if value.tzinfo is not None:
             return value.astimezone(reference.tzinfo)
         return value.replace(tzinfo=reference.tzinfo)
+
+    def _notification_flag_column_for_label(self, label: str) -> str | None:
+        if label == GmailTrainingLabel.ACTION_REQUIRED.value:
+            return "action_required_notification_sent"
+        if label == GmailTrainingLabel.ORDER.value:
+            return "order_notification_sent"
+        return None
 
     def _set_mode(self, path: Path, mode: int) -> None:
         try:

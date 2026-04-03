@@ -29,6 +29,13 @@ from models import (
     CoreServiceAuthorizeRequestInput,
     CoreServiceResolveRequestInput,
     MqttHealthResponse,
+    NodeNotificationRequest,
+    NodeNotificationResult,
+    NotificationContent,
+    NotificationDelivery,
+    NotificationEvent,
+    NotificationSourceHint,
+    NotificationTargets,
     OnboardingStatusResponse,
     OperatorConfig,
     OperatorConfigInput,
@@ -85,6 +92,8 @@ class NodeService:
         self.mqtt_manager = mqtt_manager or MQTTManager(
             heartbeat_seconds=config.mqtt_heartbeat_seconds,
             on_heartbeat=self._record_heartbeat,
+            on_notification_result=self._handle_notification_result,
+            on_connected=self._handle_mqtt_connected,
         )
         self.gmail_config_store = GmailProviderConfigStore(config.runtime_dir)
         self.gmail_oauth_manager = GmailOAuthSessionManager(config.runtime_dir)
@@ -104,6 +113,8 @@ class NodeService:
         self.live = True
         self.ready = False
         self.startup_error: str | None = None
+        self._gmail_fetch_notification_state: str | None = None
+        self._mqtt_connect_notification_count = 0
 
     @staticmethod
     def _default_runtime_task_state() -> dict[str, object]:
@@ -789,6 +800,225 @@ class NodeService:
         self.state.last_heartbeat_at = datetime.now(UTC).replace(tzinfo=None)
         self.state_store.save(self.state)
 
+    def _handle_notification_result(self, result: NodeNotificationResult) -> None:
+        if result.accepted:
+            return
+        LOGGER.warning(
+            "Core rejected user notification request",
+            extra={
+                "event_data": {
+                    "request_id": result.request_id,
+                    "node_id": result.node_id,
+                    "error": result.error,
+                }
+            },
+        )
+
+    def _handle_mqtt_connected(self) -> None:
+        self._mqtt_connect_notification_count += 1
+        generation = self._mqtt_connect_notification_count
+        label = "Hexe Email online" if generation == 1 else "Hexe Email back online"
+        message = (
+            "The email node finished startup and is connected to Core."
+            if generation == 1
+            else "The email node reconnected to Core and is back online."
+        )
+        self.send_user_notification(
+            title=label,
+            message=message,
+            severity="success",
+            urgency="notification",
+            dedupe_key=f"node-online-{generation}",
+            event_type="node_online" if generation == 1 else "node_reconnected",
+            summary="Email node connected to Core",
+            source_component="mqtt_runtime",
+            data={"connection_generation": generation, "connection_state": "connected"},
+        )
+
+    def _invalidate_capability_state(self) -> None:
+        self.state.capability_declaration_status = "pending"
+        self.state.governance_sync_status = "pending"
+        self.state.active_governance_version = None
+        self.state_store.save(self.state)
+
+    def send_user_notification(
+        self,
+        *,
+        title: str,
+        message: str,
+        severity: str,
+        urgency: str,
+        dedupe_key: str,
+        event_type: str,
+        summary: str,
+        source_component: str,
+        data: dict[str, object] | None = None,
+    ) -> bool:
+        if self.state.trust_state != "trusted" or not self.state.node_id:
+            return False
+        if self.mqtt_manager.status.state != "connected":
+            LOGGER.info(
+                "Skipping user notification because MQTT is not connected",
+                extra={"event_data": {"dedupe_key": dedupe_key, "connection_state": self.mqtt_manager.status.state}},
+            )
+            return False
+
+        request = NodeNotificationRequest(
+            request_id=str(uuid.uuid4()),
+            created_at=datetime.now(UTC),
+            node_id=self.state.node_id,
+            kind="event",
+            targets=NotificationTargets(
+                broadcast=True,
+                external=["ha"],
+            ),
+            delivery=NotificationDelivery(
+                severity=severity,
+                priority="high" if severity in {"warning", "error", "critical"} else "normal",
+                urgency=urgency,
+                dedupe_key=dedupe_key,
+                channels=["event", "external"],
+                ttl_seconds=3600,
+            ),
+            source=NotificationSourceHint(
+                component=source_component,
+                label=self.effective_node_name() or self.config.node_type,
+                metadata={"node_type": self.config.node_type},
+            ),
+            content=NotificationContent(
+                title=title,
+                message=message,
+            ),
+            event=NotificationEvent(
+                event_type=event_type,
+                summary=summary,
+                attributes={"component": source_component},
+            ),
+            data=data or {},
+        )
+        return self.mqtt_manager.publish_notification_request(request)
+
+    def _set_gmail_fetch_notification_state(self, next_state: str, detail: str) -> None:
+        previous = self._gmail_fetch_notification_state
+        self._gmail_fetch_notification_state = next_state
+
+        if next_state == previous:
+            return
+
+        if next_state == "warning":
+            self.send_user_notification(
+                title="Hexe Email warning",
+                message=detail,
+                severity="warning",
+                urgency="actions_needed",
+                dedupe_key="gmail-fetch-warning",
+                event_type="gmail_fetch_warning",
+                summary="Gmail fetch scheduler needs attention",
+                source_component="gmail_fetch_scheduler",
+                data={"status": "warning"},
+            )
+            return
+
+        if next_state == "error":
+            self.send_user_notification(
+                title="Hexe Email error",
+                message=detail,
+                severity="error",
+                urgency="urgent",
+                dedupe_key="gmail-fetch-error",
+                event_type="gmail_fetch_error",
+                summary="Gmail fetch scheduler hit an error",
+                source_component="gmail_fetch_scheduler",
+                data={"status": "error"},
+            )
+            return
+
+        if next_state == "healthy" and previous in {"warning", "error"}:
+            self.send_user_notification(
+                title="Hexe Email back online",
+                message="Gmail fetch scheduling recovered and is running again.",
+                severity="success",
+                urgency="notification",
+                dedupe_key="gmail-fetch-recovered",
+                event_type="gmail_fetch_recovered",
+                summary="Gmail fetch scheduler recovered",
+                source_component="gmail_fetch_scheduler",
+                data={"status": "healthy", "recovered_from": previous},
+            )
+
+    def send_email_classification_notification(
+        self,
+        *,
+        classification_label: GmailTrainingLabel,
+        sender: str | None,
+        subject: str | None,
+        confidence: float | None,
+        message_id: str,
+        source_component: str,
+    ) -> bool:
+        notification_specs = {
+            GmailTrainingLabel.ACTION_REQUIRED: {
+                "title": "Action Required email",
+                "severity": "warning",
+                "urgency": "actions_needed",
+                "event_type": "gmail_action_required_email",
+                "summary": "New action-required email classified",
+            },
+        }
+        spec = notification_specs.get(classification_label)
+        if spec is None:
+            return False
+
+        confidence_text = f"{confidence:.2f}" if confidence is not None else "unknown"
+        sender_text = (sender or "Unknown sender").strip() or "Unknown sender"
+        subject_text = (subject or "(no subject)").strip() or "(no subject)"
+        return self.send_user_notification(
+            title=spec["title"],
+            message=f"From: {sender_text}\nSubject: {subject_text}\nConfidence: {confidence_text}",
+            severity=spec["severity"],
+            urgency=spec["urgency"],
+            dedupe_key=f"gmail-classification-{classification_label.value}-{message_id}",
+            event_type=spec["event_type"],
+            summary=spec["summary"],
+            source_component=source_component,
+            data={
+                "message_id": message_id,
+                "classification_label": classification_label.value,
+                "sender": sender,
+                "subject": subject,
+                "confidence": confidence,
+            },
+        )
+
+    def _notify_for_new_email_classification(
+        self,
+        *,
+        account_id: str,
+        message_id: str,
+        classification_label: GmailTrainingLabel,
+        confidence: float | None,
+        source_component: str,
+    ) -> bool:
+        adapter = self.provider_registry.get_provider("gmail")
+        if not adapter.message_store.get_message(account_id, message_id):
+            return False
+        if adapter.message_store.has_notification_label(account_id, message_id, classification_label.value):
+            return False
+        message = adapter.message_store.get_message(account_id, message_id)
+        if message is None:
+            return False
+        sent = self.send_email_classification_notification(
+            classification_label=classification_label,
+            sender=message.sender,
+            subject=message.subject,
+            confidence=confidence,
+            message_id=message_id,
+            source_component=source_component,
+        )
+        if sent:
+            adapter.message_store.mark_notification_label_sent(account_id, message_id, classification_label.value)
+        return sent
+
     def _mqtt_health_snapshot(self) -> MqttHealthResponse:
         stale_after_s = max(30, int(self.config.node_status_stale_after_s))
         inactive_after_s = max(int(self.config.node_status_inactive_after_s), stale_after_s + 1)
@@ -876,6 +1106,8 @@ class NodeService:
         self.operator_config = self.operator_config_store.save(
             self.operator_config.model_copy(update={"selected_task_capabilities": selected_task_capabilities})
         )
+        if self.state.trust_state == "trusted":
+            self._invalidate_capability_state()
         await self._refresh_post_trust_state()
         return await self.capability_config_response()
 
@@ -1451,6 +1683,13 @@ class NodeService:
                 confidence=predicted_confidence,
                 manual_classification=False,
             )
+            self._notify_for_new_email_classification(
+                account_id=account_id,
+                message_id=message.message_id,
+                classification_label=predicted_label,
+                confidence=predicted_confidence,
+                source_component="gmail_local_classification",
+            )
             local_processed += 1
             if predicted_label == GmailTrainingLabel.UNKNOWN:
                 ai_candidates.append(message)
@@ -1575,6 +1814,13 @@ class NodeService:
                     label=parsed_label,
                     confidence=parsed_confidence,
                     manual_classification=False,
+                )
+                self._notify_for_new_email_classification(
+                    account_id=account_id,
+                    message_id=message.message_id,
+                    classification_label=parsed_label,
+                    confidence=parsed_confidence,
+                    source_component="gmail_ai_classification",
                 )
                 classification_applied = True
 
@@ -1911,6 +2157,8 @@ class NodeService:
                 }
             },
         )
+        if self.state.trust_state == "trusted":
+            self._invalidate_capability_state()
         await self._refresh_post_trust_state()
         token_record = self.gmail_token_store().load_token(account_record.account_id)
         return GmailOAuthCallbackResponse(
@@ -1954,6 +2202,8 @@ class NodeService:
     async def update_gmail_provider_config(self, payload: GmailOAuthConfig) -> dict[str, object]:
         config = self.gmail_config_store.save(payload)
         validation = self.gmail_config_store.validate(config)
+        if self.state.trust_state == "trusted":
+            self._invalidate_capability_state()
         await self._refresh_post_trust_state()
         return {
             "config": config.model_dump(mode="json"),
@@ -2324,9 +2574,6 @@ class NodeService:
         capability_setup = self._capability_setup_summary(provider_overview)
         connected_providers = capability_setup.get("provider_selection", {}).get("enabled", [])
         self.state.enabled_providers = list(connected_providers) if isinstance(connected_providers, list) else []
-        self.state.capability_declaration_status = "pending"
-        self.state.governance_sync_status = "pending"
-        self.state.active_governance_version = None
         self.state_store.save(self.state)
         await self._update_operational_readiness()
 
@@ -2348,6 +2595,7 @@ class NodeService:
                 last_error=None,
                 last_error_at=None,
             )
+            self._gmail_fetch_notification_state = "healthy"
             self.gmail_fetch_task = asyncio.create_task(self._gmail_fetch_loop())
 
     async def _gmail_status_loop(self) -> None:
@@ -2405,6 +2653,7 @@ class NodeService:
                     last_error_at=failed_at,
                     last_checked_at=failed_at,
                 )
+                self._set_gmail_fetch_notification_state("error", f"Gmail fetch scheduler failed: {exc}")
                 LOGGER.error(
                     "Scheduled Gmail fetch loop failed",
                     extra={"event_data": {"detail": str(exc)}},
@@ -2414,6 +2663,10 @@ class NodeService:
     async def _run_due_gmail_fetches(self) -> None:
         gmail_adapter = self.provider_registry.get_provider("gmail")
         if not gmail_adapter.get_enabled_status():
+            self._set_gmail_fetch_notification_state(
+                "warning",
+                "Gmail fetch scheduling is paused because the Gmail provider is disabled.",
+            )
             self._save_gmail_fetch_scheduler_state(
                 status="idle",
                 detail="Gmail fetch scheduler is idle because Gmail is disabled.",
@@ -2424,6 +2677,10 @@ class NodeService:
         accounts = await gmail_adapter.list_accounts()
         eligible_accounts = [account for account in accounts if account.status in {"connected", "token_exchanged", "degraded"}]
         if not eligible_accounts:
+            self._set_gmail_fetch_notification_state(
+                "warning",
+                "Gmail fetch scheduling is paused because no eligible Gmail account is connected.",
+            )
             self._save_gmail_fetch_scheduler_state(
                 status="idle",
                 detail="Gmail fetch scheduler is idle because no eligible Gmail account is connected.",
@@ -2446,6 +2703,7 @@ class NodeService:
             last_checked_at=checked_at,
             last_due_windows=[{"window": window, "slot_key": slot_key} for window, slot_key in due_windows],
         )
+        self._set_gmail_fetch_notification_state("healthy", "Gmail fetch scheduling is running normally.")
         for account in eligible_accounts:
             for window, slot_key in due_windows:
                 attempt_at = datetime.now(UTC).isoformat()

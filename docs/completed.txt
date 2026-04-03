@@ -81,3 +81,4 @@ Task 080: Create a training page for manual local email classification - Complet
 Task 081: Add TF-IDF and LogisticRegression training workflow to the Training page - Completed on 04/02/2026 09:42
 Task 082: Add normalized classifier input rules for TF-IDF and LogisticRegression - Completed on 04/02/2026 10:07
 Task 083: Redesign Email Classifier Training Pipeline (All-Mail Ingestion, Gmail Weak Supervision, Weighted Labels) - Completed on 04/02/2026 10:58
+Task 084: Notifications for the "action_required" emails - Completed on 04/03/2026 15:40

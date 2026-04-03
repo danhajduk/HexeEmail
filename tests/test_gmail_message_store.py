@@ -174,3 +174,27 @@ def test_gmail_message_store_supports_local_training_labels(runtime_dir):
     assert by_id["msg-1"].local_label_confidence == 0.95
     assert by_id["msg-1"].manual_classification is True
     assert [message.message_id for message in candidates] == ["msg-2"]
+
+
+def test_gmail_message_store_tracks_notification_flags_per_label(runtime_dir):
+    store = GmailMessageStore(runtime_dir)
+    store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="msg-1",
+                subject="Review invoice",
+                sender="Sender <sender@example.com>",
+                received_at=datetime(2026, 4, 2, 12, 0, 0),
+            )
+        ],
+        now=datetime(2026, 4, 2, 12, 30, 0),
+    )
+
+    assert store.has_notification_label("primary", "msg-1", GmailTrainingLabel.ACTION_REQUIRED.value) is False
+    assert store.has_notification_label("primary", "msg-1", GmailTrainingLabel.ORDER.value) is False
+
+    store.mark_notification_label_sent("primary", "msg-1", GmailTrainingLabel.ACTION_REQUIRED.value)
+
+    assert store.has_notification_label("primary", "msg-1", GmailTrainingLabel.ACTION_REQUIRED.value) is True
+    assert store.has_notification_label("primary", "msg-1", GmailTrainingLabel.ORDER.value) is False

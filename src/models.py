@@ -1,13 +1,18 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
 OnboardingStatus = Literal["not_started", "pending", "approved", "rejected", "expired", "consumed", "invalid"]
 TrustState = Literal["untrusted", "pending", "trusted", "rejected", "expired", "consumed", "invalid"]
+NotificationKind = Literal["popup", "event", "state"]
+NotificationSeverity = Literal["info", "success", "warning", "error", "critical"]
+NotificationPriority = Literal["low", "normal", "high", "urgent"]
+NotificationUrgency = Literal["info", "error", "notification", "urgent", "actions_needed"]
+NotificationResultStatus = Literal["accepted", "rejected"]
 
 
 class OperatorConfig(BaseModel):
@@ -251,3 +256,91 @@ class GmailOAuthCallbackResponse(BaseModel):
     status: str
     granted_scopes: list[str] = Field(default_factory=list)
     expires_at: datetime | None = None
+
+
+class NotificationTargets(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    broadcast: bool = False
+    users: list[str] = Field(default_factory=list)
+    hosts: list[str] = Field(default_factory=list)
+    sessions: list[str] = Field(default_factory=list)
+    external: list[str] = Field(default_factory=list)
+
+
+class NotificationDelivery(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    severity: NotificationSeverity = "info"
+    priority: NotificationPriority = "normal"
+    urgency: NotificationUrgency | None = None
+    channels: list[str] = Field(default_factory=list)
+    ttl_seconds: int | None = None
+    dedupe_key: str | None = None
+
+
+class NotificationContent(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str | None = None
+    subtitle: str | None = None
+    message: str | None = None
+    body: str | None = None
+
+
+class NotificationEvent(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    event_type: str | None = None
+    action: str | None = None
+    summary: str | None = None
+    attributes: dict[str, Any] = Field(default_factory=dict)
+
+
+class NotificationStatePayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: str | None = None
+    reason: str | None = None
+    attributes: dict[str, Any] = Field(default_factory=dict)
+
+
+class NotificationSourceHint(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    component: str | None = None
+    label: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class NodeNotificationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: int = 1
+    request_id: str
+    created_at: datetime
+    node_id: str | None = None
+    kind: NotificationKind
+    targets: NotificationTargets
+    delivery: NotificationDelivery | None = None
+    retain: bool = False
+    source: NotificationSourceHint | None = None
+    content: NotificationContent | None = None
+    event: NotificationEvent | None = None
+    state: NotificationStatePayload | None = None
+    data: dict[str, Any] | None = None
+
+
+class NodeNotificationResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: int = 1
+    request_id: str
+    node_id: str
+    status: NotificationResultStatus
+    accepted: bool
+    created_at: datetime
+    notification_id: str | None = None
+    internal_topic: str | None = None
+    error: str | None = None
+    requested_external_targets: list[str] = Field(default_factory=list)
