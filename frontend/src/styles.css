@@ -21,6 +21,26 @@
   align-items: start;
 }
 
+.backend-unavailable-view {
+  display: grid;
+  place-items: center;
+  min-height: calc(100vh - 48px);
+}
+
+.backend-unavailable-card {
+  width: min(720px, 100%);
+}
+
+.backend-unavailable-meta {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.backend-unavailable-actions {
+  margin-top: 20px;
+}
+
 .main-column {
   display: flex;
   flex-direction: column;

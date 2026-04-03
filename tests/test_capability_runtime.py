@@ -192,3 +192,66 @@ async def test_governance_sync_uses_refresh_route_after_initial_version_is_known
         "node_id": "node-1",
         "current_governance_version": "phase2-test",
     }
+
+
+@pytest.mark.asyncio
+async def test_trusted_restart_preserves_capability_and_governance_state(core_client_factory, config):
+    core_app = build_core_app()
+    service = NodeService(
+        config,
+        core_client=core_client_factory(core_app),
+        mqtt_manager=FakeMQTTManager(),
+        capability_client=CapabilityClient(transport=ASGITransport(app=core_app)),
+        governance_client=GovernanceClient(transport=ASGITransport(app=core_app)),
+    )
+
+    adapter = service.provider_registry.get_provider("gmail")
+
+    async def valid_config():
+        return ProviderValidationResult(ok=True)
+
+    async def connected_state():
+        return "connected"
+
+    async def connected_accounts():
+        return [ProviderAccountRecord(provider_id=ProviderId.GMAIL, account_id="primary", status="connected")]
+
+    async def healthy_account(account_id: str):
+        return ProviderHealth(provider_id=ProviderId.GMAIL, account_id=account_id, status="connected")
+
+    adapter.validate_static_config = valid_config  # type: ignore[method-assign]
+    adapter.get_provider_state = connected_state  # type: ignore[method-assign]
+    adapter.list_accounts = connected_accounts  # type: ignore[method-assign]
+    adapter.get_account_health = healthy_account  # type: ignore[method-assign]
+    adapter.get_enabled_status = lambda: True  # type: ignore[method-assign]
+
+    await service.start()
+    service.operator_config = service.operator_config_store.save(
+        service.operator_config.model_copy(update={"selected_task_capabilities": ["task.classification"]})
+    )
+    core_app.state.sessions["sx_123"]["status"] = "approved"
+    await asyncio.sleep(0.08)
+    await service.declare_selected_capabilities()
+    await service.stop()
+
+    resumed = NodeService(
+        config,
+        core_client=core_client_factory(core_app),
+        mqtt_manager=FakeMQTTManager(),
+        capability_client=CapabilityClient(transport=ASGITransport(app=core_app)),
+        governance_client=GovernanceClient(transport=ASGITransport(app=core_app)),
+    )
+    resumed_adapter = resumed.provider_registry.get_provider("gmail")
+    resumed_adapter.validate_static_config = valid_config  # type: ignore[method-assign]
+    resumed_adapter.get_provider_state = connected_state  # type: ignore[method-assign]
+    resumed_adapter.list_accounts = connected_accounts  # type: ignore[method-assign]
+    resumed_adapter.get_account_health = healthy_account  # type: ignore[method-assign]
+    resumed_adapter.get_enabled_status = lambda: True  # type: ignore[method-assign]
+
+    await resumed.start()
+
+    assert resumed.state.capability_declaration_status == "accepted"
+    assert resumed.state.governance_sync_status == "ok"
+    assert resumed.state.active_governance_version == "phase2-test"
+
+    await resumed.stop()

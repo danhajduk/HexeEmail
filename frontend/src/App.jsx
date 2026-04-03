@@ -251,6 +251,48 @@ function formatScheduleTimestamp(value) {
   return formatTelemetryTimestamp(value);
 }
 
+function backendUnavailableMessage(error) {
+  return error || "backend unavailable";
+}
+
+function BackendUnavailableScreen({
+  apiBase,
+  error,
+  lastUpdatedAt,
+  retrying = false,
+  onRetry,
+}) {
+  return (
+    <section className="backend-unavailable-view">
+      <article className="card backend-unavailable-card">
+        <div className="card-header">
+          <h2>Backend Unavailable</h2>
+          <p>The Hexe Email Node UI loaded, but the node backend could not be reached.</p>
+        </div>
+        <div className="backend-unavailable-meta">
+          <div className="status-pill tone-danger">offline</div>
+          <p className="muted">
+            Retry after the node backend is back online, or verify the service address and process status.
+          </p>
+        </div>
+        <div className="state-grid">
+          <span>API Base</span>
+          <code>{apiBase || "unavailable"}</code>
+          <span>Last Attempt</span>
+          <code>{lastUpdatedAt || "never"}</code>
+          <span>Error</span>
+          <code>{backendUnavailableMessage(error)}</code>
+        </div>
+        <div className="row backend-unavailable-actions">
+          <button className="btn btn-primary" type="button" onClick={onRetry} disabled={retrying}>
+            {retrying ? "Retrying..." : "Retry Connection"}
+          </button>
+        </div>
+      </article>
+    </section>
+  );
+}
+
 function buildGmailWindowSettings(fetchSchedule) {
   return [
     {
@@ -1327,6 +1369,48 @@ export function App() {
   const [trainingSelections, setTrainingSelections] = useState({});
   const [copyNotice, setCopyNotice] = useState("");
   const [uiUpdatedAt, setUiUpdatedAt] = useState(null);
+  const [backendReachable, setBackendReachable] = useState(true);
+  const [retryingBackend, setRetryingBackend] = useState(false);
+
+  async function loadBootstrap({ fromRetry = false } = {}) {
+    try {
+      const payload = await fetchJson("/api/node/bootstrap");
+
+      startTransition(() => {
+        setBootstrap(payload);
+        setProviderStatus(payload.status);
+        setRuntimeTaskStatus((current) =>
+          runtimeTaskStateHasContent(payload.runtime_task_state)
+            ? { ...EMPTY_RUNTIME_TASK_STATUS, ...(payload.runtime_task_state || {}) }
+            : current,
+        );
+        setUiUpdatedAt(new Date().toISOString());
+        setBackendReachable(true);
+      });
+
+      if (!touched) {
+        setForm({
+          core_base_url: payload.config.core_base_url || "",
+          node_name: payload.config.node_name || "",
+          selected_task_capabilities: payload.config.selected_task_capabilities || [],
+        });
+      }
+
+      setError("");
+    } catch (fetchError) {
+      setBackendReachable(false);
+      setUiUpdatedAt(new Date().toISOString());
+      setError(fetchError.message);
+      if (!fromRetry) {
+        setBootstrap(null);
+      }
+      throw fetchError;
+    } finally {
+      if (fromRetry) {
+        setRetryingBackend(false);
+      }
+    }
+  }
 
   useEffect(() => {
     function applyHashRoute() {
@@ -1353,47 +1437,36 @@ export function App() {
   useEffect(() => {
     let active = true;
 
-    async function loadBootstrap() {
+    async function loadBootstrapActive() {
       try {
-        const payload = await fetchJson("/api/node/bootstrap");
+        await loadBootstrap();
+      } catch {
         if (!active) {
           return;
         }
-
-        startTransition(() => {
-          setBootstrap(payload);
-          setProviderStatus(payload.status);
-          setRuntimeTaskStatus((current) =>
-            runtimeTaskStateHasContent(payload.runtime_task_state)
-              ? { ...EMPTY_RUNTIME_TASK_STATUS, ...(payload.runtime_task_state || {}) }
-              : current,
-          );
-          setUiUpdatedAt(new Date().toISOString());
-        });
-
-        if (!touched) {
-          setForm({
-            core_base_url: payload.config.core_base_url || "",
-            node_name: payload.config.node_name || "",
-            selected_task_capabilities: payload.config.selected_task_capabilities || [],
-          });
-        }
-      } catch (fetchError) {
-        if (!active) {
-          return;
-        }
-        setError(fetchError.message);
       }
     }
 
-    loadBootstrap();
-    const intervalId = window.setInterval(loadBootstrap, 2000);
+    loadBootstrapActive();
+    const intervalId = window.setInterval(loadBootstrapActive, 2000);
 
     return () => {
       active = false;
       window.clearInterval(intervalId);
     };
   }, [touched]);
+
+  async function retryBackendConnection() {
+    if (retryingBackend) {
+      return;
+    }
+    setRetryingBackend(true);
+    try {
+      await loadBootstrap({ fromRetry: true });
+    } catch {
+      return;
+    }
+  }
 
   useEffect(() => {
     if (view !== "provider") {
@@ -3339,6 +3412,22 @@ export function App() {
               )}
             </div>
           </section>
+        </main>
+      </div>
+    );
+  }
+
+  if (!backendReachable) {
+    return (
+      <div className="shell">
+        <main className="app-frame">
+          <BackendUnavailableScreen
+            apiBase="/api/node/bootstrap"
+            error={error}
+            lastUpdatedAt={formatTelemetryTimestamp(uiUpdatedAt) || "never"}
+            retrying={retryingBackend}
+            onRetry={retryBackendConnection}
+          />
         </main>
       </div>
     );
