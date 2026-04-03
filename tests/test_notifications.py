@@ -183,3 +183,42 @@ async def test_action_required_email_notification_is_reusable_and_marks_message(
 
     assert sent_again is False
     assert len(mqtt_manager.notification_requests) == 1
+
+
+@pytest.mark.asyncio
+async def test_order_email_notification_uses_order_flag(config, core_client_factory):
+    mqtt_manager = FakeMQTTManager()
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=mqtt_manager)
+    service.state.trust_state = "trusted"
+    service.state.node_id = "node-1"
+    service.mqtt_manager.status.state = "connected"
+
+    store = GmailMessageStore(config.runtime_dir)
+    store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="msg-2",
+                subject="Your order has shipped",
+                sender="Store <orders@example.com>",
+                received_at=datetime(2026, 4, 3, 11, 0, 0),
+            )
+        ]
+    )
+
+    sent = service._notify_for_new_email_classification(
+        account_id="primary",
+        message_id="msg-2",
+        classification_label=GmailTrainingLabel.ORDER,
+        confidence=0.88,
+        source_component="gmail_local_classification",
+    )
+
+    assert sent is True
+    assert len(mqtt_manager.notification_requests) == 1
+    request = mqtt_manager.notification_requests[0]
+    assert request.content is not None
+    assert "Your order has shipped" in (request.content.message or "")
+    assert request.delivery is not None
+    assert request.delivery.urgency == "notification"
+    assert store.has_notification_label("primary", "msg-2", GmailTrainingLabel.ORDER.value) is True

@@ -29,6 +29,8 @@ The first repo-side notification implementation is wired to Gmail fetch schedule
 
 - success: node MQTT runtime connects to Core on startup
 - success: node MQTT runtime reconnects to Core after a disconnect
+- warning: newly auto-classified `action_required` emails notify with sender, subject, and confidence
+- info: newly auto-classified `order` emails notify with sender, subject, and confidence
 - warning: Gmail scheduling pauses because Gmail is disabled
 - warning: Gmail scheduling pauses because no eligible Gmail account is connected
 - error: Gmail fetch scheduler loop raises an exception

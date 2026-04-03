@@ -964,6 +964,13 @@ class NodeService:
                 "event_type": "gmail_action_required_email",
                 "summary": "New action-required email classified",
             },
+            GmailTrainingLabel.ORDER: {
+                "title": "Order email",
+                "severity": "info",
+                "urgency": "notification",
+                "event_type": "gmail_order_email",
+                "summary": "New order email classified",
+            },
         }
         spec = notification_specs.get(classification_label)
         if spec is None:

@@ -43,6 +43,3 @@ if it is not present and should be node-owned create a file with the new data in
 
 Do not edit above this line:
 #######################################################################
-
-[WIP] Task 085: Notifications for the "order" emails
-      - repeat the 084 for this classification

@@ -4,3 +4,12 @@ Chosen fix: Reuse the existing node-to-Core MQTT notification path and add per-m
 What changed: Added boolean notification flags in Gmail message storage, added a reusable classified-email notification helper in NodeService, and wired action-required notifications into both local-model and AI-model classification updates.
 Verification: `python -m py_compile src/*.py src/core/*.py src/providers/*.py src/providers/gmail/*.py tests/test_gmail_message_store.py tests/test_notifications.py` passed. Direct runtime smoke test could not run because this environment is missing Python dependencies such as `pydantic`.
 ###########
+Task #085
+Step objective: Extend the reusable classified-email notification path to order emails.
+Chosen fix: Reuse the same boolean DB flag pattern and service helper from Task 084, adding only the `order` delivery mapping and regression coverage.
+What changed: Enabled `order` notification emission with sender, subject, and confidence details, and added a matching test plus doc update.
+Verification: `python -m py_compile src/*.py src/core/*.py src/providers/*.py src/providers/gmail/*.py tests/test_gmail_message_store.py tests/test_notifications.py` passed.
+###########
+#############
+All Tasks completed 04/03/2026 15:41:43
+#############
