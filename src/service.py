@@ -757,7 +757,9 @@ class NodeService:
         cc_recipients = [address for _, address in getaddresses([header_map.get("cc", "")]) if address]
         if not to_recipients:
             to_recipients = [recipient for recipient in message.recipients if recipient]
+        normalized_body_text = normalize_email_for_classifier(message, my_addresses=my_addresses)
         return {
+            "text": normalized_body_text,
             "account_id": account_id,
             "message_id": message.message_id,
             "thread_id": message.thread_id or "",
@@ -769,7 +771,7 @@ class NodeService:
             "cc_recipients": cc_recipients,
             "labels": list(message.label_ids or []),
             "has_attachments": self._message_has_attachment(payload),
-            "body_text": normalize_email_for_classifier(message, my_addresses=my_addresses),
+            "body_text": normalized_body_text,
             "snippet": message.snippet or "",
         }
 

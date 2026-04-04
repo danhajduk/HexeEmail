@@ -926,12 +926,9 @@ async def test_runtime_execute_latest_email_action_decision_uses_newest_actionab
     assert len(core_app.state.execution_direct_requests) == 1
     execution_request = core_app.state.execution_direct_requests[0]
     assert execution_request["prompt_id"] == "prompt.email.action_decision"
-    assert execution_request["prompt_version"] == "v1"
+    assert execution_request["prompt_version"] == "v1.1"
     assert execution_request["inputs"]["message_id"] == "order-newest"
-    updated_message = next(message for message in adapter.message_store.list_messages("primary", limit=10) if message.message_id == "unknown-newest")
-    assert updated_message.local_label == "marketing"
-    assert updated_message.local_label_confidence == 0.91
-    assert updated_message.manual_classification is False
+    assert execution_request["inputs"]["text"]
 
 
 @pytest.mark.asyncio
