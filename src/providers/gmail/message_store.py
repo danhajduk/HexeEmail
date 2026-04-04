@@ -9,6 +9,7 @@ from pathlib import Path
 
 from providers.gmail.models import (
     GmailMailboxStatus,
+    GmailShipmentRecord,
     GmailSenderReputationInputs,
     GmailSenderReputationRecord,
     GmailSpamhausCheck,
@@ -65,6 +66,42 @@ class GmailMessageStore:
             self._ensure_column(connection, "gmail_messages", "action_decision_updated_at", "TEXT")
             self._ensure_column(connection, "gmail_messages", "action_decision_raw_response", "TEXT")
             self._ensure_column(connection, "gmail_messages", "action_decision_raw_response_updated_at", "TEXT")
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS gmail_shipment_records (
+                    account_id TEXT NOT NULL,
+                    record_id TEXT NOT NULL,
+                    seller TEXT,
+                    carrier TEXT,
+                    order_number TEXT,
+                    tracking_number TEXT,
+                    domain TEXT,
+                    last_known_status TEXT,
+                    last_seen_at TEXT,
+                    status_updated_at TEXT,
+                    updated_at TEXT,
+                    PRIMARY KEY (account_id, record_id)
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_gmail_shipment_records_account_updated
+                ON gmail_shipment_records(account_id, updated_at DESC)
+                """
+            )
+            connection.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_gmail_shipment_records_account_tracking
+                ON gmail_shipment_records(account_id, tracking_number)
+                """
+            )
+            connection.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_gmail_shipment_records_account_order
+                ON gmail_shipment_records(account_id, order_number)
+                """
+            )
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS gmail_spamhaus_checks (
@@ -704,6 +741,107 @@ class GmailMessageStore:
                 (serialized_payload, debug_updated_at.isoformat(), account_id, message_id),
             )
             connection.commit()
+
+    def upsert_shipment_record(
+        self,
+        record: GmailShipmentRecord,
+        *,
+        now: datetime | None = None,
+    ) -> GmailShipmentRecord:
+        updated_at = record.updated_at or now or datetime.now().astimezone()
+        persisted = record.model_copy(update={"updated_at": updated_at})
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO gmail_shipment_records (
+                    account_id,
+                    record_id,
+                    seller,
+                    carrier,
+                    order_number,
+                    tracking_number,
+                    domain,
+                    last_known_status,
+                    last_seen_at,
+                    status_updated_at,
+                    updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(account_id, record_id) DO UPDATE SET
+                    seller=excluded.seller,
+                    carrier=excluded.carrier,
+                    order_number=excluded.order_number,
+                    tracking_number=excluded.tracking_number,
+                    domain=excluded.domain,
+                    last_known_status=excluded.last_known_status,
+                    last_seen_at=excluded.last_seen_at,
+                    status_updated_at=excluded.status_updated_at,
+                    updated_at=excluded.updated_at
+                """,
+                (
+                    persisted.account_id,
+                    persisted.record_id,
+                    persisted.seller,
+                    persisted.carrier,
+                    persisted.order_number,
+                    persisted.tracking_number,
+                    persisted.domain,
+                    persisted.last_known_status,
+                    persisted.last_seen_at.isoformat() if persisted.last_seen_at else None,
+                    persisted.status_updated_at.isoformat() if persisted.status_updated_at else None,
+                    updated_at.isoformat(),
+                ),
+            )
+            connection.commit()
+        return persisted
+
+    def list_shipment_records(self, account_id: str) -> list[GmailShipmentRecord]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    account_id,
+                    record_id,
+                    seller,
+                    carrier,
+                    order_number,
+                    tracking_number,
+                    domain,
+                    last_known_status,
+                    last_seen_at,
+                    status_updated_at,
+                    updated_at
+                FROM gmail_shipment_records
+                WHERE account_id = ?
+                ORDER BY updated_at DESC, record_id ASC
+                """,
+                (account_id,),
+            ).fetchall()
+        return [self._row_to_shipment_record(row) for row in rows]
+
+    def get_shipment_record(self, account_id: str, record_id: str) -> GmailShipmentRecord | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT
+                    account_id,
+                    record_id,
+                    seller,
+                    carrier,
+                    order_number,
+                    tracking_number,
+                    domain,
+                    last_known_status,
+                    last_seen_at,
+                    status_updated_at,
+                    updated_at
+                FROM gmail_shipment_records
+                WHERE account_id = ?
+                  AND record_id = ?
+                LIMIT 1
+                """,
+                (account_id, record_id),
+            ).fetchone()
+        return self._row_to_shipment_record(row) if row is not None else None
 
     def get_runtime_setting(
         self,
@@ -1503,6 +1641,21 @@ class GmailMessageStore:
                 spamhaus_listed_count=int(row["spamhaus_listed_count"] or 0),
             ),
             last_seen_at=datetime.fromisoformat(row["last_seen_at"]) if row["last_seen_at"] else None,
+            updated_at=datetime.fromisoformat(row["updated_at"]) if row["updated_at"] else None,
+        )
+
+    def _row_to_shipment_record(self, row: sqlite3.Row) -> GmailShipmentRecord:
+        return GmailShipmentRecord(
+            account_id=row["account_id"],
+            record_id=row["record_id"],
+            seller=row["seller"],
+            carrier=row["carrier"],
+            order_number=row["order_number"],
+            tracking_number=row["tracking_number"],
+            domain=row["domain"],
+            last_known_status=row["last_known_status"],
+            last_seen_at=datetime.fromisoformat(row["last_seen_at"]) if row["last_seen_at"] else None,
+            status_updated_at=datetime.fromisoformat(row["status_updated_at"]) if row["status_updated_at"] else None,
             updated_at=datetime.fromisoformat(row["updated_at"]) if row["updated_at"] else None,
         )
 

@@ -108,3 +108,6 @@ Task 107: Fetch full Gmail message before AI action decision - Completed on 04/0
 Task 108: Build text-only full-email extraction for AI action decision - Completed on 04/03/2026 19:23
 Task 109: Investigate summarization prompt read 400 not registered - Completed on 04/03/2026 19:28
 Task 110: Add monthly runtime resolve and authorize task - Completed on 04/03/2026 19:45
+Task 111: Expand shipment tracking fields in action decision output - Completed on 04/03/2026 20:46
+Task 112: Send subject and text-only mail body in AI email prompts - Completed on 04/03/2026 20:46
+Task 113: Add lightweight local shipment email scrubber for existing orders only - Completed on 04/03/2026 21:06

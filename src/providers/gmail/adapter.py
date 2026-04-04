@@ -30,6 +30,7 @@ from providers.gmail.quota_tracker import GmailQuotaTracker
 from providers.gmail.reputation import build_sender_reputation_records, sender_matches_reputation_entity
 from providers.gmail.spamhaus_checker import GmailSpamhausChecker
 from providers.gmail.state_machine import GmailAccountStateMachine
+from providers.gmail.shipment_email_reconciler import GmailShipmentEmailReconciler
 from providers.gmail.token_client import GmailTokenExchangeClient
 from providers.gmail.token_store import GmailTokenStore
 from providers.gmail.training import flatten_message, render_flat_training_text, render_raw_training_text
@@ -70,6 +71,7 @@ class GmailProviderAdapter(EmailProviderAdapter):
         self.spamhaus_checker = GmailSpamhausChecker()
         self.training_model_store = GmailTrainingModelStore(runtime_dir, message_store=self.message_store)
         self.health_evaluator = GmailHealthEvaluator()
+        self.shipment_email_reconciler = GmailShipmentEmailReconciler(self.message_store)
 
     async def validate_static_config(self) -> ProviderValidationResult:
         try:
@@ -230,6 +232,8 @@ class GmailProviderAdapter(EmailProviderAdapter):
         async for batch_messages in self.mailbox_client.iter_message_batches(token_record=token_record, query=query):
             fetched_count += len(batch_messages)
             stored_count += self.message_store.upsert_messages(batch_messages)
+            for message in batch_messages:
+                self.shipment_email_reconciler.process_message(account_id, message)
         summary = self.message_store.account_summary(account_id)
         window_reason = reason if reason in {"scheduled", "manual", "auto"} else "manual"
         if window in {"yesterday", "today", "last_hour"}:

@@ -6,6 +6,7 @@ from providers.gmail.message_store import GmailMessageStore
 from providers.gmail.models import (
     GmailSenderReputationInputs,
     GmailSenderReputationRecord,
+    GmailShipmentRecord,
     GmailSpamhausCheck,
     GmailStoredMessage,
     GmailTrainingLabel,
@@ -463,3 +464,34 @@ def test_gmail_message_store_updates_manual_sender_reputation_rating(runtime_dir
     assert updated.derived_rating == 1.0
     assert updated.rating == -3.0
     assert updated.reputation_state == "risky"
+
+
+def test_gmail_message_store_persists_shipment_records(runtime_dir):
+    store = GmailMessageStore(runtime_dir)
+
+    persisted = store.upsert_shipment_record(
+        GmailShipmentRecord(
+            account_id="primary",
+            record_id="ship-1",
+            seller="amazon",
+            carrier="fedex",
+            order_number="111-1234567-1234567",
+            tracking_number="449044304137821",
+            domain="amazon.com",
+            last_known_status="in transit",
+            last_seen_at=datetime(2026, 4, 3, 12, 0, 0),
+            status_updated_at=datetime(2026, 4, 3, 12, 0, 0),
+        ),
+        now=datetime(2026, 4, 3, 12, 5, 0),
+    )
+    listed = store.list_shipment_records("primary")
+    loaded = store.get_shipment_record("primary", "ship-1")
+
+    assert persisted.updated_at == datetime(2026, 4, 3, 12, 5, 0)
+    assert len(listed) == 1
+    assert listed[0].record_id == "ship-1"
+    assert loaded is not None
+    assert loaded.seller == "amazon"
+    assert loaded.carrier == "fedex"
+    assert loaded.tracking_number == "449044304137821"
+    assert loaded.last_known_status == "in transit"

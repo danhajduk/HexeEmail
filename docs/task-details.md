@@ -262,3 +262,225 @@ Original task details:
 - this task should run task resolve and authorize with Core
 - keep it visible in the scheduled tasks table with the proper schedule template/legend entry
 - persist last/next execution state like the other scheduled runtime tasks
+
+## Task 111
+Original task details:
+- update the action-decision shipment structure so `tracking_signals` is more detailed
+- replace the current loose shipment payload with fields that explicitly cover:
+  - current status
+  - seller
+  - carrier
+  - order number
+  - tracking number
+- update the prompt JSON, node schema validation, and any persistence/notification formatting that reads these fields
+- keep the action-decision output structured and schema-validated
+
+## Task 112
+Original task details:
+- change the AI email prompt input shape so the mail is sent like:
+  - `subject: <subject>`
+  - `mail body:`
+  - `<text only body>`
+- use text-only body content for the AI request
+- keep subject separated from body instead of blending everything into one generic normalized block
+- apply this where AI email prompts are built, especially the action-decision path
+
+## Task 113
+Original task details:
+- create a lightweight local-only shipment email scrubber for the Email Node
+- this scrubber must NOT use AI
+- this scrubber must only process emails when there is already an existing order in the local database
+- keep it deterministic and cost-saving by skipping unnecessary parsing/model calls
+- use existing local order/shipment records plus sender-domain matching
+- do not build a generic email classifier or a broad scraper for all emails
+- do not call OpenAI or any other provider in this flow
+
+Existing local DB data model assumption:
+- seller
+- carrier
+- order_number
+- tracking_number
+- domain
+- last_known_status
+
+Behavior requirements:
+- only run for known shipment/order domains that are explicitly supported
+- only run if there is already an existing matching order in the DB
+- if there is no existing order match, skip processing entirely
+- stay lightweight and deterministic
+- do not infer unrelated orders across unrelated sellers/domains
+- no AI fallback in this task
+
+Core matching rule:
+- only process an email if it can be associated with an existing order or shipment record
+
+Important domain rule:
+- if there is an order from Amazon and the email is from FedEx, do NOT check it by default
+- if that Amazon order already has a FedEx tracking number or `carrier=FedEx`, then FedEx emails for that tracking number MAY be checked
+- seller/source domain alone must not authorize unrelated carrier mail
+- carrier mail is allowed only when that carrier is already linked to an existing order
+- seller mail is allowed only for that seller/domain's existing orders
+
+Examples:
+- existing order: seller=amazon, domain=amazon.com, no carrier yet, no tracking yet
+  - incoming email from `fedex.com` -> skip
+- existing order: seller=amazon, domain=amazon.com, carrier=fedex, tracking_number=449044304137821
+  - incoming email from `fedex.com` mentioning that tracking number -> process
+- existing order: seller=amazon, domain=amazon.com, order_number=111-1234567-1234567
+  - incoming email from `amazon.com` mentioning that order -> process
+- no existing order at all
+  - incoming email from `fedex.com` -> skip
+
+Deliverables:
+- add a lightweight local shipment email scrubber/reconciler service
+- add deterministic domain and identifier matching rules
+- add DB lookup/update flow for existing orders only
+- add tests covering allowed and denied processing cases
+- add docs for the local scrubber behavior and boundaries
+
+Implementation requirements:
+- create a service/module such as `local_shipment_email_scrubber.py` or `shipment_email_reconciler.py`
+- inspect incoming email metadata and parsed text
+- resolve sender domain
+- extract candidate order/tracking references using lightweight local regex rules
+- determine whether the email is eligible for local processing
+- find an existing matching order/shipment record
+- update status fields only when allowed
+
+Keep it lightweight:
+- allowed: simple regex, string normalization, exact or near-exact DB matching, deterministic domain allowlists/mappings
+- not allowed: LLM calls, embeddings, fuzzy AI extraction, heavy NLP libraries, broad classification logic
+
+Domain/source rules:
+- implement explicit supported-domain handling for the first batch only
+- examples may include:
+  - `amazon.com`
+  - `fedex.com`
+  - `ups.com`
+  - `usps.com`
+  - `dhl.com`
+  - `doordash.com`
+- use a simple mapping layer:
+  - sender domain -> source type
+  - source type -> supported identifier types
+- example source types:
+  - seller
+  - carrier
+
+Eligibility gate:
+- normalize sender domain
+- determine source type
+- search for an existing relevant order/shipment record
+- if no relevant existing record exists, stop immediately and return `skipped`
+- this gate is critical; the scrubber must be existing-order-only
+
+Matching strategy priority:
+- `tracking_number` exact normalized match
+- `order_number + domain` exact normalized match
+- `order_number + seller` exact normalized match
+
+Safety rules:
+- seller-origin email may match seller/domain-linked existing orders
+- carrier-origin email may match only when the existing order already has the same carrier or the same tracking number
+- do not attach a FedEx email to an Amazon order just because both mention shipping language
+- do not create a new order from a carrier email in this task
+- do not create a new order from a seller email in this task
+
+Normalization helpers:
+- domain: lowercase, trim
+- seller/carrier names: lowercase canonical mapping
+- order numbers: trim, uppercase if needed, comparison-safe normalized value
+- tracking numbers: trim, uppercase, remove spaces/dashes when appropriate for comparison
+- avoid a large DB redesign unless clearly needed
+
+Candidate extraction:
+- lightweight extraction only for:
+  - tracking numbers
+  - order numbers
+  - status phrases
+- suggested initial patterns:
+  - Amazon order numbers like `111-1234567-1234567`
+  - UPS tracking numbers beginning with `1Z`
+  - common FedEx numeric tracking lengths
+  - USPS common numeric patterns
+  - DHL common numeric patterns
+
+Status update behavior:
+- when a valid existing match is found, allow updating:
+  - `last_known_status`
+  - `last_seen_at` if present
+  - `status_updated_at` if present
+  - `carrier` if missing and now confidently known
+  - `tracking_number` if missing and confidently matched from a seller-origin email tied to the same existing order
+- do not overwrite good data with weak guesses
+- if there is ambiguity, skip
+
+Return/result contract:
+- `action`: `skipped | matched | updated | ignored`
+- `reason_code`
+- `matched_record_id`
+- `matched_by`: `tracking_number | order_number_domain | order_number_seller`
+- `sender_domain`
+- `source_type`
+- `extracted_order_number`
+- `extracted_tracking_number`
+- `status_update_applied`
+
+Suggested reason codes:
+- `unsupported_domain`
+- `no_existing_order`
+- `carrier_not_linked_to_existing_order`
+- `tracking_mismatch`
+- `order_mismatch`
+- `ambiguous_match`
+- `matched_existing_order`
+- `updated_existing_order`
+
+No creation behavior:
+- do not create new order/shipment rows in this task
+- update-only for already-existing records
+- if no existing record matches, skip cleanly
+
+Logging:
+- log sender domain
+- log source type
+- log eligibility decision
+- log match method
+- log update applied or skipped reason
+- avoid logging secrets or full sensitive payloads unnecessarily
+
+Tests:
+- existing Amazon order, Amazon email, matching order number -> allowed
+- existing Amazon order, FedEx email, no linked FedEx carrier/tracking -> skipped
+- existing Amazon order with linked FedEx tracking, FedEx email with same tracking -> allowed
+- existing Amazon order with linked UPS tracking, FedEx email -> skipped
+- no existing order, seller email -> skipped
+- no existing order, carrier email -> skipped
+- ambiguous match -> skipped
+- unsupported domain -> skipped
+- existing record matched by tracking number -> updates status
+- existing seller email fills missing tracking number only when the order match is already established
+
+Docs:
+- describe that this is a local deterministic scrubber
+- it is existing-order-only
+- it does not use AI
+- it does not create new orders
+- carrier mail is only processed when the carrier is already linked to the order or tracking number
+
+Constraints:
+- keep code small and maintainable
+- avoid refactoring unrelated systems
+- do not redesign the entire email pipeline
+- integrate cleanly with the current email node flow
+- preserve current contracts unless a tiny extension is necessary
+
+Definition of done:
+- local scrubber exists and is wired into the email processing path
+- it only processes emails for existing orders
+- it respects seller/carrier domain safety rules
+- it updates existing records deterministically
+- it never calls AI
+- it never creates new records in this task
+- tests pass
+- docs updated

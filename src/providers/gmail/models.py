@@ -309,6 +309,36 @@ class GmailSenderReputationManualRatingInput(BaseModel):
     note: str | None = None
 
 
+class GmailShipmentRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    account_id: str
+    record_id: str
+    seller: str | None = None
+    carrier: str | None = None
+    order_number: str | None = None
+    tracking_number: str | None = None
+    domain: str | None = None
+    last_known_status: str | None = None
+    last_seen_at: datetime | None = None
+    status_updated_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class GmailShipmentScrubResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    action: Literal["skipped", "matched", "updated", "ignored"] = "skipped"
+    reason_code: str
+    matched_record_id: str | None = None
+    matched_by: Literal["tracking_number", "order_number_domain", "order_number_seller"] | None = None
+    sender_domain: str | None = None
+    source_type: Literal["seller", "carrier", "unknown"] | None = None
+    extracted_order_number: str | None = None
+    extracted_tracking_number: str | None = None
+    status_update_applied: bool = False
+
+
 class GmailTrainingDatasetRow(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
