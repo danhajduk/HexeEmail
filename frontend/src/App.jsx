@@ -259,28 +259,38 @@ function formatScheduleTimestamp(value) {
   return formatTelemetryTimestamp(value);
 }
 
-function deriveModelTrainingWarning(modelStatus, providerConnected) {
+function deriveModelTrainingState(modelStatus, providerConnected) {
   if (!providerConnected) {
     return null;
   }
-  if (!modelStatus?.trained_at) {
+  if (!modelStatus?.trained || !modelStatus?.trained_at) {
     return {
-      label: "Model untrained",
+      label: "untrained",
+      tone: "danger",
       detail: "Local classifier has not been trained yet.",
     };
   }
   const trainedAt = new Date(modelStatus.trained_at);
   if (Number.isNaN(trainedAt.getTime())) {
-    return null;
+    return {
+      label: "degraded",
+      tone: "warning",
+      detail: "Local classifier metadata is missing a valid training timestamp.",
+    };
   }
   const ageMs = Date.now() - trainedAt.getTime();
   const staleMs = MODEL_TRAINING_STALE_DAYS * 24 * 60 * 60 * 1000;
   if (ageMs < staleMs) {
-    return null;
+    return {
+      label: "trained",
+      tone: "success",
+      detail: `Last local model training was ${formatTelemetryTimestamp(modelStatus.trained_at)}.`,
+    };
   }
   const ageDays = Math.floor(ageMs / (24 * 60 * 60 * 1000));
   return {
-    label: `Model stale (${ageDays}d)`,
+    label: "degraded",
+    tone: "warning",
     detail: `Last local model training was ${ageDays} days ago.`,
   };
 }
@@ -3208,7 +3218,7 @@ export function App() {
   const lastHeartbeatAt = mqttHealth?.last_status_report_at || status?.last_heartbeat_at || null;
   const mqttConnected = status?.mqtt_connection_status === "connected" || mqttHealth?.health_status === "connected";
   const mqttTelemetryFresh = mqttHealth?.status_freshness_state === "fresh";
-  const modelTrainingWarning = deriveModelTrainingWarning(gmailPrimaryModelStatus, providerConnected);
+  const modelTrainingState = deriveModelTrainingState(gmailPrimaryModelStatus, providerConnected);
   const runtimeResolved = runtimeTaskStatus?.resolve_response || null;
   const runtimeAuthorized = runtimeTaskStatus?.authorize_response || null;
   const runtimePreview = runtimeTaskStatus?.preview_response || null;
@@ -3370,9 +3380,9 @@ export function App() {
                     {providerSummary?.provider_state === "connected" ? "Gmail connected" : "Gmail pending"}
                   </span>
                 </span>
-                {modelTrainingWarning ? (
-                  <span className={healthSeverityClass("warning", [], ["configured"])}>
-                    <span className="status-badge">{modelTrainingWarning.label}</span>
+                {modelTrainingState ? (
+                  <span className={`status-pill tone-${modelTrainingState.tone}`}>
+                    model: {modelTrainingState.label}
                   </span>
                 ) : null}
               </div>
@@ -3406,9 +3416,9 @@ export function App() {
               <span className="muted tiny">
                 Node: <code>{status?.node_id || "pending"}</code>
               </span>
-              {modelTrainingWarning ? (
+              {modelTrainingState ? (
                 <span className="muted tiny">
-                  Model: <code>{modelTrainingWarning.detail}</code>
+                  Model: <code>{modelTrainingState.detail}</code>
                 </span>
               ) : null}
             </div>
