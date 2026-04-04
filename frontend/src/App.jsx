@@ -820,6 +820,50 @@ function buildGmailWindowSettings(fetchSchedule) {
   ];
 }
 
+const FALLBACK_SCHEDULED_TASK_LEGEND = [
+  { name: "daily", detail: "Every day at 00:01" },
+  { name: "weekly", detail: "Monday 00:01" },
+  { name: "4_times_a_day", detail: "00:00, 06:00, 12:00, 18:00" },
+  { name: "every_5_minutes", detail: "00:05, 00:10, 00:15, ..." },
+  { name: "hourly", detail: "Hourly at :00" },
+  { name: "bi_weekly", detail: "Every 2 weeks" },
+  { name: "monthly", detail: "Monthly" },
+  { name: "every_other_day", detail: "Every other day" },
+  { name: "twice_a_week", detail: "Twice a week" },
+  { name: "on_start", detail: "Runs on startup" },
+];
+
+function deriveScheduledTaskSchedule(task) {
+  const scheduleName = task?.schedule_name;
+  const scheduleDetail = task?.schedule_detail;
+  if (scheduleName || scheduleDetail) {
+    return {
+      scheduleName: scheduleName || "custom",
+      scheduleDetail: scheduleDetail || task?.schedule || "-",
+    };
+  }
+  const legacySchedule = String(task?.schedule || "").trim();
+  if (legacySchedule === "00:01 daily") {
+    return { scheduleName: "daily", scheduleDetail: "Every day at 00:01" };
+  }
+  if (legacySchedule === "00:00, 06:00, 12:00, 18:00") {
+    return { scheduleName: "4_times_a_day", scheduleDetail: legacySchedule };
+  }
+  if (legacySchedule === "Every 5 minutes" || legacySchedule === "00, 05, 10, 15, ...") {
+    return { scheduleName: "every_5_minutes", scheduleDetail: "00:05, 00:10, 00:15, ..." };
+  }
+  if (legacySchedule === "Hourly at :00") {
+    return { scheduleName: "hourly", scheduleDetail: legacySchedule };
+  }
+  if (legacySchedule === "Weekly") {
+    return { scheduleName: "weekly", scheduleDetail: "Monday 00:01" };
+  }
+  return {
+    scheduleName: legacySchedule ? "custom" : "-",
+    scheduleDetail: legacySchedule || "-",
+  };
+}
+
 function scheduledTaskStatusTone(value) {
   if (value === "active") {
     return "success";
@@ -3213,7 +3257,15 @@ export function App() {
   const gmailLastHourPipelinePills = buildGmailLastHourPipelinePills(gmailLastHourPipeline);
   const gmailWindowSettings = buildGmailWindowSettings(gmailFetchSchedule);
   const scheduledTasks = Array.isArray(bootstrap?.scheduled_tasks) ? bootstrap.scheduled_tasks : [];
-  const scheduledTasksSorted = [...scheduledTasks].sort((left, right) => {
+  const scheduledTasksNormalized = scheduledTasks.map((task) => {
+    const derivedSchedule = deriveScheduledTaskSchedule(task);
+    return {
+      ...task,
+      schedule_name: derivedSchedule.scheduleName,
+      schedule_detail: derivedSchedule.scheduleDetail,
+    };
+  });
+  const scheduledTasksSorted = [...scheduledTasksNormalized].sort((left, right) => {
     const leftTime = left?.next_execution_at ? new Date(left.next_execution_at).getTime() : Number.POSITIVE_INFINITY;
     const rightTime = right?.next_execution_at ? new Date(right.next_execution_at).getTime() : Number.POSITIVE_INFINITY;
     const safeLeftTime = Number.isNaN(leftTime) ? Number.POSITIVE_INFINITY : leftTime;
@@ -3223,7 +3275,9 @@ export function App() {
     }
     return String(left?.title || left?.task_id || "").localeCompare(String(right?.title || right?.task_id || ""));
   });
-  const scheduledTaskLegend = Array.isArray(bootstrap?.scheduled_task_legend) ? bootstrap.scheduled_task_legend : [];
+  const scheduledTaskLegend = Array.isArray(bootstrap?.scheduled_task_legend) && bootstrap.scheduled_task_legend.length
+    ? bootstrap.scheduled_task_legend
+    : FALLBACK_SCHEDULED_TASK_LEGEND;
   const mqttHealth = status?.mqtt_health || {};
   const lastHeartbeatAt = mqttHealth?.last_status_report_at || status?.last_heartbeat_at || null;
   const mqttConnected = status?.mqtt_connection_status === "connected" || mqttHealth?.health_status === "connected";
