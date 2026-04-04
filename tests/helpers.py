@@ -235,9 +235,11 @@ def build_core_app():
                     ],
                     "tracking_signals": {
                         "is_shipment_related": False,
+                        "current_status": None,
+                        "seller": None,
                         "carrier": None,
-                        "tracking_numbers": [],
-                        "delivery_status": None,
+                        "order_number": None,
+                        "tracking_number": None,
                     },
                     "calendar_signals": {
                         "has_calendar_invite": False,

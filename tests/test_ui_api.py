@@ -1002,14 +1002,14 @@ async def test_runtime_execute_latest_email_action_decision_uses_newest_actionab
     saved = adapter.message_store.get_message("primary", "order-newest")
     assert saved is not None
     assert saved.action_decision_raw_response is not None
-    assert saved.action_decision_raw_response["prompt_version"] == "v1.3"
+    assert saved.action_decision_raw_response["prompt_version"] == "v1.5"
     assert saved.action_decision_raw_response["validation_error"] is None
     assert len(core_app.state.execution_direct_requests) == 1
     execution_request = core_app.state.execution_direct_requests[0]
     assert execution_request["prompt_id"] == "prompt.email.action_decision"
-    assert execution_request["prompt_version"] == "v1.3"
+    assert execution_request["prompt_version"] == "v1.5"
     assert execution_request["inputs"]["message_id"] == "order-newest"
-    assert execution_request["inputs"]["text"] == "Full email body for action decision."
+    assert execution_request["inputs"]["text"] == "subject: Newest order\nmail body:\nFull email body for action decision."
     assert execution_request["inputs"]["body_text"] == "Full email body for action decision."
 
 
@@ -1091,7 +1091,7 @@ async def test_runtime_execute_latest_email_action_decision_rejects_partial_outp
     assert saved is not None
     assert saved.action_decision_payload is None
     assert saved.action_decision_raw_response is not None
-    assert saved.action_decision_raw_response["prompt_version"] == "v1.3"
+    assert saved.action_decision_raw_response["prompt_version"] == "v1.5"
     assert "missing required field summary" in str(saved.action_decision_raw_response["validation_error"])
 
 

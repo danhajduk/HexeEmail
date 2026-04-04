@@ -896,13 +896,15 @@ class NodeService:
             to_recipients = [recipient for recipient in message.recipients if recipient]
         extracted_text = str(full_message_text or "").strip()
         normalized_body_text = extracted_text or normalize_email_for_classifier(message, my_addresses=my_addresses)
+        subject_text = str(message.subject or "").strip()
+        prompt_text = f"subject: {subject_text}\nmail body:\n{normalized_body_text}" if normalized_body_text else f"subject: {subject_text}\nmail body:\n"
         return {
-            "text": normalized_body_text,
+            "text": prompt_text,
             "account_id": account_id,
             "message_id": message.message_id,
             "thread_id": message.thread_id or "",
             "received_at": message.received_at.isoformat(),
-            "subject": message.subject or "",
+            "subject": subject_text,
             "from_name": from_name or "",
             "from_email": from_email or "",
             "to_recipients": to_recipients,
@@ -1857,11 +1859,12 @@ class NodeService:
                     lines.append(f"- {self._format_action_name(action_name)}")
         tracking_signals = action_decision.get("tracking_signals")
         if isinstance(tracking_signals, dict) and bool(tracking_signals.get("is_shipment_related")):
+            current_status = str(tracking_signals.get("current_status") or "").strip()
+            seller = str(tracking_signals.get("seller") or "").strip()
             carrier = str(tracking_signals.get("carrier") or "").strip()
-            delivery_status = str(tracking_signals.get("delivery_status") or "").strip()
-            tracking_numbers = tracking_signals.get("tracking_numbers")
-            tracking_numbers_text = ", ".join(str(item).strip() for item in tracking_numbers or [] if str(item).strip())
-            tracking_parts = [part for part in [carrier, delivery_status, tracking_numbers_text] if part]
+            order_number = str(tracking_signals.get("order_number") or "").strip()
+            tracking_number = str(tracking_signals.get("tracking_number") or "").strip()
+            tracking_parts = [part for part in [current_status, seller, carrier, order_number, tracking_number] if part]
             if tracking_parts:
                 lines.append(f"Tracking: {' | '.join(tracking_parts)}")
         time_signals = action_decision.get("time_signals")
