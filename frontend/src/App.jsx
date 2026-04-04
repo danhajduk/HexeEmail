@@ -67,7 +67,7 @@ const DASHBOARD_SECTIONS = new Set(["overview", "gmail", "runtime"]);
 function parseHashRoute(hash) {
   const normalized = String(hash || "").replace(/^#\/?/, "").replace(/^\/+|\/+$/g, "");
   if (!normalized) {
-    return { view: "setup", dashboardSection: "overview" };
+    return { view: "dashboard", dashboardSection: "overview" };
   }
 
   const [head, tail] = normalized.split("/");
@@ -77,6 +77,9 @@ function parseHashRoute(hash) {
   }
   if (head === "provider") {
     return { view: "provider", dashboardSection: "overview" };
+  }
+  if (head === "training" && tail === "reputation") {
+    return { view: "training_reputation", dashboardSection: "overview" };
   }
   if (head === "training") {
     return { view: "training", dashboardSection: "overview" };
@@ -95,8 +98,13 @@ function buildHashRoute(view, dashboardSection) {
   if (view === "training") {
     return "#/training";
   }
+  if (view === "training_reputation") {
+    return "#/training/reputation";
+  }
   return "#/setup";
 }
+
+const MODEL_TRAINING_STALE_DAYS = 14;
 
 async function fetchJson(url, options) {
   const response = await fetch(url, {
@@ -251,6 +259,32 @@ function formatScheduleTimestamp(value) {
   return formatTelemetryTimestamp(value);
 }
 
+function deriveModelTrainingWarning(modelStatus, providerConnected) {
+  if (!providerConnected) {
+    return null;
+  }
+  if (!modelStatus?.trained_at) {
+    return {
+      label: "Model untrained",
+      detail: "Local classifier has not been trained yet.",
+    };
+  }
+  const trainedAt = new Date(modelStatus.trained_at);
+  if (Number.isNaN(trainedAt.getTime())) {
+    return null;
+  }
+  const ageMs = Date.now() - trainedAt.getTime();
+  const staleMs = MODEL_TRAINING_STALE_DAYS * 24 * 60 * 60 * 1000;
+  if (ageMs < staleMs) {
+    return null;
+  }
+  const ageDays = Math.floor(ageMs / (24 * 60 * 60 * 1000));
+  return {
+    label: `Model stale (${ageDays}d)`,
+    detail: `Last local model training was ${ageDays} days ago.`,
+  };
+}
+
 function backendUnavailableMessage(error) {
   return error || "backend unavailable";
 }
@@ -277,6 +311,78 @@ function formatSenderReputationInputs(inputs) {
     `clean ${value.spamhaus_clean_count ?? 0}`,
     `listed ${value.spamhaus_listed_count ?? 0}`,
   ].join(" · ");
+}
+
+const SENDER_REPUTATION_FILTERS = [
+  { value: "all", label: "All" },
+  { value: "trusted", label: "Trusted" },
+  { value: "neutral", label: "Neutral" },
+  { value: "risky", label: "Risky" },
+  { value: "blocked", label: "Blocked" },
+];
+
+const SENDER_REPUTATION_MANUAL_ACTIONS = [
+  { label: "Mark Trusted", value: 2.0 },
+  { label: "Mark Neutral", value: 0.0 },
+  { label: "Mark Risky", value: -2.0 },
+  { label: "Block", value: -4.0 },
+];
+
+function senderReputationEntityLabel(entityType) {
+  if (entityType === "business_domain") {
+    return "Business Domain";
+  }
+  if (entityType === "domain") {
+    return "Sender Domain";
+  }
+  return "Sender";
+}
+
+function groupSenderReputationRecords(records, riskFilter = "all") {
+  const filteredRecords = (records || []).filter((record) => {
+    if (riskFilter === "all") {
+      return true;
+    }
+    return record.reputation_state === riskFilter;
+  });
+  const groupsByDomain = new Map();
+  filteredRecords.forEach((record) => {
+    const domainKey = record.group_domain || record.sender_domain || record.sender_value || "unknown";
+    const currentGroup = groupsByDomain.get(domainKey) || {
+      key: domainKey,
+      domain: domainKey,
+      records: [],
+    };
+    currentGroup.records.push(record);
+    groupsByDomain.set(domainKey, currentGroup);
+  });
+  return Array.from(groupsByDomain.values())
+    .map((group) => {
+      const sortedRecords = [...group.records].sort((left, right) => {
+        const priority = {
+          business_domain: 0,
+          domain: 1,
+          email: 2,
+        };
+        const leftPriority = priority[left.entity_type] ?? 99;
+        const rightPriority = priority[right.entity_type] ?? 99;
+        if (leftPriority !== rightPriority) {
+          return leftPriority - rightPriority;
+        }
+        return String(left.sender_value || "").localeCompare(String(right.sender_value || ""));
+      });
+      const summaryRecord =
+        sortedRecords.find((record) => record.entity_type === "business_domain") ||
+        sortedRecords.find((record) => record.entity_type === "domain" && record.sender_value === group.domain) ||
+        sortedRecords[0] ||
+        null;
+      return {
+        ...group,
+        records: sortedRecords,
+        summaryRecord,
+      };
+    })
+    .sort((left, right) => String(left.domain).localeCompare(String(right.domain)));
 }
 
 function BackendUnavailableScreen({
@@ -324,6 +430,8 @@ function SenderReputationPanel({
   error,
   onInspect,
   onClear,
+  showRecords = true,
+  showDetail = true,
   emptyMessage = "No sender reputation records yet.",
 }) {
   const records = summary?.records || [];
@@ -336,7 +444,7 @@ function SenderReputationPanel({
         <div className="callout">Risky: {summary?.by_state?.risky ?? 0}</div>
         <div className="callout">Blocked: {summary?.by_state?.blocked ?? 0}</div>
       </div>
-      {records.length ? (
+      {showRecords && records.length ? (
         <div className="sender-reputation-list">
           {records.map((record) => (
             <div key={`${record.entity_type}:${record.sender_value}`} className="sender-reputation-item">
@@ -362,11 +470,11 @@ function SenderReputationPanel({
             </div>
           ))}
         </div>
-      ) : (
+      ) : showRecords ? (
         <div className="callout">{emptyMessage}</div>
-      )}
+      ) : null}
       {error ? <div className="callout callout-danger">{error}</div> : null}
-      {detail ? (
+      {showDetail && detail ? (
         <div className="sender-reputation-detail">
           <div className="sender-reputation-detail-header">
             <div>
@@ -413,6 +521,248 @@ function SenderReputationPanel({
         </div>
       ) : null}
     </div>
+  );
+}
+
+function SenderReputationPage({
+  summary,
+  loading,
+  error,
+  detail,
+  detailLoading,
+  detailError,
+  notice,
+  onBack,
+  onInspect,
+  onClear,
+  filterValue,
+  onFilterChange,
+  collapsedGroups,
+  onToggleGroup,
+  manualNote,
+  onManualNoteChange,
+  manualSavePending,
+  onApplyManualRating,
+  onClearManualRating,
+}) {
+  const groups = groupSenderReputationRecords(summary?.records || [], filterValue);
+  const selectedRecord = detail?.record || null;
+
+  return (
+    <main className="app-frame">
+      <section className="hero card">
+        <div>
+          <div className="hero-topline">
+            <div className="eyebrow">Hexe Email Node</div>
+            <div className="status-pill tone-warning">gmail: sender reputation</div>
+          </div>
+          <h1>Sender Reputation</h1>
+          <p className="hero-copy">
+            Inspect sender and domain reputation derived from local classifications and Spamhaus results.
+          </p>
+        </div>
+      </section>
+
+      <section className="app-shell">
+        <aside className="card stack flow-sidebar">
+          <div className="section-heading">
+            <h2>Sender Reputation</h2>
+            <span className="pill">{summary?.total_count ?? 0} records</span>
+          </div>
+          <div className="stack compact-stack">
+            <button className="btn btn-ghost" type="button" onClick={onBack}>
+              Back To Training
+            </button>
+            {loading ? <div className="callout">Loading reputation...</div> : null}
+            {error ? <div className="callout callout-danger">{error}</div> : null}
+            {notice ? <div className="callout callout-success">{notice}</div> : null}
+            <div className="callout">Trusted: {summary?.by_state?.trusted ?? 0}</div>
+            <div className="callout">Neutral: {summary?.by_state?.neutral ?? 0}</div>
+            <div className="callout">Risky: {summary?.by_state?.risky ?? 0}</div>
+            <div className="callout">Blocked: {summary?.by_state?.blocked ?? 0}</div>
+            <div className="stack compact-stack">
+              <strong>Risk Filter</strong>
+              <div className="chip-row">
+                {SENDER_REPUTATION_FILTERS.map((option) => (
+                  <button
+                    key={option.value}
+                    className={`btn ${filterValue === option.value ? "" : "btn-ghost"}`}
+                    type="button"
+                    onClick={() => onFilterChange(option.value)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <div className="main-column">
+          <article className="card stack">
+            <div className="card-header">
+              <h2>Reputation Records</h2>
+              <p className="muted">Grouped by domain so sender, sender-domain, and business-domain reputation stay together.</p>
+            </div>
+            {!groups.length ? (
+              <div className="callout">No sender reputation records are available yet.</div>
+            ) : (
+              <div className="sender-reputation-group-list">
+                {groups.map((group) => {
+                  const summaryRecord = group.summaryRecord;
+                  const collapsed = Boolean(collapsedGroups[group.key]);
+                  return (
+                    <section key={group.key} className="sender-reputation-group">
+                      <button className="sender-reputation-group-toggle" type="button" onClick={() => onToggleGroup(group.key)}>
+                        <div>
+                          <div className="sender-reputation-item-top">
+                            <strong>{group.domain}</strong>
+                            <span className={`status-pill tone-${senderReputationTone(summaryRecord?.reputation_state)}`}>
+                              {summaryRecord?.reputation_state || "neutral"}
+                            </span>
+                          </div>
+                          <div className="muted tiny">
+                            {senderReputationEntityLabel(summaryRecord?.entity_type)} · rating {Number(summaryRecord?.rating ?? 0).toFixed(2)}
+                            {" · "}
+                            {formatSenderReputationInputs(summaryRecord?.inputs)}
+                          </div>
+                        </div>
+                        <span className="pill">{collapsed ? "Expand" : "Collapse"}</span>
+                      </button>
+                      {!collapsed ? (
+                        <div className="sender-reputation-list">
+                          {group.records.map((record) => (
+                            <div key={`${record.entity_type}:${record.sender_value}`} className="sender-reputation-item">
+                              <div>
+                                <div className="sender-reputation-item-top">
+                                  <strong>{record.sender_value}</strong>
+                                  <span className="pill">{senderReputationEntityLabel(record.entity_type)}</span>
+                                  <span className={`status-pill tone-${senderReputationTone(record.reputation_state)}`}>
+                                    {record.reputation_state}
+                                  </span>
+                                </div>
+                                <div className="muted tiny">
+                                  Rating {Number(record.rating ?? 0).toFixed(2)}
+                                  {record.manual_rating !== null && record.manual_rating !== undefined
+                                    ? ` · manual ${Number(record.manual_rating).toFixed(2)}`
+                                    : ""}
+                                  {" · "}
+                                  {formatSenderReputationInputs(record.inputs)}
+                                </div>
+                              </div>
+                              <button
+                                className="btn btn-ghost"
+                                type="button"
+                                onClick={() => onInspect(record.entity_type, record.sender_value)}
+                                disabled={detailLoading}
+                              >
+                                Inspect
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </section>
+                  );
+                })}
+              </div>
+            )}
+            {detailError ? <div className="callout callout-danger">{detailError}</div> : null}
+            {selectedRecord ? (
+              <div className="sender-reputation-detail">
+                <div className="sender-reputation-detail-header">
+                  <div>
+                    <strong>{selectedRecord.sender_value}</strong>
+                    <div className="muted tiny">
+                      {senderReputationEntityLabel(selectedRecord.entity_type)} · effective {Number(selectedRecord.rating ?? 0).toFixed(2)}
+                      {" · "}
+                      derived {Number(selectedRecord.derived_rating ?? 0).toFixed(2)}
+                    </div>
+                  </div>
+                  <div className="actions">
+                    <span className={`status-pill tone-${senderReputationTone(selectedRecord.reputation_state)}`}>
+                      {selectedRecord.reputation_state || "neutral"}
+                    </span>
+                    <button className="btn btn-ghost" type="button" onClick={onClear}>
+                      Clear
+                    </button>
+                  </div>
+                </div>
+                <dl className="facts single-column-facts">
+                  <div>
+                    <dt>Group Domain</dt>
+                    <dd>{selectedRecord.group_domain || "n/a"}</dd>
+                  </div>
+                  <div>
+                    <dt>Last Seen</dt>
+                    <dd>{formatTelemetryTimestamp(selectedRecord.last_seen_at)}</dd>
+                  </div>
+                  <div>
+                    <dt>Updated</dt>
+                    <dd>{formatTelemetryTimestamp(selectedRecord.updated_at)}</dd>
+                  </div>
+                  <div>
+                    <dt>Inputs</dt>
+                    <dd>{formatSenderReputationInputs(selectedRecord.inputs)}</dd>
+                  </div>
+                  <div>
+                    <dt>Manual Rating</dt>
+                    <dd>
+                      {selectedRecord.manual_rating !== null && selectedRecord.manual_rating !== undefined
+                        ? `${Number(selectedRecord.manual_rating).toFixed(2)}${selectedRecord.manual_rating_note ? ` · ${selectedRecord.manual_rating_note}` : ""}`
+                        : "none"}
+                    </dd>
+                  </div>
+                </dl>
+                <div className="sender-reputation-manual-rating">
+                  <div className="card-header">
+                    <h3>Manual Rating</h3>
+                    <p className="muted">Operator override applied on top of the derived sender reputation score.</p>
+                  </div>
+                  <label className="field">
+                    <span>Note</span>
+                    <input
+                      value={manualNote}
+                      onChange={(event) => onManualNoteChange(event.target.value)}
+                      placeholder="Optional note for this sender or domain"
+                    />
+                  </label>
+                  <div className="chip-row">
+                    {SENDER_REPUTATION_MANUAL_ACTIONS.map((action) => (
+                      <button
+                        key={action.label}
+                        className="btn btn-ghost"
+                        type="button"
+                        onClick={() => onApplyManualRating(action.value)}
+                        disabled={manualSavePending}
+                      >
+                        {action.label}
+                      </button>
+                    ))}
+                    <button className="btn btn-ghost" type="button" onClick={onClearManualRating} disabled={manualSavePending}>
+                      Clear Manual Rating
+                    </button>
+                  </div>
+                </div>
+                {detailLoading ? <div className="callout">Loading selected record...</div> : null}
+                {(detail?.recent_messages || []).length ? (
+                  <div className="sender-reputation-recent-list">
+                    {detail.recent_messages.map((message) => (
+                      <div key={message.message_id} className="sender-reputation-recent-item">
+                        <strong>{message.subject || "(no subject)"}</strong>
+                        <div className="muted tiny">
+                          {message.message_id} · {message.local_label || "unclassified"} · {formatTelemetryTimestamp(message.received_at)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </article>
+        </div>
+      </section>
+    </main>
   );
 }
 
@@ -1005,12 +1355,8 @@ function TrainingPage({
   trainingModelPending,
   trainingNotice,
   trainingSelections,
-  senderReputationDetail,
-  senderReputationLoading,
-  senderReputationError,
   onBack,
-  onClearSenderReputationDetail,
-  onInspectSenderReputation,
+  onOpenSenderReputation,
   onLoadClassifiedLabelBatch,
   onLoadManualBatch,
   onLoadSemiAutoBatch,
@@ -1072,6 +1418,9 @@ function TrainingPage({
             <button className="btn" type="button" onClick={onLoadSemiAutoBatch300} disabled={trainingBatchLoading}>
               {trainingBatchLoading ? "Loading..." : "Semi Auto 300"}
             </button>
+            <button className="btn" type="button" onClick={onOpenSenderReputation}>
+              Show Sender Reputation
+            </button>
             <div className="callout">
               Threshold: {trainingStatus?.threshold ?? 0.6}
             </div>
@@ -1103,15 +1452,6 @@ function TrainingPage({
                 </div>
                 )
               : null}
-            <SenderReputationPanel
-              summary={trainingStatus?.sender_reputation}
-              detail={senderReputationDetail}
-              loading={senderReputationLoading}
-              error={senderReputationError}
-              onInspect={onInspectSenderReputation}
-              onClear={onClearSenderReputationDetail}
-              emptyMessage="Load or classify mail to build sender reputation."
-            />
             {trainingLoading ? <div className="callout">Loading training status...</div> : null}
             {trainingError ? <div className="callout callout-danger">{trainingError}</div> : null}
             {trainingBatchError ? <div className="callout callout-danger">{trainingBatchError}</div> : null}
@@ -1182,18 +1522,6 @@ function TrainingPage({
                           <div className="callout">
                             Model Prediction: {item.predicted_label || "unknown"} ({Number(item.predicted_confidence || 0).toFixed(2)})
                             {item.predicted_label === "unknown" && item.raw_predicted_label ? `, top guess was ${item.raw_predicted_label}` : ""}
-                          </div>
-                        ) : null}
-                        {item.sender_email || item.sender_domain ? (
-                          <div className="training-item-meta-actions">
-                            <button
-                              className="btn btn-ghost"
-                              type="button"
-                              onClick={() => onInspectSenderReputation(item.sender_email ? "email" : "domain", item.sender_email || item.sender_domain)}
-                              disabled={senderReputationLoading}
-                            >
-                              Inspect Sender Reputation
-                            </button>
                           </div>
                         ) : null}
                         <pre className="training-flat-text">{item.raw_text || item.flat_text}</pre>
@@ -1509,6 +1837,9 @@ export function App() {
   const [trainingStatus, setTrainingStatus] = useState(null);
   const [trainingLoading, setTrainingLoading] = useState(false);
   const [trainingError, setTrainingError] = useState("");
+  const [senderReputationSummary, setSenderReputationSummary] = useState(null);
+  const [senderReputationSummaryLoading, setSenderReputationSummaryLoading] = useState(false);
+  const [senderReputationSummaryError, setSenderReputationSummaryError] = useState("");
   const [trainingBatch, setTrainingBatch] = useState(null);
   const [trainingBatchLoading, setTrainingBatchLoading] = useState(false);
   const [trainingBatchError, setTrainingBatchError] = useState("");
@@ -1520,6 +1851,9 @@ export function App() {
   const [senderReputationLoading, setSenderReputationLoading] = useState(false);
   const [senderReputationError, setSenderReputationError] = useState("");
   const [copyNotice, setCopyNotice] = useState("");
+  const [serviceControlPending, setServiceControlPending] = useState("");
+  const [serviceControlNotice, setServiceControlNotice] = useState("");
+  const [serviceControlError, setServiceControlError] = useState("");
   const [uiUpdatedAt, setUiUpdatedAt] = useState(null);
   const [backendReachable, setBackendReachable] = useState(true);
   const [retryingBackend, setRetryingBackend] = useState(false);
@@ -1731,6 +2065,40 @@ export function App() {
     }
 
     loadTrainingStatus();
+    return () => {
+      active = false;
+    };
+  }, [view]);
+
+  useEffect(() => {
+    if (view !== "training_reputation") {
+      return undefined;
+    }
+
+    let active = true;
+
+    async function loadSenderReputationSummary() {
+      setSenderReputationSummaryLoading(true);
+      try {
+        const payload = await fetchJson("/api/gmail/reputation?limit=100");
+        if (!active) {
+          return;
+        }
+        setSenderReputationSummary(payload);
+        setSenderReputationSummaryError("");
+      } catch (loadError) {
+        if (!active) {
+          return;
+        }
+        setSenderReputationSummaryError(loadError.message);
+      } finally {
+        if (active) {
+          setSenderReputationSummaryLoading(false);
+        }
+      }
+    }
+
+    loadSenderReputationSummary();
     return () => {
       active = false;
     };
@@ -2261,6 +2629,24 @@ export function App() {
     }
   }
 
+  async function runSenderReputationRefresh() {
+    setGmailActionPending("sender_reputation");
+    setGmailActionError("");
+    setGmailActionNotice("");
+    try {
+      const payload = await fetchJson("/api/gmail/reputation/refresh", { method: "POST" });
+      const refreshedStatus = await fetchJson("/api/gmail/status");
+      setGmailStatus(refreshedStatus);
+      setGmailActionNotice(
+        `Sender reputation refreshed. Updated ${payload.refreshed_count ?? 0} sender records.`,
+      );
+    } catch (actionError) {
+      setGmailActionError(actionError.message);
+    } finally {
+      setGmailActionPending("");
+    }
+  }
+
   async function loadTrainingManualBatch() {
     setTrainingBatchLoading(true);
     setTrainingBatchError("");
@@ -2365,6 +2751,10 @@ export function App() {
   function clearSenderReputationDetail() {
     setSenderReputationDetail(null);
     setSenderReputationError("");
+  }
+
+  function openSenderReputation() {
+    setView("training_reputation");
   }
 
   async function trainLocalModel() {
@@ -2694,6 +3084,33 @@ export function App() {
     }
   }
 
+  async function restartRuntimeService(target) {
+    const normalizedTarget = String(target || "").trim().toLowerCase();
+    if (!normalizedTarget) {
+      return;
+    }
+    setServiceControlPending(normalizedTarget);
+    setServiceControlError("");
+    setServiceControlNotice("");
+    try {
+      const payload = await fetchJson("/api/services/restart", {
+        method: "POST",
+        body: JSON.stringify({ target: normalizedTarget }),
+      });
+      if (payload.status === "manual_required") {
+        setServiceControlNotice(
+          `${normalizedTarget} restart requires an operator command: ${payload.recommended_command || "manual restart required"}.`,
+        );
+      } else {
+        setServiceControlNotice(`${normalizedTarget} restart requested successfully.`);
+      }
+    } catch (restartError) {
+      setServiceControlError(restartError.message);
+    } finally {
+      setServiceControlPending("");
+    }
+  }
+
   const onboarding = bootstrap?.onboarding;
   const status = bootstrap?.status;
   const requiredInputs = bootstrap?.required_inputs || [];
@@ -2709,6 +3126,7 @@ export function App() {
   const gmailPrimaryStore = gmailPrimary?.message_store || null;
   const gmailPrimaryClassification = gmailPrimary?.classification_summary || null;
   const gmailPrimarySenderReputation = gmailPrimary?.sender_reputation || null;
+  const gmailPrimaryModelStatus = gmailPrimary?.model_status || null;
   const gmailPrimarySpamhaus = gmailPrimary?.spamhaus || null;
   const gmailPrimaryQuotaUsage = gmailPrimary?.quota_usage || null;
   const gmailFetchSchedule = gmailStatus?.fetch_schedule || null;
@@ -2720,6 +3138,7 @@ export function App() {
   const lastHeartbeatAt = mqttHealth?.last_status_report_at || status?.last_heartbeat_at || null;
   const mqttConnected = status?.mqtt_connection_status === "connected" || mqttHealth?.health_status === "connected";
   const mqttTelemetryFresh = mqttHealth?.status_freshness_state === "fresh";
+  const modelTrainingWarning = deriveModelTrainingWarning(gmailPrimaryModelStatus, providerConnected);
   const runtimeResolved = runtimeTaskStatus?.resolve_response || null;
   const runtimeAuthorized = runtimeTaskStatus?.authorize_response || null;
   const runtimePreview = runtimeTaskStatus?.preview_response || null;
@@ -2818,12 +3237,8 @@ export function App() {
           trainingModelPending={trainingModelPending}
           trainingNotice={trainingNotice}
           trainingSelections={trainingSelections}
-          senderReputationDetail={senderReputationDetail}
-          senderReputationLoading={senderReputationLoading}
-          senderReputationError={senderReputationError}
           onBack={() => (dashboardEnabled ? openDashboard() : openSetup())}
-          onClearSenderReputationDetail={clearSenderReputationDetail}
-          onInspectSenderReputation={loadSenderReputationDetail}
+          onOpenSenderReputation={openSenderReputation}
           onLoadClassifiedLabelBatch={loadClassifiedLabelBatch}
           onLoadManualBatch={loadTrainingManualBatch}
           onLoadSemiAutoBatch={loadTrainingSemiAutoBatch}
@@ -2832,6 +3247,24 @@ export function App() {
           onTrainHighConfidenceModel={trainHighConfidenceModel}
           onSelectionChange={handleTrainingSelectionChange}
           onSaveBatch={saveTrainingBatch}
+        />
+      </div>
+    );
+  }
+
+  if (view === "training_reputation") {
+    return (
+      <div className="shell">
+        <SenderReputationPage
+          summary={senderReputationSummary}
+          loading={senderReputationSummaryLoading}
+          error={senderReputationSummaryError}
+          detail={senderReputationDetail}
+          detailLoading={senderReputationLoading}
+          detailError={senderReputationError}
+          onBack={() => setView("training")}
+          onInspect={loadSenderReputationDetail}
+          onClear={clearSenderReputationDetail}
         />
       </div>
     );
@@ -2857,6 +3290,11 @@ export function App() {
                     {providerSummary?.provider_state === "connected" ? "Gmail connected" : "Gmail pending"}
                   </span>
                 </span>
+                {modelTrainingWarning ? (
+                  <span className={healthSeverityClass("warning", [], ["configured"])}>
+                    <span className="status-badge">{modelTrainingWarning.label}</span>
+                  </span>
+                ) : null}
               </div>
             </div>
             <div className="app-header-bottom">
@@ -2888,6 +3326,11 @@ export function App() {
               <span className="muted tiny">
                 Node: <code>{status?.node_id || "pending"}</code>
               </span>
+              {modelTrainingWarning ? (
+                <span className="muted tiny">
+                  Model: <code>{modelTrainingWarning.detail}</code>
+                </span>
+              ) : null}
             </div>
           </section>
 
@@ -3039,20 +3482,140 @@ export function App() {
                     </dl>
                   </article>
 
-                  <article className="card">
-                    <div className="card-header">
-                      <h2>Sender Reputation</h2>
-                      <p className="muted">Sender email and domain reputation derived from local classifications and Spamhaus checks.</p>
-                    </div>
+                  <div className="content-stack">
+                    <article className="card">
+                      <div className="card-header">
+                        <h2>Sender Reputation</h2>
+                        <p className="muted">Sender email and domain reputation derived from local classifications and Spamhaus checks.</p>
+                      </div>
                     <SenderReputationPanel
                       summary={gmailPrimarySenderReputation}
-                      detail={senderReputationDetail}
-                      loading={senderReputationLoading}
-                      error={senderReputationError}
-                      onInspect={loadSenderReputationDetail}
-                      onClear={clearSenderReputationDetail}
+                      detail={null}
+                      loading={false}
+                      error=""
+                      onInspect={() => {}}
+                      onClear={() => {}}
+                      showRecords={false}
+                      showDetail={false}
                     />
                   </article>
+
+                    <article className="card">
+                      <div className="card-header">
+                        <h2>Gmail Action</h2>
+                        <p className="muted">Manual Gmail fetch actions for initial learning and time-window refresh.</p>
+                      </div>
+                      <div className="stack compact-stack">
+                        {gmailActionError ? <div className="callout callout-danger">{gmailActionError}</div> : null}
+                        {gmailActionNotice ? <div className="callout callout-success">{gmailActionNotice}</div> : null}
+                        <button
+                          type="button"
+                          className="btn"
+                          disabled={gmailActionPending !== ""}
+                          onClick={() => runGmailFetch("initial_learning", "Initial learning fetch")}
+                        >
+                          Fetch Initial Learning
+                        </button>
+                        <button
+                          type="button"
+                          className="btn"
+                          disabled={gmailActionPending !== "" || (gmailPrimaryStore?.total_count ?? 0) === 0}
+                        onClick={runSpamhausCheck}
+                      >
+                        Check With Spamhaus
+                      </button>
+                      <button
+                        type="button"
+                        className="btn"
+                        disabled={gmailActionPending !== "" || (gmailPrimaryStore?.total_count ?? 0) === 0}
+                        onClick={runSenderReputationRefresh}
+                      >
+                        Calculate Sender Reputation
+                      </button>
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={openTraining}
+                        >
+                          Open Training
+                        </button>
+                        <div className="row gmail-fetch-row">
+                          <button
+                            type="button"
+                            className="btn"
+                            disabled={gmailActionPending !== ""}
+                          onClick={() => runGmailFetch("today", "Today poll")}
+                        >
+                          Poll Today
+                        </button>
+                        <button
+                          type="button"
+                          className="btn"
+                          disabled={gmailActionPending !== ""}
+                          onClick={() => runGmailFetch("yesterday", "Yesterday poll")}
+                        >
+                          Poll Yesterday
+                        </button>
+                        <button
+                          type="button"
+                          className="btn"
+                          disabled={gmailActionPending !== ""}
+                          onClick={() => runGmailFetch("last_hour", "Last hour poll")}
+                        >
+                          Poll Last Hour
+                        </button>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn"
+                          disabled={runtimeTaskPending !== "" || gmailActionPending !== ""}
+                          onClick={runRuntimeExecuteEmailClassifierBatch}
+                        >
+                          {runtimeTaskPending === "execute_batch" ? "Processing..." : "Local Classify 100, Send Unknown To AI"}
+                        </button>
+                        {runtimeBatchExecution ? (
+                          <div className="stack compact-stack">
+                            <div className="muted tiny">
+                              AI Batch Progress: {runtimeBatchExecution?.ai_attempted ?? runtimeBatchExecution?.ai_completed ?? 0}/{runtimeBatchExecution?.ai_total ?? 0}
+                            </div>
+                            <div className="runtime-progress-shell">
+                              <div
+                                className="runtime-progress-bar"
+                                style={{ width: `${runtimeBatchProgressPercent}%` }}
+                              />
+                            </div>
+                            <div className="muted tiny">
+                              Stage: {runtimeBatchExecution?.stage || "-"} | Local Classified: {runtimeBatchExecution?.local_classified ?? 0} | Batch Size: {runtimeBatchExecution?.batch_size ?? 0}
+                            </div>
+                            {runtimeBatchExecution?.last_execution?.error_code || runtimeBatchExecution?.last_execution?.error_message ? (
+                              <div className="callout callout-danger">
+                                Last AI execution failed: {runtimeBatchExecution?.last_execution?.error_code || "error"}
+                                {runtimeBatchExecution?.last_execution?.error_message
+                                  ? ` (${runtimeBatchExecution.last_execution.error_message})`
+                                  : ""}
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : null}
+                        <p className="muted tiny">
+                          {gmailActionPending
+                            ? gmailActionPending === "spamhaus"
+                              ? "Spamhaus check in progress..."
+                              : gmailActionPending === "sender_reputation"
+                                ? "Sender reputation refresh in progress..."
+                              : "Fetch in progress..."
+                            : "Scheduled fetches use the node local timezone and store up to six months of mail."}
+                        </p>
+                        <div className="row gmail-fetch-row gmail-pipeline-row">
+                          {gmailLastHourPipelinePills.map((stage) => (
+                            <span key={stage.key} className={pipelineStageClass(stage.value)}>
+                              {stage.label}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </article>
+                  </div>
 
                   <article className="card">
                     <div className="card-header">
@@ -3103,112 +3666,6 @@ export function App() {
                           </dl>
                         </section>
                       ))}
-                    </div>
-                  </article>
-
-                  <article className="card">
-                    <div className="card-header">
-                      <h2>Gmail Action</h2>
-                      <p className="muted">Manual Gmail fetch actions for initial learning and time-window refresh.</p>
-                    </div>
-                    <div className="stack compact-stack">
-                      {gmailActionError ? <div className="callout callout-danger">{gmailActionError}</div> : null}
-                      {gmailActionNotice ? <div className="callout callout-success">{gmailActionNotice}</div> : null}
-                      <button
-                        type="button"
-                        className="btn"
-                        disabled={gmailActionPending !== ""}
-                        onClick={() => runGmailFetch("initial_learning", "Initial learning fetch")}
-                      >
-                        Fetch Initial Learning
-                      </button>
-                      <button
-                        type="button"
-                        className="btn"
-                        disabled={gmailActionPending !== "" || (gmailPrimaryStore?.total_count ?? 0) === 0}
-                        onClick={runSpamhausCheck}
-                      >
-                        Check With Spamhaus
-                      </button>
-                      <button
-                        type="button"
-                        className="btn"
-                        onClick={openTraining}
-                      >
-                        Open Training
-                      </button>
-                      <div className="row gmail-fetch-row">
-                        <button
-                          type="button"
-                          className="btn"
-                          disabled={gmailActionPending !== ""}
-                        onClick={() => runGmailFetch("today", "Today poll")}
-                      >
-                        Poll Today
-                      </button>
-                      <button
-                        type="button"
-                        className="btn"
-                        disabled={gmailActionPending !== ""}
-                        onClick={() => runGmailFetch("yesterday", "Yesterday poll")}
-                      >
-                        Poll Yesterday
-                      </button>
-                      <button
-                        type="button"
-                        className="btn"
-                        disabled={gmailActionPending !== ""}
-                        onClick={() => runGmailFetch("last_hour", "Last hour poll")}
-                      >
-                        Poll Last Hour
-                      </button>
-                      </div>
-                      <button
-                        type="button"
-                        className="btn"
-                        disabled={runtimeTaskPending !== "" || gmailActionPending !== ""}
-                        onClick={runRuntimeExecuteEmailClassifierBatch}
-                      >
-                        {runtimeTaskPending === "execute_batch" ? "Processing..." : "Local Classify 100, Send Unknown To AI"}
-                      </button>
-                      {runtimeBatchExecution ? (
-                        <div className="stack compact-stack">
-                          <div className="muted tiny">
-                            AI Batch Progress: {runtimeBatchExecution?.ai_attempted ?? runtimeBatchExecution?.ai_completed ?? 0}/{runtimeBatchExecution?.ai_total ?? 0}
-                          </div>
-                          <div className="runtime-progress-shell">
-                            <div
-                              className="runtime-progress-bar"
-                              style={{ width: `${runtimeBatchProgressPercent}%` }}
-                            />
-                          </div>
-                          <div className="muted tiny">
-                            Stage: {runtimeBatchExecution?.stage || "-"} | Local Classified: {runtimeBatchExecution?.local_classified ?? 0} | Batch Size: {runtimeBatchExecution?.batch_size ?? 0}
-                          </div>
-                          {runtimeBatchExecution?.last_execution?.error_code || runtimeBatchExecution?.last_execution?.error_message ? (
-                            <div className="callout callout-danger">
-                              Last AI execution failed: {runtimeBatchExecution?.last_execution?.error_code || "error"}
-                              {runtimeBatchExecution?.last_execution?.error_message
-                                ? ` (${runtimeBatchExecution.last_execution.error_message})`
-                                : ""}
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : null}
-                      <p className="muted tiny">
-                        {gmailActionPending
-                          ? gmailActionPending === "spamhaus"
-                            ? "Spamhaus check in progress..."
-                            : "Fetch in progress..."
-                          : "Scheduled fetches use the node local timezone and store up to six months of mail."}
-                      </p>
-                      <div className="row gmail-fetch-row gmail-pipeline-row">
-                        {gmailLastHourPipelinePills.map((stage) => (
-                          <span key={stage.key} className={pipelineStageClass(stage.value)}>
-                            {stage.label}
-                          </span>
-                        ))}
-                      </div>
                     </div>
                   </article>
                 </section>
@@ -3587,9 +4044,25 @@ export function App() {
                           <h3>Runtime Controls</h3>
                           <p className="muted tiny">Service restarts and runtime recovery actions.</p>
                         </div>
+                        {serviceControlError ? <div className="callout callout-danger">{serviceControlError}</div> : null}
+                        {serviceControlNotice ? <div className="callout callout-success">{serviceControlNotice}</div> : null}
                         <div className="row action-group-buttons">
-                          <button className="btn" type="button" disabled>Restart Backend</button>
-                          <button className="btn" type="button" disabled>Restart Frontend</button>
+                          <button
+                            className="btn"
+                            type="button"
+                            onClick={() => restartRuntimeService("backend")}
+                            disabled={serviceControlPending !== ""}
+                          >
+                            {serviceControlPending === "backend" ? "Restarting Backend..." : "Restart Backend"}
+                          </button>
+                          <button
+                            className="btn"
+                            type="button"
+                            onClick={() => restartRuntimeService("frontend")}
+                            disabled={serviceControlPending !== ""}
+                          >
+                            {serviceControlPending === "frontend" ? "Restarting Frontend..." : "Restart Frontend"}
+                          </button>
                           <button className="btn btn-primary" type="button" disabled>Restart Node</button>
                         </div>
                       </section>
