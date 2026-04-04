@@ -2390,6 +2390,7 @@ class NodeService:
                 if hasattr(adapter, "sender_reputation_summary")
                 else None
             )
+            model_status = await adapter.training_model_status() if hasattr(adapter, "training_model_status") else None
             spamhaus_summary = await adapter.spamhaus_summary(account.account_id) if hasattr(adapter, "spamhaus_summary") else None
             quota_usage = await adapter.quota_usage_summary(account.account_id) if hasattr(adapter, "quota_usage_summary") else None
             statuses.append(
@@ -2400,6 +2401,7 @@ class NodeService:
                     "message_store": message_summary,
                     "classification_summary": classification_summary,
                     "sender_reputation": sender_reputation,
+                    "model_status": model_status,
                     "spamhaus": spamhaus_summary.model_dump(mode="json") if spamhaus_summary is not None else None,
                     "quota_usage": quota_usage.model_dump(mode="json") if quota_usage is not None else None,
                 }
@@ -2573,6 +2575,29 @@ class NodeService:
         except Exception as exc:
             raise ValueError(str(exc)) from exc
 
+    async def gmail_refresh_sender_reputation(
+        self,
+        *,
+        account_id: str = "primary",
+    ) -> dict[str, object]:
+        adapter = self.provider_registry.get_provider("gmail")
+        if not hasattr(adapter, "refresh_sender_reputations"):
+            raise ValueError("gmail sender reputation is not available")
+        try:
+            records = await adapter.refresh_sender_reputations(account_id)
+            summary = (
+                await adapter.sender_reputation_summary(account_id)
+                if hasattr(adapter, "sender_reputation_summary")
+                else None
+            )
+            return {
+                "account_id": account_id,
+                "refreshed_count": len(records),
+                "summary": summary,
+            }
+        except Exception as exc:
+            raise ValueError(str(exc)) from exc
+
     async def gmail_training_status(self, *, account_id: str = "primary") -> dict[str, object]:
         adapter = self.provider_registry.get_provider("gmail")
         return {
@@ -2614,8 +2639,8 @@ class NodeService:
         adapter = self.provider_registry.get_provider("gmail")
         if not hasattr(adapter, "sender_reputation_detail"):
             raise ValueError("gmail sender reputation is not available")
-        if entity_type not in {"email", "domain"}:
-            raise ValueError("entity_type must be email or domain")
+        if entity_type not in {"email", "domain", "business_domain"}:
+            raise ValueError("entity_type must be email, domain, or business_domain")
         detail = await adapter.sender_reputation_detail(
             account_id,
             entity_type=entity_type,
@@ -2625,6 +2650,39 @@ class NodeService:
         if detail is None:
             raise ValueError("sender reputation record was not found")
         return detail
+
+    async def gmail_save_sender_reputation_manual_rating(
+        self,
+        *,
+        account_id: str = "primary",
+        entity_type: str,
+        sender_value: str,
+        manual_rating: float | None,
+        note: str | None = None,
+    ) -> dict[str, object]:
+        adapter = self.provider_registry.get_provider("gmail")
+        if not hasattr(adapter, "save_sender_reputation_manual_rating"):
+            raise ValueError("gmail sender reputation is not available")
+        normalized_entity_type = (entity_type or "").strip().lower()
+        if normalized_entity_type not in {"email", "domain", "business_domain"}:
+            raise ValueError("entity_type must be email, domain, or business_domain")
+        normalized_sender_value = (sender_value or "").strip().lower()
+        if not normalized_sender_value:
+            raise ValueError("sender_value is required")
+        normalized_note = (note or "").strip() or None
+        normalized_manual_rating = None if manual_rating is None else float(manual_rating)
+        if normalized_manual_rating is not None and not -6.0 <= normalized_manual_rating <= 6.0:
+            raise ValueError("manual_rating must be between -6 and 6")
+        try:
+            return await adapter.save_sender_reputation_manual_rating(
+                account_id,
+                entity_type=normalized_entity_type,
+                sender_value=normalized_sender_value,
+                manual_rating=normalized_manual_rating,
+                note=normalized_note,
+            )
+        except Exception as exc:
+            raise ValueError(str(exc)) from exc
 
     async def gmail_training_manual_batch(self, *, account_id: str = "primary", limit: int = 40) -> dict[str, object]:
         adapter = self.provider_registry.get_provider("gmail")

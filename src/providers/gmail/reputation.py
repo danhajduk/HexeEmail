@@ -10,6 +10,39 @@ from providers.gmail.models import (
     GmailTrainingLabel,
 )
 
+COMMON_MAILBOX_PROVIDER_DOMAINS = {
+    "aol.com",
+    "gmail.com",
+    "googlemail.com",
+    "hotmail.com",
+    "icloud.com",
+    "live.com",
+    "mac.com",
+    "me.com",
+    "msn.com",
+    "outlook.com",
+    "pm.me",
+    "proton.me",
+    "protonmail.com",
+    "yahoo.com",
+    "ymail.com",
+}
+MULTI_LABEL_PUBLIC_SUFFIXES = {
+    "ac.uk",
+    "co.jp",
+    "co.kr",
+    "co.nz",
+    "co.uk",
+    "com.au",
+    "com.br",
+    "com.mx",
+    "com.sg",
+    "gov.uk",
+    "net.au",
+    "org.au",
+    "org.uk",
+}
+
 
 POSITIVE_REPUTATION_LABELS = {
     GmailTrainingLabel.ACTION_REQUIRED.value,
@@ -44,12 +77,16 @@ def build_sender_reputation_records(
         for entity_type, sender_value in entities:
             record = records_by_key.get((message.account_id, entity_type, sender_value))
             if record is None:
+                record_sender_domain = sender_domain
+                if entity_type == "business_domain":
+                    record_sender_domain = sender_value
                 record = GmailSenderReputationRecord(
                     account_id=message.account_id,
                     entity_type=entity_type,
                     sender_value=sender_value,
                     sender_email=sender_email or None,
-                    sender_domain=sender_domain or None,
+                    sender_domain=record_sender_domain or None,
+                    group_domain=_group_domain_for_sender_domain(sender_domain) or None,
                 )
                 records_by_key[(message.account_id, entity_type, sender_value)] = record
             record.inputs.message_count += 1
@@ -69,12 +106,16 @@ def build_sender_reputation_records(
         for entity_type, sender_value in _entities_for_sender(sender_email=sender_email, sender_domain=sender_domain):
             record = records_by_key.get((check.account_id, entity_type, sender_value))
             if record is None:
+                record_sender_domain = sender_domain
+                if entity_type == "business_domain":
+                    record_sender_domain = sender_value
                 record = GmailSenderReputationRecord(
                     account_id=check.account_id,
                     entity_type=entity_type,
                     sender_value=sender_value,
                     sender_email=sender_email or None,
-                    sender_domain=sender_domain or None,
+                    sender_domain=record_sender_domain or None,
+                    group_domain=_group_domain_for_sender_domain(sender_domain) or None,
                     last_seen_at=message.received_at if message is not None else None,
                 )
                 records_by_key[(check.account_id, entity_type, sender_value)] = record
@@ -85,8 +126,7 @@ def build_sender_reputation_records(
 
     records = list(records_by_key.values())
     for record in records:
-        record.rating = _derive_reputation_rating(record.inputs)
-        record.reputation_state = _derive_reputation_state(record.inputs, record.rating)
+        finalize_sender_reputation_record(record)
     records.sort(
         key=lambda record: (
             (record.last_seen_at.isoformat() if record.last_seen_at is not None else ""),
@@ -95,6 +135,32 @@ def build_sender_reputation_records(
         reverse=True,
     )
     return records
+
+
+def finalize_sender_reputation_record(record: GmailSenderReputationRecord) -> GmailSenderReputationRecord:
+    if not record.group_domain:
+        record.group_domain = _group_domain_for_sender_domain(record.sender_domain) or None
+    record.derived_rating = _derive_reputation_rating(record.inputs)
+    manual_rating = float(record.manual_rating) if record.manual_rating is not None else 0.0
+    record.rating = round(record.derived_rating + manual_rating, 2)
+    record.reputation_state = _derive_reputation_state(record.inputs, record.rating)
+    return record
+
+
+def sender_matches_reputation_entity(
+    *,
+    entity_type: str,
+    sender_email: str,
+    sender_domain: str,
+    sender_value: str,
+) -> bool:
+    if entity_type == "email":
+        return sender_email == sender_value
+    if entity_type == "domain":
+        return sender_domain == sender_value
+    if entity_type == "business_domain":
+        return _business_domain_for_sender_domain(sender_domain) == sender_value
+    return False
 
 
 def _derive_reputation_rating(inputs: GmailSenderReputationInputs) -> float:
@@ -132,6 +198,9 @@ def _entities_for_sender(
         entities.append(("email", sender_email))
     if sender_domain:
         entities.append(("domain", sender_domain))
+        business_domain = _business_domain_for_sender_domain(sender_domain)
+        if business_domain and business_domain != sender_domain:
+            entities.append(("business_domain", business_domain))
     return entities
 
 
@@ -144,3 +213,31 @@ def _extract_domain(sender_email: str) -> str:
     if "@" not in sender_email:
         return ""
     return sender_email.split("@", 1)[1].strip().lower()
+
+
+def _group_domain_for_sender_domain(sender_domain: str | None) -> str:
+    normalized = (sender_domain or "").strip().lower()
+    if not normalized:
+        return ""
+    return _business_domain_for_sender_domain(normalized) or normalized
+
+
+def _business_domain_for_sender_domain(sender_domain: str | None) -> str:
+    normalized = (sender_domain or "").strip().lower()
+    if not normalized:
+        return ""
+    registrable = _registrable_domain(normalized)
+    if not registrable or registrable in COMMON_MAILBOX_PROVIDER_DOMAINS:
+        return ""
+    return registrable
+
+
+def _registrable_domain(sender_domain: str) -> str:
+    labels = [label for label in sender_domain.split(".") if label]
+    if len(labels) <= 2:
+        return ".".join(labels)
+    last_two = ".".join(labels[-2:])
+    last_three = ".".join(labels[-3:])
+    if last_two in MULTI_LABEL_PUBLIC_SUFFIXES and len(labels) >= 3:
+        return last_three
+    return last_two

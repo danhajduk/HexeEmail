@@ -983,6 +983,46 @@ async def test_gmail_status_api_exposes_classification_summary(config, core_clie
 
 
 @pytest.mark.asyncio
+async def test_gmail_status_api_exposes_model_training_status(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    if service.gmail_status_task is not None:
+        service.gmail_status_task.cancel()
+    service.state.trust_state = "trusted"
+    service.state.node_id = "node-1"
+    adapter = service.provider_registry.get_provider("gmail")
+    adapter.account_store.save_account(
+        adapter.state_machine.ensure_account("primary").model_copy(
+            update={"status": "connected", "email_address": "primary@example.com"}
+        )
+    )
+
+    class FakeTrainingModelStore:
+        def status(self):
+            return {
+                "trained": True,
+                "trained_at": "2026-04-02T12:10:00-07:00",
+                "sample_count": 12,
+                "train_count": 9,
+                "test_count": 3,
+                "detail": "trained in test",
+            }
+
+    adapter.training_model_store = FakeTrainingModelStore()
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/gmail/status")
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["accounts"][0]["model_status"]["trained"] is True
+    assert body["accounts"][0]["model_status"]["trained_at"] == "2026-04-02T12:10:00-07:00"
+
+
+@pytest.mark.asyncio
 async def test_gmail_status_api_exposes_sender_reputation_summary(config, core_client_factory):
     service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
     await service.start()
@@ -1030,6 +1070,108 @@ async def test_gmail_status_api_exposes_sender_reputation_summary(config, core_c
     assert sender_reputation["total_count"] == 2
     assert sender_reputation["records"][0]["sender_value"] in {"alerts@example.com", "example.com"}
     assert sender_reputation["by_state"]["neutral"] == 2
+
+
+@pytest.mark.asyncio
+async def test_gmail_sender_reputation_refresh_api_recomputes_records(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    adapter = service.provider_registry.get_provider("gmail")
+    adapter.account_store.save_account(
+        adapter.state_machine.ensure_account("primary").model_copy(
+            update={"status": "connected", "email_address": "primary@example.com"}
+        )
+    )
+    adapter.message_store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="msg-1",
+                sender="Alerts <alerts@example.com>",
+                recipients=["primary@example.com"],
+                subject="Need review",
+                snippet="Please review",
+                label_ids=["INBOX"],
+                received_at=datetime(2026, 4, 1, 12, 0, 0).astimezone(),
+            )
+        ],
+        now=datetime(2026, 4, 2, 12, 5, 0).astimezone(),
+    )
+    adapter.message_store.update_local_classification(
+        "primary",
+        "msg-1",
+        label=GmailTrainingLabel.ACTION_REQUIRED,
+        confidence=1.0,
+        manual_classification=True,
+    )
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post("/api/gmail/reputation/refresh")
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["refreshed_count"] == 2
+    assert body["summary"]["total_count"] == 2
+
+
+@pytest.mark.asyncio
+async def test_gmail_sender_reputation_manual_rating_api_updates_record(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    adapter = service.provider_registry.get_provider("gmail")
+    adapter.account_store.save_account(
+        adapter.state_machine.ensure_account("primary").model_copy(
+            update={"status": "connected", "email_address": "primary@example.com"}
+        )
+    )
+    adapter.message_store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="msg-1",
+                sender="Alerts <alerts@mail.example.com>",
+                recipients=["primary@example.com"],
+                subject="Need review",
+                snippet="Please review",
+                label_ids=["INBOX"],
+                received_at=datetime(2026, 4, 1, 12, 0, 0).astimezone(),
+            )
+        ],
+        now=datetime(2026, 4, 2, 12, 5, 0).astimezone(),
+    )
+    adapter.message_store.update_local_classification(
+        "primary",
+        "msg-1",
+        label=GmailTrainingLabel.ACTION_REQUIRED,
+        confidence=1.0,
+        manual_classification=True,
+    )
+    await adapter.refresh_sender_reputations("primary")
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/gmail/reputation/manual-rating",
+            json={
+                "entity_type": "business_domain",
+                "sender_value": "example.com",
+                "manual_rating": -4.0,
+                "note": "Operator blocked",
+            },
+        )
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["record"]["entity_type"] == "business_domain"
+    assert body["record"]["sender_value"] == "example.com"
+    assert body["record"]["manual_rating"] == -4.0
+    assert body["record"]["manual_rating_note"] == "Operator blocked"
+    assert body["record"]["rating"] == -3.0
 
 
 def build_google_fetch_test_app():

@@ -27,7 +27,7 @@ from providers.gmail.models import (
     GmailTrainingLabel,
 )
 from providers.gmail.quota_tracker import GmailQuotaTracker
-from providers.gmail.reputation import build_sender_reputation_records
+from providers.gmail.reputation import build_sender_reputation_records, sender_matches_reputation_entity
 from providers.gmail.spamhaus_checker import GmailSpamhausChecker
 from providers.gmail.state_machine import GmailAccountStateMachine
 from providers.gmail.token_client import GmailTokenExchangeClient
@@ -301,6 +301,28 @@ class GmailProviderAdapter(EmailProviderAdapter):
             "records": [record.model_dump(mode="json") for record in records],
         }
 
+    async def save_sender_reputation_manual_rating(
+        self,
+        account_id: str,
+        *,
+        entity_type: str,
+        sender_value: str,
+        manual_rating: float | None,
+        note: str | None = None,
+    ) -> dict[str, object]:
+        record = self.message_store.set_sender_reputation_manual_rating(
+            account_id,
+            entity_type=entity_type,
+            sender_value=sender_value,
+            manual_rating=manual_rating,
+            note=note,
+        )
+        return {
+            "account_id": account_id,
+            "record": record.model_dump(mode="json"),
+            "summary": await self.sender_reputation_summary(account_id, limit=100),
+        }
+
     async def sender_reputation_detail(
         self,
         account_id: str,
@@ -320,10 +342,11 @@ class GmailProviderAdapter(EmailProviderAdapter):
         for message in self.message_store.list_all_messages(account_id):
             sender_email = self._normalize_sender_email(message.sender)
             sender_domain = self._extract_sender_domain(sender_email)
-            matches = (
-                entity_type == "email" and sender_email == sender_value
-            ) or (
-                entity_type == "domain" and sender_domain == sender_value
+            matches = sender_matches_reputation_entity(
+                entity_type=entity_type,
+                sender_email=sender_email,
+                sender_domain=sender_domain,
+                sender_value=sender_value,
             )
             if not matches:
                 continue

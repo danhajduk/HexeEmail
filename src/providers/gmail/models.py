@@ -279,15 +279,29 @@ class GmailSenderReputationRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     account_id: str
-    entity_type: Literal["email", "domain"]
+    entity_type: Literal["email", "domain", "business_domain"]
     sender_value: str
     sender_email: str | None = None
     sender_domain: str | None = None
+    group_domain: str | None = None
     reputation_state: Literal["trusted", "neutral", "risky", "blocked"] = "neutral"
+    derived_rating: float = 0.0
     rating: float = 0.0
+    manual_rating: float | None = None
+    manual_rating_note: str | None = None
+    manual_rating_updated_at: datetime | None = None
     inputs: GmailSenderReputationInputs = Field(default_factory=GmailSenderReputationInputs)
     last_seen_at: datetime | None = None
     updated_at: datetime | None = None
+
+
+class GmailSenderReputationManualRatingInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    entity_type: Literal["email", "domain", "business_domain"]
+    sender_value: str
+    manual_rating: float | None = None
+    note: str | None = None
 
 
 class GmailTrainingDatasetRow(BaseModel):

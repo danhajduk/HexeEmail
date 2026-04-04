@@ -483,7 +483,7 @@ async def test_gmail_adapter_fetch_updates_sender_reputation(tmp_path):
                 GmailStoredMessage(
                     account_id="primary",
                     message_id="msg-1",
-                    sender="Alerts <alerts@example.com>",
+                    sender="Alerts <alerts@mail.example.com>",
                     subject="Please review",
                     received_at=datetime(2026, 4, 2, 8, 0, 0).astimezone(),
                 )
@@ -496,18 +496,27 @@ async def test_gmail_adapter_fetch_updates_sender_reputation(tmp_path):
     email_record = adapter.message_store.get_sender_reputation(
         "primary",
         entity_type="email",
-        sender_value="alerts@example.com",
+        sender_value="alerts@mail.example.com",
     )
     domain_record = adapter.message_store.get_sender_reputation(
         "primary",
         entity_type="domain",
+        sender_value="mail.example.com",
+    )
+    business_domain_record = adapter.message_store.get_sender_reputation(
+        "primary",
+        entity_type="business_domain",
         sender_value="example.com",
     )
 
     assert email_record is not None
     assert email_record.inputs.message_count == 1
+    assert email_record.group_domain == "example.com"
     assert domain_record is not None
     assert domain_record.inputs.message_count == 1
+    assert business_domain_record is not None
+    assert business_domain_record.inputs.message_count == 1
+    assert business_domain_record.group_domain == "example.com"
 
 
 @pytest.mark.asyncio
@@ -622,3 +631,60 @@ async def test_gmail_adapter_rating_updates_refresh_sender_reputation(tmp_path):
     assert email_record.reputation_state == "blocked"
     assert domain_record is not None
     assert domain_record.reputation_state == "blocked"
+
+
+@pytest.mark.asyncio
+async def test_gmail_adapter_manual_reputation_rating_updates_effective_score(tmp_path):
+    GmailProviderConfigStore(tmp_path).save(
+        GmailOAuthConfig(
+            enabled=True,
+            client_id="client-id",
+            client_secret_ref="secret",
+            redirect_uri="https://email-node.example.com/api/providers/gmail/oauth/callback",
+        )
+    )
+    adapter = GmailProviderAdapter(tmp_path)
+    adapter.account_store.save_account(
+        ProviderAccountRecord(
+            provider_id=ProviderId.GMAIL,
+            account_id="primary",
+            status="connected",
+            email_address="primary@example.com",
+        )
+    )
+    adapter.message_store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="msg-1",
+                sender="Alerts <alerts@mail.example.com>",
+                subject="Please approve",
+                recipients=["primary@example.com"],
+                received_at=datetime(2026, 4, 2, 8, 0, 0).astimezone(),
+            )
+        ],
+        now=datetime(2026, 4, 2, 8, 5, 0).astimezone(),
+    )
+    adapter.message_store.update_local_classification(
+        "primary",
+        "msg-1",
+        label=GmailTrainingLabel.ACTION_REQUIRED,
+        confidence=1.0,
+        manual_classification=True,
+    )
+    await adapter.refresh_sender_reputations("primary")
+
+    result = await adapter.save_sender_reputation_manual_rating(
+        "primary",
+        entity_type="business_domain",
+        sender_value="example.com",
+        manual_rating=-4.0,
+        note="Operator flagged",
+    )
+
+    assert result["record"]["entity_type"] == "business_domain"
+    assert result["record"]["manual_rating"] == -4.0
+    assert result["record"]["manual_rating_note"] == "Operator flagged"
+    assert result["record"]["derived_rating"] == 1.0
+    assert result["record"]["rating"] == -3.0
+    assert result["record"]["reputation_state"] == "risky"

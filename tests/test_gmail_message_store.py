@@ -216,8 +216,13 @@ def test_gmail_message_store_persists_sender_reputation_records(runtime_dir):
             sender_value="alerts@example.com",
             sender_email="alerts@example.com",
             sender_domain="example.com",
+            group_domain="example.com",
             reputation_state="trusted",
+            derived_rating=2.5,
             rating=3.5,
+            manual_rating=1.0,
+            manual_rating_note="Trusted vendor",
+            manual_rating_updated_at=datetime(2026, 4, 2, 12, 20, 0),
             inputs=GmailSenderReputationInputs(
                 message_count=8,
                 classification_positive_count=5,
@@ -240,8 +245,12 @@ def test_gmail_message_store_persists_sender_reputation_records(runtime_dir):
     assert loaded is not None
     assert loaded.entity_type == "email"
     assert loaded.sender_domain == "example.com"
+    assert loaded.group_domain == "example.com"
     assert loaded.reputation_state == "trusted"
+    assert loaded.derived_rating == 2.5
     assert loaded.rating == 3.5
+    assert loaded.manual_rating == 1.0
+    assert loaded.manual_rating_note == "Trusted vendor"
     assert loaded.inputs.message_count == 8
     assert loaded.inputs.classification_positive_count == 5
     assert loaded.inputs.spamhaus_clean_count == 2
@@ -284,3 +293,81 @@ def test_gmail_message_store_lists_sender_reputation_records_by_recency(runtime_
 
     assert [record.sender_value for record in all_records] == ["alerts@example.com", "example.com"]
     assert [record.sender_value for record in email_records] == ["alerts@example.com"]
+
+
+def test_gmail_message_store_preserves_manual_rating_when_replacing_reputation_records(runtime_dir):
+    store = GmailMessageStore(runtime_dir)
+
+    store.upsert_sender_reputation(
+        GmailSenderReputationRecord(
+            account_id="primary",
+            entity_type="email",
+            sender_value="alerts@mail.example.com",
+            sender_email="alerts@mail.example.com",
+            sender_domain="mail.example.com",
+            group_domain="example.com",
+            manual_rating=-2.0,
+            manual_rating_note="Known phishing tests",
+            manual_rating_updated_at=datetime(2026, 4, 2, 11, 0, 0),
+            inputs=GmailSenderReputationInputs(message_count=2),
+        ),
+        now=datetime(2026, 4, 2, 11, 30, 0),
+    )
+
+    replaced = store.replace_sender_reputations(
+        "primary",
+        [
+            GmailSenderReputationRecord(
+                account_id="primary",
+                entity_type="email",
+                sender_value="alerts@mail.example.com",
+                sender_email="alerts@mail.example.com",
+                sender_domain="mail.example.com",
+                group_domain="example.com",
+                inputs=GmailSenderReputationInputs(
+                    message_count=4,
+                    classification_positive_count=1,
+                ),
+            )
+        ],
+        now=datetime(2026, 4, 2, 12, 0, 0),
+    )
+
+    assert replaced[0].manual_rating == -2.0
+    assert replaced[0].manual_rating_note == "Known phishing tests"
+    assert replaced[0].rating == -1.0
+    assert replaced[0].reputation_state == "risky"
+
+
+def test_gmail_message_store_updates_manual_sender_reputation_rating(runtime_dir):
+    store = GmailMessageStore(runtime_dir)
+
+    store.upsert_sender_reputation(
+        GmailSenderReputationRecord(
+            account_id="primary",
+            entity_type="business_domain",
+            sender_value="example.com",
+            sender_domain="example.com",
+            group_domain="example.com",
+            inputs=GmailSenderReputationInputs(
+                message_count=4,
+                classification_positive_count=1,
+            ),
+        ),
+        now=datetime(2026, 4, 2, 10, 0, 0),
+    )
+
+    updated = store.set_sender_reputation_manual_rating(
+        "primary",
+        entity_type="business_domain",
+        sender_value="example.com",
+        manual_rating=-4.0,
+        note="Operator blocked",
+        now=datetime(2026, 4, 2, 12, 0, 0),
+    )
+
+    assert updated.manual_rating == -4.0
+    assert updated.manual_rating_note == "Operator blocked"
+    assert updated.derived_rating == 1.0
+    assert updated.rating == -3.0
+    assert updated.reputation_state == "risky"

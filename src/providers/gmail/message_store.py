@@ -15,6 +15,7 @@ from providers.gmail.models import (
     GmailStoredMessage,
     GmailTrainingLabel,
 )
+from providers.gmail.reputation import finalize_sender_reputation_record
 from providers.gmail.runtime import GmailRuntimeLayout
 
 
@@ -85,8 +86,13 @@ class GmailMessageStore:
                     sender_value TEXT NOT NULL,
                     sender_email TEXT,
                     sender_domain TEXT,
+                    group_domain TEXT,
                     reputation_state TEXT NOT NULL DEFAULT 'neutral',
+                    derived_rating REAL NOT NULL DEFAULT 0,
                     rating REAL NOT NULL DEFAULT 0,
+                    manual_rating REAL,
+                    manual_rating_note TEXT,
+                    manual_rating_updated_at TEXT,
                     message_count INTEGER NOT NULL DEFAULT 0,
                     classification_positive_count INTEGER NOT NULL DEFAULT 0,
                     classification_negative_count INTEGER NOT NULL DEFAULT 0,
@@ -104,6 +110,11 @@ class GmailMessageStore:
                 ON gmail_sender_reputation(account_id, updated_at DESC)
                 """
             )
+            self._ensure_column(connection, "gmail_sender_reputation", "group_domain", "TEXT")
+            self._ensure_column(connection, "gmail_sender_reputation", "derived_rating", "REAL NOT NULL DEFAULT 0")
+            self._ensure_column(connection, "gmail_sender_reputation", "manual_rating", "REAL")
+            self._ensure_column(connection, "gmail_sender_reputation", "manual_rating_note", "TEXT")
+            self._ensure_column(connection, "gmail_sender_reputation", "manual_rating_updated_at", "TEXT")
             connection.commit()
         self._set_mode(self.path, 0o600)
 
@@ -582,6 +593,7 @@ class GmailMessageStore:
         now: datetime | None = None,
     ) -> GmailSenderReputationRecord:
         updated_at = record.updated_at or now or datetime.now().astimezone()
+        persisted = finalize_sender_reputation_record(record.model_copy(update={"updated_at": updated_at}))
         with self._connect() as connection:
             connection.execute(
                 """
@@ -591,8 +603,13 @@ class GmailMessageStore:
                     sender_value,
                     sender_email,
                     sender_domain,
+                    group_domain,
                     reputation_state,
+                    derived_rating,
                     rating,
+                    manual_rating,
+                    manual_rating_note,
+                    manual_rating_updated_at,
                     message_count,
                     classification_positive_count,
                     classification_negative_count,
@@ -600,12 +617,17 @@ class GmailMessageStore:
                     spamhaus_listed_count,
                     last_seen_at,
                     updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(account_id, entity_type, sender_value) DO UPDATE SET
                     sender_email=excluded.sender_email,
                     sender_domain=excluded.sender_domain,
+                    group_domain=excluded.group_domain,
                     reputation_state=excluded.reputation_state,
+                    derived_rating=excluded.derived_rating,
                     rating=excluded.rating,
+                    manual_rating=excluded.manual_rating,
+                    manual_rating_note=excluded.manual_rating_note,
+                    manual_rating_updated_at=excluded.manual_rating_updated_at,
                     message_count=excluded.message_count,
                     classification_positive_count=excluded.classification_positive_count,
                     classification_negative_count=excluded.classification_negative_count,
@@ -615,24 +637,29 @@ class GmailMessageStore:
                     updated_at=excluded.updated_at
                 """,
                 (
-                    record.account_id,
-                    record.entity_type,
-                    record.sender_value,
-                    record.sender_email,
-                    record.sender_domain,
-                    record.reputation_state,
-                    record.rating,
-                    record.inputs.message_count,
-                    record.inputs.classification_positive_count,
-                    record.inputs.classification_negative_count,
-                    record.inputs.spamhaus_clean_count,
-                    record.inputs.spamhaus_listed_count,
-                    record.last_seen_at.isoformat() if record.last_seen_at else None,
+                    persisted.account_id,
+                    persisted.entity_type,
+                    persisted.sender_value,
+                    persisted.sender_email,
+                    persisted.sender_domain,
+                    persisted.group_domain,
+                    persisted.reputation_state,
+                    persisted.derived_rating,
+                    persisted.rating,
+                    persisted.manual_rating,
+                    persisted.manual_rating_note,
+                    persisted.manual_rating_updated_at.isoformat() if persisted.manual_rating_updated_at else None,
+                    persisted.inputs.message_count,
+                    persisted.inputs.classification_positive_count,
+                    persisted.inputs.classification_negative_count,
+                    persisted.inputs.spamhaus_clean_count,
+                    persisted.inputs.spamhaus_listed_count,
+                    persisted.last_seen_at.isoformat() if persisted.last_seen_at else None,
                     updated_at.isoformat(),
                 ),
             )
             connection.commit()
-        return record.model_copy(update={"updated_at": updated_at})
+        return persisted
 
     def get_sender_reputation(
         self,
@@ -650,8 +677,13 @@ class GmailMessageStore:
                     sender_value,
                     sender_email,
                     sender_domain,
+                    group_domain,
                     reputation_state,
+                    derived_rating,
                     rating,
+                    manual_rating,
+                    manual_rating_note,
+                    manual_rating_updated_at,
                     message_count,
                     classification_positive_count,
                     classification_negative_count,
@@ -683,8 +715,13 @@ class GmailMessageStore:
                 sender_value,
                 sender_email,
                 sender_domain,
+                group_domain,
                 reputation_state,
+                derived_rating,
                 rating,
+                manual_rating,
+                manual_rating_note,
+                manual_rating_updated_at,
                 message_count,
                 classification_positive_count,
                 classification_negative_count,
@@ -714,6 +751,47 @@ class GmailMessageStore:
     ) -> list[GmailSenderReputationRecord]:
         updated_at = now or datetime.now().astimezone()
         with self._connect() as connection:
+            manual_rows = connection.execute(
+                """
+                SELECT
+                    entity_type,
+                    sender_value,
+                    manual_rating,
+                    manual_rating_note,
+                    manual_rating_updated_at
+                FROM gmail_sender_reputation
+                WHERE account_id = ?
+                """,
+                (account_id,),
+            ).fetchall()
+            manual_by_key = {
+                (row["entity_type"], row["sender_value"]): {
+                    "manual_rating": float(row["manual_rating"]) if row["manual_rating"] is not None else None,
+                    "manual_rating_note": row["manual_rating_note"],
+                    "manual_rating_updated_at": (
+                        datetime.fromisoformat(row["manual_rating_updated_at"])
+                        if row["manual_rating_updated_at"]
+                        else None
+                    ),
+                }
+                for row in manual_rows
+            }
+            persisted_records: list[GmailSenderReputationRecord] = []
+            for record in records:
+                preserved = manual_by_key.get((record.entity_type, record.sender_value), {})
+                merged = record.model_copy(
+                    update={
+                        "manual_rating": record.manual_rating if record.manual_rating is not None else preserved.get("manual_rating"),
+                        "manual_rating_note": record.manual_rating_note if record.manual_rating_note is not None else preserved.get("manual_rating_note"),
+                        "manual_rating_updated_at": (
+                            record.manual_rating_updated_at
+                            if record.manual_rating_updated_at is not None
+                            else preserved.get("manual_rating_updated_at")
+                        ),
+                        "updated_at": record.updated_at or updated_at,
+                    }
+                )
+                persisted_records.append(finalize_sender_reputation_record(merged))
             connection.execute(
                 """
                 DELETE FROM gmail_sender_reputation
@@ -729,8 +807,13 @@ class GmailMessageStore:
                     sender_value,
                     sender_email,
                     sender_domain,
+                    group_domain,
                     reputation_state,
+                    derived_rating,
                     rating,
+                    manual_rating,
+                    manual_rating_note,
+                    manual_rating_updated_at,
                     message_count,
                     classification_positive_count,
                     classification_negative_count,
@@ -738,7 +821,7 @@ class GmailMessageStore:
                     spamhaus_listed_count,
                     last_seen_at,
                     updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -747,8 +830,13 @@ class GmailMessageStore:
                         record.sender_value,
                         record.sender_email,
                         record.sender_domain,
+                        record.group_domain,
                         record.reputation_state,
+                        record.derived_rating,
                         record.rating,
+                        record.manual_rating,
+                        record.manual_rating_note,
+                        record.manual_rating_updated_at.isoformat() if record.manual_rating_updated_at else None,
                         record.inputs.message_count,
                         record.inputs.classification_positive_count,
                         record.inputs.classification_negative_count,
@@ -757,11 +845,100 @@ class GmailMessageStore:
                         record.last_seen_at.isoformat() if record.last_seen_at else None,
                         (record.updated_at or updated_at).isoformat(),
                     )
-                    for record in records
+                    for record in persisted_records
                 ],
             )
             connection.commit()
-        return [record.model_copy(update={"updated_at": record.updated_at or updated_at}) for record in records]
+        return persisted_records
+
+    def set_sender_reputation_manual_rating(
+        self,
+        account_id: str,
+        *,
+        entity_type: str,
+        sender_value: str,
+        manual_rating: float | None,
+        note: str | None = None,
+        now: datetime | None = None,
+    ) -> GmailSenderReputationRecord:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT
+                    account_id,
+                    entity_type,
+                    sender_value,
+                    sender_email,
+                    sender_domain,
+                    group_domain,
+                    reputation_state,
+                    derived_rating,
+                    rating,
+                    manual_rating,
+                    manual_rating_note,
+                    manual_rating_updated_at,
+                    message_count,
+                    classification_positive_count,
+                    classification_negative_count,
+                    spamhaus_clean_count,
+                    spamhaus_listed_count,
+                    last_seen_at,
+                    updated_at
+                FROM gmail_sender_reputation
+                WHERE account_id = ?
+                  AND entity_type = ?
+                  AND sender_value = ?
+                LIMIT 1
+                """,
+                (account_id, entity_type, sender_value),
+            ).fetchone()
+            if row is None:
+                raise ValueError("sender reputation record was not found")
+            existing = self._row_to_sender_reputation(row)
+            updated_at = now or datetime.now().astimezone()
+            normalized_note = (note or "").strip() or None
+            normalized_rating = round(float(manual_rating), 2) if manual_rating is not None else None
+            updated = finalize_sender_reputation_record(
+                existing.model_copy(
+                    update={
+                        "manual_rating": normalized_rating,
+                        "manual_rating_note": normalized_note,
+                        "manual_rating_updated_at": updated_at if (normalized_rating is not None or normalized_note is not None) else None,
+                        "updated_at": updated_at,
+                    }
+                )
+            )
+            connection.execute(
+                """
+                UPDATE gmail_sender_reputation
+                SET group_domain = ?,
+                    reputation_state = ?,
+                    derived_rating = ?,
+                    rating = ?,
+                    manual_rating = ?,
+                    manual_rating_note = ?,
+                    manual_rating_updated_at = ?,
+                    updated_at = ?
+                WHERE account_id = ?
+                  AND entity_type = ?
+                  AND sender_value = ?
+                """,
+                (
+                    updated.group_domain,
+                    updated.reputation_state,
+                    updated.derived_rating,
+                    updated.rating,
+                    updated.manual_rating,
+                    updated.manual_rating_note,
+                    updated.manual_rating_updated_at.isoformat() if updated.manual_rating_updated_at else None,
+                    updated.updated_at.isoformat() if updated.updated_at else updated_at.isoformat(),
+                    account_id,
+                    entity_type,
+                    sender_value,
+                ),
+            )
+            connection.commit()
+        return updated
 
     def local_classification_summary(self, account_id: str, *, high_confidence_threshold: float = 0.92) -> dict[str, object]:
         with self._connect() as connection:
@@ -1059,8 +1236,17 @@ class GmailMessageStore:
             sender_value=row["sender_value"],
             sender_email=row["sender_email"],
             sender_domain=row["sender_domain"],
+            group_domain=row["group_domain"] if "group_domain" in row.keys() else None,
             reputation_state=row["reputation_state"],
+            derived_rating=float(row["derived_rating"] or 0.0) if "derived_rating" in row.keys() else 0.0,
             rating=float(row["rating"] or 0.0),
+            manual_rating=float(row["manual_rating"]) if "manual_rating" in row.keys() and row["manual_rating"] is not None else None,
+            manual_rating_note=row["manual_rating_note"] if "manual_rating_note" in row.keys() else None,
+            manual_rating_updated_at=(
+                datetime.fromisoformat(row["manual_rating_updated_at"])
+                if "manual_rating_updated_at" in row.keys() and row["manual_rating_updated_at"]
+                else None
+            ),
             inputs=GmailSenderReputationInputs(
                 message_count=int(row["message_count"] or 0),
                 classification_positive_count=int(row["classification_positive_count"] or 0),

@@ -17,7 +17,13 @@ from models import (
     TaskCapabilitySelectionInput,
     TaskRoutingRequestInput,
 )
-from providers.gmail.models import GmailManualClassificationBatchInput, GmailOAuthConfig, GmailSemiAutoClassificationBatchInput, GmailTrainingLabel
+from providers.gmail.models import (
+    GmailManualClassificationBatchInput,
+    GmailOAuthConfig,
+    GmailSenderReputationManualRatingInput,
+    GmailSemiAutoClassificationBatchInput,
+    GmailTrainingLabel,
+)
 from service import NodeService
 
 
@@ -282,6 +288,13 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    @app.post("/api/gmail/reputation/refresh")
+    async def gmail_sender_reputation_refresh(account_id: str = "primary"):
+        try:
+            return await node_service.gmail_refresh_sender_reputation(account_id=account_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     @app.get("/api/gmail/training")
     async def gmail_training(account_id: str = "primary"):
         try:
@@ -309,6 +322,22 @@ def create_app(
                 entity_type=entity_type,
                 sender_value=sender_value,
                 message_limit=message_limit,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/api/gmail/reputation/manual-rating")
+    async def gmail_sender_reputation_manual_rating(
+        payload: GmailSenderReputationManualRatingInput,
+        account_id: str = "primary",
+    ):
+        try:
+            return await node_service.gmail_save_sender_reputation_manual_rating(
+                account_id=account_id,
+                entity_type=payload.entity_type,
+                sender_value=payload.sender_value,
+                manual_rating=payload.manual_rating,
+                note=payload.note,
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
