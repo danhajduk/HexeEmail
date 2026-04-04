@@ -1020,6 +1020,26 @@ def test_runtime_classifier_output_normalization_helpers(config, core_client_fac
     assert service._normalize_classifier_confidence(parsed.get("score")) == 0.91
 
 
+def test_runtime_action_decision_output_parser_accepts_string_wrapped_json(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+
+    parsed = service._parse_action_decision_output(
+        {
+            "response": {
+                "output_text": (
+                    "{\"primary_label\":\"ORDER\",\"summary\":\"Order update\",\"urgency\":\"normal\","
+                    "\"recommended_actions\":[{\"action\":\"notify\",\"confidence\":0.9,\"reason\":\"Useful order update\"}],"
+                    "\"human_review_required\":false}"
+                )
+            }
+        }
+    )
+
+    assert parsed is not None
+    assert parsed["primary_label"] == "ORDER"
+    assert parsed["summary"] == "Order update"
+
+
 @pytest.mark.asyncio
 async def test_ui_bootstrap_restores_persisted_runtime_task_state(config, core_client_factory):
     service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())

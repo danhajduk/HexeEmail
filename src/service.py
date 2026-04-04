@@ -645,21 +645,64 @@ class NodeService:
 
     @staticmethod
     def _parse_action_decision_output(output: object) -> dict[str, object] | None:
+        def is_action_decision_payload(value: object) -> bool:
+            return isinstance(value, dict) and (
+                "primary_label" in value
+                or "recommended_actions" in value
+                or "human_review_required" in value
+            )
+
+        def parse_json_text(value: object) -> dict[str, object] | None:
+            if not isinstance(value, str):
+                return None
+            try:
+                parsed = json.loads(value)
+            except Exception:
+                return None
+            return parsed if isinstance(parsed, dict) else None
+
+        if is_action_decision_payload(output):
+            return output
+        if isinstance(output, str):
+            return parse_json_text(output)
         if not isinstance(output, dict):
             return None
-        if "primary_label" in output or "recommended_actions" in output:
-            return output
-        result = output.get("result")
-        if isinstance(result, dict) and ("primary_label" in result or "recommended_actions" in result):
-            return result
+
+        for key in ("result", "parsed", "json", "data", "output"):
+            candidate = output.get(key)
+            if is_action_decision_payload(candidate):
+                return candidate
+            parsed_candidate = parse_json_text(candidate)
+            if is_action_decision_payload(parsed_candidate):
+                return parsed_candidate
+
+        response_payload = output.get("response")
+        if isinstance(response_payload, dict):
+            for key in ("output_text", "text", "content"):
+                candidate = response_payload.get(key)
+                if is_action_decision_payload(candidate):
+                    return candidate
+                parsed_candidate = parse_json_text(candidate)
+                if is_action_decision_payload(parsed_candidate):
+                    return parsed_candidate
+                if isinstance(candidate, list):
+                    for item in candidate:
+                        if is_action_decision_payload(item):
+                            return item
+                        if isinstance(item, dict):
+                            for nested_key in ("text", "output_text", "json", "parsed"):
+                                nested_candidate = item.get(nested_key)
+                                if is_action_decision_payload(nested_candidate):
+                                    return nested_candidate
+                                parsed_nested = parse_json_text(nested_candidate)
+                                if is_action_decision_payload(parsed_nested):
+                                    return parsed_nested
+
         text = output.get("text")
-        if not isinstance(text, str):
-            return None
-        try:
-            parsed = json.loads(text)
-        except Exception:
-            return None
-        return parsed if isinstance(parsed, dict) else None
+        parsed_text = parse_json_text(text)
+        if is_action_decision_payload(parsed_text):
+            return parsed_text
+        return None
 
     def _default_ai_runtime_target_api_base_url(self) -> str:
         return self._normalize_target_api_base_url(self.state.runtime_prompt_sync_target_api_base_url)
