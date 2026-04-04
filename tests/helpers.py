@@ -40,6 +40,7 @@ def build_core_app():
     app.state.prompt_service_registration_requests = []
     app.state.prompt_services = {}
     app.state.prompt_read_missing_returns_400 = False
+    app.state.action_decision_output_override = None
     app.state.usage_summary_requests = []
 
     @app.post("/api/system/nodes/onboarding/sessions")
@@ -200,6 +201,13 @@ def build_core_app():
     async def execute_direct(payload: dict, authorization: str | None = Header(default=None)):
         app.state.execution_direct_requests.append(payload)
         if payload.get("prompt_id") == "prompt.email.action_decision":
+            action_decision_output = app.state.action_decision_output_override
+            if isinstance(action_decision_output, dict):
+                return {
+                    "task_id": payload.get("task_id"),
+                    "status": "completed",
+                    "output": action_decision_output,
+                }
             return {
                 "task_id": payload.get("task_id"),
                 "status": "completed",

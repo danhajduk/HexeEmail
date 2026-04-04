@@ -732,6 +732,95 @@ class NodeService:
             return parsed_text
         return None
 
+    @classmethod
+    def _validate_json_schema_value(
+        cls,
+        value: object,
+        schema: dict[str, object],
+        *,
+        path: str = "$",
+    ) -> str | None:
+        schema_type = schema.get("type")
+        allowed_types = schema_type if isinstance(schema_type, list) else [schema_type] if schema_type is not None else []
+        if allowed_types:
+            type_ok = False
+            for allowed_type in allowed_types:
+                if allowed_type == "null" and value is None:
+                    type_ok = True
+                elif allowed_type == "object" and isinstance(value, dict):
+                    type_ok = True
+                elif allowed_type == "array" and isinstance(value, list):
+                    type_ok = True
+                elif allowed_type == "string" and isinstance(value, str):
+                    type_ok = True
+                elif allowed_type == "number" and isinstance(value, (int, float)) and not isinstance(value, bool):
+                    type_ok = True
+                elif allowed_type == "boolean" and isinstance(value, bool):
+                    type_ok = True
+            if not type_ok:
+                return f"{path}: expected {allowed_types}, got {type(value).__name__}"
+
+        enum_values = schema.get("enum")
+        if isinstance(enum_values, list) and value not in enum_values:
+            return f"{path}: expected one of {enum_values}, got {value!r}"
+
+        if value is None:
+            return None
+
+        if isinstance(value, dict):
+            properties = schema.get("properties")
+            properties_map = properties if isinstance(properties, dict) else {}
+            required = schema.get("required")
+            if isinstance(required, list):
+                for key in required:
+                    if isinstance(key, str) and key not in value:
+                        return f"{path}: missing required field {key}"
+            if schema.get("additionalProperties") is False:
+                for key in value.keys():
+                    if key not in properties_map:
+                        return f"{path}: unexpected field {key}"
+            for key, child_schema in properties_map.items():
+                if key not in value or not isinstance(child_schema, dict):
+                    continue
+                error = cls._validate_json_schema_value(value[key], child_schema, path=f"{path}.{key}")
+                if error is not None:
+                    return error
+            return None
+
+        if isinstance(value, list):
+            item_schema = schema.get("items")
+            if isinstance(item_schema, dict):
+                for index, item in enumerate(value):
+                    error = cls._validate_json_schema_value(item, item_schema, path=f"{path}[{index}]")
+                    if error is not None:
+                        return error
+            return None
+
+        minimum = schema.get("minimum")
+        if isinstance(minimum, (int, float)) and isinstance(value, (int, float)) and value < minimum:
+            return f"{path}: expected >= {minimum}, got {value}"
+        maximum = schema.get("maximum")
+        if isinstance(maximum, (int, float)) and isinstance(value, (int, float)) and value > maximum:
+            return f"{path}: expected <= {maximum}, got {value}"
+        return None
+
+    @classmethod
+    def _validate_action_decision_payload(
+        cls,
+        value: object,
+        schema: dict[str, object],
+    ) -> dict[str, object] | None:
+        if not isinstance(value, dict):
+            return None
+        error = cls._validate_json_schema_value(value, schema)
+        if error is not None:
+            AI_LOGGER.warning(
+                "AI action decision output failed schema validation",
+                extra={"event_data": {"detail": error}},
+            )
+            return None
+        return value
+
     def _default_ai_runtime_target_api_base_url(self) -> str:
         return self._normalize_target_api_base_url(self.state.runtime_prompt_sync_target_api_base_url)
 
@@ -898,6 +987,7 @@ class NodeService:
         decision = self._parse_action_decision_output(
             execution_payload.get("output") if isinstance(execution_payload, dict) else None
         )
+        decision = self._validate_action_decision_payload(decision, prompt_runtime["json_schema"])
         if not isinstance(decision, dict):
             return None
         self.provider_registry.get_provider("gmail").message_store.update_action_decision(

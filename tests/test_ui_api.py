@@ -1002,10 +1002,89 @@ async def test_runtime_execute_latest_email_action_decision_uses_newest_actionab
     assert len(core_app.state.execution_direct_requests) == 1
     execution_request = core_app.state.execution_direct_requests[0]
     assert execution_request["prompt_id"] == "prompt.email.action_decision"
-    assert execution_request["prompt_version"] == "v1.1"
+    assert execution_request["prompt_version"] == "v1.2"
     assert execution_request["inputs"]["message_id"] == "order-newest"
     assert execution_request["inputs"]["text"] == "Full email body for action decision."
     assert execution_request["inputs"]["body_text"] == "Full email body for action decision."
+
+
+@pytest.mark.asyncio
+async def test_runtime_execute_latest_email_action_decision_rejects_partial_output(config, core_client_factory):
+    core_app = build_core_app()
+    core_app.state.action_decision_output_override = {
+        "primary_label": "SHIPMENT",
+        "recommended_actions": [
+            {
+                "action": "track_shipment",
+                "confidence": 0.98,
+                "reason": "Tracking is appropriate.",
+            }
+        ],
+    }
+    service = NodeService(config, core_client=core_client_factory(core_app), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    adapter = service.provider_registry.get_provider("gmail")
+    adapter.account_store.save_account(
+        adapter.state_machine.ensure_account("primary").model_copy(
+            update={"status": "connected", "email_address": "primary@example.com"}
+        )
+    )
+    actionable = GmailStoredMessage(
+        account_id="primary",
+        message_id="order-partial",
+        subject="Partial order",
+        sender="Order Sender <order@example.com>",
+        recipients=["primary@example.com"],
+        snippet="partial action decision mail",
+        received_at=datetime(2026, 4, 2, 12, 0, 0).astimezone(),
+        local_label="order",
+        local_label_confidence=0.96,
+    )
+    adapter.message_store.upsert_messages([actionable])
+    google_app = FastAPI()
+
+    @google_app.get("/messages/{message_id}")
+    async def get_full_message(message_id: str):
+        return {
+            "id": message_id,
+            "threadId": "thread-1",
+            "snippet": "Amazon order",
+            "payload": {
+                "mimeType": "multipart/alternative",
+                "headers": [
+                    {"name": "From", "value": "Order Sender <order@example.com>"},
+                    {"name": "To", "value": "primary@example.com"},
+                    {"name": "Subject", "value": "Partial order"},
+                ],
+                "parts": [
+                    {
+                        "mimeType": "text/plain",
+                        "body": {
+                            "data": "UGFydGlhbCBhY3Rpb24gZGVjaXNpb24gYm9keS4="
+                        },
+                    }
+                ],
+            },
+        }
+
+    adapter.mailbox_client._client = httpx.AsyncClient(transport=ASGITransport(app=google_app), timeout=10.0)
+    adapter.mailbox_client.MESSAGE_ENDPOINT_TEMPLATE = "http://google.test/messages/{message_id}"
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/runtime/execute-latest-email-action-decision",
+            json={
+                "target_api_base_url": "http://10.0.0.100:9002",
+            },
+        )
+
+    saved = adapter.message_store.get_message("primary", "order-partial")
+    await service.stop()
+
+    assert response.status_code == 500
+    assert saved is not None
+    assert saved.action_decision_payload is None
 
 
 @pytest.mark.asyncio
@@ -1112,6 +1191,31 @@ def test_runtime_action_decision_output_parser_accepts_string_wrapped_json(confi
     assert parsed is not None
     assert parsed["primary_label"] == "ORDER"
     assert parsed["summary"] == "Order update"
+
+
+def test_runtime_action_decision_schema_validation_rejects_partial_payload(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    prompt_definition = service._load_runtime_prompt_definition("prompt.email.action_decision")
+    prompt_runtime = prompt_definition.get("node_runtime")
+
+    assert isinstance(prompt_runtime, dict)
+    assert isinstance(prompt_runtime.get("json_schema"), dict)
+
+    validated = service._validate_action_decision_payload(
+        {
+            "primary_label": "SHIPMENT",
+            "recommended_actions": [
+                {
+                    "action": "track_shipment",
+                    "confidence": 0.98,
+                    "reason": "Tracking is appropriate.",
+                }
+            ],
+        },
+        prompt_runtime["json_schema"],
+    )
+
+    assert validated is None
 
 
 @pytest.mark.asyncio
