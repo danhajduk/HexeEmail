@@ -2199,6 +2199,14 @@ class NodeService:
             transport=self.core_client.transport,
         ) as client:
             response = await client.get(f"/api/prompts/services/{prompt_id}")
+            if response.status_code == 400:
+                try:
+                    payload = response.json()
+                except Exception:
+                    payload = None
+                detail = payload.get("detail") if isinstance(payload, dict) else None
+                if detail == "prompt_id is not registered":
+                    return None
             response.raise_for_status()
             payload = response.json()
         if not isinstance(payload, dict) or not payload.get("configured"):

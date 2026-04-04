@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI, Header
+from fastapi.responses import JSONResponse
 
 from mqtt import MQTTManager
 from models import NodeNotificationRequest
@@ -38,6 +39,7 @@ def build_core_app():
     app.state.prompt_service_lifecycle_requests = []
     app.state.prompt_service_registration_requests = []
     app.state.prompt_services = {}
+    app.state.prompt_read_missing_returns_400 = False
     app.state.usage_summary_requests = []
 
     @app.post("/api/system/nodes/onboarding/sessions")
@@ -286,6 +288,8 @@ def build_core_app():
     @app.get("/api/prompts/services/{prompt_id}")
     async def get_prompt_service(prompt_id: str):
         prompt = app.state.prompt_services.get(prompt_id)
+        if prompt is None and app.state.prompt_read_missing_returns_400:
+            return JSONResponse(status_code=400, content={"detail": "prompt_id is not registered"})
         return {
             "configured": isinstance(prompt, dict),
             "prompt": prompt,

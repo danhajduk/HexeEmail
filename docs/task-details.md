@@ -245,3 +245,20 @@ Original task details:
 - if the message is HTML-only, convert the HTML body to readable plain text before sending to AI
 - use that extracted text for the AI action-decision request instead of the current normalized classifier body text
 - keep attachments out of the AI body text for now
+
+## Task 109
+Original task details:
+- investigate this prompt-sync/read issue:
+  - `Client error '400 Bad Request' for url 'http://127.0.0.1:9002/api/prompts/services/prompt.email.summarization'`
+  - detail: `prompt_id is not registered`
+- verify whether the sync flow should treat that response as "not configured" instead of a hard failure
+- verify whether `prompt.email.summarization.json` is being scanned and registered correctly
+- fix the sync behavior so missing prompt ids can still be registered cleanly
+- if this exact `400` happens, treat it as "no prompt available" and register the prompt
+
+## Task 110
+Original task details:
+- add a monthly scheduled runtime task
+- this task should run task resolve and authorize with Core
+- keep it visible in the scheduled tasks table with the proper schedule template/legend entry
+- persist last/next execution state like the other scheduled runtime tasks
