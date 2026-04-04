@@ -285,6 +285,24 @@ function deriveModelTrainingWarning(modelStatus, providerConnected) {
   };
 }
 
+function resolvePrimaryModelStatus(gmailModelStatus, trainingModelStatus) {
+  const gmailTrainedAt = gmailModelStatus?.trained_at ? new Date(gmailModelStatus.trained_at) : null;
+  const trainingTrainedAt = trainingModelStatus?.trained_at ? new Date(trainingModelStatus.trained_at) : null;
+  const gmailHasValidTimestamp = gmailTrainedAt instanceof Date && !Number.isNaN(gmailTrainedAt.getTime());
+  const trainingHasValidTimestamp = trainingTrainedAt instanceof Date && !Number.isNaN(trainingTrainedAt.getTime());
+
+  if (trainingHasValidTimestamp && (!gmailHasValidTimestamp || trainingTrainedAt >= gmailTrainedAt)) {
+    return trainingModelStatus;
+  }
+  if (gmailHasValidTimestamp) {
+    return gmailModelStatus;
+  }
+  if (trainingModelStatus?.trained) {
+    return trainingModelStatus;
+  }
+  return gmailModelStatus || trainingModelStatus || null;
+}
+
 function backendUnavailableMessage(error) {
   return error || "backend unavailable";
 }
@@ -2805,8 +2823,12 @@ export function App() {
     setTrainingNotice("");
     try {
       const payload = await fetchJson("/api/gmail/training/train-model", { method: "POST" });
-      const refreshedTraining = await fetchJson("/api/gmail/training");
+      const [refreshedTraining, refreshedStatus] = await Promise.all([
+        fetchJson("/api/gmail/training"),
+        fetchJson("/api/gmail/status"),
+      ]);
       setTrainingStatus(refreshedTraining);
+      setGmailStatus(refreshedStatus);
       setTrainingNotice(
         `Model trained with ${payload.model_status?.sample_count ?? refreshedTraining?.model_status?.sample_count ?? 0} samples.`,
       );
@@ -2823,8 +2845,12 @@ export function App() {
     setTrainingNotice("");
     try {
       const payload = await fetchJson("/api/gmail/training/train-model?minimum_confidence=0.92", { method: "POST" });
-      const refreshedTraining = await fetchJson("/api/gmail/training");
+      const [refreshedTraining, refreshedStatus] = await Promise.all([
+        fetchJson("/api/gmail/training"),
+        fetchJson("/api/gmail/status"),
+      ]);
       setTrainingStatus(refreshedTraining);
+      setGmailStatus(refreshedStatus);
       setTrainingNotice(
         `High-confidence model trained with ${payload.model_status?.sample_count ?? refreshedTraining?.model_status?.sample_count ?? 0} samples.`,
       );
@@ -3168,7 +3194,7 @@ export function App() {
   const gmailPrimaryStore = gmailPrimary?.message_store || null;
   const gmailPrimaryClassification = gmailPrimary?.classification_summary || null;
   const gmailPrimarySenderReputation = gmailPrimary?.sender_reputation || null;
-  const gmailPrimaryModelStatus = gmailPrimary?.model_status || null;
+  const gmailPrimaryModelStatus = resolvePrimaryModelStatus(gmailPrimary?.model_status || null, trainingStatus?.model_status || null);
   const gmailPrimarySpamhaus = gmailPrimary?.spamhaus || null;
   const gmailPrimaryQuotaUsage = gmailPrimary?.quota_usage || null;
   const gmailFetchSchedule = gmailStatus?.fetch_schedule || null;
@@ -3177,6 +3203,7 @@ export function App() {
   const gmailLastHourPipelinePills = buildGmailLastHourPipelinePills(gmailLastHourPipeline);
   const gmailWindowSettings = buildGmailWindowSettings(gmailFetchSchedule);
   const scheduledTasks = Array.isArray(bootstrap?.scheduled_tasks) ? bootstrap.scheduled_tasks : [];
+  const scheduledTaskLegend = Array.isArray(bootstrap?.scheduled_task_legend) ? bootstrap.scheduled_task_legend : [];
   const mqttHealth = status?.mqtt_health || {};
   const lastHeartbeatAt = mqttHealth?.last_status_report_at || status?.last_heartbeat_at || null;
   const mqttConnected = status?.mqtt_connection_status === "connected" || mqttHealth?.health_status === "connected";
@@ -3976,6 +4003,14 @@ export function App() {
                       <h2>Scheduled Tasks</h2>
                       <p className="muted">Scheduler-driven background jobs with current cadence and latest execution state.</p>
                     </div>
+                    <div className="scheduled-tasks-legend">
+                      {scheduledTaskLegend.map((item) => (
+                        <div key={item.name} className="scheduled-tasks-legend-item">
+                          <code>{item.name}</code>
+                          <span className="muted tiny">{item.detail}</span>
+                        </div>
+                      ))}
+                    </div>
                     {scheduledTasks.length ? (
                       <div className="scheduled-tasks-table-wrap">
                         <table className="scheduled-tasks-table">
@@ -3997,7 +4032,10 @@ export function App() {
                               <tr key={task.task_id}>
                                 <td><strong>{task.title || task.task_id}</strong></td>
                                 <td>{task.group || "-"}</td>
-                                <td>{task.schedule || "-"}</td>
+                                <td>
+                                  <div><code>{task.schedule_name || "-"}</code></div>
+                                  <div className="muted tiny">{task.schedule_detail || "-"}</div>
+                                </td>
                                 <td>
                                   <span className={`status-pill tone-${scheduledTaskStatusTone(task.status)}`}>
                                     {task.status || "unknown"}
