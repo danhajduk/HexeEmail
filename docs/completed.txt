@@ -90,3 +90,7 @@ Task 089: Show sender reputation in the UI - Completed on 04/03/2026 16:10
 Task 090: Use sender reputation in classification and notifications - Completed on 04/03/2026 16:10
 Task 091: Fetch six months for initial Gmail learning - Completed on 04/03/2026 16:10
 Task 092: Schedule hourly batch classification for newest unclassified emails - Completed on 04/03/2026 16:10
+Task 093: Add non-webmail domain reputation - Completed on 04/03/2026 17:14
+Task 094: Group sender reputation list by domain with collapsible sections - Completed on 04/03/2026 17:14
+Task 095: Add manual sender and domain reputation rating - Completed on 04/03/2026 17:14
+Task 096: Add risk-level filtering to the reputation list - Completed on 04/03/2026 17:14

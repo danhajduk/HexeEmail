@@ -74,3 +74,70 @@ Original task details:
 ## Task 085
 Original task details:
 - repeat Task 084 for the `order` classification
+
+## Task 086
+Original task details:
+- add sender reputation storage based on the ratings/signals already persisted in the local db
+- store sender email and sender domain level reputation data
+- persist rating inputs, derived score, reputation bucket, and timestamps
+
+## Task 087
+Original task details:
+- build a reusable sender reputation aggregation/update flow
+- compute reputation from existing db ratings and checks when new mail arrives or ratings change
+- keep the aggregation reusable by runtime, training, and ui code
+
+## Task 088
+Original task details:
+- expose sender reputation through backend apis
+- add sender reputation summary/detail responses with counts, reputation state, last seen, and contributing ratings
+- align the api shape with current gmail status/dashboard patterns
+
+## Task 089
+Original task details:
+- show sender reputation in the ui
+- surface reputation state, rating/score, and supporting counts in gmail or training views
+- make the reputation explanation inspectable by the operator
+
+## Task 090
+Original task details:
+- use sender reputation in classification and notifications
+- include sender reputation in local/runtime classification helper flows where helpful
+- surface risky or low-reputation senders in notifications/debug outputs
+- document operator-visible behavior for sender reputation
+
+## Task 091
+Original task details:
+- change the initial Gmail learning fetch window from 3 months to 6 months
+- align the initial fetch range with the existing 6 month local retention window
+- update tests and docs that still reference the old 3 month range
+
+## Task 092
+Original task details:
+- every hour at `00` minutes classify 100 newest unclassified emails
+- run it in batch
+- use the same flow as the existing button-triggered batch classification
+
+## Task 093
+Original task details:
+- add an additional reputation per domain
+- ignore mailbox-provider domains like gmail, hotmail, outlook, yahoo, icloud, and similar
+- keep the extra domain reputation aligned with the existing sender reputation storage and aggregation flow
+
+## Task 094
+Original task details:
+- make the reputation list grouped by domain
+- make domain groups collapsible
+- keep sender and domain summary data visible even when a domain group is collapsed
+
+## Task 095
+Original task details:
+- add an option to manually rate senders and domains
+- persist the manual rating in the reputation data model
+- include manual ratings in the explanation and effective reputation calculation
+
+## Task 096
+Original task details:
+- add an option to filter the reputation list by risk level
+- support filtering by trusted, neutral, risky, and blocked
+- keep the filtering compatible with the grouped and collapsible reputation list

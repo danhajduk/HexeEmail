@@ -55,3 +55,27 @@ Chosen fix: Reuse the existing runtime batch classification flow inside the minu
 What changed: Added persisted hourly batch slot tracking to runtime state, wired the Gmail scheduler loop to trigger the existing 100-message batch classification flow once per hour near minute `00`, and added regression coverage for the once-per-slot behavior.
 Verification: `python -m py_compile src/models.py src/service.py src/providers/gmail/mailbox_client.py tests/test_gmail_mailbox_client.py tests/test_ui_api.py` passed. `python -m pytest ...` still could not run because `pytest` is not installed in this environment.
 ###########
+Task #093
+Step objective: Add reusable non-webmail business-domain reputation records.
+Chosen fix: Extend the existing sender reputation aggregation to derive a third `business_domain` entity while filtering out common mailbox-provider domains, so domain grouping can reuse the same persisted reputation flow.
+What changed: Added business-domain extraction and mailbox-provider exclusions in the reputation builder, extended persisted reputation records with `group_domain` and `derived_rating`, and covered the new entity type in storage, adapter, and API tests.
+Verification: `python -m py_compile src/providers/gmail/models.py src/providers/gmail/reputation.py src/providers/gmail/message_store.py src/providers/gmail/adapter.py src/service.py src/main.py tests/test_gmail_message_store.py tests/test_gmail_adapter.py tests/test_ui_api.py` passed.
+###########
+Task #094
+Step objective: Group the sender reputation page by domain with collapsible sections.
+Chosen fix: Reuse the existing training-style reputation page and group records client-side by `group_domain`, keeping the summary record visible in each collapsed section.
+What changed: Added grouped/collapsible domain sections in the `/training/reputation` page, kept the Gmail dashboard summary-only, and added supporting styles for grouped sender reputation cards.
+Verification: `npm run build` passed in `frontend/`.
+###########
+Task #095
+Step objective: Add manual sender and domain reputation rating.
+Chosen fix: Add a focused manual-rating API and hook it into the selected-record panel on the reputation page so operator overrides persist and update the effective score without bypassing the derived signal model.
+What changed: Added backend manual-rating persistence and API support, preserved manual ratings across reputation refreshes, and added reputation-page controls for setting and clearing operator ratings with notes.
+Verification: `python -m py_compile src/providers/gmail/models.py src/providers/gmail/reputation.py src/providers/gmail/message_store.py src/providers/gmail/adapter.py src/service.py src/main.py tests/test_gmail_message_store.py tests/test_gmail_adapter.py tests/test_ui_api.py` passed. `npm run build` passed in `frontend/`.
+###########
+Task #096
+Step objective: Add risk-level filtering to the reputation list.
+Chosen fix: Filter the grouped reputation page client-side by the existing risk buckets so filtering works naturally with the collapsible domain sections and does not require a separate backend endpoint.
+What changed: Added trusted/neutral/risky/blocked filter controls to the sender reputation page and kept the grouped domain summaries compatible with the active filter.
+Verification: `npm run build` passed in `frontend/`.
+###########

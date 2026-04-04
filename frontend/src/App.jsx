@@ -1850,6 +1850,11 @@ export function App() {
   const [senderReputationDetail, setSenderReputationDetail] = useState(null);
   const [senderReputationLoading, setSenderReputationLoading] = useState(false);
   const [senderReputationError, setSenderReputationError] = useState("");
+  const [senderReputationNotice, setSenderReputationNotice] = useState("");
+  const [senderReputationFilter, setSenderReputationFilter] = useState("all");
+  const [senderReputationCollapsedGroups, setSenderReputationCollapsedGroups] = useState({});
+  const [senderReputationManualNote, setSenderReputationManualNote] = useState("");
+  const [senderReputationManualSavePending, setSenderReputationManualSavePending] = useState(false);
   const [copyNotice, setCopyNotice] = useState("");
   const [serviceControlPending, setServiceControlPending] = useState("");
   const [serviceControlNotice, setServiceControlNotice] = useState("");
@@ -2086,6 +2091,17 @@ export function App() {
         }
         setSenderReputationSummary(payload);
         setSenderReputationSummaryError("");
+        setSenderReputationNotice("");
+        setSenderReputationCollapsedGroups((current) => {
+          const next = { ...current };
+          for (const record of payload.records || []) {
+            const key = record.group_domain || record.sender_domain || record.sender_value || "unknown";
+            if (!(key in next)) {
+              next[key] = false;
+            }
+          }
+          return next;
+        });
       } catch (loadError) {
         if (!active) {
           return;
@@ -2741,6 +2757,8 @@ export function App() {
         `/api/gmail/reputation/detail?entity_type=${encodeURIComponent(entityType)}&sender_value=${encodeURIComponent(senderValue)}`,
       );
       setSenderReputationDetail(payload);
+      setSenderReputationManualNote(payload.record?.manual_rating_note || "");
+      setSenderReputationNotice("");
     } catch (loadError) {
       setSenderReputationError(loadError.message);
     } finally {
@@ -2751,10 +2769,57 @@ export function App() {
   function clearSenderReputationDetail() {
     setSenderReputationDetail(null);
     setSenderReputationError("");
+    setSenderReputationManualNote("");
   }
 
   function openSenderReputation() {
     setView("training_reputation");
+  }
+
+  function toggleSenderReputationGroup(groupKey) {
+    setSenderReputationCollapsedGroups((current) => ({
+      ...current,
+      [groupKey]: !current[groupKey],
+    }));
+  }
+
+  async function applySenderReputationManualRating(manualRating) {
+    const selectedRecord = senderReputationDetail?.record || null;
+    if (!selectedRecord) {
+      return;
+    }
+    setSenderReputationManualSavePending(true);
+    setSenderReputationError("");
+    setSenderReputationNotice("");
+    try {
+      const payload = await fetchJson("/api/gmail/reputation/manual-rating", {
+        method: "POST",
+        body: JSON.stringify({
+          entity_type: selectedRecord.entity_type,
+          sender_value: selectedRecord.sender_value,
+          manual_rating: manualRating,
+          note: senderReputationManualNote,
+        }),
+      });
+      setSenderReputationSummary(payload.summary || null);
+      setSenderReputationDetail((current) => (
+        current
+          ? {
+              ...current,
+              record: payload.record,
+            }
+          : current
+      ));
+      setSenderReputationNotice(
+        manualRating === null
+          ? `Cleared manual reputation rating for ${selectedRecord.sender_value}.`
+          : `Saved manual reputation rating for ${selectedRecord.sender_value}.`,
+      );
+    } catch (saveError) {
+      setSenderReputationError(saveError.message);
+    } finally {
+      setSenderReputationManualSavePending(false);
+    }
   }
 
   async function trainLocalModel() {
@@ -3262,9 +3327,19 @@ export function App() {
           detail={senderReputationDetail}
           detailLoading={senderReputationLoading}
           detailError={senderReputationError}
+          notice={senderReputationNotice}
           onBack={() => setView("training")}
           onInspect={loadSenderReputationDetail}
           onClear={clearSenderReputationDetail}
+          filterValue={senderReputationFilter}
+          onFilterChange={setSenderReputationFilter}
+          collapsedGroups={senderReputationCollapsedGroups}
+          onToggleGroup={toggleSenderReputationGroup}
+          manualNote={senderReputationManualNote}
+          onManualNoteChange={setSenderReputationManualNote}
+          manualSavePending={senderReputationManualSavePending}
+          onApplyManualRating={applySenderReputationManualRating}
+          onClearManualRating={() => applySenderReputationManualRating(null)}
         />
       </div>
     );
