@@ -1149,9 +1149,23 @@ async def test_ui_bootstrap_restores_persisted_runtime_task_state(config, core_c
 async def test_ui_bootstrap_exposes_scheduled_tasks(config, core_client_factory):
     service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
     await service.start()
+    service.state.trust_state = "trusted"
+    service.state.node_id = "node-1"
+    service.trust_material = TrustMaterial(
+        node_id="node-1",
+        node_type="email-node",
+        paired_core_id="core-1",
+        node_trust_token="trust-secret",
+        operational_mqtt_identity="mqtt-user",
+        operational_mqtt_token="mqtt-secret",
+        operational_mqtt_host="127.0.0.1",
+        operational_mqtt_port=1883,
+    )
     service.state.runtime_prompt_sync_target_api_base_url = "http://10.0.0.100:9002"
     service.state.runtime_prompt_sync_weekly_slot_key = "2026-W14"
     service.state.runtime_prompt_sync_last_scheduled_at = datetime(2026, 4, 3, 8, 0, 0).astimezone()
+    service.state.runtime_monthly_authorize_slot_key = "2026-04"
+    service.state.runtime_monthly_authorize_last_run_at = datetime(2026, 4, 1, 0, 1, 0).astimezone()
     service.state.gmail_hourly_batch_classification_slot_key = "2026-04-03T08:00:00+00:00"
     service.state.gmail_hourly_batch_classification_last_run_at = datetime(2026, 4, 3, 8, 1, 0).astimezone()
     app = create_app(config=config, service=service)
@@ -1169,12 +1183,16 @@ async def test_ui_bootstrap_exposes_scheduled_tasks(config, core_client_factory)
     assert "gmail_fetch_last_hour" in task_ids
     assert "gmail_hourly_batch_classification" in task_ids
     assert "runtime_prompt_sync_weekly" in task_ids
+    assert "runtime_monthly_resolve_authorize" in task_ids
     legend_names = {item["name"] for item in body["scheduled_task_legend"]}
     assert "daily" in legend_names
     assert "weekly" in legend_names
+    assert "monthly" in legend_names
     assert "on_start" in legend_names
     weekly_legend = next(item for item in body["scheduled_task_legend"] if item["name"] == "weekly")
     assert weekly_legend["detail"] == "Monday 00:01"
+    monthly_legend = next(item for item in body["scheduled_task_legend"] if item["name"] == "monthly")
+    assert monthly_legend["detail"] == "First day of each month at 00:01"
     on_start_legend = next(item for item in body["scheduled_task_legend"] if item["name"] == "on_start")
     assert on_start_legend["detail"] == "Runs once after full operational readiness"
     prompt_sync = next(item for item in body["scheduled_tasks"] if item["task_id"] == "runtime_prompt_sync_weekly")
@@ -1186,6 +1204,15 @@ async def test_ui_bootstrap_exposes_scheduled_tasks(config, core_client_factory)
     assert prompt_sync_next.weekday() == 0
     assert prompt_sync_next.hour == 0
     assert prompt_sync_next.minute == 1
+    monthly_runtime = next(item for item in body["scheduled_tasks"] if item["task_id"] == "runtime_monthly_resolve_authorize")
+    assert monthly_runtime["last_slot_key"] == "2026-04"
+    assert monthly_runtime["last_execution_at"] is not None
+    assert monthly_runtime["schedule_name"] == "monthly"
+    assert monthly_runtime["schedule_detail"] == "First day of each month at 00:01"
+    monthly_next = datetime.fromisoformat(monthly_runtime["next_execution_at"])
+    assert monthly_next.day == 1
+    assert monthly_next.hour == 0
+    assert monthly_next.minute == 1
 
 
 @pytest.mark.asyncio
@@ -2308,3 +2335,39 @@ async def test_scheduled_hourly_batch_classification_runs_once_per_slot(config, 
     assert calls == ["http://127.0.0.1:9002"]
     assert service.state.gmail_hourly_batch_classification_slot_key == service._gmail_hourly_batch_slot_key(slot_time)
     assert service._gmail_hourly_batch_slot_key(slot_time.replace(minute=5)) is None
+
+
+@pytest.mark.asyncio
+async def test_scheduled_monthly_runtime_authorize_runs_once_per_slot(config, core_client_factory):
+    core_app = build_core_app()
+    service = NodeService(config, core_client=core_client_factory(core_app), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    service.state.trust_state = "trusted"
+    service.state.node_id = "node-1"
+    service.trust_material = TrustMaterial(
+        node_id="node-1",
+        node_type="email-node",
+        paired_core_id="core-1",
+        node_trust_token="trust-secret",
+        operational_mqtt_identity="mqtt-user",
+        operational_mqtt_token="mqtt-secret",
+        operational_mqtt_host="127.0.0.1",
+        operational_mqtt_port=1883,
+    )
+    slot_time = datetime(2026, 5, 1, 0, 1, 0).astimezone()
+
+    await service._run_due_monthly_runtime_authorize(slot_time)
+    await service._run_due_monthly_runtime_authorize(slot_time.replace(minute=4))
+
+    await service.stop()
+
+    assert len(core_app.state.service_resolve_requests) == 1
+    assert len(core_app.state.service_authorize_requests) == 1
+    assert core_app.state.service_resolve_requests[0]["type"] == "ai"
+    assert core_app.state.service_authorize_requests[0]["type"] == "ai"
+    assert core_app.state.service_authorize_requests[0]["service_id"] == "summary-service"
+    assert core_app.state.service_authorize_requests[0]["provider"] == "openai"
+    assert core_app.state.service_authorize_requests[0]["model_id"] == "gpt-5-mini"
+    assert service.state.runtime_monthly_authorize_slot_key == "2026-05"
+    assert service.state.runtime_monthly_authorize_last_run_at is not None
+    assert service._runtime_monthly_authorize_slot_key(slot_time.replace(minute=5)) is None

@@ -455,6 +455,10 @@ class NodeService:
         fetch_loop_status = "active" if fetch_loop_active else "inactive"
         prompt_sync_configured = bool(self.state.runtime_prompt_sync_target_api_base_url)
         prompt_sync_status = "active" if (fetch_loop_active and prompt_sync_configured) else "pending" if prompt_sync_configured else "inactive"
+        runtime_authorize_ready = bool(
+            self.state.trust_state == "trusted" and self.state.node_id and self.effective_core_base_url()
+        )
+        runtime_authorize_status = "active" if runtime_authorize_ready else "pending"
 
         tasks = [
             self._scheduled_task_entry(
@@ -544,6 +548,30 @@ class NodeService:
                     else "Waiting for a prompt sync target to be configured from the Runtime page."
                 ),
                 last_slot_key=self.state.runtime_prompt_sync_weekly_slot_key,
+            ),
+            self._scheduled_task_entry(
+                task_id="runtime_monthly_resolve_authorize",
+                title="Monthly Core Resolve and Authorize",
+                group="runtime",
+                schedule_name="monthly",
+                status=runtime_authorize_status,
+                last_execution_at=(
+                    self.state.runtime_monthly_authorize_last_run_at.isoformat()
+                    if self.state.runtime_monthly_authorize_last_run_at is not None
+                    else None
+                ),
+                next_execution_at=(
+                    self._schedule_template_next_run("monthly", local_now).isoformat()
+                    if runtime_authorize_ready
+                    else None
+                ),
+                last_reason="scheduled" if self.state.runtime_monthly_authorize_last_run_at is not None else None,
+                detail=(
+                    "Refreshes the Core AI service resolution and authorization grant for runtime execution."
+                    if runtime_authorize_ready
+                    else "Waiting for a trusted Core connection before monthly runtime authorization can run."
+                ),
+                last_slot_key=self.state.runtime_monthly_authorize_slot_key,
             ),
         ]
         return tasks
@@ -2389,6 +2417,13 @@ class NodeService:
         iso_year, iso_week, _ = now.isocalendar()
         return f"{iso_year}-W{iso_week:02d}"
 
+    @staticmethod
+    def _runtime_monthly_authorize_slot_key(now: datetime) -> str | None:
+        local_now = now.astimezone()
+        if local_now.day != 1 or local_now.hour != 0 or local_now.minute >= 5:
+            return None
+        return f"{local_now.year:04d}-{local_now.month:02d}"
+
     async def _run_weekly_prompt_sync_if_due(self) -> None:
         target_api_base_url = self.state.runtime_prompt_sync_target_api_base_url
         if not target_api_base_url:
@@ -2406,6 +2441,67 @@ class NodeService:
         self.state.runtime_prompt_sync_weekly_slot_key = slot_key
         self.state.runtime_prompt_sync_last_scheduled_at = datetime.now().astimezone()
         self.state_store.save(self.state)
+
+    async def _run_due_monthly_runtime_authorize(self, now: datetime) -> None:
+        slot_key = self._runtime_monthly_authorize_slot_key(now)
+        if slot_key is None or self.state.runtime_monthly_authorize_slot_key == slot_key:
+            return
+        if self.state.trust_state != "trusted" or not self.state.node_id or not self.effective_core_base_url():
+            return
+        try:
+            LOGGER.info(
+                "Scheduled monthly Core resolve and authorize starting",
+                extra={"event_data": {"slot_key": slot_key}},
+            )
+            resolve_response = await self.core_service_resolve(
+                CoreServiceResolveRequestInput(
+                    task_family="task.classification",
+                    type="ai",
+                    task_context={"content_type": "email"},
+                    preferred_provider="openai",
+                )
+            )
+            selected_service_id = str(
+                resolve_response.get("selected_service_id")
+                or resolve_response.get("service_id")
+                or ""
+            ).strip()
+            candidates = resolve_response.get("candidates")
+            selected_candidate = candidates[0] if isinstance(candidates, list) and candidates else {}
+            provider = str(
+                resolve_response.get("provider")
+                or (selected_candidate.get("provider") if isinstance(selected_candidate, dict) else None)
+                or "openai"
+            ).strip()
+            model_id_value = (
+                resolve_response.get("model_id")
+                or (selected_candidate.get("models_allowed", [None])[0] if isinstance(selected_candidate, dict) else None)
+            )
+            model_id = str(model_id_value).strip() if model_id_value else None
+            if not selected_service_id:
+                raise ValueError("Core resolve did not return a service_id")
+            await self.core_service_authorize(
+                CoreServiceAuthorizeRequestInput(
+                    task_family="task.classification",
+                    type="ai",
+                    task_context={"content_type": "email"},
+                    service_id=selected_service_id,
+                    provider=provider or "openai",
+                    model_id=model_id,
+                )
+            )
+            self.state.runtime_monthly_authorize_slot_key = slot_key
+            self.state.runtime_monthly_authorize_last_run_at = datetime.now().astimezone()
+            self.state_store.save(self.state)
+            LOGGER.info(
+                "Scheduled monthly Core resolve and authorize completed",
+                extra={"event_data": {"slot_key": slot_key, "service_id": selected_service_id}},
+            )
+        except Exception as exc:
+            LOGGER.error(
+                "Scheduled monthly Core resolve and authorize failed",
+                extra={"event_data": {"slot_key": slot_key, "detail": str(exc)}},
+            )
 
     async def runtime_execute_email_classifier(
         self,
@@ -3807,6 +3903,13 @@ class NodeService:
             except Exception as exc:
                 AI_LOGGER.error(
                     "Weekly prompt sync failed",
+                    extra={"event_data": {"detail": str(exc)}},
+                )
+            try:
+                await self._run_due_monthly_runtime_authorize(datetime.now().astimezone())
+            except Exception as exc:
+                AI_LOGGER.error(
+                    "Monthly Core resolve and authorize failed",
                     extra={"event_data": {"detail": str(exc)}},
                 )
             await asyncio.sleep(self._seconds_until_next_minute())

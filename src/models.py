@@ -65,7 +65,7 @@ class CoreServiceResolveRequestInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     task_family: str
-    type: str | None = None
+    type: str | None = "ai"
     task_context: dict[str, object] = Field(default_factory=dict)
     preferred_provider: str | None = None
 
@@ -74,7 +74,7 @@ class CoreServiceAuthorizeRequestInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     task_family: str
-    type: str | None = None
+    type: str | None = "ai"
     task_context: dict[str, object] = Field(default_factory=dict)
     service_id: str
     provider: str
@@ -154,6 +154,8 @@ class RuntimeState(BaseModel):
     runtime_prompt_sync_target_api_base_url: str | None = None
     runtime_prompt_sync_weekly_slot_key: str | None = None
     runtime_prompt_sync_last_scheduled_at: datetime | None = None
+    runtime_monthly_authorize_slot_key: str | None = None
+    runtime_monthly_authorize_last_run_at: datetime | None = None
     gmail_hourly_batch_classification_slot_key: str | None = None
     gmail_hourly_batch_classification_last_run_at: datetime | None = None
     gmail_last_hour_pipeline_state: dict[str, object] = Field(default_factory=dict)
