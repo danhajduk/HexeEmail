@@ -830,7 +830,7 @@ const FALLBACK_SCHEDULED_TASK_LEGEND = [
   { name: "monthly", detail: "Monthly" },
   { name: "every_other_day", detail: "Every other day" },
   { name: "twice_a_week", detail: "Twice a week" },
-  { name: "on_start", detail: "Runs on startup" },
+  { name: "on_start", detail: "Runs once after full operational readiness" },
 ];
 
 function deriveScheduledTaskSchedule(task) {

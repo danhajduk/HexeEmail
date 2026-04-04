@@ -8,6 +8,7 @@ import socket
 import uuid
 from email.utils import getaddresses, parseaddr
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlparse
@@ -74,6 +75,13 @@ AVAILABLE_TASK_CAPABILITIES = [
     "task.summarization",
     "task.tracking",
 ]
+
+
+@dataclass(frozen=True)
+class ScheduleTemplate:
+    name: str
+    detail: str
+    next_run_resolver: Callable[[datetime], datetime | None]
 
 
 class NodeService:
@@ -252,12 +260,188 @@ class NodeService:
         return (now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1))
 
     @staticmethod
-    def _next_weekly_run(now: datetime) -> datetime:
-        start_of_week = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
-        candidate = start_of_week + timedelta(days=7)
+    def _next_weekly_run(now: datetime, *, weekday: int = 0, hour: int = 0, minute: int = 1) -> datetime:
+        days_ahead = (weekday - now.weekday()) % 7
+        candidate = now.replace(hour=hour, minute=minute, second=0, microsecond=0) + timedelta(days=days_ahead)
         if candidate <= now:
             candidate = candidate + timedelta(days=7)
         return candidate
+
+    @staticmethod
+    def _next_bi_weekly_run(
+        now: datetime,
+        *,
+        anchor: tuple[int, int, int] = (2026, 1, 5),
+        weekday: int = 0,
+        hour: int = 0,
+        minute: int = 1,
+    ) -> datetime:
+        anchor_date = now.replace(
+            year=anchor[0],
+            month=anchor[1],
+            day=anchor[2],
+            hour=hour,
+            minute=minute,
+            second=0,
+            microsecond=0,
+        )
+        candidate = anchor_date
+        if candidate.weekday() != weekday:
+            candidate = candidate + timedelta(days=(weekday - candidate.weekday()) % 7)
+        while candidate <= now:
+            candidate = candidate + timedelta(days=14)
+        return candidate
+
+    @staticmethod
+    def _next_monthly_run(now: datetime, *, day: int = 1, hour: int = 0, minute: int = 1) -> datetime:
+        year = now.year
+        month = now.month
+        candidate = now.replace(day=day, hour=hour, minute=minute, second=0, microsecond=0)
+        if candidate <= now:
+            if month == 12:
+                year += 1
+                month = 1
+            else:
+                month += 1
+            candidate = candidate.replace(year=year, month=month, day=day)
+        return candidate
+
+    @staticmethod
+    def _next_every_other_day_run(
+        now: datetime,
+        *,
+        anchor: tuple[int, int, int] = (2026, 1, 1),
+        hour: int = 0,
+        minute: int = 1,
+    ) -> datetime:
+        anchor_date = now.replace(
+            year=anchor[0],
+            month=anchor[1],
+            day=anchor[2],
+            hour=hour,
+            minute=minute,
+            second=0,
+            microsecond=0,
+        )
+        candidate = anchor_date
+        while candidate <= now:
+            candidate = candidate + timedelta(days=2)
+        return candidate
+
+    @staticmethod
+    def _next_twice_a_week_run(now: datetime, *, weekdays: tuple[int, int] = (0, 3), hour: int = 0, minute: int = 1) -> datetime:
+        candidates = [
+            now.replace(hour=hour, minute=minute, second=0, microsecond=0) + timedelta(days=(weekday - now.weekday()) % 7)
+            for weekday in weekdays
+        ]
+        future_candidates = [candidate for candidate in candidates if candidate > now]
+        if future_candidates:
+            return min(future_candidates)
+        next_week_candidates = [candidate + timedelta(days=7) for candidate in candidates]
+        return min(next_week_candidates)
+
+    @classmethod
+    def _schedule_templates(cls) -> dict[str, ScheduleTemplate]:
+        return {
+            "daily": ScheduleTemplate(
+                name="daily",
+                detail="Every day at 00:01",
+                next_run_resolver=lambda now: cls._next_daily_run(now, hour=0, minute=1),
+            ),
+            "weekly": ScheduleTemplate(
+                name="weekly",
+                detail="Monday 00:01",
+                next_run_resolver=lambda now: cls._next_weekly_run(now, weekday=0, hour=0, minute=1),
+            ),
+            "4_times_a_day": ScheduleTemplate(
+                name="4_times_a_day",
+                detail="00:00, 06:00, 12:00, 18:00",
+                next_run_resolver=cls._next_today_window_run,
+            ),
+            "every_5_minutes": ScheduleTemplate(
+                name="every_5_minutes",
+                detail="00:05, 00:10, 00:15, ...",
+                next_run_resolver=cls._next_five_minute_run,
+            ),
+            "hourly": ScheduleTemplate(
+                name="hourly",
+                detail="Hourly at :00",
+                next_run_resolver=cls._next_hourly_run,
+            ),
+            "bi_weekly": ScheduleTemplate(
+                name="bi_weekly",
+                detail="Every 2 weeks",
+                next_run_resolver=lambda now: cls._next_bi_weekly_run(now, weekday=0, hour=0, minute=1),
+            ),
+            "monthly": ScheduleTemplate(
+                name="monthly",
+                detail="First day of each month at 00:01",
+                next_run_resolver=lambda now: cls._next_monthly_run(now, day=1, hour=0, minute=1),
+            ),
+            "every_other_day": ScheduleTemplate(
+                name="every_other_day",
+                detail="Every other day at 00:01",
+                next_run_resolver=lambda now: cls._next_every_other_day_run(now, hour=0, minute=1),
+            ),
+            "twice_a_week": ScheduleTemplate(
+                name="twice_a_week",
+                detail="Monday and Thursday at 00:01",
+                next_run_resolver=lambda now: cls._next_twice_a_week_run(now, weekdays=(0, 3), hour=0, minute=1),
+            ),
+            "on_start": ScheduleTemplate(
+                name="on_start",
+                detail="Runs once after full operational readiness",
+                next_run_resolver=lambda now: None,
+            ),
+        }
+
+    @classmethod
+    def _schedule_template_detail(cls, schedule_name: str) -> str:
+        template = cls._schedule_templates().get(schedule_name)
+        return template.detail if template is not None else schedule_name
+
+    @classmethod
+    def _schedule_template_next_run(cls, schedule_name: str, now: datetime) -> datetime | None:
+        template = cls._schedule_templates().get(schedule_name)
+        if template is None:
+            return None
+        return template.next_run_resolver(now)
+
+    @classmethod
+    def _scheduled_task_entry(
+        *,
+        task_id: str,
+        title: str,
+        group: str,
+        schedule_name: str,
+        status: str,
+        last_execution_at: str | None,
+        next_execution_at: str | None,
+        last_reason: str | None,
+        detail: str,
+        last_slot_key: str | None = None,
+        schedule_detail: str | None = None,
+    ) -> dict[str, object]:
+        return {
+            "task_id": task_id,
+            "title": title,
+            "group": group,
+            "schedule_name": schedule_name,
+            "schedule_detail": schedule_detail or cls._schedule_template_detail(schedule_name),
+            "status": status,
+            "last_execution_at": last_execution_at,
+            "next_execution_at": next_execution_at,
+            "last_reason": last_reason,
+            "detail": detail,
+            "last_slot_key": last_slot_key,
+        }
+
+    @classmethod
+    def _scheduled_task_legend(cls) -> list[dict[str, str]]:
+        return [
+            {"name": template.name, "detail": template.detail}
+            for template in cls._schedule_templates().values()
+        ]
 
     def _scheduled_tasks_snapshot(self) -> list[dict[str, object]]:
         local_now = datetime.now().astimezone()
@@ -272,118 +456,94 @@ class NodeService:
         prompt_sync_status = "active" if (fetch_loop_active and prompt_sync_configured) else "pending" if prompt_sync_configured else "inactive"
 
         tasks = [
-            {
-                "task_id": "gmail_fetch_yesterday",
-                "title": "Gmail Fetch Yesterday",
-                "group": "gmail",
-                "schedule": "00:01 daily",
-                "status": fetch_loop_status,
-                "last_execution_at": (
+            self._scheduled_task_entry(
+                task_id="gmail_fetch_yesterday",
+                title="Gmail Fetch Yesterday",
+                group="gmail",
+                schedule_name="daily",
+                status=fetch_loop_status,
+                last_execution_at=(
                     fetch_schedule_state.yesterday.last_run_at.isoformat()
                     if fetch_schedule_state is not None and fetch_schedule_state.yesterday.last_run_at is not None
                     else None
                 ),
-                "next_execution_at": self._next_daily_run(local_now, hour=0, minute=1).isoformat(),
-                "last_reason": (
-                    fetch_schedule_state.yesterday.last_run_reason
-                    if fetch_schedule_state is not None
-                    else None
-                ),
-                "detail": "Fetches the previous day inbox window for local storage refresh.",
-                "last_slot_key": (
-                    fetch_schedule_state.yesterday.last_slot_key
-                    if fetch_schedule_state is not None
-                    else None
-                ),
-            },
-            {
-                "task_id": "gmail_fetch_today",
-                "title": "Gmail Fetch Today",
-                "group": "gmail",
-                "schedule": "00:00, 06:00, 12:00, 18:00",
-                "status": fetch_loop_status,
-                "last_execution_at": (
+                next_execution_at=self._schedule_template_next_run("daily", local_now).isoformat(),
+                last_reason=(fetch_schedule_state.yesterday.last_run_reason if fetch_schedule_state is not None else None),
+                detail="Fetches the previous day inbox window for local storage refresh.",
+                last_slot_key=(fetch_schedule_state.yesterday.last_slot_key if fetch_schedule_state is not None else None),
+            ),
+            self._scheduled_task_entry(
+                task_id="gmail_fetch_today",
+                title="Gmail Fetch Today",
+                group="gmail",
+                schedule_name="4_times_a_day",
+                status=fetch_loop_status,
+                last_execution_at=(
                     fetch_schedule_state.today.last_run_at.isoformat()
                     if fetch_schedule_state is not None and fetch_schedule_state.today.last_run_at is not None
                     else None
                 ),
-                "next_execution_at": self._next_today_window_run(local_now).isoformat(),
-                "last_reason": (
-                    fetch_schedule_state.today.last_run_reason
-                    if fetch_schedule_state is not None
-                    else None
-                ),
-                "detail": "Refreshes the current-day inbox window on the six-hour schedule.",
-                "last_slot_key": (
-                    fetch_schedule_state.today.last_slot_key
-                    if fetch_schedule_state is not None
-                    else None
-                ),
-            },
-            {
-                "task_id": "gmail_fetch_last_hour",
-                "title": "Gmail Fetch Last Hour",
-                "group": "gmail",
-                "schedule": "Every 5 minutes",
-                "status": fetch_loop_status,
-                "last_execution_at": (
+                next_execution_at=self._schedule_template_next_run("4_times_a_day", local_now).isoformat(),
+                last_reason=(fetch_schedule_state.today.last_run_reason if fetch_schedule_state is not None else None),
+                detail="Refreshes the current-day inbox window on the six-hour schedule.",
+                last_slot_key=(fetch_schedule_state.today.last_slot_key if fetch_schedule_state is not None else None),
+            ),
+            self._scheduled_task_entry(
+                task_id="gmail_fetch_last_hour",
+                title="Gmail Fetch Last Hour",
+                group="gmail",
+                schedule_name="every_5_minutes",
+                status=fetch_loop_status,
+                last_execution_at=(
                     fetch_schedule_state.last_hour.last_run_at.isoformat()
                     if fetch_schedule_state is not None and fetch_schedule_state.last_hour.last_run_at is not None
                     else None
                 ),
-                "next_execution_at": self._next_five_minute_run(local_now).isoformat(),
-                "last_reason": (
-                    fetch_schedule_state.last_hour.last_run_reason
-                    if fetch_schedule_state is not None
-                    else None
-                ),
-                "detail": "Keeps the rolling last-hour inbox window fresh for recent classification work.",
-                "last_slot_key": (
-                    fetch_schedule_state.last_hour.last_slot_key
-                    if fetch_schedule_state is not None
-                    else None
-                ),
-            },
-            {
-                "task_id": "gmail_hourly_batch_classification",
-                "title": "Hourly Batch Classification",
-                "group": "gmail",
-                "schedule": "Hourly at :00",
-                "status": fetch_loop_status,
-                "last_execution_at": (
+                next_execution_at=self._schedule_template_next_run("every_5_minutes", local_now).isoformat(),
+                last_reason=(fetch_schedule_state.last_hour.last_run_reason if fetch_schedule_state is not None else None),
+                detail="Keeps the rolling last-hour inbox window fresh for recent classification work.",
+                last_slot_key=(fetch_schedule_state.last_hour.last_slot_key if fetch_schedule_state is not None else None),
+            ),
+            self._scheduled_task_entry(
+                task_id="gmail_hourly_batch_classification",
+                title="Hourly Batch Classification",
+                group="gmail",
+                schedule_name="hourly",
+                status=fetch_loop_status,
+                last_execution_at=(
                     self.state.gmail_hourly_batch_classification_last_run_at.isoformat()
                     if self.state.gmail_hourly_batch_classification_last_run_at is not None
                     else None
                 ),
-                "next_execution_at": self._next_hourly_run(local_now).isoformat(),
-                "last_reason": "scheduled" if self.state.gmail_hourly_batch_classification_last_run_at is not None else None,
-                "detail": "Classifies the newest 100 unclassified emails and sends remaining unknowns to AI.",
-                "last_slot_key": self.state.gmail_hourly_batch_classification_slot_key,
-            },
-            {
-                "task_id": "runtime_prompt_sync_weekly",
-                "title": "Weekly Prompt Sync",
-                "group": "runtime",
-                "schedule": "Weekly",
-                "status": prompt_sync_status,
-                "last_execution_at": (
+                next_execution_at=self._schedule_template_next_run("hourly", local_now).isoformat(),
+                last_reason="scheduled" if self.state.gmail_hourly_batch_classification_last_run_at is not None else None,
+                detail="Classifies the newest 100 unclassified emails and sends remaining unknowns to AI.",
+                last_slot_key=self.state.gmail_hourly_batch_classification_slot_key,
+            ),
+            self._scheduled_task_entry(
+                task_id="runtime_prompt_sync_weekly",
+                title="Weekly Prompt Sync",
+                group="runtime",
+                schedule_name="weekly",
+                status=prompt_sync_status,
+                last_execution_at=(
                     self.state.runtime_prompt_sync_last_scheduled_at.isoformat()
                     if self.state.runtime_prompt_sync_last_scheduled_at is not None
                     else None
                 ),
-                "next_execution_at": (
-                    self._next_weekly_run(local_now).isoformat()
+                next_execution_at=(
+                    self._schedule_template_next_run("weekly", local_now).isoformat()
                     if prompt_sync_configured
                     else None
                 ),
-                "last_reason": "scheduled" if self.state.runtime_prompt_sync_last_scheduled_at is not None else None,
-                "detail": (
+                last_reason="scheduled" if self.state.runtime_prompt_sync_last_scheduled_at is not None else None,
+                detail=(
                     "Scans local runtime prompt JSON files and syncs them to the AI node prompt service."
                     if prompt_sync_configured
                     else "Waiting for a prompt sync target to be configured from the Runtime page."
                 ),
-                "last_slot_key": self.state.runtime_prompt_sync_weekly_slot_key,
-            },
+                last_slot_key=self.state.runtime_prompt_sync_weekly_slot_key,
+            ),
         ]
         return tasks
 
@@ -2674,6 +2834,7 @@ class NodeService:
             can_start_onboarding=not required_inputs and self.state.trust_state != "trusted",
             runtime_task_state=self._runtime_task_state(),
             scheduled_tasks=self._scheduled_tasks_snapshot(),
+            scheduled_task_legend=self._scheduled_task_legend(),
         )
 
     async def governance_status(self) -> dict[str, object]:

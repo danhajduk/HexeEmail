@@ -182,3 +182,21 @@ Original task details:
 - show the tasks in a table
 - include the schedule and the last/next execution
 - include any other runtime/scheduler data already available
+
+## Task 102
+Original task details:
+- create a real backend schedule template system
+- keep the schedule legend and scheduled task rows driven by the same backend definitions
+- support the declared schedule names:
+  - `daily`
+  - `weekly`
+  - `4_times_a_day`
+  - `every_5_minutes`
+  - `hourly`
+  - `bi_weekly`
+  - `monthly`
+  - `every_other_day`
+  - `twice_a_week`
+  - `on_start`
+- make next-run calculation part of the template system instead of scattered hardcoded helpers
+- fix any mismatches between displayed schedule wording and actual backend next-run timestamps

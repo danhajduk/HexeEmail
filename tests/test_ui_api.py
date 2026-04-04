@@ -1016,9 +1016,23 @@ async def test_ui_bootstrap_exposes_scheduled_tasks(config, core_client_factory)
     assert "gmail_fetch_last_hour" in task_ids
     assert "gmail_hourly_batch_classification" in task_ids
     assert "runtime_prompt_sync_weekly" in task_ids
+    legend_names = {item["name"] for item in body["scheduled_task_legend"]}
+    assert "daily" in legend_names
+    assert "weekly" in legend_names
+    assert "on_start" in legend_names
+    weekly_legend = next(item for item in body["scheduled_task_legend"] if item["name"] == "weekly")
+    assert weekly_legend["detail"] == "Monday 00:01"
+    on_start_legend = next(item for item in body["scheduled_task_legend"] if item["name"] == "on_start")
+    assert on_start_legend["detail"] == "Runs once after full operational readiness"
     prompt_sync = next(item for item in body["scheduled_tasks"] if item["task_id"] == "runtime_prompt_sync_weekly")
     assert prompt_sync["last_slot_key"] == "2026-W14"
     assert prompt_sync["last_execution_at"] is not None
+    assert prompt_sync["schedule_name"] == "weekly"
+    assert prompt_sync["schedule_detail"] == "Monday 00:01"
+    prompt_sync_next = datetime.fromisoformat(prompt_sync["next_execution_at"])
+    assert prompt_sync_next.weekday() == 0
+    assert prompt_sync_next.hour == 0
+    assert prompt_sync_next.minute == 1
 
 
 @pytest.mark.asyncio

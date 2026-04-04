@@ -99,3 +99,4 @@ Task 098: Extract hardcoded prompt definitions into JSON files - Completed on 04
 Task 099: Run AI action decision on new action-required and order emails - Completed on 04/03/2026 18:15
 Task 100: Replace classified-email user notifications with action-decision output - Completed on 04/03/2026 18:15
 Task 101: Add scheduled tasks dashboard screen - Completed on 04/03/2026 18:20
+Task 102: Create a backend schedule template registry - Completed on 04/03/2026 18:48
