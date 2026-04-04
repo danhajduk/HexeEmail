@@ -869,6 +869,65 @@ async def test_runtime_execute_email_classifier_posts_normalized_email(config, c
         },
         "required": ["label", "confidence", "rationale"],
     }
+
+
+@pytest.mark.asyncio
+async def test_runtime_execute_latest_email_action_decision_uses_newest_actionable_message(config, core_client_factory):
+    core_app = build_core_app()
+    service = NodeService(config, core_client=core_client_factory(core_app), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    adapter = service.provider_registry.get_provider("gmail")
+    adapter.account_store.save_account(
+        adapter.state_machine.ensure_account("primary").model_copy(
+            update={"status": "connected", "email_address": "primary@example.com"}
+        )
+    )
+    older_action = GmailStoredMessage(
+        account_id="primary",
+        message_id="action-older",
+        subject="Older action",
+        sender="Action Sender <action@example.com>",
+        recipients=["primary@example.com"],
+        snippet="older action mail",
+        received_at=datetime(2026, 4, 2, 8, 0, 0).astimezone(),
+        local_label="action_required",
+        local_label_confidence=0.91,
+    )
+    newest_order = GmailStoredMessage(
+        account_id="primary",
+        message_id="order-newest",
+        subject="Newest order",
+        sender="Order Sender <order@example.com>",
+        recipients=["primary@example.com"],
+        snippet="newest order mail",
+        received_at=datetime(2026, 4, 2, 12, 0, 0).astimezone(),
+        local_label="order",
+        local_label_confidence=0.96,
+    )
+    adapter.message_store.upsert_messages([older_action, newest_order])
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/runtime/execute-latest-email-action-decision",
+            json={
+                "target_api_base_url": "http://10.0.0.100:9002",
+            },
+        )
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "completed"
+    assert body["message_id"] == "order-newest"
+    assert body["classification_label"] == "order"
+    assert body["action_decision"]["summary"] == "Email needs a user response soon."
+    assert len(core_app.state.execution_direct_requests) == 1
+    execution_request = core_app.state.execution_direct_requests[0]
+    assert execution_request["prompt_id"] == "prompt.email.action_decision"
+    assert execution_request["prompt_version"] == "v1"
+    assert execution_request["inputs"]["message_id"] == "order-newest"
     updated_message = next(message for message in adapter.message_store.list_messages("primary", limit=10) if message.message_id == "unknown-newest")
     assert updated_message.local_label == "marketing"
     assert updated_message.local_label_confidence == 0.91

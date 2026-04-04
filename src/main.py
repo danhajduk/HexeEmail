@@ -200,6 +200,16 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    @app.post("/api/runtime/execute-latest-email-action-decision")
+    async def runtime_execute_latest_email_action_decision(payload: RuntimePromptExecutionRequestInput, request: Request):
+        try:
+            return await node_service.runtime_execute_latest_email_action_decision(
+                payload,
+                correlation_id=request.headers.get("X-Correlation-Id"),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     @app.get("/api/governance/status")
     async def governance_status():
         return await node_service.governance_status()

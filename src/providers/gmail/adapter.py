@@ -68,7 +68,7 @@ class GmailProviderAdapter(EmailProviderAdapter):
         if getattr(self.mailbox_client, "quota_tracker", None) is None:
             self.mailbox_client.quota_tracker = self.quota_tracker
         self.spamhaus_checker = GmailSpamhausChecker()
-        self.training_model_store = GmailTrainingModelStore(runtime_dir)
+        self.training_model_store = GmailTrainingModelStore(runtime_dir, message_store=self.message_store)
         self.health_evaluator = GmailHealthEvaluator()
 
     async def validate_static_config(self) -> ProviderValidationResult:

@@ -736,6 +736,7 @@ class NodeService:
         message,
         classification_label: GmailTrainingLabel,
         target_api_base_url: str | None = None,
+        force_refresh: bool = False,
     ) -> dict[str, object] | None:
         if classification_label not in {GmailTrainingLabel.ACTION_REQUIRED, GmailTrainingLabel.ORDER}:
             return None
@@ -744,6 +745,8 @@ class NodeService:
         if not isinstance(prompt_runtime, dict) or not isinstance(prompt_runtime.get("json_schema"), dict):
             raise ValueError("prompt.email.action_decision is missing node_runtime.json_schema")
         if (
+            not force_refresh
+            and
             isinstance(message.action_decision_payload, dict)
             and message.action_decision_prompt_version == str(prompt_definition["version"])
         ):
@@ -2338,6 +2341,60 @@ class NodeService:
             correlation_id=correlation_id,
             persist_runtime_state=True,
         )
+
+    async def runtime_execute_latest_email_action_decision(
+        self,
+        payload: RuntimePromptExecutionRequestInput,
+        *,
+        correlation_id: str | None = None,
+    ) -> dict[str, object]:
+        del correlation_id
+        adapter = self.provider_registry.get_provider("gmail")
+        account_id = "primary"
+        message = adapter.message_store.get_newest_message_by_labels(
+            account_id,
+            labels=[GmailTrainingLabel.ACTION_REQUIRED, GmailTrainingLabel.ORDER],
+        )
+        if message is None:
+            raise ValueError("no action_required or order Gmail message is available")
+        if not message.local_label:
+            raise ValueError("latest Gmail message does not have a classification label")
+        classification_label = GmailTrainingLabel(str(message.local_label))
+        action_decision = await self._execute_email_action_decision_for_message(
+            account_id=account_id,
+            message=message,
+            classification_label=classification_label,
+            target_api_base_url=payload.target_api_base_url,
+            force_refresh=True,
+        )
+        if action_decision is None:
+            raise ValueError("AI action decision request did not return a usable result")
+        now = datetime.now(UTC).isoformat()
+        current = self._runtime_task_state()
+        result = {
+            "status": "completed",
+            "message_id": message.message_id,
+            "classification_label": classification_label.value,
+            "action_decision": action_decision,
+            "completed_at": now,
+        }
+        self._save_runtime_task_state(
+            request_status="executed",
+            last_step="execute",
+            detail=(
+                f"Latest {classification_label.value} Gmail message sent to AI action decision and completed for {message.message_id}."
+            ),
+            preview_response=current.get("preview_response"),
+            resolve_response=current.get("resolve_response"),
+            authorize_response=current.get("authorize_response"),
+            registration_request_payload=current.get("registration_request_payload"),
+            execution_request_payload={"mode": "action_decision", "message_id": message.message_id},
+            execution_response=result,
+            usage_summary_response=None,
+            started_at=current.get("started_at") or now,
+            updated_at=now,
+        )
+        return result
 
     async def runtime_execute_email_classifier_batch(
         self,

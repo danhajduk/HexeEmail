@@ -2653,6 +2653,56 @@ export function App() {
     }
   }
 
+  async function runRuntimeExecuteLatestEmailActionDecision() {
+    const now = new Date().toISOString();
+    setRuntimeTaskPending("execute");
+    setRuntimeTaskError("");
+    setRuntimeTaskNotice("");
+    setRuntimeTaskStatus((current) => ({
+      ...current,
+      request_status: "running",
+      last_step: "execute",
+      started_at: current.started_at || now,
+      updated_at: now,
+      detail: "Sending latest action_required/order Gmail message to the AI node for action decision...",
+      execution_request_payload: {
+        mode: "action_decision_latest",
+      },
+    }));
+    try {
+      const payload = await fetchJson("/api/runtime/execute-latest-email-action-decision", {
+        method: "POST",
+        body: JSON.stringify({
+          target_api_base_url: runtimeTaskForm.target_api_base_url,
+        }),
+      });
+      setRuntimeTaskStatus((current) => ({
+        ...current,
+        request_status: "executed",
+        last_step: "execute",
+        detail: `AI action decision completed for ${payload.message_id || "latest classified message"}.`,
+        execution_response: payload,
+        updated_at: new Date().toISOString(),
+      }));
+      setRuntimeTaskNotice(
+        `AI action decision completed for ${payload.message_id || "latest action-required/order message"}.`,
+      );
+      return payload;
+    } catch (taskError) {
+      setRuntimeTaskError(taskError.message);
+      setRuntimeTaskStatus((current) => ({
+        ...current,
+        request_status: "failed",
+        last_step: "execute",
+        detail: taskError.message,
+        updated_at: new Date().toISOString(),
+      }));
+      throw taskError;
+    } finally {
+      setRuntimeTaskPending("");
+    }
+  }
+
   async function runGmailFetch(window, successLabel) {
     setGmailActionPending(window);
     setGmailActionError("");
@@ -4043,6 +4093,14 @@ export function App() {
                         onClick={runRuntimeExecuteEmailClassifier}
                       >
                         {runtimeTaskPending === "execute" ? "Sending..." : "Send Newest Unknown Mail To Classifier"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn"
+                        disabled={runtimeTaskPending !== ""}
+                        onClick={runRuntimeExecuteLatestEmailActionDecision}
+                      >
+                        {runtimeTaskPending === "execute" ? "Sending..." : "Send Latest Action Needed / Order To AI"}
                       </button>
                       <div className="row gmail-fetch-row">
                         <button type="button" className="btn" disabled={runtimeTaskPending !== ""} onClick={runRuntimePreview}>

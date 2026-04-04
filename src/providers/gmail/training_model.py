@@ -6,10 +6,14 @@ import pickle
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from providers.gmail.runtime import GmailRuntimeLayout
 from providers.gmail.training import NORMALIZATION_VERSION
 from providers.gmail.models import GmailTrainingDatasetRow, GmailTrainingDatasetSummary
+
+if TYPE_CHECKING:
+    from providers.gmail.message_store import GmailMessageStore
 
 
 class GmailTrainingModelError(RuntimeError):
@@ -17,9 +21,14 @@ class GmailTrainingModelError(RuntimeError):
 
 
 class GmailTrainingModelStore:
-    def __init__(self, runtime_dir: Path) -> None:
+    metadata_account_id = "primary"
+    metadata_namespace = "training_model"
+    metadata_key = "metadata"
+
+    def __init__(self, runtime_dir: Path, *, message_store: GmailMessageStore | None = None) -> None:
         self.layout = GmailRuntimeLayout(runtime_dir)
         self.layout.ensure_layout()
+        self.message_store = message_store
 
     def status(self) -> dict[str, object]:
         meta = self._load_meta()
@@ -122,8 +131,7 @@ class GmailTrainingModelStore:
             "dataset_summary": dataset_summary.model_dump(mode="json"),
             "detail": "TF-IDF + LogisticRegression model trained from weighted local and bootstrap labels with an 80/20 split.",
         }
-        self.layout.training_model_meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        self._set_mode(self.layout.training_model_meta_path, 0o600)
+        self._save_meta(meta)
         return self.status()
 
     def train(self, texts: list[str], labels: list[str]) -> dict[str, object]:
@@ -183,11 +191,35 @@ class GmailTrainingModelStore:
             raise GmailTrainingModelError(f"training model is invalid: {exc}") from exc
 
     def _load_meta(self) -> dict[str, object]:
+        if self.message_store is not None:
+            payload = self.message_store.get_runtime_setting(
+                self.metadata_account_id,
+                namespace=self.metadata_namespace,
+                key=self.metadata_key,
+            )
+            if isinstance(payload, dict):
+                return payload
         try:
             payload = json.loads(self.layout.training_model_meta_path.read_text(encoding="utf-8"))
         except (FileNotFoundError, json.JSONDecodeError):
             return {}
-        return payload if isinstance(payload, dict) else {}
+        if not isinstance(payload, dict):
+            return {}
+        if self.message_store is not None:
+            self._save_meta(payload)
+        return payload
+
+    def _save_meta(self, meta: dict[str, object]) -> None:
+        if self.message_store is not None:
+            self.message_store.set_runtime_setting(
+                self.metadata_account_id,
+                namespace=self.metadata_namespace,
+                key=self.metadata_key,
+                value=meta,
+            )
+            return
+        self.layout.training_model_meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        self._set_mode(self.layout.training_model_meta_path, 0o600)
 
     def _set_mode(self, path: Path, mode: int) -> None:
         try:

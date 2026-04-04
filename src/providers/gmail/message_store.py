@@ -119,6 +119,24 @@ class GmailMessageStore:
             self._ensure_column(connection, "gmail_sender_reputation", "manual_rating", "REAL")
             self._ensure_column(connection, "gmail_sender_reputation", "manual_rating_note", "TEXT")
             self._ensure_column(connection, "gmail_sender_reputation", "manual_rating_updated_at", "TEXT")
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS gmail_runtime_settings (
+                    account_id TEXT NOT NULL,
+                    namespace TEXT NOT NULL,
+                    key TEXT NOT NULL,
+                    value_json TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY (account_id, namespace, key)
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_gmail_runtime_settings_account_namespace_updated
+                ON gmail_runtime_settings(account_id, namespace, updated_at DESC)
+                """
+            )
             connection.commit()
         self._set_mode(self.path, 0o600)
 
@@ -421,6 +439,46 @@ class GmailMessageStore:
             ).fetchone()
         return self._row_to_message(row) if row is not None else None
 
+    def get_newest_message_by_labels(
+        self,
+        account_id: str,
+        *,
+        labels: list[GmailTrainingLabel],
+    ) -> GmailStoredMessage | None:
+        label_values = [label.value for label in labels]
+        if not label_values:
+            return None
+        placeholders = ",".join("?" for _ in label_values)
+        with self._connect() as connection:
+            row = connection.execute(
+                f"""
+                SELECT
+                    account_id,
+                    message_id,
+                    thread_id,
+                    subject,
+                    sender,
+                    recipients,
+                    snippet,
+                    label_ids,
+                    received_at,
+                    raw_payload,
+                    local_label,
+                    local_label_confidence,
+                    manual_classification,
+                    action_decision_payload,
+                    action_decision_prompt_version,
+                    action_decision_updated_at
+                FROM gmail_messages
+                WHERE account_id = ?
+                  AND local_label IN ({placeholders})
+                ORDER BY received_at DESC
+                LIMIT 1
+                """,
+                (account_id, *label_values),
+            ).fetchone()
+        return self._row_to_message(row) if row is not None else None
+
     def get_message(self, account_id: str, message_id: str) -> GmailStoredMessage | None:
         with self._connect() as connection:
             row = connection.execute(
@@ -588,6 +646,61 @@ class GmailMessageStore:
                 WHERE account_id = ? AND message_id = ?
                 """,
                 (serialized_payload, prompt_version, decision_updated_at.isoformat(), account_id, message_id),
+            )
+            connection.commit()
+
+    def get_runtime_setting(
+        self,
+        account_id: str,
+        *,
+        namespace: str,
+        key: str,
+    ) -> object | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT value_json
+                FROM gmail_runtime_settings
+                WHERE account_id = ?
+                  AND namespace = ?
+                  AND key = ?
+                LIMIT 1
+                """,
+                (account_id, namespace, key),
+            ).fetchone()
+        if row is None:
+            return None
+        try:
+            return json.loads(row["value_json"])
+        except (TypeError, json.JSONDecodeError):
+            return None
+
+    def set_runtime_setting(
+        self,
+        account_id: str,
+        *,
+        namespace: str,
+        key: str,
+        value: object,
+        updated_at: datetime | None = None,
+    ) -> None:
+        stored_at = updated_at or datetime.now().astimezone()
+        serialized_value = json.dumps(value, sort_keys=True, separators=(",", ":"))
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO gmail_runtime_settings (
+                    account_id,
+                    namespace,
+                    key,
+                    value_json,
+                    updated_at
+                ) VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(account_id, namespace, key) DO UPDATE SET
+                    value_json = excluded.value_json,
+                    updated_at = excluded.updated_at
+                """,
+                (account_id, namespace, key, serialized_value, stored_at.isoformat()),
             )
             connection.commit()
 

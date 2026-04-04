@@ -43,3 +43,7 @@ if it is not present and should be node-owned create a file with the new data in
 
 Do not edit above this line:
 #######################################################################
+[WIP] Task 103: Add runtime settings and model metadata tables in SQLite
+[TODO] Task 104: Move Gmail local model metadata from JSON to SQLite
+[TODO] Task 105: Update runtime and UI status reads to use DB-backed model metadata
+[TODO] Task 106: Retire legacy training model metadata JSON after migration
