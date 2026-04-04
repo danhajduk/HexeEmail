@@ -1015,6 +1015,120 @@ async def test_runtime_execute_latest_email_action_decision_uses_newest_actionab
 
 
 @pytest.mark.asyncio
+async def test_runtime_execute_latest_email_action_decision_seeds_tracked_order_record(config, core_client_factory):
+    core_app = build_core_app()
+    core_app.state.action_decision_output_override = {
+        "primary_label": "ORDER",
+        "summary": "Amazon order update.",
+        "urgency": "normal",
+        "confidence": 0.98,
+        "recommended_actions": [
+            {
+                "action": "track_shipment",
+                "confidence": 0.99,
+                "reason": "Shipment tracking is available.",
+            },
+            {
+                "action": "notify",
+                "confidence": 0.77,
+                "reason": "The order update is useful to surface.",
+            },
+        ],
+        "tracking_signals": {
+            "is_shipment_related": True,
+            "current_status": "arriving overnight 4 AM - 8 AM",
+            "seller": "amazon",
+            "carrier": "amazon",
+            "order_number": "112-8876120-3805015",
+            "tracking_number": "TBA11288761203805015",
+        },
+        "calendar_signals": {
+            "has_calendar_invite": False,
+            "has_meeting_request": False,
+            "time_mentions": [],
+        },
+        "time_signals": {
+            "is_time_sensitive": True,
+            "deadline_mentions": [],
+            "time_window_mentions": ["overnight 4 AM - 8 AM"],
+        },
+        "sender_signal": {
+            "trust_hint": "trusted",
+            "reasons": ["Official Amazon order email."],
+        },
+        "human_review_required": False,
+    }
+    service = NodeService(config, core_client=core_client_factory(core_app), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    adapter = service.provider_registry.get_provider("gmail")
+    adapter.account_store.save_account(
+        adapter.state_machine.ensure_account("primary").model_copy(
+            update={"status": "connected", "email_address": "primary@example.com"}
+        )
+    )
+    actionable = GmailStoredMessage(
+        account_id="primary",
+        message_id="order-track-seed",
+        subject="Amazon shipment update",
+        sender="Amazon <ship-confirm@amazon.com>",
+        recipients=["primary@example.com"],
+        snippet="Shipment arriving overnight.",
+        received_at=datetime(2026, 4, 2, 12, 0, 0).astimezone(),
+        local_label="order",
+        local_label_confidence=0.96,
+    )
+    adapter.message_store.upsert_messages([actionable])
+    google_app = FastAPI()
+
+    @google_app.get("/messages/{message_id}")
+    async def get_full_message(message_id: str):
+        return {
+            "id": message_id,
+            "threadId": "thread-1",
+            "snippet": "Amazon order update",
+            "payload": {
+                "mimeType": "multipart/alternative",
+                "headers": [
+                    {"name": "From", "value": "Amazon <ship-confirm@amazon.com>"},
+                    {"name": "To", "value": "primary@example.com"},
+                    {"name": "Subject", "value": "Amazon shipment update"},
+                ],
+                "parts": [
+                    {
+                        "mimeType": "text/plain",
+                        "body": {
+                            "data": "RnVsbCBlbWFpbCBib2R5IGZvciBhY3Rpb24gZGVjaXNpb24u"
+                        },
+                    }
+                ],
+            },
+        }
+
+    adapter.mailbox_client._client = httpx.AsyncClient(transport=ASGITransport(app=google_app), timeout=10.0)
+    adapter.mailbox_client.MESSAGE_ENDPOINT_TEMPLATE = "http://google.test/messages/{message_id}"
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/runtime/execute-latest-email-action-decision",
+            json={"target_api_base_url": "http://10.0.0.100:9002"},
+        )
+
+    tracked_orders = adapter.message_store.list_shipment_records("primary")
+    await service.stop()
+
+    assert response.status_code == 200
+    assert len(tracked_orders) == 1
+    assert tracked_orders[0].record_id == "order:112-8876120-3805015"
+    assert tracked_orders[0].seller == "amazon"
+    assert tracked_orders[0].carrier == "amazon"
+    assert tracked_orders[0].domain == "amazon.com"
+    assert tracked_orders[0].order_number == "112-8876120-3805015"
+    assert tracked_orders[0].tracking_number == "TBA11288761203805015"
+    assert tracked_orders[0].last_known_status == "arriving overnight 4 AM - 8 AM"
+
+
+@pytest.mark.asyncio
 async def test_runtime_execute_latest_email_action_decision_rejects_partial_output(config, core_client_factory):
     core_app = build_core_app()
     core_app.state.action_decision_output_override = {

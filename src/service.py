@@ -55,7 +55,13 @@ from models import (
 )
 from providers.gmail.adapter import GmailProviderAdapter
 from providers.gmail.config_store import GmailProviderConfigError, GmailProviderConfigStore
-from providers.gmail.models import GmailManualClassificationBatchInput, GmailOAuthConfig, GmailSemiAutoClassificationBatchInput, GmailTrainingLabel
+from providers.gmail.models import (
+    GmailManualClassificationBatchInput,
+    GmailOAuthConfig,
+    GmailSemiAutoClassificationBatchInput,
+    GmailShipmentRecord,
+    GmailTrainingLabel,
+)
 from providers.gmail.oauth import GmailOAuthSessionManager
 from providers.gmail.token_client import GmailTokenExchangeClient, GmailTokenExchangeError
 from providers.gmail.training import normalize_email_for_classifier
@@ -935,6 +941,112 @@ class NodeService:
             "snippet": message.snippet or "",
         }
 
+    @staticmethod
+    def _action_decision_sender_domain(message) -> str | None:
+        _, sender_email = parseaddr(getattr(message, "sender", "") or "")
+        if "@" not in sender_email:
+            return None
+        return str(sender_email.rsplit("@", 1)[-1]).strip().lower() or None
+
+    @staticmethod
+    def _action_decision_canonical_party(value: object) -> str | None:
+        normalized = " ".join(str(value or "").strip().split()).lower()
+        return normalized or None
+
+    @staticmethod
+    def _action_decision_canonical_identifier(value: object) -> str | None:
+        normalized = re.sub(r"[^0-9A-Z-]", "", str(value or "").strip().upper())
+        return normalized or None
+
+    def _upsert_tracked_order_from_action_decision(
+        self,
+        *,
+        account_id: str,
+        message,
+        action_decision: dict[str, object],
+    ) -> None:
+        primary_label = str(action_decision.get("primary_label") or "").strip().upper()
+        tracking_signals = action_decision.get("tracking_signals")
+        if not isinstance(tracking_signals, dict):
+            return
+        is_shipment_related = bool(tracking_signals.get("is_shipment_related"))
+        if primary_label not in {"ORDER", "SHIPMENT"} and not is_shipment_related:
+            return
+
+        seller = self._action_decision_canonical_party(tracking_signals.get("seller"))
+        carrier = self._action_decision_canonical_party(tracking_signals.get("carrier"))
+        order_number = self._action_decision_canonical_identifier(tracking_signals.get("order_number"))
+        tracking_number = self._action_decision_canonical_identifier(tracking_signals.get("tracking_number"))
+        last_known_status = str(tracking_signals.get("current_status") or "").strip() or None
+        domain = self._action_decision_sender_domain(message)
+        if not any([seller, carrier, order_number, tracking_number, last_known_status]):
+            return
+
+        gmail_adapter = self.provider_registry.get_provider("gmail")
+        existing_records = gmail_adapter.message_store.list_shipment_records(account_id)
+        matched_record = None
+        if tracking_number:
+            matched_record = next(
+                (
+                    record
+                    for record in existing_records
+                    if self._action_decision_canonical_identifier(record.tracking_number) == tracking_number
+                ),
+                None,
+            )
+        if matched_record is None and order_number:
+            matched_record = next(
+                (
+                    record
+                    for record in existing_records
+                    if self._action_decision_canonical_identifier(record.order_number) == order_number
+                ),
+                None,
+            )
+        if matched_record is None and message.message_id:
+            matched_record = next((record for record in existing_records if record.record_id == f"msg:{message.message_id}"), None)
+
+        if matched_record is not None:
+            record = matched_record.model_copy(
+                update={
+                    "seller": seller or matched_record.seller,
+                    "carrier": carrier or matched_record.carrier,
+                    "order_number": order_number or matched_record.order_number,
+                    "tracking_number": tracking_number or matched_record.tracking_number,
+                    "domain": domain or matched_record.domain,
+                    "last_known_status": last_known_status or matched_record.last_known_status,
+                    "last_seen_at": message.received_at or matched_record.last_seen_at,
+                    "status_updated_at": (
+                        message.received_at if last_known_status and last_known_status != matched_record.last_known_status else matched_record.status_updated_at
+                    ),
+                }
+            )
+        else:
+            record_id = (
+                f"order:{order_number}"
+                if order_number
+                else f"tracking:{tracking_number}"
+                if tracking_number
+                else f"msg:{message.message_id}"
+            )
+            record = gmail_adapter.message_store.upsert_shipment_record(
+                gmail_adapter.message_store.get_shipment_record(account_id, record_id)
+                or GmailShipmentRecord(
+                    account_id=account_id,
+                    record_id=record_id,
+                    seller=seller,
+                    carrier=carrier,
+                    order_number=order_number,
+                    tracking_number=tracking_number,
+                    domain=domain,
+                    last_known_status=last_known_status,
+                    last_seen_at=message.received_at,
+                    status_updated_at=message.received_at if last_known_status else None,
+                )
+            )
+            return
+        gmail_adapter.message_store.upsert_shipment_record(record)
+
     async def _execute_email_action_decision_for_message(
         self,
         *,
@@ -1063,6 +1175,11 @@ class NodeService:
             message.message_id,
             payload=decision,
             prompt_version=str(prompt_definition["version"]),
+        )
+        self._upsert_tracked_order_from_action_decision(
+            account_id=account_id,
+            message=message,
+            action_decision=decision,
         )
         return decision
 
