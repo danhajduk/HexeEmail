@@ -1,0 +1,165 @@
+{
+  "prompt_id": "prompt.email.summarization",
+  "service_id": "node-email",
+  "task_family": "task.summarization",
+  "prompt_name": "Email summarization",
+  "owner_service": "node-email",
+  "privacy_class": "restricted",
+  "execution_policy": {
+    "allow_direct_execution": true,
+    "allow_version_pinning": true
+  },
+  "provider_preferences": {
+    "preferred_providers": [
+      "openai"
+    ],
+    "default_provider": "openai"
+  },
+  "constraints": {
+    "max_timeout_s": 30,
+    "structured_output_required": true
+  },
+  "definition": {
+    "system_prompt": "You are an email summarization engine for Hexe Email Node. Read the full normalized email and produce a concise, accurate, and structured summary. Do not invent information. Only use facts present in the email. The short_summary must be optimized for notifications: very short, clear, and immediately understandable. Every field in the required JSON shape is mandatory. Never omit a field, even when the value is empty, false, or an empty array. Do not add extra fields.",
+    "prompt_template": "Summarize the following email.\n\nEmail metadata:\n- account_id: {{account_id}}\n- message_id: {{message_id}}\n- thread_id: {{thread_id}}\n- received_at: {{received_at}}\n- subject: {{subject}}\n- from_name: {{from_name}}\n- from_email: {{from_email}}\n- to: {{to_recipients}}\n- cc: {{cc_recipients}}\n- labels: {{labels}}\n\nEmail body:\n{{body_text}}\n\nOptional snippet:\n{{snippet}}\n\nReturn JSON with this structure:\n{\n  \"short_summary\": \"VERY short (max 10 words), notification-ready\",\n  \"priority\": \"low|normal|high\",\n  \"detailed_summary\": \"1-3 sentence clear summary\",\n  \"key_points\": [\n    \"important point 1\",\n    \"important point 2\"\n  ],\n  \"entities\": {\n    \"people\": [],\n    \"organizations\": [],\n    \"dates\": [],\n    \"times\": [],\n    \"tracking_numbers\": [],\n    \"links\": []\n  },\n  \"signals\": {\n    \"is_time_sensitive\": false,\n    \"has_deadline\": false,\n    \"has_delivery_info\": false,\n    \"has_action_request\": false\n  }\n}\n\nRules:\n- Return every top-level field shown above. All of them are required.\n- Return every nested required field shown above. All of them are required.\n- If information is not present, return empty arrays, false, or an empty string where appropriate.\n- Do not add extra fields.\n- short_summary MUST be <= 10 words.\n- short_summary must be readable as a push notification.\n- short_summary should capture the key outcome or change.\n- Do NOT include filler phrases like \"This email is about\".\n- priority rules:\n  - high: urgent deadlines, security alerts, required actions, delivery today/failed\n  - normal: useful but not urgent updates (orders, confirmations, general updates)\n  - low: newsletters, promotions, non-actionable info\n- Do not hallucinate or infer missing data.\n- Extract only clearly identifiable entities.\n- Focus on clarity over verbosity.\n- Return JSON only.",
+    "template_variables": [
+      "account_id",
+      "message_id",
+      "thread_id",
+      "received_at",
+      "subject",
+      "from_name",
+      "from_email",
+      "to_recipients",
+      "cc_recipients",
+      "labels",
+      "body_text",
+      "snippet"
+    ],
+    "default_inputs": {
+      "cc_recipients": [],
+      "labels": [],
+      "snippet": ""
+    }
+  },
+  "version": "v1.1",
+  "status": "active",
+  "metadata": {
+    "content_type": "email",
+    "prompt_role": "summarization",
+    "delegated_by": "node-email",
+    "intended_executor": "node-ai"
+  },
+  "node_runtime": {
+    "timeout_s": 30,
+    "json_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "short_summary": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "priority": {
+          "type": "string",
+          "enum": [
+            "low",
+            "normal",
+            "high"
+          ]
+        },
+        "detailed_summary": {
+          "type": "string"
+        },
+        "key_points": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "entities": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "people": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "organizations": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "dates": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "times": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "tracking_numbers": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "links": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "people",
+            "organizations",
+            "dates",
+            "times",
+            "tracking_numbers",
+            "links"
+          ]
+        },
+        "signals": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "is_time_sensitive": {
+              "type": "boolean"
+            },
+            "has_deadline": {
+              "type": "boolean"
+            },
+            "has_delivery_info": {
+              "type": "boolean"
+            },
+            "has_action_request": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "is_time_sensitive",
+            "has_deadline",
+            "has_delivery_info",
+            "has_action_request"
+          ]
+        }
+      },
+      "required": [
+        "short_summary",
+        "priority",
+        "detailed_summary",
+        "key_points",
+        "entities",
+        "signals"
+      ]
+    }
+  }
+}
