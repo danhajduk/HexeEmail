@@ -2398,49 +2398,6 @@ export function App() {
 
   async function runRuntimeRegisterPrompt() {
     const now = new Date().toISOString();
-    const fallbackRequestPayload = {
-      prompt_id: "prompt.email.classifier",
-      service_id: "node-email",
-      task_family: "task.classification",
-      prompt_name: "Email Classifier",
-      owner_service: "node-email",
-      privacy_class: "internal",
-      status: "active",
-      execution_policy: {
-        allow_direct_execution: true,
-        allow_version_pinning: true,
-      },
-      provider_preferences: {
-        preferred_providers: ["openai"],
-      },
-      constraints: {
-        max_timeout_s: 60,
-        structured_output_required: true,
-      },
-      metadata: {
-        purpose: "classify incoming email into email-node categories",
-        labels: [
-          "action_required",
-          "direct_human",
-          "financial",
-          "order",
-          "invoice",
-          "shipment",
-          "security",
-          "system",
-          "newsletter",
-          "marketing",
-          "unknown",
-        ],
-      },
-      definition: {
-        system_prompt:
-          "You are an email classification service for the Email Node. Classify the email into exactly one of the following labels: action_required, direct_human, financial, order, invoice, shipment, security, system, newsletter, marketing, unknown. Use the normalized email input as the source of truth. Be strict and prefer the most specific correct label. Classification guidance: action_required = direct action needed by the recipient; direct_human = person-to-person or community/personal message not primarily automated marketing; financial = banking, account balance, payments, loans, statements, financial activity unless a more specific invoice label clearly applies; order = order placed, order confirmation, purchase confirmation; invoice = bill, invoice, statement, receipt, charge record, payment receipt; shipment = shipped, out for delivery, delivered, pickup ready, travel/delivery status; security = fraud alerts, blocked activity, password resets, suspicious sign-in, account protection, website/app blocked, security monitoring; system = operational notices, product/account updates, app/account state changes, reminders, claims/repair status, task updates, service notifications; newsletter = digest, roundup, editorial updates, forum/news/community/event newsletters; marketing = promotions, discounts, offers, sales, product pushes, invitations to buy/apply/upgrade; unknown = only when the message does not fit any label with reasonable confidence. If multiple labels seem possible, choose the most specific one. Return JSON only with keys: label, confidence, rationale. confidence must be a number from 0.0 to 1.0. rationale must be short, one sentence max.",
-        template_variables: ["normalized_text"],
-        default_inputs: {},
-      },
-      version: "v1",
-    };
     setRuntimeTaskPending("register");
     setRuntimeTaskError("");
     setRuntimeTaskNotice("");
@@ -2450,25 +2407,35 @@ export function App() {
       last_step: "register",
       started_at: current.started_at || now,
       updated_at: now,
-      detail: "Registering prompt.email.classifier on the AI node prompt service...",
-      registration_request_payload: fallbackRequestPayload,
+      detail: "Syncing prompt JSON files with the AI node prompt service...",
+      registration_request_payload: null,
     }));
     try {
-      const payload = await fetchJson("/api/runtime/execute-authorized-task", {
+      const payload = await fetchJson("/api/runtime/prompts/sync", {
         method: "POST",
-        body: JSON.stringify(buildRuntimeExecutionPayload()),
+        body: JSON.stringify({
+          target_api_base_url: runtimeTaskForm.target_api_base_url,
+        }),
       });
+      const syncActions = Array.isArray(payload.sync_actions) ? payload.sync_actions : [];
+      const registeredCount = syncActions.filter((item) => item.action === "registered").length;
+      const replacedCount = syncActions.filter((item) => item.action === "replaced").length;
+      const unchangedCount = syncActions.filter((item) => item.action === "unchanged").length;
       setRuntimeTaskStatus((current) => ({
         ...current,
         request_status: "registered",
         last_step: "register",
-        detail: "Registered prompt.email.classifier on the AI node prompt service.",
+        detail: `Prompt sync completed: ${registeredCount} registered, ${replacedCount} replaced, ${unchangedCount} unchanged.`,
         registration_request_payload: payload.request_payload || null,
-        execution_response: payload.registration || null,
+        execution_response: {
+          registrations: payload.registrations || [],
+          retirements: payload.retirements || [],
+          sync_actions: syncActions,
+        },
         usage_summary_response: payload.usage_summary || null,
         updated_at: new Date().toISOString(),
       }));
-      setRuntimeTaskNotice("Prompt registration completed.");
+      setRuntimeTaskNotice("Prompt sync completed.");
       return payload;
     } catch (taskError) {
       setRuntimeTaskError(taskError.message);
@@ -3942,7 +3909,7 @@ export function App() {
                         disabled={runtimeTaskPending !== ""}
                         onClick={runRuntimeRegisterPrompt}
                       >
-                        {runtimeTaskPending === "register" ? "Registering..." : "Register Prompt On AI Node"}
+                        {runtimeTaskPending === "register" ? "Syncing..." : "Sync Prompts On AI Node"}
                       </button>
                       <button
                         type="button"

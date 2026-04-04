@@ -79,3 +79,15 @@ Chosen fix: Filter the grouped reputation page client-side by the existing risk 
 What changed: Added trusted/neutral/risky/blocked filter controls to the sender reputation page and kept the grouped domain summaries compatible with the active filter.
 Verification: `npm run build` passed in `frontend/`.
 ###########
+Task #097
+Step objective: Redesign runtime prompt registration around real prompt-service sync instead of blind prompt posts.
+Chosen fix: Move prompt registration ownership into the backend, load local prompt definitions from a dedicated JSON folder, compare them against the AI-node prompt-service listing, and only register missing prompts while retiring and re-registering outdated versions.
+What changed: Added folder-scanned prompt JSON loading in `src/runtime_prompts`, added a dedicated `/api/runtime/prompts/sync` backend route, persisted the last prompt-sync target and weekly sync slot in runtime state, implemented missing/unchanged/replaced prompt sync behavior against the AI-node prompt-service list and lifecycle endpoints, wired the minute scheduler to perform the sync once per week, and removed the dummy frontend registration payload in favor of the real sync API.
+Verification: `python -m py_compile src/config.py src/models.py src/main.py src/service.py tests/helpers.py tests/test_ui_api.py` passed. `npm run build` passed in `frontend/`.
+###########
+Task #098
+Step objective: Extract the hardcoded email-classifier prompt into JSON.
+Chosen fix: Store the prompt registration body and node-local execution metadata together in a dedicated JSON definition file so registration and execution read the same source of truth.
+What changed: Added `src/runtime_prompts/prompt.email.classifier.json`, removed the hardcoded prompt-registration builder from `NodeService`, and updated the runtime email-classifier execution path to read the prompt id, version, timeout, and structured output schema from the JSON definition.
+Verification: `python -m py_compile src/config.py src/models.py src/main.py src/service.py tests/helpers.py tests/test_ui_api.py` passed. `npm run build` passed in `frontend/`.
+###########

@@ -141,3 +141,17 @@ Original task details:
 - add an option to filter the reputation list by risk level
 - support filtering by trusted, neutral, risky, and blocked
 - keep the filtering compatible with the grouped and collapsible reputation list
+
+## Task 097
+Original task details:
+- redesign the runtime prompt registration flow
+- read the existing prompts on the AI node before registering local prompts
+- send register requests only for prompts that are not present remotely
+- if a remote prompt is outdated, retire it and register the new one based on the version in the local JSON
+- keep prompt JSON files in a dedicated folder and have the registration flow scan that folder
+- support the registration flow from the Runtime page button and from a once-per-week scheduled sync
+
+## Task 098
+Original task details:
+- extract the current hardcoded prompt definition(s) into JSON
+- keep the JSON file(s) in the dedicated prompt-registration folder used by Task 097
