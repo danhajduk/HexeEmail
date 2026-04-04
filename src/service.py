@@ -409,6 +409,7 @@ class NodeService:
 
     @classmethod
     def _scheduled_task_entry(
+        cls,
         *,
         task_id: str,
         title: str,
