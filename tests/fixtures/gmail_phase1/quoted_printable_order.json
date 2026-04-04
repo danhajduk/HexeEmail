@@ -1,0 +1,27 @@
+{
+  "id": "msg-order-qp",
+  "threadId": "thread-order-qp",
+  "snippet": "Quoted-printable order details.",
+  "internalDate": "1775125200000",
+  "payload": {
+    "mimeType": "multipart/alternative",
+    "headers": [
+      {"name": "From", "value": "Store Orders <orders@example.com>"},
+      {"name": "Subject", "value": "Order details"},
+      {"name": "Date", "value": "Wed, 02 Apr 2026 11:00:00 -0700"},
+      {"name": "Message-ID", "value": "<qp-order@example.com>"}
+    ],
+    "parts": [
+      {
+        "mimeType": "text/plain",
+        "headers": [
+          {"name": "Content-Type", "value": "text/plain; charset=UTF-8"},
+          {"name": "Content-Transfer-Encoding", "value": "quoted-printable"}
+        ],
+        "body": {
+          "data": "SGVsbG8gRGFuLD0KWW91ciBvcmRlciB0b3RhbCBpcyA9MjQzNC45OSBhbmQgY29kZSA9M0QgUkVBRFku"
+        }
+      }
+    ]
+  }
+}

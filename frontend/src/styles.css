@@ -207,6 +207,23 @@
   grid-column: 1 / -1;
 }
 
+.scheduled-tasks-legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.scheduled-tasks-legend-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid hsl(var(--sx-border));
+  border-radius: var(--sx-radius-md);
+  background: hsl(var(--sx-text) / 0.03);
+}
+
 .scheduled-tasks-table-wrap {
   overflow-x: auto;
 }

@@ -1,0 +1,27 @@
+{
+  "id": "msg-order-text-only",
+  "threadId": "thread-order-text-only",
+  "snippet": "Text only order mail.",
+  "internalDate": "1775128800000",
+  "payload": {
+    "mimeType": "multipart/alternative",
+    "headers": [
+      {"name": "From", "value": "Pickup Desk <orders@pickup.example.com>"},
+      {"name": "Subject", "value": "Your order is ready"},
+      {"name": "Date", "value": "Wed, 02 Apr 2026 12:00:00 -0700"},
+      {"name": "Message-ID", "value": "<text-only-order@example.com>"}
+    ],
+    "parts": [
+      {
+        "mimeType": "text/plain",
+        "headers": [
+          {"name": "Content-Type", "value": "text/plain; charset=UTF-8"},
+          {"name": "Content-Transfer-Encoding", "value": "7bit"}
+        ],
+        "body": {
+          "data": "WW91ciBvcmRlciBpcyByZWFkeSBmb3IgcGlja3VwLg"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "id": "msg-order-malformed-sender",
+  "threadId": "thread-order-malformed-sender",
+  "snippet": "Malformed sender order mail.",
+  "internalDate": "1775132400000",
+  "payload": {
+    "mimeType": "multipart/alternative",
+    "headers": [
+      {"name": "From", "value": "Amazon Marketplace Notifications"},
+      {"name": "Subject", "value": "Marketplace order update"},
+      {"name": "Date", "value": "Wed, 02 Apr 2026 13:00:00 -0700"},
+      {"name": "Message-ID", "value": "<malformed-sender-order@example.com>"}
+    ],
+    "parts": [
+      {
+        "mimeType": "text/plain",
+        "headers": [
+          {"name": "Content-Type", "value": "text/plain; charset=UTF-8"},
+          {"name": "Content-Transfer-Encoding", "value": "7bit"}
+        ],
+        "body": {
+          "data": "TWFya2V0cGxhY2Ugb3JkZXIgdXBkYXRlLg"
+        }
+      }
+    ]
+  }
+}

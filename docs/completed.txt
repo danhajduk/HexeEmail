@@ -111,3 +111,91 @@ Task 110: Add monthly runtime resolve and authorize task - Completed on 04/03/20
 Task 111: Expand shipment tracking fields in action decision output - Completed on 04/03/2026 20:46
 Task 112: Send subject and text-only mail body in AI email prompts - Completed on 04/03/2026 20:46
 Task 113: Add lightweight local shipment email scrubber for existing orders only - Completed on 04/03/2026 21:06
+Task 114: Create full email fetch pipeline for ORDER-classified messages - Completed on 04/04/2026 10:53
+Task 115: Define normalized Phase 1 email payload schema - Completed on 04/04/2026 10:53
+Task 116: Add quoted-printable and transfer-encoding decoder - Completed on 04/04/2026 10:53
+Task 117: Add sender normalization and domain resolution - Completed on 04/04/2026 10:53
+Task 118: Select preferred body source for downstream scrubbing - Completed on 04/04/2026 10:53
+Task 119: Add Phase 1 normalization orchestrator - Completed on 04/04/2026 10:53
+Task 120: Add Phase 1 fixtures and regression tests - Completed on 04/04/2026 10:53
+Task 121: Fix transfer decoding corruption in Phase 1 normalizer - Completed on 04/04/2026 12:09
+Task 122: Parse MIME structure and extract multipart boundaries - Completed on 04/04/2026 12:09
+Task 123: Add decoded body quality scoring - Completed on 04/04/2026 12:09
+Task 124: Add canonical hash fields - Completed on 04/04/2026 12:09
+Task 125: Standardize Phase 1 status fields - Completed on 04/04/2026 12:09
+Task 126: Define canonical header normalization - Completed on 04/04/2026 12:09
+Task 127: Add Phase 1 validation guardrail - Completed on 04/04/2026 12:09
+Task 121: Implement proper MIME boundary extraction and part inventory - Completed on 04/04/2026 12:26
+Task 122: Add decoded body quality classification - Completed on 04/04/2026 12:26
+Task 123: Add canonical content hashes for Phase 1 payload bodies - Completed on 04/04/2026 12:26
+Task 124: Standardize Phase 1 stage status enums and diagnostics - Completed on 04/04/2026 12:26
+Task 125: Define canonical vs raw field ownership in normalized payload - Completed on 04/04/2026 12:26
+Task 126: Add Phase 1 validation guardrail for handoff readiness - Completed on 04/04/2026 12:26
+Task 127: Add selected body source provenance metadata - Completed on 04/04/2026 12:26
+Task 128: Normalize thread/message identity semantics for Gmail payloads - Completed on 04/04/2026 12:26
+Task 129: Add lightweight normalization metadata block - Completed on 04/04/2026 12:26
+Task 130: Finalize Phase 1 schema for stable Phase 2 handoff - Completed on 04/04/2026 12:26
+Task 131: Create Phase 2 scrubber entrypoint - Completed on 04/04/2026 12:39
+Task 132: Implement HTML-to-visible-text extraction - Completed on 04/04/2026 12:39
+Task 133: Implement plain-text normalization path - Completed on 04/04/2026 12:39
+Task 134: Add hidden-content and preheader stripping - Completed on 04/04/2026 12:39
+Task 135: Remove obvious email chrome and navigation junk - Completed on 04/04/2026 12:39
+Task 136: Add footer, legal, and boilerplate cutoff rules - Completed on 04/04/2026 12:39
+Task 137: Normalize semantic lines and compact whitespace - Completed on 04/04/2026 12:39
+Task 138: Preserve key links and structured references separately - Completed on 04/04/2026 12:39
+Task 139: Add seller-agnostic stop markers and ignore-line rules - Completed on 04/04/2026 12:39
+Task 140: Build the Phase 2 scrubber orchestrator - Completed on 04/04/2026 12:39
+Task 141: Define Phase 2 output schema for profile detection handoff - Completed on 04/04/2026 12:39
+Task 142: Add scrubber metrics and token-reduction metadata - Completed on 04/04/2026 12:39
+Task 143: Fix Phase 2 orchestrator to emit scrubbed fields instead of raw Phase 1 body - Completed on 04/04/2026 12:53
+Task 144: Wire selected body content into visible-text extraction path - Completed on 04/04/2026 12:53
+Task 145: Implement true HTML visible-text extraction and discard non-visible markup - Completed on 04/04/2026 12:53
+Task 146: Strip hidden preheader filler and tracking junk from extracted content - Completed on 04/04/2026 12:53
+Task 147: Remove top navigation and generic email chrome from scrubbed output - Completed on 04/04/2026 12:53
+Task 148: Add cutoff logic for footer, legal, and post-order marketing sections - Completed on 04/04/2026 12:53
+Task 149: Normalize extracted text into stable semantic lines - Completed on 04/04/2026 12:53
+Task 150: Extract and separate useful action links from body text - Completed on 04/04/2026 12:53
+Task 151: Add scrubber reduction metrics from source to scrubbed output - Completed on 04/04/2026 12:53
+Task 152: Finalize Phase 2 canonical contract for Phase 3 profile detection - Completed on 04/04/2026 12:53
+Task 153: Add transactional content targeting before final line normalization - Completed on 04/04/2026 13:16
+Task 154: Preserve order-action links before generic link filtering - Completed on 04/04/2026 13:16
+Task 155: Fix URL normalization in extracted links - Completed on 04/04/2026 13:16
+Task 156: Add recommendation and marketing suppression rules - Completed on 04/04/2026 13:16
+Task 157: Keep structural order-card context during HTML extraction - Completed on 04/04/2026 13:16
+Task 158: Improve semantic line retention for core order fields - Completed on 04/04/2026 13:16
+Task 159: Add Phase 2 quality guard for transactional completeness - Completed on 04/04/2026 13:16
+Task 160: Align ORDER flow test harness with docs/order_flow_tests.md update rules - Completed on 04/04/2026 13:16
+Task 161: Run ORDER flow for current mail list and refresh Phase 2 blocks only - Completed on 04/04/2026 13:16
+Task 162: Rebalance transactional block scoring toward order completeness - Completed on 04/04/2026 13:35
+Task 163: Add adjacent-block merge for split transactional content - Completed on 04/04/2026 13:35
+Task 164: Add hard completeness downgrade rules for ORDER flow - Completed on 04/04/2026 13:35
+Task 165: Sanitize extracted URLs before normalization and validation - Completed on 04/04/2026 13:35
+Task 166: Promote order identifier extraction anchors in line retention - Completed on 04/04/2026 13:35
+Task 167: Promote status/greeting retention in transactional summaries - Completed on 04/04/2026 13:35
+Task 168: Add anti-promo guard during adjacent-block merge - Completed on 04/04/2026 13:35
+Task 169: Update Phase 2 success criteria for ORDER flow outputs in docs/order_flow_tests.md - Completed on 04/04/2026 13:35
+Task 170: Re-run the listed ORDER flow samples and refresh Phase 2 outputs only - Completed on 04/04/2026 13:35
+Task 171: Create Phase 3 profile detection entrypoint - Completed on 04/04/2026 14:02
+Task 172: Define profile taxonomy for ORDER flow - Completed on 04/04/2026 14:02
+Task 173: Implement deterministic profile candidate generation - Completed on 04/04/2026 14:02
+Task 174: Add deterministic profile scoring and ranking - Completed on 04/04/2026 14:02
+Task 175: Separate sender identity from profile identity - Completed on 04/04/2026 14:02
+Task 176: Detect order state subtype from scrubbed content - Completed on 04/04/2026 14:02
+Task 177: Route Phase 3 result to known profile IDs - Completed on 04/04/2026 14:02
+Task 178: Add profile confidence and downgrade rules - Completed on 04/04/2026 14:02
+Task 179: Define Phase 3 output contract for Phase 4 pattern lookup - Completed on 04/04/2026 14:02
+Task 180: Create initial known profile mapping set for current ORDER samples - Completed on 04/04/2026 14:02
+Task 181: Run Phase 3 across current ORDER sample set and store outputs - Completed on 04/04/2026 14:02
+Task 182: Create Phase 4 template extraction entrypoint - Completed on 04/04/2026 14:38
+Task 183: Define JSON template schema for extraction profiles - Completed on 04/04/2026 14:38
+Task 184: Define supported extraction methods for JSON templates - Completed on 04/04/2026 14:38
+Task 185: Implement template registry and lookup by profile_id - Completed on 04/04/2026 14:38
+Task 186: Implement deterministic template runner over Phase 2 content - Completed on 04/04/2026 14:38
+Task 187: Add built-in normalization transforms for extracted fields - Completed on 04/04/2026 14:38
+Task 188: Add field validation and required-field enforcement - Completed on 04/04/2026 14:38
+Task 189: Add extraction confidence scoring - Completed on 04/04/2026 14:38
+Task 190: Define canonical Phase 4 extracted output contract - Completed on 04/04/2026 14:38
+Task 191: Create initial JSON templates for current known profiles - Completed on 04/04/2026 14:38
+Task 192: Add fallback behavior when no template exists - Completed on 04/04/2026 14:38
+Task 193: Run Phase 4 extraction on current known sample set and store outputs - Completed on 04/04/2026 14:38
+Task 194: Prepare AI-assisted template generation hook for unknown profiles - Completed on 04/04/2026 14:38

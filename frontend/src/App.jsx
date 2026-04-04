@@ -22,6 +22,7 @@ const EMPTY_PROVIDER_FORM = {
 };
 
 const EMPTY_RUNTIME_TASK_FORM = {
+  ai_calls_enabled: true,
   requested_node_type: "ai",
   task_family: "task.classification",
   content_type: "email",
@@ -34,6 +35,7 @@ const EMPTY_RUNTIME_TASK_FORM = {
 };
 
 const EMPTY_RUNTIME_TASK_STATUS = {
+  ai_calls_enabled: true,
   request_status: "idle",
   last_step: "none",
   detail: "No runtime task request has been started yet.",
@@ -1965,8 +1967,15 @@ export function App() {
         setRuntimeTaskStatus((current) =>
           runtimeTaskStateHasContent(payload.runtime_task_state)
             ? { ...EMPTY_RUNTIME_TASK_STATUS, ...(payload.runtime_task_state || {}) }
-            : current,
+            : {
+                ...current,
+                ai_calls_enabled: payload.runtime_task_state?.ai_calls_enabled ?? true,
+              },
         );
+        setRuntimeTaskForm((current) => ({
+          ...current,
+          ai_calls_enabled: payload.runtime_task_state?.ai_calls_enabled ?? true,
+        }));
         setUiUpdatedAt(new Date().toISOString());
         setBackendReachable(true);
         setBootstrapLoaded(true);
@@ -2253,11 +2262,42 @@ export function App() {
   }
 
   function handleRuntimeTaskFormChange(event) {
-    const { name, value } = event.target;
+    const { name, value, type, checked } = event.target;
     setRuntimeTaskForm((current) => ({
       ...current,
-      [name]: value,
+      [name]: type === "checkbox" ? checked : value,
     }));
+  }
+
+  async function updateRuntimeAiCallsEnabled(enabled) {
+    setRuntimeTaskPending("settings");
+    setRuntimeTaskError("");
+    setRuntimeTaskNotice("");
+    setRuntimeTaskForm((current) => ({
+      ...current,
+      ai_calls_enabled: enabled,
+    }));
+    try {
+      const payload = await fetchJson("/api/runtime/settings", {
+        method: "POST",
+        body: JSON.stringify({
+          ai_calls_enabled: enabled,
+        }),
+      });
+      setRuntimeTaskStatus((current) => ({
+        ...current,
+        ...(payload.runtime_task_state || {}),
+      }));
+      setRuntimeTaskNotice(enabled ? "AI calls enabled for runtime actions." : "AI calls disabled for runtime actions.");
+    } catch (taskError) {
+      setRuntimeTaskForm((current) => ({
+        ...current,
+        ai_calls_enabled: !enabled,
+      }));
+      setRuntimeTaskError(taskError.message);
+    } finally {
+      setRuntimeTaskPending("");
+    }
   }
 
   function buildRuntimePreviewPayload() {
@@ -3813,7 +3853,11 @@ export function App() {
                           disabled={runtimeTaskPending !== "" || gmailActionPending !== ""}
                           onClick={runRuntimeExecuteEmailClassifierBatch}
                         >
-                          {runtimeTaskPending === "execute_batch" ? "Processing..." : "Local Classify 100, Send Unknown To AI"}
+                          {runtimeTaskPending === "execute_batch"
+                            ? "Processing..."
+                            : runtimeTaskForm.ai_calls_enabled
+                              ? "Local Classify 100, Send Unknown To AI"
+                              : "Local Classify 100, Skip AI"}
                         </button>
                         {runtimeBatchExecution ? (
                           <div className="stack compact-stack">
@@ -3922,6 +3966,10 @@ export function App() {
                     {runtimeTaskNotice ? <div className="callout callout-success">{runtimeTaskNotice}</div> : null}
                     <dl className="facts">
                       <div>
+                        <dt>AI Calls</dt>
+                        <dd>{runtimeTaskStatus?.ai_calls_enabled === false ? "disabled" : "enabled"}</dd>
+                      </div>
+                      <div>
                         <dt>Request Status</dt>
                         <dd>{runtimeTaskStatus?.request_status || "idle"}</dd>
                       </div>
@@ -4013,6 +4061,19 @@ export function App() {
                       <p className="muted">Configure the task request that will be previewed, resolved, and authorized through Core.</p>
                     </div>
                     <div className="stack compact-stack">
+                      <label className="field">
+                        <span className="field-label">AI Calls</span>
+                        <button
+                          type="button"
+                          className={`toggle ${runtimeTaskForm.ai_calls_enabled ? "is-on" : ""}`}
+                          aria-pressed={runtimeTaskForm.ai_calls_enabled}
+                          disabled={runtimeTaskPending !== ""}
+                          onClick={() => updateRuntimeAiCallsEnabled(!runtimeTaskForm.ai_calls_enabled)}
+                        >
+                          <span className="toggle-thumb" />
+                          <span>{runtimeTaskForm.ai_calls_enabled ? "Enabled" : "Disabled"}</span>
+                        </button>
+                      </label>
                       <label className="field">
                         <span className="field-label">Requested Node Type</span>
                         <select name="requested_node_type" value={runtimeTaskForm.requested_node_type} onChange={handleRuntimeTaskFormChange}>
@@ -4114,7 +4175,7 @@ export function App() {
                       <button
                         type="button"
                         className="btn btn-primary"
-                        disabled={runtimeTaskPending !== ""}
+                        disabled={runtimeTaskPending !== "" || !runtimeTaskForm.ai_calls_enabled}
                         onClick={runRuntimeExecuteEmailClassifier}
                       >
                         {runtimeTaskPending === "execute" ? "Sending..." : "Send Newest Unknown Mail To Classifier"}
@@ -4122,7 +4183,7 @@ export function App() {
                       <button
                         type="button"
                         className="btn"
-                        disabled={runtimeTaskPending !== ""}
+                        disabled={runtimeTaskPending !== "" || !runtimeTaskForm.ai_calls_enabled}
                         onClick={runRuntimeExecuteLatestEmailActionDecision}
                       >
                         {runtimeTaskPending === "execute" ? "Sending..." : "Send Latest Action Needed / Order To AI"}

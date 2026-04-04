@@ -100,6 +100,7 @@ class RuntimePromptExecutionRequestInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     target_api_base_url: str | None = None
+    message_id: str | None = None
     subject: str | None = None
     body: str | None = None
 
@@ -108,6 +109,12 @@ class RuntimePromptSyncRequestInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     target_api_base_url: str | None = None
+
+
+class RuntimeTaskSettingsInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    ai_calls_enabled: bool
 
 
 class RefreshTriggerRequest(BaseModel):

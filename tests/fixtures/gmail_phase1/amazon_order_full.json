@@ -1,0 +1,39 @@
+{
+  "id": "msg-order-1",
+  "threadId": "thread-order-1",
+  "snippet": "Your Amazon order has been placed.",
+  "internalDate": "1775121600000",
+  "payload": {
+    "mimeType": "multipart/alternative",
+    "headers": [
+      {"name": "From", "value": "Amazon Orders <auto-confirm@amazon.com>"},
+      {"name": "To", "value": "primary@example.com"},
+      {"name": "Subject", "value": "Your Amazon order has been placed"},
+      {"name": "Date", "value": "Wed, 02 Apr 2026 10:00:00 -0700"},
+      {"name": "Message-ID", "value": "<amazon-order-1@example.com>"},
+      {"name": "Content-Type", "value": "multipart/alternative; boundary=\"000000000000amazon\""}
+    ],
+    "parts": [
+      {
+        "mimeType": "text/plain",
+        "headers": [
+          {"name": "Content-Type", "value": "text/plain; charset=UTF-8"},
+          {"name": "Content-Transfer-Encoding", "value": "7bit"}
+        ],
+        "body": {
+          "data": "SGVsbG8gRGFuLApUaGFua3Mgb3JkZXJpbmcgdGhlIEVTUDMyLVMzLUJPWC0zQi4KT3JkZXIgbnVtYmVyOiAxMTItODg3NjEyMC0zODA1MDE1Cg"
+        }
+      },
+      {
+        "mimeType": "text/html",
+        "headers": [
+          {"name": "Content-Type", "value": "text/html; charset=UTF-8"},
+          {"name": "Content-Transfer-Encoding", "value": "7bit"}
+        ],
+        "body": {
+          "data": "PGRpdj48cD5IZWxsbyBEYW4sPC9wPjxwPlRoYW5rcyBvcmRlcmluZyB0aGUgPHN0cm9uZz5FU1AzMi1TMy1CT1gtM0I8L3N0cm9uZz4uPC9wPjxwPk9yZGVyIG51bWJlcjogMTEyLTg4NzYxMjAtMzgwNTAxNTwvcD48L2Rpdj4"
+        }
+      }
+    ]
+  }
+}

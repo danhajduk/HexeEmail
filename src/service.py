@@ -45,6 +45,7 @@ from models import (
     OperatorConfigResponse,
     RuntimeDirectExecutionRequestInput,
     RuntimePromptExecutionRequestInput,
+    RuntimeTaskSettingsInput,
     RuntimePromptSyncRequestInput,
     RuntimeState,
     StatusResponse,
@@ -62,6 +63,7 @@ from providers.gmail.models import (
     GmailShipmentRecord,
     GmailTrainingLabel,
 )
+from providers.gmail.order_flow import GmailOrderPhase1Processor
 from providers.gmail.oauth import GmailOAuthSessionManager
 from providers.gmail.token_client import GmailTokenExchangeClient, GmailTokenExchangeError
 from providers.gmail.training import normalize_email_for_classifier
@@ -132,10 +134,12 @@ class NodeService:
         self.startup_error: str | None = None
         self._gmail_fetch_notification_state: str | None = None
         self._mqtt_connect_notification_count = 0
+        self.gmail_order_flow = GmailOrderPhase1Processor()
 
     @staticmethod
     def _default_runtime_task_state() -> dict[str, object]:
         return {
+            "ai_calls_enabled": True,
             "request_status": "idle",
             "last_step": "none",
             "detail": "No runtime task request has been started yet.",
@@ -162,6 +166,14 @@ class NodeService:
         self.state.runtime_task_state = state
         self.state_store.save(self.state)
         return state
+
+    def _runtime_ai_calls_enabled(self) -> bool:
+        current = self._runtime_task_state()
+        value = current.get("ai_calls_enabled")
+        return True if value is None else bool(value)
+
+    def _runtime_ai_disabled_message(self) -> str:
+        return "AI calls are disabled in Runtime Settings."
 
     @staticmethod
     def _default_gmail_last_hour_pipeline_state() -> dict[str, object]:
@@ -908,6 +920,7 @@ class NodeService:
         account_id: str,
         message,
         full_message_text: str | None = None,
+        full_message_html: str | None = None,
         full_message_payload: dict[str, object] | None = None,
     ) -> dict[str, object]:
         adapter = self.provider_registry.get_provider("gmail")
@@ -921,9 +934,13 @@ class NodeService:
         if not to_recipients:
             to_recipients = [recipient for recipient in message.recipients if recipient]
         extracted_text = str(full_message_text or "").strip()
+        extracted_html = str(full_message_html or "").strip()
         normalized_body_text = extracted_text or normalize_email_for_classifier(message, my_addresses=my_addresses)
         subject_text = str(message.subject or "").strip()
-        prompt_text = f"subject: {subject_text}\nmail body:\n{normalized_body_text}" if normalized_body_text else f"subject: {subject_text}\nmail body:\n"
+        prompt_parts = [f"subject: {subject_text}", "mail body:", normalized_body_text]
+        if extracted_html:
+            prompt_parts.extend(["mail html:", extracted_html])
+        prompt_text = "\n".join(prompt_parts)
         return {
             "text": prompt_text,
             "account_id": account_id,
@@ -938,6 +955,7 @@ class NodeService:
             "labels": list(message.label_ids or []),
             "has_attachments": self._message_has_attachment(payload),
             "body_text": normalized_body_text,
+            "body_html": extracted_html,
             "snippet": message.snippet or "",
         }
 
@@ -978,6 +996,8 @@ class NodeService:
         order_number = self._action_decision_canonical_identifier(tracking_signals.get("order_number"))
         tracking_number = self._action_decision_canonical_identifier(tracking_signals.get("tracking_number"))
         last_known_status = str(tracking_signals.get("current_status") or "").strip() or None
+        if not tracking_number and primary_label == "ORDER":
+            last_known_status = "ordered"
         domain = self._action_decision_sender_domain(message)
         if not any([seller, carrier, order_number, tracking_number, last_known_status]):
             return
@@ -1075,6 +1095,7 @@ class NodeService:
         )
         adapter = self.provider_registry.get_provider("gmail")
         full_message_text = None
+        full_message_html = None
         full_message_payload = None
         if hasattr(adapter, "fetch_full_message_text"):
             try:
@@ -1092,6 +1113,7 @@ class NodeService:
             else:
                 if isinstance(full_message, dict):
                     full_message_text = str(full_message.get("text_body") or "").strip() or None
+                    full_message_html = str(full_message.get("html_body") or "").strip() or None
                     raw_payload = full_message.get("raw_payload")
                     if isinstance(raw_payload, dict):
                         full_message_payload = raw_payload
@@ -1109,6 +1131,7 @@ class NodeService:
                     account_id=account_id,
                     message=message,
                     full_message_text=full_message_text,
+                    full_message_html=full_message_html,
                     full_message_payload=full_message_payload,
                 ),
                 "json_schema": prompt_runtime["json_schema"],
@@ -2048,6 +2071,20 @@ class NodeService:
         message = adapter.message_store.get_message(account_id, message_id)
         if message is None:
             return False
+        if classification_label == GmailTrainingLabel.ORDER:
+            try:
+                await self._run_order_phase1_flow(account_id=account_id, message=message)
+            except Exception as exc:
+                LOGGER.warning(
+                    "ORDER Phase 1 flow failed during classification handling",
+                    extra={
+                        "event_data": {
+                            "account_id": account_id,
+                            "message_id": message_id,
+                            "detail": str(exc),
+                        }
+                    },
+                )
         sender_reputation = self._sender_reputation_context(account_id, sender=message.sender)
         action_decision = await self._execute_email_action_decision_for_message(
             account_id=account_id,
@@ -2096,6 +2133,26 @@ class NodeService:
             "email": email_record.model_dump(mode="json") if email_record is not None else None,
             "domain": domain_record.model_dump(mode="json") if domain_record is not None else None,
         }
+
+    async def _run_order_phase1_flow(self, *, account_id: str, message) -> None:
+        adapter = self.provider_registry.get_provider("gmail")
+        normalized = await self.gmail_order_flow.fetch_and_normalize_message(
+            adapter=adapter,
+            account_id=account_id,
+            message_id=message.message_id,
+        )
+        LOGGER.info(
+            "ORDER Phase 1 normalization completed",
+            extra={
+                "event_data": {
+                    "account_id": account_id,
+                    "message_id": message.message_id,
+                    "fetch_status": normalized.fetch_status,
+                    "decode_status": normalized.decode_state.status,
+                    "selected_body_type": normalized.selected_body_type,
+                }
+            },
+        )
 
     def _sender_reputation_notification_text(self, sender_reputation: dict[str, object] | None) -> str | None:
         if not isinstance(sender_reputation, dict):
@@ -2437,6 +2494,13 @@ class NodeService:
             persist_runtime_state=True,
             sync_reason="manual",
         )
+
+    async def update_runtime_task_settings(self, payload: RuntimeTaskSettingsInput) -> dict[str, object]:
+        state = self._save_runtime_task_state(ai_calls_enabled=bool(payload.ai_calls_enabled))
+        return {
+            "ok": True,
+            "runtime_task_state": state,
+        }
 
     def _prompt_definition_dir(self) -> Path:
         directory = self.config.prompt_definition_dir
@@ -2785,14 +2849,40 @@ class NodeService:
         *,
         correlation_id: str | None = None,
     ) -> dict[str, object]:
+        if not self._runtime_ai_calls_enabled():
+            now = datetime.now(UTC).isoformat()
+            current = self._runtime_task_state()
+            self._save_runtime_task_state(
+                request_status="failed",
+                last_step="execute",
+                detail=self._runtime_ai_disabled_message(),
+                preview_response=current.get("preview_response"),
+                resolve_response=current.get("resolve_response"),
+                authorize_response=current.get("authorize_response"),
+                registration_request_payload=current.get("registration_request_payload"),
+                execution_request_payload={"mode": "classifier_single"},
+                execution_response=None,
+                usage_summary_response=current.get("usage_summary_response"),
+                started_at=current.get("started_at") or now,
+                updated_at=now,
+            )
+            raise ValueError(self._runtime_ai_disabled_message())
         adapter = self.provider_registry.get_provider("gmail")
         account_id = "primary"
-        newest_unknown_message = adapter.message_store.get_newest_unknown_message(account_id)
-        if newest_unknown_message is None:
-            raise ValueError("no newest unknown Gmail message is available")
+        message = None
+        if payload.message_id:
+            message = adapter.message_store.get_message(account_id, payload.message_id)
+            if message is None:
+                raise ValueError(f"Gmail message {payload.message_id} was not found")
+            if message.local_label and message.local_label != GmailTrainingLabel.UNKNOWN.value:
+                raise ValueError(f"Gmail message {payload.message_id} is already labeled {message.local_label}")
+        else:
+            message = adapter.message_store.get_newest_unknown_message(account_id)
+            if message is None:
+                raise ValueError("no newest unknown Gmail message is available")
         return await self._execute_email_classifier_for_message(
             account_id=account_id,
-            message=newest_unknown_message,
+            message=message,
             target_api_base_url=payload.target_api_base_url,
             correlation_id=correlation_id,
             persist_runtime_state=True,
@@ -2804,18 +2894,47 @@ class NodeService:
         *,
         correlation_id: str | None = None,
     ) -> dict[str, object]:
+        if not self._runtime_ai_calls_enabled():
+            now = datetime.now(UTC).isoformat()
+            current = self._runtime_task_state()
+            self._save_runtime_task_state(
+                request_status="failed",
+                last_step="execute",
+                detail=self._runtime_ai_disabled_message(),
+                preview_response=current.get("preview_response"),
+                resolve_response=current.get("resolve_response"),
+                authorize_response=current.get("authorize_response"),
+                registration_request_payload=current.get("registration_request_payload"),
+                execution_request_payload={"mode": "action_decision_latest"},
+                execution_response=None,
+                usage_summary_response=current.get("usage_summary_response"),
+                started_at=current.get("started_at") or now,
+                updated_at=now,
+            )
+            raise ValueError(self._runtime_ai_disabled_message())
         del correlation_id
         adapter = self.provider_registry.get_provider("gmail")
         account_id = "primary"
-        message = adapter.message_store.get_newest_message_by_labels(
-            account_id,
-            labels=[GmailTrainingLabel.ACTION_REQUIRED, GmailTrainingLabel.ORDER],
-        )
-        if message is None:
-            raise ValueError("no action_required or order Gmail message is available")
+        if payload.message_id:
+            message = adapter.message_store.get_message(account_id, payload.message_id)
+            if message is None:
+                raise ValueError(f"Gmail message {payload.message_id} was not found")
+            if not message.local_label:
+                raise ValueError(f"Gmail message {payload.message_id} does not have a classification label")
+        else:
+            message = adapter.message_store.get_newest_message_by_labels(
+                account_id,
+                labels=[GmailTrainingLabel.ACTION_REQUIRED, GmailTrainingLabel.ORDER],
+            )
+            if message is None:
+                raise ValueError("no action_required or order Gmail message is available")
         if not message.local_label:
             raise ValueError("latest Gmail message does not have a classification label")
         classification_label = GmailTrainingLabel(str(message.local_label))
+        if classification_label not in {GmailTrainingLabel.ACTION_REQUIRED, GmailTrainingLabel.ORDER}:
+            raise ValueError(
+                f"Gmail message {message.message_id} has unsupported classification {classification_label.value} for action decision"
+            )
         action_decision = await self._execute_email_action_decision_for_message(
             account_id=account_id,
             message=message,
@@ -2954,6 +3073,44 @@ class NodeService:
         if local_processed > 0 and hasattr(adapter, "refresh_sender_reputations"):
             await adapter.refresh_sender_reputations(account_id)
         ai_total = len(ai_candidates)
+        ai_calls_enabled = self._runtime_ai_calls_enabled()
+        if not ai_calls_enabled:
+            final_result = {
+                "ok": True,
+                "batch_size": len(candidates),
+                "local_processed": local_processed,
+                "local_classified": local_classified,
+                "ai_total": ai_total,
+                "ai_attempted": 0,
+                "ai_completed": 0,
+                "ai_failed": 0,
+                "ai_results": [],
+                "ai_calls_enabled": False,
+            }
+            self._save_runtime_task_state(
+                request_status="executed",
+                last_step="execute_batch",
+                detail=(
+                    f"Runtime batch classification completed with AI calls disabled. "
+                    f"Local classified {local_classified} emails successfully and skipped {ai_total} AI candidates."
+                ),
+                preview_response=current.get("preview_response"),
+                resolve_response=current.get("resolve_response"),
+                authorize_response=current.get("authorize_response"),
+                registration_request_payload=current.get("registration_request_payload"),
+                execution_request_payload=None,
+                execution_response=final_result,
+                usage_summary_response=None,
+                started_at=current.get("started_at") or started_at,
+                updated_at=datetime.now(UTC).isoformat(),
+            )
+            self._send_runtime_batch_classification_summary_notification(
+                batch_size=len(candidates),
+                local_classified=local_classified,
+                ai_completed=0,
+                ai_attempted=0,
+            )
+            return final_result
         progress_payload = {
             "mode": "batch",
             "stage": "ai" if ai_total > 0 else "completed",
@@ -3804,22 +3961,34 @@ class NodeService:
             }
             self._save_gmail_last_hour_pipeline_state(stages=state["stages"], updated_at=datetime.now(UTC).isoformat())
 
-            ai_results, _ = await self._execute_email_classifier_for_messages(
-                account_id=account_id,
-                messages=ai_candidates,
-                target_api_base_url="http://127.0.0.1:9002",
-                correlation_id=correlation_id,
-            )
-            ai_count = len(ai_results)
-            state["stages"]["ai_classification"] = {
-                "status": "completed" if ai_count > 0 else "idle",
-                "detail": (
-                    f"Sent {ai_count} last-hour unknown emails to the AI node."
-                    if ai_count > 0
-                    else "No last-hour unknown emails needed AI classification."
-                ),
-                "count": ai_count,
-            }
+            if not self._runtime_ai_calls_enabled():
+                skipped_count = len(ai_candidates)
+                state["stages"]["ai_classification"] = {
+                    "status": "idle",
+                    "detail": (
+                        f"Skipped {skipped_count} last-hour AI candidates because AI calls are disabled."
+                        if skipped_count > 0
+                        else "AI calls are disabled and no last-hour unknown emails needed AI classification."
+                    ),
+                    "count": 0,
+                }
+            else:
+                ai_results, _ = await self._execute_email_classifier_for_messages(
+                    account_id=account_id,
+                    messages=ai_candidates,
+                    target_api_base_url="http://127.0.0.1:9002",
+                    correlation_id=correlation_id,
+                )
+                ai_count = len(ai_results)
+                state["stages"]["ai_classification"] = {
+                    "status": "completed" if ai_count > 0 else "idle",
+                    "detail": (
+                        f"Sent {ai_count} last-hour unknown emails to the AI node."
+                        if ai_count > 0
+                        else "No last-hour unknown emails needed AI classification."
+                    ),
+                    "count": ai_count,
+                }
             completed_at = datetime.now(UTC).isoformat()
             return self._save_gmail_last_hour_pipeline_state(
                 status="completed",

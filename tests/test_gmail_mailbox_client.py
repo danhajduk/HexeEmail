@@ -141,6 +141,42 @@ async def test_gmail_mailbox_client_fetches_full_message_text_from_plain_part():
 
     assert full_message["message_id"] == "msg-1"
     assert full_message["text_body"] == "Hello Dan,\nYour order ships tomorrow."
+    assert full_message["html_body"] == ""
+
+
+@pytest.mark.asyncio
+async def test_gmail_mailbox_client_fetch_full_message_keeps_html_body():
+    app = FastAPI()
+    encoded_html = "PGRpdj48cD5IZWxsbyBEYW4sPC9wPjxwPllvdXIgb3JkZXIgPHN0cm9uZz5zaGlwczwvc3Ryb25nPiB0b21vcnJvdy48L3A+PC9kaXY+"
+
+    @app.get("/messages/{message_id}")
+    async def message(message_id: str):
+        return {
+            "id": message_id,
+            "threadId": "thread-1",
+            "snippet": "Your order ships tomorrow.",
+            "payload": {
+                "mimeType": "multipart/alternative",
+                "parts": [
+                    {
+                        "mimeType": "text/html",
+                        "body": {
+                            "data": encoded_html,
+                        },
+                    }
+                ],
+            },
+        }
+
+    client = GmailMailboxClient(transport=ASGITransport(app=app))
+    client.MESSAGE_ENDPOINT_TEMPLATE = "http://google.test/messages/{message_id}"
+    token = GmailTokenRecord(account_id="primary", access_token="access-token")
+
+    full_message = await client.fetch_full_message_text(token_record=token, message_id="msg-1")
+    await client.aclose()
+
+    assert full_message["text_body"] == "Hello Dan,\nYour order ships tomorrow."
+    assert full_message["html_body"] == "<div><p>Hello Dan,</p><p>Your order <strong>ships</strong> tomorrow.</p></div>"
 
 
 @pytest.mark.asyncio

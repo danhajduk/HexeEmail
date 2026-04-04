@@ -13,6 +13,7 @@ from models import (
     RefreshTriggerRequest,
     RuntimeDirectExecutionRequestInput,
     RuntimePromptExecutionRequestInput,
+    RuntimeTaskSettingsInput,
     RuntimePromptSyncRequestInput,
     ServiceRestartRequest,
     TaskCapabilitySelectionInput,
@@ -179,6 +180,13 @@ def create_app(
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=getattr(exc, "detail", str(exc))) from exc
+
+    @app.post("/api/runtime/settings")
+    async def runtime_update_settings(payload: RuntimeTaskSettingsInput):
+        try:
+            return await node_service.update_runtime_task_settings(payload)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @app.post("/api/runtime/execute-email-classifier")
     async def runtime_execute_email_classifier(payload: RuntimePromptExecutionRequestInput, request: Request):

@@ -142,6 +142,446 @@ class GmailStoredMessage(BaseModel):
     action_decision_raw_response_updated_at: datetime | None = None
 
 
+class GmailPhase1FetchedBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    mime_type: Literal["text/plain", "text/html"]
+    content: str | None = None
+    headers: dict[str, str] = Field(default_factory=dict)
+    content_transfer_encoding: str | None = None
+    charset: str | None = None
+    mime_boundary: str | None = None
+
+
+class GmailPhase1FetchedEmail(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: str = "gmail.phase1.fetch.v1"
+    provider: str = "gmail"
+    account_id: str
+    message_id: str
+    thread_id: str | None = None
+    message_id_header: str | None = None
+    subject: str | None = None
+    sender: str | None = None
+    date: str | None = None
+    received_at: datetime | None = None
+    headers: dict[str, str] = Field(default_factory=dict)
+    text_body: GmailPhase1FetchedBody | None = None
+    html_body: GmailPhase1FetchedBody | None = None
+    fetch_status: Literal["success", "partial", "failed"] = "success"
+    fetch_error: str | None = None
+    fetch_diagnostics: list[str] = Field(default_factory=list)
+    mime_parse_status: Literal["success", "partial", "failed"] = "success"
+    mime_diagnostics: list[str] = Field(default_factory=list)
+    mime_boundaries: list[str] = Field(default_factory=list)
+    part_inventory: list[dict[str, object]] = Field(default_factory=list)
+
+
+class GmailPhase1SenderIdentity(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    raw_sender: str | None = None
+    sender_name: str | None = None
+    sender_email: str | None = None
+    sender_domain: str | None = None
+
+
+class GmailPhase1BodyAvailability(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    html_available: bool = False
+    text_available: bool = False
+    html_length: int = 0
+    text_length: int = 0
+
+
+class GmailPhase1DecodeState(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["success", "partial", "failed"] = "success"
+    diagnostics: list[str] = Field(default_factory=list)
+
+
+class GmailPhase1DiagnosticItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code: str
+    detail: str
+
+
+class GmailPhase1NormalizationMetadata(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    normalizer_version: str
+    decode_strategy: str
+    mime_parse_status: Literal["success", "partial", "failed"]
+    body_selection_strategy: str
+    normalized_at: datetime
+
+
+class GmailPhase1Reference(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: str
+    provider: str
+    message_id: str
+    thread_id: str | None = None
+    provider_message_id: str
+    provider_thread_id: str | None = None
+    rfc_message_id: str | None = None
+    subject: str | None = None
+    sender_name: str | None = None
+    sender_email: str | None = None
+    sender_domain: str | None = None
+    received_at: datetime | None = None
+    selected_body_type: Literal["html", "text", "none"] = "none"
+    selected_body_source: str | None = None
+    selected_body_selection_path: str | None = None
+    handoff_ready: bool = False
+    fetch_status: Literal["success", "partial", "failed"] = "success"
+    mime_parse_status: Literal["success", "partial", "failed"] = "success"
+    validation_status: Literal["success", "partial", "failed"] = "failed"
+
+
+class GmailPhase2Link(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    label: str | None = None
+    url: str
+    raw_url: str | None = None
+    normalized_url: str | None = None
+    link_type: Literal["order_action", "tracking_action", "document_action", "account", "other"] = "other"
+    source: Literal["html_anchor", "plain_text", "derived"] = "derived"
+    is_tracking: bool = False
+    is_valid: bool = True
+    diagnostics: list[str] = Field(default_factory=list)
+
+
+class GmailPhase2Metrics(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    input_char_count: int = 0
+    output_char_count: int = 0
+    reduction_ratio: float = 0.0
+    input_line_count: int = 0
+    output_line_count: int = 0
+    lines_removed: int = 0
+    links_extracted: int = 0
+    cutoff_rules_triggered: int = 0
+    applied_rule_count: int = 0
+
+
+class GmailPhase2NormalizationMetadata(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    scrubber_version: str
+    source_strategy: str
+    body_input_type: Literal["html", "text", "none"]
+    normalized_at: datetime
+
+
+class GmailPhase1NormalizedEmail(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: str = "gmail.phase1.normalized.v1"
+    provider: str = "gmail"
+    message_id: str = Field(description="Canonical Gmail provider message identifier used by downstream phases.")
+    thread_id: str | None = Field(
+        default=None,
+        description="Canonical Gmail provider thread identifier for thread-scoped operations.",
+    )
+    provider_message_id: str = Field(description="Raw Gmail provider message id, distinct from RFC Message-ID headers.")
+    provider_thread_id: str | None = Field(
+        default=None,
+        description="Raw Gmail provider thread id, distinct from the RFC Message-ID header.",
+    )
+    rfc_message_id: str | None = Field(
+        default=None,
+        description="RFC822 Message-ID header preserved separately from provider ids.",
+    )
+    subject: str | None = Field(default=None, description="Canonical normalized subject derived from Gmail headers.")
+    sender_name: str | None = Field(default=None, description="Canonical normalized sender display name.")
+    sender_email: str | None = Field(default=None, description="Canonical normalized sender email address.")
+    sender_domain: str | None = Field(default=None, description="Canonical normalized sender domain.")
+    raw_sender: str | None = None
+    received_at: datetime | None = Field(default=None, description="Canonical received timestamp from Gmail metadata.")
+    raw_html: str | None = None
+    raw_text: str | None = None
+    headers: dict[str, str] = Field(
+        default_factory=dict,
+        description="Preserved raw headers for reference; top-level normalized fields are authoritative.",
+    )
+    fetch_status: Literal["success", "partial", "failed"] = "success"
+    fetch_error: str | None = None
+    fetch_diagnostics: list[str] = Field(default_factory=list)
+    mime_parse_status: Literal["success", "partial", "failed"] = "success"
+    mime_diagnostics: list[str] = Field(default_factory=list)
+    sender_normalization_status: Literal["success", "partial", "failed"] = "failed"
+    sender_diagnostics: list[str] = Field(default_factory=list)
+    content_transfer_encoding: str | None = None
+    mime_boundaries: list[str] = Field(default_factory=list)
+    mime_parts: list[dict[str, object]] = Field(default_factory=list)
+    part_inventory: list[dict[str, object]] = Field(
+        default_factory=list,
+        description="Legacy alias for MIME part inventory; `mime_parts` is the authoritative Phase 1 handoff field.",
+    )
+    body_availability: GmailPhase1BodyAvailability = Field(default_factory=GmailPhase1BodyAvailability)
+    decoded_html: str | None = None
+    decoded_text: str | None = None
+    decoded_html_quality: Literal["rich_html", "usable_html", "usable_text", "fallback_text", "empty", "corrupted"] = "empty"
+    decoded_text_quality: Literal["rich_html", "usable_html", "usable_text", "fallback_text", "empty", "corrupted"] = "empty"
+    decode_state: GmailPhase1DecodeState = Field(default_factory=GmailPhase1DecodeState)
+    selected_body_type: Literal["html", "text", "none"] = "none"
+    selected_body_content: str | None = None
+    selected_body_quality: Literal["rich_html", "usable_html", "usable_text", "fallback_text", "empty", "corrupted"] = "empty"
+    body_selection_status: Literal["success", "partial", "failed"] = "failed"
+    body_selection_reason: str | None = None
+    selected_body_reason: str | None = None
+    selected_body_source: str | None = None
+    selected_body_selection_path: str | None = None
+    raw_html_hash: str | None = None
+    raw_text_hash: str | None = None
+    decoded_html_hash: str | None = None
+    decoded_text_hash: str | None = None
+    selected_body_hash: str | None = None
+    handoff_ready: bool = False
+    validation_status: Literal["success", "partial", "failed"] = "failed"
+    validation_diagnostics: list[str] = Field(default_factory=list)
+    stage_diagnostics: dict[str, list[GmailPhase1DiagnosticItem]] = Field(default_factory=dict)
+    normalization_metadata: GmailPhase1NormalizationMetadata | None = None
+
+
+class GmailPhase2WorkingEmail(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: str = "gmail.phase2.working.v1"
+    phase1_reference: GmailPhase1Reference
+    message_id: str
+    thread_id: str | None = None
+    provider_message_id: str
+    provider_thread_id: str | None = None
+    rfc_message_id: str | None = None
+    subject: str | None = None
+    sender_name: str | None = None
+    sender_email: str | None = None
+    sender_domain: str | None = None
+    selected_body_type: Literal["html", "text", "none"] = "none"
+    selected_body_source: str | None = None
+    selected_body_selection_path: str | None = None
+    selected_body_content: str | None = None
+    source_text: str | None = None
+    visible_text: str | None = None
+    normalized_text: str | None = None
+    transactional_candidates: list[str] = Field(default_factory=list)
+    selected_transactional_text: str | None = None
+    normalized_lines: list[str] = Field(default_factory=list)
+    extracted_links: list[GmailPhase2Link] = Field(default_factory=list)
+    applied_rules: list[str] = Field(default_factory=list)
+    stage_statuses: dict[str, Literal["success", "partial", "failed"]] = Field(default_factory=dict)
+    stage_diagnostics: dict[str, list[GmailPhase1DiagnosticItem]] = Field(default_factory=dict)
+
+
+class GmailPhase2ScrubbedEmail(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: str = "gmail.phase2.scrubbed.v1"
+    phase1_reference: GmailPhase1Reference
+    message_id: str
+    thread_id: str | None = None
+    provider_message_id: str
+    provider_thread_id: str | None = None
+    rfc_message_id: str | None = None
+    subject: str | None = None
+    sender_name: str | None = None
+    sender_email: str | None = None
+    sender_domain: str | None = None
+    selected_body_type: Literal["html", "text", "none"] = "none"
+    selected_body_source: str | None = None
+    selected_body_selection_path: str | None = None
+    scrubbed_text: str = ""
+    normalized_lines: list[str] = Field(default_factory=list)
+    extracted_links: list[GmailPhase2Link] = Field(default_factory=list)
+    applied_rules: list[str] = Field(default_factory=list)
+    hidden_content_stripped: bool = False
+    scrub_status: Literal["success", "partial", "failed"] = "failed"
+    scrub_diagnostics: list[str] = Field(default_factory=list)
+    transactional_quality: Literal["success", "partial", "failed"] = "failed"
+    stage_statuses: dict[str, Literal["success", "partial", "failed"]] = Field(default_factory=dict)
+    stage_diagnostics: dict[str, list[GmailPhase1DiagnosticItem]] = Field(default_factory=dict)
+    scrub_metrics: GmailPhase2Metrics = Field(default_factory=GmailPhase2Metrics)
+    normalization_metadata: GmailPhase2NormalizationMetadata | None = None
+
+
+class GmailPhase3ProfileCandidate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    profile_id: str
+    profile_family: str
+    profile_subtype: str
+    vendor_identity: str | None = None
+    sender_identity: str | None = None
+    score: int = 0
+    confidence_level: Literal["high", "medium", "low"] = "low"
+    reasons: list[str] = Field(default_factory=list)
+
+
+class GmailPhase3NormalizationMetadata(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    profile_detector_version: str
+    taxonomy_version: str
+    normalized_at: datetime
+
+
+class GmailPhase3WorkingEmail(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: str = "gmail.phase3.working.v1"
+    phase2_reference: GmailPhase2ScrubbedEmail
+    message_id: str
+    thread_id: str | None = None
+    provider_message_id: str
+    provider_thread_id: str | None = None
+    rfc_message_id: str | None = None
+    subject: str | None = None
+    sender_name: str | None = None
+    sender_email: str | None = None
+    sender_domain: str | None = None
+    sender_identity: str | None = None
+    vendor_identity: str | None = None
+    scrubbed_text: str = ""
+    normalized_lines: list[str] = Field(default_factory=list)
+    extracted_links: list[GmailPhase2Link] = Field(default_factory=list)
+    candidate_profiles: list[GmailPhase3ProfileCandidate] = Field(default_factory=list)
+    stage_statuses: dict[str, Literal["success", "partial", "failed"]] = Field(default_factory=dict)
+    stage_diagnostics: dict[str, list[GmailPhase1DiagnosticItem]] = Field(default_factory=dict)
+
+
+class GmailPhase3DetectedEmail(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: str = "gmail.phase3.profile.v1"
+    phase2_reference: GmailPhase2ScrubbedEmail
+    message_id: str
+    thread_id: str | None = None
+    provider_message_id: str
+    provider_thread_id: str | None = None
+    rfc_message_id: str | None = None
+    subject: str | None = None
+    sender_name: str | None = None
+    sender_email: str | None = None
+    sender_domain: str | None = None
+    sender_identity: str | None = None
+    vendor_identity: str | None = None
+    profile_id: str | None = None
+    profile_family: str | None = None
+    profile_subtype: str | None = None
+    profile_confidence: float = 0.0
+    profile_confidence_level: Literal["high", "medium", "low"] = "low"
+    profile_status: Literal["success", "partial", "failed"] = "failed"
+    candidate_profiles: list[GmailPhase3ProfileCandidate] = Field(default_factory=list)
+    fallback_profiles: list[GmailPhase3ProfileCandidate] = Field(default_factory=list)
+    profile_diagnostics: list[str] = Field(default_factory=list)
+    stage_statuses: dict[str, Literal["success", "partial", "failed"]] = Field(default_factory=dict)
+    stage_diagnostics: dict[str, list[GmailPhase1DiagnosticItem]] = Field(default_factory=dict)
+    normalization_metadata: GmailPhase3NormalizationMetadata | None = None
+
+
+class GmailPhase4ExtractedField(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    field_name: str
+    value: object | None = None
+    source_method: str | None = None
+    source_rule: str | None = None
+    transforms_applied: list[str] = Field(default_factory=list)
+    diagnostics: list[str] = Field(default_factory=list)
+    is_valid: bool = True
+    is_required: bool = False
+
+
+class GmailPhase4TemplateCandidate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    template_id: str
+    template_version: str
+    profile_id: str
+    score: int = 0
+    reasons: list[str] = Field(default_factory=list)
+
+
+class GmailPhase4NormalizationMetadata(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    extractor_version: str
+    template_schema_version: str
+    normalized_at: datetime
+
+
+class GmailPhase4WorkingEmail(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: str = "gmail.phase4.working.v1"
+    phase3_reference: GmailPhase3DetectedEmail
+    message_id: str
+    thread_id: str | None = None
+    provider_message_id: str
+    provider_thread_id: str | None = None
+    rfc_message_id: str | None = None
+    subject: str | None = None
+    sender_name: str | None = None
+    sender_email: str | None = None
+    sender_domain: str | None = None
+    sender_identity: str | None = None
+    vendor_identity: str | None = None
+    profile_id: str
+    profile_family: str | None = None
+    profile_subtype: str | None = None
+    profile_confidence: float = 0.0
+    scrubbed_text: str = ""
+    normalized_lines: list[str] = Field(default_factory=list)
+    extracted_links: list[GmailPhase2Link] = Field(default_factory=list)
+    template_candidates: list[GmailPhase4TemplateCandidate] = Field(default_factory=list)
+    stage_statuses: dict[str, Literal["success", "partial", "failed"]] = Field(default_factory=dict)
+    stage_diagnostics: dict[str, list[GmailPhase1DiagnosticItem]] = Field(default_factory=dict)
+
+
+class GmailPhase4ExtractedEmail(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: str = "gmail.phase4.extracted.v1"
+    phase3_reference: GmailPhase3DetectedEmail
+    message_id: str
+    thread_id: str | None = None
+    provider_message_id: str
+    provider_thread_id: str | None = None
+    rfc_message_id: str | None = None
+    subject: str | None = None
+    sender_name: str | None = None
+    sender_email: str | None = None
+    sender_domain: str | None = None
+    sender_identity: str | None = None
+    vendor_identity: str | None = None
+    profile_id: str | None = None
+    profile_family: str | None = None
+    profile_subtype: str | None = None
+    profile_confidence: float = 0.0
+    template_id: str | None = None
+    template_version: str | None = None
+    extraction_status: Literal["success", "partial", "failed", "unresolved"] = "failed"
+    extraction_confidence: float = 0.0
+    extraction_confidence_level: Literal["high", "medium", "low"] = "low"
+    extracted_fields: dict[str, GmailPhase4ExtractedField] = Field(default_factory=dict)
+    field_diagnostics: list[str] = Field(default_factory=list)
+    template_diagnostics: list[str] = Field(default_factory=list)
+    fallback_templates: list[GmailPhase4TemplateCandidate] = Field(default_factory=list)
+    ai_template_hook: dict[str, object] | None = None
+    stage_statuses: dict[str, Literal["success", "partial", "failed"]] = Field(default_factory=dict)
+    stage_diagnostics: dict[str, list[GmailPhase1DiagnosticItem]] = Field(default_factory=dict)
+    normalization_metadata: GmailPhase4NormalizationMetadata | None = None
+
+
 class GmailTrainingLabel(str, Enum):
     ACTION_REQUIRED = "action_required"
     DIRECT_HUMAN = "direct_human"

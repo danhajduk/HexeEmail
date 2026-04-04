@@ -43,3 +43,358 @@ if it is not present and should be node-owned create a file with the new data in
 
 Do not edit above this line:
 #######################################################################
+# Phase 4 Tasks — JSON Template Extraction Engine
+
+## Continue at Task 195
+
+---
+
+## [TODO] Task 182: Create Phase 4 template extraction entrypoint
+
+### Goal
+
+Implement the Phase 4 entrypoint that accepts a valid Phase 3 profile payload and routes it into the JSON template extraction engine.
+
+### Requirements
+
+1. Accept only Phase 3 payloads with a resolved `profile_id`.
+2. Use canonical Phase 3 fields only.
+3. Preserve the Phase 3 payload unchanged as reference.
+4. Create a Phase 4 working object for template lookup and extraction.
+5. Record Phase 4 stage status and diagnostics.
+6. Fail safely if required Phase 3 handoff fields are missing.
+
+### Deliverables
+
+* Phase 4 entrypoint
+* Phase 4 working object/schema
+* stage status and diagnostic fields
+
+---
+
+## [TODO] Task 183: Define JSON template schema for extraction profiles
+
+### Goal
+
+Create the canonical JSON schema used to describe known email extraction templates.
+
+### Requirements
+
+1. Define a JSON schema for template files.
+2. Support at minimum:
+
+   * `template_id`
+   * `profile_id`
+   * `template_version`
+   * `enabled`
+   * `match`
+   * `extract`
+   * `required_fields`
+   * `confidence_rules`
+   * `post_process`
+3. Keep the schema constrained and deterministic.
+4. Do not allow executable code in the template.
+5. Make the schema versionable and extensible.
+
+### Deliverables
+
+* canonical JSON template schema
+* schema versioning approach
+* template field definitions
+
+---
+
+## [TODO] Task 184: Define supported extraction methods for JSON templates
+
+### Goal
+
+Create the supported deterministic extraction methods the template engine is allowed to run.
+
+### Requirements
+
+1. Support extraction methods such as:
+
+   * `regex`
+   * `line_contains`
+   * `line_after`
+   * `between_markers`
+   * `all_matches`
+   * `first_match`
+   * `link_by_label`
+   * `link_by_type`
+2. Keep methods deterministic and inspectable.
+3. Avoid any form of dynamic eval or arbitrary code execution.
+4. Support field normalization hooks only through controlled built-in transforms.
+5. Document what each extraction method returns.
+
+### Deliverables
+
+* supported method list
+* extraction method contracts
+* built-in transform list
+
+---
+
+## [TODO] Task 185: Implement template registry and lookup by profile_id
+
+### Goal
+
+Load and resolve the correct template for a given Phase 3 `profile_id`.
+
+### Requirements
+
+1. Implement a template registry for known templates.
+2. Resolve templates by:
+
+   * `profile_id`
+   * optional vendor identity
+   * template enabled state
+3. Support multiple template versions.
+4. Return one active template and optional fallback templates.
+5. Record lookup diagnostics when no template is found.
+
+### Deliverables
+
+* template registry
+* template lookup logic
+* lookup diagnostics
+
+---
+
+## [TODO] Task 186: Implement deterministic template runner over Phase 2 content
+
+### Goal
+
+Run a resolved JSON template against the scrubbed Phase 2 content and produce structured extracted data.
+
+### Requirements
+
+1. Use Phase 2 canonical fields as the extraction source.
+2. Run template extraction methods deterministically.
+3. Extract structured fields such as:
+
+   * order number
+   * status
+   * tracking number
+   * item names
+   * quantity
+   * totals
+   * vendor/store metadata
+   * action links
+4. Preserve field-level extraction diagnostics.
+5. Record which extraction rule produced each field.
+
+### Deliverables
+
+* deterministic template runner
+* structured extraction result object
+* field-level diagnostics
+
+---
+
+## [TODO] Task 187: Add built-in normalization transforms for extracted fields
+
+### Goal
+
+Normalize extracted values so downstream systems receive stable field formats.
+
+### Requirements
+
+1. Support built-in transforms such as:
+
+   * trim whitespace
+   * collapse spaces
+   * normalize currency
+   * normalize order numbers
+   * normalize phone numbers
+   * normalize URLs
+2. Keep transforms deterministic and safe.
+3. Allow multiple transforms per field.
+4. Record which transforms were applied.
+
+### Deliverables
+
+* transform engine
+* normalized field output
+* transform diagnostics
+
+---
+
+## [TODO] Task 188: Add field validation and required-field enforcement
+
+### Goal
+
+Ensure extracted output is usable and detect when a template matched poorly.
+
+### Requirements
+
+1. Enforce required fields declared by the template.
+2. Validate field shape and basic plausibility.
+3. Mark missing required fields explicitly.
+4. Keep optional fields optional.
+5. Record validation diagnostics at the field and template level.
+
+### Deliverables
+
+* field validation layer
+* required-field enforcement
+* validation diagnostics
+
+---
+
+## [TODO] Task 189: Add extraction confidence scoring
+
+### Goal
+
+Compute extraction confidence so downstream logic can distinguish strong structured output from weak partial matches.
+
+### Requirements
+
+1. Score extraction confidence from:
+
+   * required fields present
+   * optional field coverage
+   * field validation success
+   * link resolution success
+   * normalization success
+2. Support confidence levels such as:
+
+   * `high`
+   * `medium`
+   * `low`
+3. Downgrade confidence when required fields are missing or malformed.
+4. Record score explanations.
+
+### Deliverables
+
+* extraction confidence model
+* confidence diagnostics
+* extraction confidence fields
+
+---
+
+## [TODO] Task 190: Define canonical Phase 4 extracted output contract
+
+### Goal
+
+Freeze the Phase 4 output shape that downstream order storage and workflow logic will consume.
+
+### Requirements
+
+1. Define canonical Phase 4 fields including:
+
+   * source message identifiers
+   * resolved profile info
+   * resolved template info
+   * extracted structured fields
+   * extraction confidence
+   * field diagnostics
+   * template diagnostics
+   * reference to Phase 3 payload
+2. Keep the contract stable and extensible.
+3. Preserve source references without forcing later stages to reopen prior payloads.
+
+### Deliverables
+
+* finalized Phase 4 output schema
+* stable extraction contract
+
+---
+
+## [TODO] Task 191: Create initial JSON templates for current known profiles
+
+### Goal
+
+Bootstrap the template system with templates for the profiles already identified in the current corpus.
+
+### Requirements
+
+1. Create initial templates for at minimum:
+
+   * `amazon_order_confirmation`
+   * `pickup_ready_notification`
+   * `generic_order_confirmation`
+   * `generic_order_status_update`
+2. Use the current Phase 2 outputs as the extraction source design basis.
+3. Keep templates simple and readable.
+4. Prefer deterministic extraction over overfitting.
+
+### Deliverables
+
+* initial JSON template set
+* template files for current known profiles
+
+---
+
+## [TODO] Task 192: Add fallback behavior when no template exists
+
+### Goal
+
+Handle unknown profiles cleanly without breaking the ORDER flow.
+
+### Requirements
+
+1. If no template is found, mark extraction as unresolved.
+2. Preserve enough context for later AI-assisted template generation.
+3. Record the missing-template condition clearly.
+4. Do not fabricate extracted data.
+5. Keep the result ready for future template creation workflows.
+
+### Deliverables
+
+* missing-template fallback behavior
+* unresolved extraction state
+* diagnostics for unknown profiles
+
+---
+
+## [TODO] Task 193: Run Phase 4 extraction on current known sample set and store outputs
+
+### Goal
+
+Apply the Phase 4 template runner to the current ORDER sample corpus and persist results for review.
+
+### Requirements
+
+1. Run Phase 4 extraction on the current sample set.
+2. Generate/update per-message logs as needed.
+3. Store Phase 4 outputs alongside the existing stored results format.
+4. Preserve existing Phase 1, Phase 2, and Phase 3 outputs.
+5. Append or replace only the Phase 4 output block where appropriate.
+
+### Deliverables
+
+* Phase 4 outputs for current sample set
+* updated logs
+* reviewable extraction results
+
+---
+
+## [TODO] Task 194: Prepare AI-assisted template generation hook for unknown profiles
+
+### Goal
+
+Add the integration point that will later allow unknown email profiles to request a generated template, without yet making AI a required runtime dependency.
+
+### Requirements
+
+1. Define the input package for future template generation:
+
+   * sender identity
+   * profile info
+   * subject
+   * scrubbed text
+   * normalized lines
+   * extracted links
+2. Define the expected AI output shape as a candidate JSON template.
+3. Keep this as a non-executing hook/interface for now.
+4. Do not yet require AI during normal known-template extraction.
+
+### Deliverables
+
+* AI template generation interface definition
+* candidate template input/output contract
+
+---
+
+[STOP HERE]

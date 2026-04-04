@@ -11,6 +11,7 @@ from html import unescape
 
 import httpx
 
+from providers.gmail.mime_parser import extract_boundary, extract_charset, normalize_headers, parse_mime_tree
 from providers.gmail.models import GmailMailboxStatus, GmailStoredMessage, GmailTokenRecord
 from providers.gmail.quota_tracker import GmailQuotaLimitError, GmailQuotaTracker
 
@@ -288,14 +289,39 @@ class GmailMailboxClient:
             raise GmailMailboxClientError(detail or f"gmail full message fetch failed with status {response.status_code}")
         if not isinstance(payload, dict):
             raise GmailMailboxClientError("gmail full message fetch returned an invalid payload")
+        raw_message = self._build_full_message_payload(payload, message_id=message_id)
         text_body = self._extract_text_body(payload)
+        html_body = self._extract_html_body(payload)
         return {
-            "message_id": payload.get("id") if isinstance(payload.get("id"), str) else message_id,
-            "thread_id": payload.get("threadId") if isinstance(payload.get("threadId"), str) else None,
-            "snippet": payload.get("snippet") if isinstance(payload.get("snippet"), str) else None,
+            "message_id": raw_message["message_id"],
+            "thread_id": raw_message["thread_id"],
+            "snippet": raw_message["snippet"],
             "text_body": text_body,
+            "html_body": html_body,
             "raw_payload": payload,
         }
+
+    async def fetch_full_message_payload(
+        self,
+        *,
+        token_record: GmailTokenRecord,
+        message_id: str,
+    ) -> dict[str, object]:
+        response = await self._gmail_get(
+            account_id=token_record.account_id,
+            access_token=token_record.access_token,
+            url=self.MESSAGE_ENDPOINT_TEMPLATE.format(message_id=message_id),
+            params={"format": "full"},
+            operation="messages.get",
+            quota_units=self.MESSAGE_GET_QUOTA_UNITS,
+        )
+        payload = self._json_payload(response, "gmail full message fetch")
+        if response.is_error:
+            detail = payload.get("error", {}).get("message") if isinstance(payload, dict) else None
+            raise GmailMailboxClientError(detail or f"gmail full message fetch failed with status {response.status_code}")
+        if not isinstance(payload, dict):
+            raise GmailMailboxClientError("gmail full message fetch returned an invalid payload")
+        return self._build_full_message_payload(payload, message_id=message_id)
 
     def _parse_internal_date(self, value: object) -> datetime:
         if isinstance(value, str) and value.isdigit():
@@ -320,6 +346,53 @@ class GmailMailboxClient:
             return self._normalize_extracted_text(body_data)
         return ""
 
+    def _extract_html_body(self, payload: dict[str, object]) -> str:
+        gmail_payload = payload.get("payload")
+        if not isinstance(gmail_payload, dict):
+            return ""
+        html_parts = self._collect_mime_parts(gmail_payload, mime_type="text/html")
+        if html_parts:
+            return "\n\n".join(part.strip() for part in html_parts if str(part).strip()).strip()
+        payload_mime_type = str(gmail_payload.get("mimeType") or "").lower()
+        if payload_mime_type == "text/html":
+            return self._decode_body_data(gmail_payload).strip()
+        return ""
+
+    def _build_full_message_payload(self, payload: dict[str, object], *, message_id: str) -> dict[str, object]:
+        root_payload = payload.get("payload")
+        root_payload_dict = root_payload if isinstance(root_payload, dict) else None
+        header_map = self._payload_headers(root_payload_dict)
+        mime_parse = parse_mime_tree(root_payload_dict)
+        text_part = self._first_mime_part(root_payload if isinstance(root_payload, dict) else None, mime_type="text/plain")
+        html_part = self._first_mime_part(root_payload if isinstance(root_payload, dict) else None, mime_type="text/html")
+        fetch_status = "success"
+        fetch_error = None
+        fetch_diagnostics: list[str] = []
+        if text_part is None and html_part is None:
+            fetch_status = "partial"
+            fetch_error = "gmail full message did not include text/plain or text/html body parts"
+            fetch_diagnostics.append(fetch_error)
+        return {
+            "message_id": payload.get("id") if isinstance(payload.get("id"), str) else message_id,
+            "thread_id": payload.get("threadId") if isinstance(payload.get("threadId"), str) else None,
+            "snippet": payload.get("snippet") if isinstance(payload.get("snippet"), str) else None,
+            "subject": header_map.get("subject"),
+            "sender": header_map.get("from"),
+            "date": header_map.get("date"),
+            "received_at": self._parse_internal_date(payload.get("internalDate")),
+            "headers": header_map,
+            "text_body": text_part,
+            "html_body": html_part,
+            "fetch_status": fetch_status,
+            "fetch_error": fetch_error,
+            "fetch_diagnostics": fetch_diagnostics,
+            "mime_parse_status": mime_parse["status"],
+            "mime_diagnostics": mime_parse["diagnostics"],
+            "mime_boundaries": mime_parse["mime_boundaries"],
+            "part_inventory": mime_parse["parts"],
+            "raw_payload": payload,
+        }
+
     def _collect_mime_parts(self, payload: dict[str, object], *, mime_type: str) -> list[str]:
         collected: list[str] = []
         payload_mime_type = str(payload.get("mimeType") or "").lower()
@@ -333,6 +406,34 @@ class GmailMailboxClient:
                 if isinstance(part, dict):
                     collected.extend(self._collect_mime_parts(part, mime_type=mime_type))
         return collected
+
+    def _first_mime_part(self, payload: dict[str, object] | None, *, mime_type: str) -> dict[str, object] | None:
+        if not isinstance(payload, dict):
+            return None
+        payload_mime_type = str(payload.get("mimeType") or "").lower()
+        if payload_mime_type == mime_type:
+            headers = self._payload_headers(payload)
+            return {
+                "content": self._decode_body_data(payload) or None,
+                "headers": headers,
+                "content_transfer_encoding": headers.get("content-transfer-encoding"),
+                "charset": extract_charset(headers.get("content-type")),
+                "mime_boundary": extract_boundary(headers.get("content-type")),
+            }
+        parts = payload.get("parts")
+        if isinstance(parts, list):
+            for part in parts:
+                if not isinstance(part, dict):
+                    continue
+                matched = self._first_mime_part(part, mime_type=mime_type)
+                if matched is not None:
+                    return matched
+        return None
+
+    def _payload_headers(self, payload: dict[str, object] | None) -> dict[str, str]:
+        if not isinstance(payload, dict):
+            return {}
+        return normalize_headers(payload.get("headers"))
 
     def _decode_body_data(self, payload: dict[str, object]) -> str:
         body = payload.get("body")

@@ -975,6 +975,12 @@ async def test_runtime_execute_latest_email_action_decision_uses_newest_actionab
                         "body": {
                             "data": "RnVsbCBlbWFpbCBib2R5IGZvciBhY3Rpb24gZGVjaXNpb24u"
                         },
+                    },
+                    {
+                        "mimeType": "text/html",
+                        "body": {
+                            "data": "PGRpdj48cD5GdWxsIGVtYWlsIGJvZHkgPGI+Zm9yPC9iPiBhY3Rpb24gZGVjaXNpb24uPC9wPjwvZGl2Pg=="
+                        },
                     }
                 ],
             },
@@ -1003,15 +1009,81 @@ async def test_runtime_execute_latest_email_action_decision_uses_newest_actionab
     saved = adapter.message_store.get_message("primary", "order-newest")
     assert saved is not None
     assert saved.action_decision_raw_response is not None
-    assert saved.action_decision_raw_response["prompt_version"] == "v1.5"
+    assert saved.action_decision_raw_response["prompt_version"] == "v1.6"
     assert saved.action_decision_raw_response["validation_error"] is None
     assert len(core_app.state.execution_direct_requests) == 1
     execution_request = core_app.state.execution_direct_requests[0]
     assert execution_request["prompt_id"] == "prompt.email.action_decision"
-    assert execution_request["prompt_version"] == "v1.5"
+    assert execution_request["prompt_version"] == "v1.6"
     assert execution_request["inputs"]["message_id"] == "order-newest"
-    assert execution_request["inputs"]["text"] == "subject: Newest order\nmail body:\nFull email body for action decision."
+    assert execution_request["inputs"]["text"] == (
+        "subject: Newest order\nmail body:\nFull email body for action decision.\n"
+        "mail html:\n<div><p>Full email body <b>for</b> action decision.</p></div>"
+    )
     assert execution_request["inputs"]["body_text"] == "Full email body for action decision."
+    assert execution_request["inputs"]["body_html"] == "<div><p>Full email body <b>for</b> action decision.</p></div>"
+
+
+@pytest.mark.asyncio
+async def test_runtime_settings_can_disable_ai_calls(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post("/api/runtime/settings", json={"ai_calls_enabled": False})
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is True
+    assert body["runtime_task_state"]["ai_calls_enabled"] is False
+    assert service.state.runtime_task_state["ai_calls_enabled"] is False
+
+
+@pytest.mark.asyncio
+async def test_runtime_execute_email_classifier_rejects_when_ai_calls_disabled(config, core_client_factory):
+    core_app = build_core_app()
+    service = NodeService(config, core_client=core_client_factory(core_app), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    service._save_runtime_task_state(ai_calls_enabled=False)
+    adapter = service.provider_registry.get_provider("gmail")
+    adapter.account_store.save_account(
+        adapter.state_machine.ensure_account("primary").model_copy(
+            update={"status": "connected", "email_address": "primary@example.com"}
+        )
+    )
+    adapter.message_store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="unknown-disabled",
+                subject="Disabled",
+                sender="Disabled Sender <disabled@example.com>",
+                recipients=["primary@example.com"],
+                snippet="do not send",
+                received_at=datetime(2026, 4, 2, 12, 0, 0).astimezone(),
+                local_label="unknown",
+                local_label_confidence=0.1,
+            )
+        ]
+    )
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/runtime/execute-email-classifier",
+            json={"target_api_base_url": "http://10.0.0.100:9002"},
+        )
+
+    await service.stop()
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "AI calls are disabled in Runtime Settings."
+    assert len(core_app.state.execution_direct_requests) == 0
+    assert service.state.runtime_task_state["request_status"] == "failed"
+    assert service.state.runtime_task_state["ai_calls_enabled"] is False
 
 
 @pytest.mark.asyncio
@@ -1129,6 +1201,111 @@ async def test_runtime_execute_latest_email_action_decision_seeds_tracked_order_
 
 
 @pytest.mark.asyncio
+async def test_runtime_execute_latest_email_action_decision_marks_no_tracking_orders_as_ordered(config, core_client_factory):
+    core_app = build_core_app()
+    core_app.state.action_decision_output_override = {
+        "primary_label": "ORDER",
+        "summary": "Amazon order confirmation.",
+        "urgency": "normal",
+        "confidence": 0.95,
+        "recommended_actions": [
+            {
+                "action": "notify",
+                "confidence": 0.8,
+                "reason": "Useful confirmation for the user.",
+            }
+        ],
+        "tracking_signals": {
+            "is_shipment_related": False,
+            "current_status": None,
+            "seller": "amazon",
+            "carrier": None,
+            "order_number": "112-0000000-0000000",
+            "tracking_number": None,
+        },
+        "calendar_signals": {
+            "has_calendar_invite": False,
+            "has_meeting_request": False,
+            "time_mentions": [],
+        },
+        "time_signals": {
+            "is_time_sensitive": False,
+            "deadline_mentions": [],
+            "time_window_mentions": [],
+        },
+        "sender_signal": {
+            "trust_hint": "trusted",
+            "reasons": ["Official Amazon order confirmation."],
+        },
+        "human_review_required": False,
+    }
+    service = NodeService(config, core_client=core_client_factory(core_app), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    adapter = service.provider_registry.get_provider("gmail")
+    adapter.account_store.save_account(
+        adapter.state_machine.ensure_account("primary").model_copy(
+            update={"status": "connected", "email_address": "primary@example.com"}
+        )
+    )
+    actionable = GmailStoredMessage(
+        account_id="primary",
+        message_id="order-confirmation",
+        subject="Amazon order placed",
+        sender="Amazon <auto-confirm@amazon.com>",
+        recipients=["primary@example.com"],
+        snippet="Your order has been placed.",
+        received_at=datetime(2026, 4, 2, 12, 0, 0).astimezone(),
+        local_label="order",
+        local_label_confidence=0.96,
+    )
+    adapter.message_store.upsert_messages([actionable])
+    google_app = FastAPI()
+
+    @google_app.get("/messages/{message_id}")
+    async def get_full_message(message_id: str):
+        return {
+            "id": message_id,
+            "threadId": "thread-1",
+            "snippet": "Amazon order confirmation",
+            "payload": {
+                "mimeType": "multipart/alternative",
+                "headers": [
+                    {"name": "From", "value": "Amazon <auto-confirm@amazon.com>"},
+                    {"name": "To", "value": "primary@example.com"},
+                    {"name": "Subject", "value": "Amazon order placed"},
+                ],
+                "parts": [
+                    {
+                        "mimeType": "text/plain",
+                        "body": {
+                            "data": "RnVsbCBlbWFpbCBib2R5IGZvciBvcmRlciBjb25maXJtYXRpb24u"
+                        },
+                    }
+                ],
+            },
+        }
+
+    adapter.mailbox_client._client = httpx.AsyncClient(transport=ASGITransport(app=google_app), timeout=10.0)
+    adapter.mailbox_client.MESSAGE_ENDPOINT_TEMPLATE = "http://google.test/messages/{message_id}"
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/runtime/execute-latest-email-action-decision",
+            json={"target_api_base_url": "http://10.0.0.100:9002"},
+        )
+
+    tracked_orders = adapter.message_store.list_shipment_records("primary")
+    await service.stop()
+
+    assert response.status_code == 200
+    assert len(tracked_orders) == 1
+    assert tracked_orders[0].record_id == "order:112-0000000-0000000"
+    assert tracked_orders[0].tracking_number is None
+    assert tracked_orders[0].last_known_status == "ordered"
+
+
+@pytest.mark.asyncio
 async def test_runtime_execute_latest_email_action_decision_rejects_partial_output(config, core_client_factory):
     core_app = build_core_app()
     core_app.state.action_decision_output_override = {
@@ -1206,7 +1383,7 @@ async def test_runtime_execute_latest_email_action_decision_rejects_partial_outp
     assert saved is not None
     assert saved.action_decision_payload is None
     assert saved.action_decision_raw_response is not None
-    assert saved.action_decision_raw_response["prompt_version"] == "v1.5"
+    assert saved.action_decision_raw_response["prompt_version"] == "v1.6"
     assert "missing required field summary" in str(saved.action_decision_raw_response["validation_error"])
 
 
@@ -1276,6 +1453,70 @@ async def test_runtime_execute_email_classifier_batch_registers_prompt_and_class
     assert updated_messages["unknown-2"].local_label == "marketing"
     assert service.state.runtime_task_state["request_status"] == "executed"
     assert service.state.runtime_task_state["last_step"] == "execute_batch"
+
+
+@pytest.mark.asyncio
+async def test_runtime_execute_email_classifier_batch_skips_ai_when_disabled(config, core_client_factory):
+    core_app = build_core_app()
+    service = NodeService(config, core_client=core_client_factory(core_app), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    service._save_runtime_task_state(ai_calls_enabled=False)
+    adapter = service.provider_registry.get_provider("gmail")
+    adapter.account_store.save_account(
+        adapter.state_machine.ensure_account("primary").model_copy(
+            update={"status": "connected", "email_address": "primary@example.com"}
+        )
+    )
+    adapter.message_store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="unknown-1",
+                subject="First unknown",
+                sender="First Sender <first@example.com>",
+                recipients=["primary@example.com"],
+                snippet="please classify first",
+                received_at=datetime(2026, 4, 2, 10, 0, 0).astimezone(),
+                local_label="unknown",
+                local_label_confidence=0.1,
+            ),
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="unknown-2",
+                subject="Second unknown",
+                sender="Second Sender <second@example.com>",
+                recipients=["primary@example.com"],
+                snippet="please classify second",
+                received_at=datetime(2026, 4, 2, 11, 0, 0).astimezone(),
+                local_label="unknown",
+                local_label_confidence=0.2,
+            ),
+        ]
+    )
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/runtime/execute-email-classifier-batch",
+            json={"target_api_base_url": "http://10.0.0.100:9002"},
+        )
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is True
+    assert body["batch_size"] == 2
+    assert body["local_processed"] == 0
+    assert body["local_classified"] == 0
+    assert body["ai_total"] == 2
+    assert body["ai_attempted"] == 0
+    assert body["ai_completed"] == 0
+    assert body["ai_calls_enabled"] is False
+    assert len(core_app.state.execution_direct_requests) == 0
+    assert service.state.runtime_task_state["request_status"] == "executed"
+    assert service.state.runtime_task_state["last_step"] == "execute_batch"
+    assert service.state.runtime_task_state["ai_calls_enabled"] is False
 
 
 def test_runtime_classifier_output_normalization_helpers(config, core_client_factory):
