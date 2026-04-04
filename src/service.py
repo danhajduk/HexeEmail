@@ -821,6 +821,24 @@ class NodeService:
             return None
         return value
 
+    @classmethod
+    def _action_decision_debug_payload(
+        cls,
+        *,
+        prompt_version: str,
+        execution_payload: object,
+        parsed_output: object,
+        validation_error: str | None,
+        target_api_base_url: str,
+    ) -> dict[str, object]:
+        return {
+            "prompt_version": prompt_version,
+            "target_api_base_url": target_api_base_url,
+            "execution_payload": execution_payload if isinstance(execution_payload, dict) else {"raw": execution_payload},
+            "parsed_output": parsed_output if isinstance(parsed_output, dict) else None,
+            "validation_error": validation_error,
+        }
+
     def _default_ai_runtime_target_api_base_url(self) -> str:
         return self._normalize_target_api_base_url(self.state.runtime_prompt_sync_target_api_base_url)
 
@@ -984,10 +1002,38 @@ class NodeService:
                 },
             )
             return None
-        decision = self._parse_action_decision_output(
+        parsed_decision = self._parse_action_decision_output(
             execution_payload.get("output") if isinstance(execution_payload, dict) else None
         )
-        decision = self._validate_action_decision_payload(decision, prompt_runtime["json_schema"])
+        validation_error = (
+            "output could not be parsed into an action decision object"
+            if not isinstance(parsed_decision, dict)
+            else self._validate_json_schema_value(parsed_decision, prompt_runtime["json_schema"])
+        )
+        debug_payload = self._action_decision_debug_payload(
+            prompt_version=str(prompt_definition["version"]),
+            execution_payload=execution_payload,
+            parsed_output=parsed_decision,
+            validation_error=validation_error,
+            target_api_base_url=normalized_target_base_url,
+        )
+        self.provider_registry.get_provider("gmail").message_store.update_action_decision_debug_response(
+            account_id,
+            message.message_id,
+            raw_response=debug_payload,
+        )
+        if validation_error is not None:
+            AI_LOGGER.warning(
+                "AI action decision output rejected",
+                extra={
+                    "event_data": {
+                        "message_id": message.message_id,
+                        "detail": validation_error,
+                    }
+                },
+            )
+            return None
+        decision = self._validate_action_decision_payload(parsed_decision, prompt_runtime["json_schema"])
         if not isinstance(decision, dict):
             return None
         self.provider_registry.get_provider("gmail").message_store.update_action_decision(
@@ -2638,6 +2684,30 @@ class NodeService:
             force_refresh=True,
         )
         if action_decision is None:
+            refreshed_message = adapter.message_store.get_message(account_id, message.message_id)
+            raw_debug = refreshed_message.action_decision_raw_response if refreshed_message is not None else None
+            now = datetime.now(UTC).isoformat()
+            current = self._runtime_task_state()
+            self._save_runtime_task_state(
+                request_status="failed",
+                last_step="execute",
+                detail=f"AI action decision request did not return a usable result for {message.message_id}.",
+                preview_response=current.get("preview_response"),
+                resolve_response=current.get("resolve_response"),
+                authorize_response=current.get("authorize_response"),
+                registration_request_payload=current.get("registration_request_payload"),
+                execution_request_payload={"mode": "action_decision", "message_id": message.message_id},
+                execution_response={
+                    "status": "failed",
+                    "message_id": message.message_id,
+                    "classification_label": classification_label.value,
+                    "raw_debug_response": raw_debug,
+                    "completed_at": now,
+                },
+                usage_summary_response=current.get("usage_summary_response"),
+                started_at=current.get("started_at") or now,
+                updated_at=now,
+            )
             raise ValueError("AI action decision request did not return a usable result")
         now = datetime.now(UTC).isoformat()
         current = self._runtime_task_state()

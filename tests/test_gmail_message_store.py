@@ -233,6 +233,17 @@ def test_gmail_message_store_persists_action_decision_payload(runtime_dir):
         prompt_version="v1",
         updated_at=datetime(2026, 4, 2, 12, 45, 0),
     )
+    store.update_action_decision_debug_response(
+        "primary",
+        "msg-1",
+        raw_response={
+            "prompt_version": "v1",
+            "execution_payload": {"output": {"summary": "Needs review"}},
+            "parsed_output": {"summary": "Needs review"},
+            "validation_error": None,
+        },
+        updated_at=datetime(2026, 4, 2, 12, 46, 0),
+    )
 
     saved = store.get_message("primary", "msg-1")
 
@@ -241,6 +252,9 @@ def test_gmail_message_store_persists_action_decision_payload(runtime_dir):
     assert saved.action_decision_payload["summary"] == "Needs review"
     assert saved.action_decision_prompt_version == "v1"
     assert saved.action_decision_updated_at == datetime(2026, 4, 2, 12, 45, 0)
+    assert saved.action_decision_raw_response is not None
+    assert saved.action_decision_raw_response["prompt_version"] == "v1"
+    assert saved.action_decision_raw_response_updated_at == datetime(2026, 4, 2, 12, 46, 0)
 
 
 def test_gmail_message_store_persists_runtime_settings(runtime_dir):

@@ -138,6 +138,8 @@ class GmailStoredMessage(BaseModel):
     action_decision_payload: dict[str, object] | None = None
     action_decision_prompt_version: str | None = None
     action_decision_updated_at: datetime | None = None
+    action_decision_raw_response: dict[str, object] | None = None
+    action_decision_raw_response_updated_at: datetime | None = None
 
 
 class GmailTrainingLabel(str, Enum):

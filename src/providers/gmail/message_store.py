@@ -63,6 +63,8 @@ class GmailMessageStore:
             self._ensure_column(connection, "gmail_messages", "action_decision_payload", "TEXT")
             self._ensure_column(connection, "gmail_messages", "action_decision_prompt_version", "TEXT")
             self._ensure_column(connection, "gmail_messages", "action_decision_updated_at", "TEXT")
+            self._ensure_column(connection, "gmail_messages", "action_decision_raw_response", "TEXT")
+            self._ensure_column(connection, "gmail_messages", "action_decision_raw_response_updated_at", "TEXT")
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS gmail_spamhaus_checks (
@@ -180,8 +182,10 @@ class GmailMessageStore:
                     manual_classification,
                     action_decision_payload,
                     action_decision_prompt_version,
-                    action_decision_updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    action_decision_updated_at,
+                    action_decision_raw_response,
+                    action_decision_raw_response_updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(account_id, message_id) DO UPDATE SET
                     thread_id=excluded.thread_id,
                     subject=excluded.subject,
@@ -209,6 +213,14 @@ class GmailMessageStore:
                     action_decision_updated_at=COALESCE(
                         gmail_messages.action_decision_updated_at,
                         excluded.action_decision_updated_at
+                    ),
+                    action_decision_raw_response=COALESCE(
+                        gmail_messages.action_decision_raw_response,
+                        excluded.action_decision_raw_response
+                    ),
+                    action_decision_raw_response_updated_at=COALESCE(
+                        gmail_messages.action_decision_raw_response_updated_at,
+                        excluded.action_decision_raw_response_updated_at
                     )
                 """,
                 [
@@ -228,12 +240,22 @@ class GmailMessageStore:
                         message.local_label_confidence,
                         int(bool(message.manual_classification)),
                         (
-                            json.dumps(message.action_decision_payload, sort_keys=True, separators=(",", ":"))
+                            json.dumps(message.action_decision_payload, sort_keys=True, separators=(",", ":"), default=str)
                             if isinstance(message.action_decision_payload, dict)
                             else None
                         ),
                         message.action_decision_prompt_version,
                         message.action_decision_updated_at.isoformat() if message.action_decision_updated_at else None,
+                        (
+                            json.dumps(message.action_decision_raw_response, sort_keys=True, separators=(",", ":"), default=str)
+                            if isinstance(message.action_decision_raw_response, dict)
+                            else None
+                        ),
+                        (
+                            message.action_decision_raw_response_updated_at.isoformat()
+                            if message.action_decision_raw_response_updated_at
+                            else None
+                        ),
                     )
                     for message in messages
                 ],
@@ -272,7 +294,9 @@ class GmailMessageStore:
                     manual_classification,
                     action_decision_payload,
                     action_decision_prompt_version,
-                    action_decision_updated_at
+                    action_decision_updated_at,
+                    action_decision_raw_response,
+                    action_decision_raw_response_updated_at
                 FROM gmail_messages
                 WHERE account_id = ?
                 ORDER BY received_at DESC
@@ -310,7 +334,9 @@ class GmailMessageStore:
                     manual_classification,
                     action_decision_payload,
                     action_decision_prompt_version,
-                    action_decision_updated_at
+                    action_decision_updated_at,
+                    action_decision_raw_response,
+                    action_decision_raw_response_updated_at
                 FROM gmail_messages
                 WHERE account_id = ?
                 ORDER BY received_at DESC
@@ -339,7 +365,9 @@ class GmailMessageStore:
                     manual_classification,
                     action_decision_payload,
                     action_decision_prompt_version,
-                    action_decision_updated_at
+                    action_decision_updated_at,
+                    action_decision_raw_response,
+                    action_decision_raw_response_updated_at
                 FROM gmail_messages
                 WHERE account_id = ?
                   AND received_at >= ?
@@ -468,7 +496,9 @@ class GmailMessageStore:
                     manual_classification,
                     action_decision_payload,
                     action_decision_prompt_version,
-                    action_decision_updated_at
+                    action_decision_updated_at,
+                    action_decision_raw_response,
+                    action_decision_raw_response_updated_at
                 FROM gmail_messages
                 WHERE account_id = ?
                   AND local_label IN ({placeholders})
@@ -496,7 +526,12 @@ class GmailMessageStore:
                     raw_payload,
                     local_label,
                     local_label_confidence,
-                    manual_classification
+                    manual_classification,
+                    action_decision_payload,
+                    action_decision_prompt_version,
+                    action_decision_updated_at,
+                    action_decision_raw_response,
+                    action_decision_raw_response_updated_at
                 FROM gmail_messages
                 WHERE account_id = ?
                   AND message_id = ?
@@ -646,6 +681,27 @@ class GmailMessageStore:
                 WHERE account_id = ? AND message_id = ?
                 """,
                 (serialized_payload, prompt_version, decision_updated_at.isoformat(), account_id, message_id),
+            )
+            connection.commit()
+
+    def update_action_decision_debug_response(
+        self,
+        account_id: str,
+        message_id: str,
+        *,
+        raw_response: dict[str, object],
+        updated_at: datetime | None = None,
+    ) -> None:
+        debug_updated_at = updated_at or datetime.now().astimezone()
+        serialized_payload = json.dumps(raw_response, sort_keys=True, separators=(",", ":"), default=str)
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE gmail_messages
+                SET action_decision_raw_response = ?, action_decision_raw_response_updated_at = ?
+                WHERE account_id = ? AND message_id = ?
+                """,
+                (serialized_payload, debug_updated_at.isoformat(), account_id, message_id),
             )
             connection.commit()
 
@@ -1405,6 +1461,18 @@ class GmailMessageStore:
             action_decision_updated_at=(
                 datetime.fromisoformat(row["action_decision_updated_at"])
                 if "action_decision_updated_at" in row.keys() and row["action_decision_updated_at"]
+                else None
+            ),
+            action_decision_raw_response=(
+                json.loads(row["action_decision_raw_response"])
+                if "action_decision_raw_response" in row.keys()
+                and isinstance(row["action_decision_raw_response"], str)
+                and row["action_decision_raw_response"]
+                else None
+            ),
+            action_decision_raw_response_updated_at=(
+                datetime.fromisoformat(row["action_decision_raw_response_updated_at"])
+                if "action_decision_raw_response_updated_at" in row.keys() and row["action_decision_raw_response_updated_at"]
                 else None
             ),
         )
