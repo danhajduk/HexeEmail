@@ -3213,6 +3213,16 @@ export function App() {
   const gmailLastHourPipelinePills = buildGmailLastHourPipelinePills(gmailLastHourPipeline);
   const gmailWindowSettings = buildGmailWindowSettings(gmailFetchSchedule);
   const scheduledTasks = Array.isArray(bootstrap?.scheduled_tasks) ? bootstrap.scheduled_tasks : [];
+  const scheduledTasksSorted = [...scheduledTasks].sort((left, right) => {
+    const leftTime = left?.next_execution_at ? new Date(left.next_execution_at).getTime() : Number.POSITIVE_INFINITY;
+    const rightTime = right?.next_execution_at ? new Date(right.next_execution_at).getTime() : Number.POSITIVE_INFINITY;
+    const safeLeftTime = Number.isNaN(leftTime) ? Number.POSITIVE_INFINITY : leftTime;
+    const safeRightTime = Number.isNaN(rightTime) ? Number.POSITIVE_INFINITY : rightTime;
+    if (safeLeftTime !== safeRightTime) {
+      return safeLeftTime - safeRightTime;
+    }
+    return String(left?.title || left?.task_id || "").localeCompare(String(right?.title || right?.task_id || ""));
+  });
   const scheduledTaskLegend = Array.isArray(bootstrap?.scheduled_task_legend) ? bootstrap.scheduled_task_legend : [];
   const mqttHealth = status?.mqtt_health || {};
   const lastHeartbeatAt = mqttHealth?.last_status_report_at || status?.last_heartbeat_at || null;
@@ -4021,7 +4031,7 @@ export function App() {
                         </div>
                       ))}
                     </div>
-                    {scheduledTasks.length ? (
+                    {scheduledTasksSorted.length ? (
                       <div className="scheduled-tasks-table-wrap">
                         <table className="scheduled-tasks-table">
                           <thead>
@@ -4038,7 +4048,7 @@ export function App() {
                             </tr>
                           </thead>
                           <tbody>
-                            {scheduledTasks.map((task) => (
+                            {scheduledTasksSorted.map((task) => (
                               <tr key={task.task_id}>
                                 <td><strong>{task.title || task.task_id}</strong></td>
                                 <td>{task.group || "-"}</td>
