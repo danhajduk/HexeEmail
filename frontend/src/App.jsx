@@ -4077,14 +4077,6 @@ export function App() {
                       <h2>Scheduled Tasks</h2>
                       <p className="muted">Scheduler-driven background jobs with current cadence and latest execution state.</p>
                     </div>
-                    <div className="scheduled-tasks-legend">
-                      {scheduledTaskLegend.map((item) => (
-                        <div key={item.name} className="scheduled-tasks-legend-item">
-                          <code>{item.name}</code>
-                          <span className="muted tiny">{item.detail}</span>
-                        </div>
-                      ))}
-                    </div>
                     {scheduledTasksSorted.length ? (
                       <div className="scheduled-tasks-table-wrap">
                         <table className="scheduled-tasks-table">
@@ -4131,6 +4123,14 @@ export function App() {
                     ) : (
                       <div className="callout">No scheduled task data is available yet.</div>
                     )}
+                    <div className="scheduled-tasks-legend">
+                      {scheduledTaskLegend.map((item) => (
+                        <div key={item.name} className="scheduled-tasks-legend-item">
+                          <code>{item.name}</code>
+                          <span className="muted tiny">{item.detail}</span>
+                        </div>
+                      ))}
+                    </div>
                   </article>
                 </section>
               ) : (
