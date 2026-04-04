@@ -993,6 +993,35 @@ async def test_ui_bootstrap_restores_persisted_runtime_task_state(config, core_c
 
 
 @pytest.mark.asyncio
+async def test_ui_bootstrap_exposes_scheduled_tasks(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    service.state.runtime_prompt_sync_target_api_base_url = "http://10.0.0.100:9002"
+    service.state.runtime_prompt_sync_weekly_slot_key = "2026-W14"
+    service.state.runtime_prompt_sync_last_scheduled_at = datetime(2026, 4, 3, 8, 0, 0).astimezone()
+    service.state.gmail_hourly_batch_classification_slot_key = "2026-04-03T08:00:00+00:00"
+    service.state.gmail_hourly_batch_classification_last_run_at = datetime(2026, 4, 3, 8, 1, 0).astimezone()
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/node/bootstrap")
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    task_ids = {item["task_id"] for item in body["scheduled_tasks"]}
+    assert "gmail_fetch_yesterday" in task_ids
+    assert "gmail_fetch_today" in task_ids
+    assert "gmail_fetch_last_hour" in task_ids
+    assert "gmail_hourly_batch_classification" in task_ids
+    assert "runtime_prompt_sync_weekly" in task_ids
+    prompt_sync = next(item for item in body["scheduled_tasks"] if item["task_id"] == "runtime_prompt_sync_weekly")
+    assert prompt_sync["last_slot_key"] == "2026-W14"
+    assert prompt_sync["last_execution_at"] is not None
+
+
+@pytest.mark.asyncio
 async def test_gmail_status_api_exposes_mailbox_counts(config, core_client_factory):
     service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
     await service.start()

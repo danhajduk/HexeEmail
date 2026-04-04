@@ -153,7 +153,9 @@ class RuntimeState(BaseModel):
     runtime_email_classify_counter: int = 0
     runtime_prompt_sync_target_api_base_url: str | None = None
     runtime_prompt_sync_weekly_slot_key: str | None = None
+    runtime_prompt_sync_last_scheduled_at: datetime | None = None
     gmail_hourly_batch_classification_slot_key: str | None = None
+    gmail_hourly_batch_classification_last_run_at: datetime | None = None
     gmail_last_hour_pipeline_state: dict[str, object] = Field(default_factory=dict)
     gmail_fetch_scheduler_state: dict[str, object] = Field(default_factory=dict)
     runtime_task_state: dict[str, object] = Field(default_factory=dict)
@@ -250,6 +252,7 @@ class UiBootstrapResponse(BaseModel):
     required_inputs: list[str]
     can_start_onboarding: bool
     runtime_task_state: dict[str, object] = Field(default_factory=dict)
+    scheduled_tasks: list[dict[str, object]] = Field(default_factory=list)
 
 
 class GmailConnectStartResponse(BaseModel):

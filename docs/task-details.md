@@ -174,3 +174,11 @@ Original task details:
 - replace the previous user message for new `action_required` and `order` emails
 - use the reply from the `prompt.email.action_decision` ai request
 - make the notification/output more readable
+
+## Task 101
+Original task details:
+- create a new dashboard screen for scheduled tasks
+- use only one full-width card in it
+- show the tasks in a table
+- include the schedule and the last/next execution
+- include any other runtime/scheduler data already available

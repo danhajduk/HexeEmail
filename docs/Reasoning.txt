@@ -103,3 +103,9 @@ Chosen fix: Keep the existing notification dedupe and delivery path, but render 
 What changed: Converted the classified-email notification hook to async so it can obtain the action-decision result, updated local/AI/manual classification call sites to await it, and reformatted action-required/order notifications to include AI summary, recommended actions, deadlines, shipment hints, and human-review guidance instead of the old minimal sender/subject/confidence lines.
 Verification: `python -m py_compile src/service.py src/providers/gmail/models.py src/providers/gmail/message_store.py tests/helpers.py tests/test_notifications.py tests/test_gmail_message_store.py tests/test_ui_api.py` passed.
 ###########
+Task #101
+Step objective: Add a dedicated dashboard screen for scheduled tasks with one full-width card.
+Chosen fix: Expose a backend `scheduled_tasks` summary from `ui_bootstrap` so the frontend can render a stable table of scheduler-driven jobs without duplicating schedule calculations in the browser.
+What changed: Added scheduled-task summary generation in `NodeService` for Gmail fetch windows, hourly batch classification, and weekly prompt sync; persisted last scheduled timestamps for the batch classifier and weekly prompt sync; exposed the summary on the bootstrap payload; and added a new `Scheduled Tasks` dashboard section with a single full-width table card showing schedule, status, last execution, next execution, reason, slot key, and detail.
+Verification: `python -m py_compile src/models.py src/service.py tests/test_ui_api.py` passed. `npm run build` passed in `frontend/`.
+###########

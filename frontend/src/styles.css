@@ -199,6 +199,43 @@
   align-items: start;
 }
 
+.scheduled-tasks-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.scheduled-tasks-card {
+  grid-column: 1 / -1;
+}
+
+.scheduled-tasks-table-wrap {
+  overflow-x: auto;
+}
+
+.scheduled-tasks-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 980px;
+}
+
+.scheduled-tasks-table th,
+.scheduled-tasks-table td {
+  padding: 12px 14px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid hsl(var(--sx-border));
+}
+
+.scheduled-tasks-table th {
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: hsl(var(--sx-text-muted));
+}
+
+.scheduled-tasks-table tbody tr:hover {
+  background: hsl(var(--sx-text) / 0.03);
+}
+
 .degraded-state-banner {
   grid-column: 1 / -1;
 }

@@ -221,6 +221,172 @@ class NodeService:
         self.state_store.save(self.state)
         return state
 
+    @staticmethod
+    def _next_daily_run(now: datetime, *, hour: int, minute: int) -> datetime:
+        candidate = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        if candidate <= now:
+            candidate = candidate + timedelta(days=1)
+        return candidate
+
+    @staticmethod
+    def _next_today_window_run(now: datetime) -> datetime:
+        for hour in (0, 6, 12, 18):
+            candidate = now.replace(hour=hour, minute=0, second=0, microsecond=0)
+            if candidate > now:
+                return candidate
+        return (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    @staticmethod
+    def _next_five_minute_run(now: datetime) -> datetime:
+        total_minutes = now.hour * 60 + now.minute
+        next_total_minutes = ((total_minutes // 5) + 1) * 5
+        day_offset, minute_of_day = divmod(next_total_minutes, 24 * 60)
+        hour, minute = divmod(minute_of_day, 60)
+        candidate = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        if day_offset:
+            candidate = candidate + timedelta(days=day_offset)
+        return candidate
+
+    @staticmethod
+    def _next_hourly_run(now: datetime) -> datetime:
+        return (now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1))
+
+    @staticmethod
+    def _next_weekly_run(now: datetime) -> datetime:
+        start_of_week = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+        candidate = start_of_week + timedelta(days=7)
+        if candidate <= now:
+            candidate = candidate + timedelta(days=7)
+        return candidate
+
+    def _scheduled_tasks_snapshot(self) -> list[dict[str, object]]:
+        local_now = datetime.now().astimezone()
+        fetch_schedule_state = None
+        gmail_adapter = self.provider_registry.get_provider("gmail")
+        if hasattr(gmail_adapter, "fetch_schedule_state"):
+            fetch_schedule_state = gmail_adapter.fetch_schedule_store.load_state()
+        scheduler_state = self._gmail_fetch_scheduler_state()
+        fetch_loop_active = bool(scheduler_state.get("loop_active"))
+        fetch_loop_status = "active" if fetch_loop_active else "inactive"
+        prompt_sync_configured = bool(self.state.runtime_prompt_sync_target_api_base_url)
+        prompt_sync_status = "active" if (fetch_loop_active and prompt_sync_configured) else "pending" if prompt_sync_configured else "inactive"
+
+        tasks = [
+            {
+                "task_id": "gmail_fetch_yesterday",
+                "title": "Gmail Fetch Yesterday",
+                "group": "gmail",
+                "schedule": "00:01 daily",
+                "status": fetch_loop_status,
+                "last_execution_at": (
+                    fetch_schedule_state.yesterday.last_run_at.isoformat()
+                    if fetch_schedule_state is not None and fetch_schedule_state.yesterday.last_run_at is not None
+                    else None
+                ),
+                "next_execution_at": self._next_daily_run(local_now, hour=0, minute=1).isoformat(),
+                "last_reason": (
+                    fetch_schedule_state.yesterday.last_run_reason
+                    if fetch_schedule_state is not None
+                    else None
+                ),
+                "detail": "Fetches the previous day inbox window for local storage refresh.",
+                "last_slot_key": (
+                    fetch_schedule_state.yesterday.last_slot_key
+                    if fetch_schedule_state is not None
+                    else None
+                ),
+            },
+            {
+                "task_id": "gmail_fetch_today",
+                "title": "Gmail Fetch Today",
+                "group": "gmail",
+                "schedule": "00:00, 06:00, 12:00, 18:00",
+                "status": fetch_loop_status,
+                "last_execution_at": (
+                    fetch_schedule_state.today.last_run_at.isoformat()
+                    if fetch_schedule_state is not None and fetch_schedule_state.today.last_run_at is not None
+                    else None
+                ),
+                "next_execution_at": self._next_today_window_run(local_now).isoformat(),
+                "last_reason": (
+                    fetch_schedule_state.today.last_run_reason
+                    if fetch_schedule_state is not None
+                    else None
+                ),
+                "detail": "Refreshes the current-day inbox window on the six-hour schedule.",
+                "last_slot_key": (
+                    fetch_schedule_state.today.last_slot_key
+                    if fetch_schedule_state is not None
+                    else None
+                ),
+            },
+            {
+                "task_id": "gmail_fetch_last_hour",
+                "title": "Gmail Fetch Last Hour",
+                "group": "gmail",
+                "schedule": "Every 5 minutes",
+                "status": fetch_loop_status,
+                "last_execution_at": (
+                    fetch_schedule_state.last_hour.last_run_at.isoformat()
+                    if fetch_schedule_state is not None and fetch_schedule_state.last_hour.last_run_at is not None
+                    else None
+                ),
+                "next_execution_at": self._next_five_minute_run(local_now).isoformat(),
+                "last_reason": (
+                    fetch_schedule_state.last_hour.last_run_reason
+                    if fetch_schedule_state is not None
+                    else None
+                ),
+                "detail": "Keeps the rolling last-hour inbox window fresh for recent classification work.",
+                "last_slot_key": (
+                    fetch_schedule_state.last_hour.last_slot_key
+                    if fetch_schedule_state is not None
+                    else None
+                ),
+            },
+            {
+                "task_id": "gmail_hourly_batch_classification",
+                "title": "Hourly Batch Classification",
+                "group": "gmail",
+                "schedule": "Hourly at :00",
+                "status": fetch_loop_status,
+                "last_execution_at": (
+                    self.state.gmail_hourly_batch_classification_last_run_at.isoformat()
+                    if self.state.gmail_hourly_batch_classification_last_run_at is not None
+                    else None
+                ),
+                "next_execution_at": self._next_hourly_run(local_now).isoformat(),
+                "last_reason": "scheduled" if self.state.gmail_hourly_batch_classification_last_run_at is not None else None,
+                "detail": "Classifies the newest 100 unclassified emails and sends remaining unknowns to AI.",
+                "last_slot_key": self.state.gmail_hourly_batch_classification_slot_key,
+            },
+            {
+                "task_id": "runtime_prompt_sync_weekly",
+                "title": "Weekly Prompt Sync",
+                "group": "runtime",
+                "schedule": "Weekly",
+                "status": prompt_sync_status,
+                "last_execution_at": (
+                    self.state.runtime_prompt_sync_last_scheduled_at.isoformat()
+                    if self.state.runtime_prompt_sync_last_scheduled_at is not None
+                    else None
+                ),
+                "next_execution_at": (
+                    self._next_weekly_run(local_now).isoformat()
+                    if prompt_sync_configured
+                    else None
+                ),
+                "last_reason": "scheduled" if self.state.runtime_prompt_sync_last_scheduled_at is not None else None,
+                "detail": (
+                    "Scans local runtime prompt JSON files and syncs them to the AI node prompt service."
+                    if prompt_sync_configured
+                    else "Waiting for a prompt sync target to be configured from the Runtime page."
+                ),
+                "last_slot_key": self.state.runtime_prompt_sync_weekly_slot_key,
+            },
+        ]
+        return tasks
+
     def _next_email_classify_task_id(self) -> str:
         next_counter = int(self.state.runtime_email_classify_counter or 0) + 1
         self.state.runtime_email_classify_counter = next_counter
@@ -1991,6 +2157,7 @@ class NodeService:
             sync_reason="weekly",
         )
         self.state.runtime_prompt_sync_weekly_slot_key = slot_key
+        self.state.runtime_prompt_sync_last_scheduled_at = datetime.now().astimezone()
         self.state_store.save(self.state)
 
     async def runtime_execute_email_classifier(
@@ -2506,6 +2673,7 @@ class NodeService:
             required_inputs=required_inputs,
             can_start_onboarding=not required_inputs and self.state.trust_state != "trusted",
             runtime_task_state=self._runtime_task_state(),
+            scheduled_tasks=self._scheduled_tasks_snapshot(),
         )
 
     async def governance_status(self) -> dict[str, object]:
@@ -3470,6 +3638,7 @@ class NodeService:
                 RuntimePromptExecutionRequestInput(target_api_base_url="http://127.0.0.1:9002")
             )
             self.state.gmail_hourly_batch_classification_slot_key = slot_key
+            self.state.gmail_hourly_batch_classification_last_run_at = datetime.now().astimezone()
             self.state_store.save(self.state)
             LOGGER.info(
                 "Scheduled hourly Gmail batch classification completed",

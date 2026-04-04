@@ -62,7 +62,7 @@ const TRAINING_LABEL_OPTIONS = [
   "unknown",
 ];
 
-const DASHBOARD_SECTIONS = new Set(["overview", "gmail", "runtime"]);
+const DASHBOARD_SECTIONS = new Set(["overview", "gmail", "runtime", "scheduled"]);
 
 function parseHashRoute(hash) {
   const normalized = String(hash || "").replace(/^#\/?/, "").replace(/^\/+|\/+$/g, "");
@@ -790,6 +790,16 @@ function buildGmailWindowSettings(fetchSchedule) {
       schedule: "00, 05, 10, 15, ...",
     },
   ];
+}
+
+function scheduledTaskStatusTone(value) {
+  if (value === "active") {
+    return "success";
+  }
+  if (value === "pending") {
+    return "warning";
+  }
+  return "neutral";
 }
 
 function schedulerStatusTone(value) {
@@ -3166,6 +3176,7 @@ export function App() {
   const gmailLastHourPipeline = gmailStatus?.last_hour_pipeline || null;
   const gmailLastHourPipelinePills = buildGmailLastHourPipelinePills(gmailLastHourPipeline);
   const gmailWindowSettings = buildGmailWindowSettings(gmailFetchSchedule);
+  const scheduledTasks = Array.isArray(bootstrap?.scheduled_tasks) ? bootstrap.scheduled_tasks : [];
   const mqttHealth = status?.mqtt_health || {};
   const lastHeartbeatAt = mqttHealth?.last_status_report_at || status?.last_heartbeat_at || null;
   const mqttConnected = status?.mqtt_connection_status === "connected" || mqttHealth?.health_status === "connected";
@@ -3399,6 +3410,13 @@ export function App() {
                   onClick={() => openDashboard("runtime")}
                 >
                   Runtime
+                </button>
+                <button
+                  type="button"
+                  className={`btn operational-nav-btn ${dashboardSection === "scheduled" ? "btn-primary" : ""}`}
+                  onClick={() => openDashboard("scheduled")}
+                >
+                  Scheduled Tasks
                 </button>
                 <button type="button" className="btn operational-nav-btn">Activity</button>
                 <button type="button" className="btn operational-nav-btn">Diagnostics</button>
@@ -3951,8 +3969,60 @@ export function App() {
                     </div>
                   </article>
                 </section>
+              ) : dashboardSection === "scheduled" ? (
+                <section className="grid scheduled-tasks-grid">
+                  <article className="card scheduled-tasks-card">
+                    <div className="card-header">
+                      <h2>Scheduled Tasks</h2>
+                      <p className="muted">Scheduler-driven background jobs with current cadence and latest execution state.</p>
+                    </div>
+                    {scheduledTasks.length ? (
+                      <div className="scheduled-tasks-table-wrap">
+                        <table className="scheduled-tasks-table">
+                          <thead>
+                            <tr>
+                              <th>Task</th>
+                              <th>Group</th>
+                              <th>Schedule</th>
+                              <th>Status</th>
+                              <th>Last Execution</th>
+                              <th>Next Execution</th>
+                              <th>Last Reason</th>
+                              <th>Last Slot</th>
+                              <th>Detail</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {scheduledTasks.map((task) => (
+                              <tr key={task.task_id}>
+                                <td><strong>{task.title || task.task_id}</strong></td>
+                                <td>{task.group || "-"}</td>
+                                <td>{task.schedule || "-"}</td>
+                                <td>
+                                  <span className={`status-pill tone-${scheduledTaskStatusTone(task.status)}`}>
+                                    {task.status || "unknown"}
+                                  </span>
+                                </td>
+                                <td>
+                                  <div>{formatScheduleTimestamp(task.last_execution_at)}</div>
+                                  <div className="muted tiny">{formatRelativeTime(task.last_execution_at)}</div>
+                                </td>
+                                <td>{formatScheduleTimestamp(task.next_execution_at)}</td>
+                                <td>{task.last_reason || "-"}</td>
+                                <td><code>{task.last_slot_key || "-"}</code></td>
+                                <td>{task.detail || "-"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="callout">No scheduled task data is available yet.</div>
+                    )}
+                  </article>
+                </section>
               ) : (
-              <section className="grid operational-dashboard-grid">
+                <section className="grid operational-dashboard-grid">
                   {dashboardWarnings.length ? (
                     <article className="card degraded-state-banner">
                       <div className="card-header">

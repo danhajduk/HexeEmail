@@ -98,3 +98,4 @@ Task 097: Redesign runtime prompt registration flow around prompt JSON files - C
 Task 098: Extract hardcoded prompt definitions into JSON files - Completed on 04/03/2026 17:44
 Task 099: Run AI action decision on new action-required and order emails - Completed on 04/03/2026 18:15
 Task 100: Replace classified-email user notifications with action-decision output - Completed on 04/03/2026 18:15
+Task 101: Add scheduled tasks dashboard screen - Completed on 04/03/2026 18:20
