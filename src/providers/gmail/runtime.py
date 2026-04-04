@@ -83,7 +83,6 @@ class GmailRuntimeLayout:
         self._ensure_file(self.oauth_state_secret_path, f"{secrets.token_urlsafe(32)}\n")
         self._ensure_file(self.fetch_schedule_state_path, "{}\n")
         self._ensure_file(self.quota_usage_path, "{}\n")
-        self._ensure_file(self.training_model_meta_path, "{}\n")
 
         self._set_mode(self.provider_dir, 0o700)
         self._set_mode(self.accounts_dir, 0o700)
@@ -94,11 +93,12 @@ class GmailRuntimeLayout:
         self._set_mode(self.oauth_state_secret_path, 0o600)
         self._set_mode(self.fetch_schedule_state_path, 0o600)
         self._set_mode(self.quota_usage_path, 0o600)
-        self._set_mode(self.training_model_meta_path, 0o600)
         if self.message_store_path.exists():
             self._set_mode(self.message_store_path, 0o600)
         if self.training_model_path.exists():
             self._set_mode(self.training_model_path, 0o600)
+        if self.training_model_meta_path.exists():
+            self._set_mode(self.training_model_meta_path, 0o600)
 
     def _ensure_file(self, path: Path, contents: str) -> None:
         if path.exists():

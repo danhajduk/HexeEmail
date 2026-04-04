@@ -10,6 +10,8 @@ from providers.gmail.models import (
     GmailStoredMessage,
     GmailTrainingLabel,
 )
+from providers.gmail.runtime import GmailRuntimeLayout
+from providers.gmail.training_model import GmailTrainingModelStore
 
 
 def test_gmail_message_store_persists_messages(runtime_dir):
@@ -239,6 +241,47 @@ def test_gmail_message_store_persists_action_decision_payload(runtime_dir):
     assert saved.action_decision_payload["summary"] == "Needs review"
     assert saved.action_decision_prompt_version == "v1"
     assert saved.action_decision_updated_at == datetime(2026, 4, 2, 12, 45, 0)
+
+
+def test_gmail_message_store_persists_runtime_settings(runtime_dir):
+    store = GmailMessageStore(runtime_dir)
+
+    store.set_runtime_setting(
+        "primary",
+        namespace="training_model",
+        key="metadata",
+        value={
+            "trained_at": "2026-04-03T18:00:00+00:00",
+            "sample_count": 42,
+        },
+        updated_at=datetime(2026, 4, 3, 18, 0, 0),
+    )
+
+    saved = store.get_runtime_setting("primary", namespace="training_model", key="metadata")
+
+    assert saved == {
+        "trained_at": "2026-04-03T18:00:00+00:00",
+        "sample_count": 42,
+    }
+
+
+def test_training_model_store_migrates_legacy_json_metadata_into_runtime_settings(runtime_dir):
+    layout = GmailRuntimeLayout(runtime_dir)
+    layout.ensure_layout()
+    layout.training_model_meta_path.write_text(
+        '{"trained_at":"2026-04-03T18:00:00+00:00","sample_count":12,"train_count":9,"test_count":3}\n',
+        encoding="utf-8",
+    )
+    store = GmailMessageStore(runtime_dir)
+    training_model_store = GmailTrainingModelStore(runtime_dir, message_store=store)
+
+    status = training_model_store.status()
+    migrated = store.get_runtime_setting("primary", namespace="training_model", key="metadata")
+
+    assert status["trained"] is True
+    assert status["trained_at"] == "2026-04-03T18:00:00+00:00"
+    assert isinstance(migrated, dict)
+    assert migrated["sample_count"] == 12
 
 
 def test_gmail_message_store_persists_sender_reputation_records(runtime_dir):

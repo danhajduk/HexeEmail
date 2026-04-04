@@ -200,3 +200,33 @@ Original task details:
   - `on_start`
 - make next-run calculation part of the template system instead of scattered hardcoded helpers
 - fix any mismatches between displayed schedule wording and actual backend next-run timestamps
+
+## Task 103
+Original task details:
+- add SQLite-backed runtime settings storage instead of relying on scattered runtime JSON files for mutable runtime metadata
+- create a reusable table for current runtime values/settings, suitable for timestamps, counters, feature flags, and structured JSON values
+- keep the design compatible with the existing Gmail SQLite store unless a separate runtime SQLite file is clearly better
+
+## Task 104
+Original task details:
+- move Gmail local model metadata from `training_model_meta.json` into SQLite
+- include at least:
+  - `trained_at`
+  - `sample_count`
+  - `train_count`
+  - `test_count`
+  - `test_accuracy`
+  - normalization/version and any current metadata already returned by `training_model_status`
+- add a migration/read-fallback so existing nodes with only the JSON metadata file still work
+
+## Task 105
+Original task details:
+- update backend status/training reads and writes to use the DB-backed local model metadata
+- keep the UI behavior unchanged except that `trained_at` and related model status come from SQLite-backed state
+- make sure the main header model pill and training page both read the same persisted source of truth
+
+## Task 106
+Original task details:
+- retire the legacy `training_model_meta.json` path after the DB migration is stable
+- remove unnecessary runtime JSON writes for local model metadata
+- keep the local model binary file if still needed, but stop using JSON for the model metadata state
