@@ -13,6 +13,7 @@ from models import (
     RefreshTriggerRequest,
     RuntimeDirectExecutionRequestInput,
     RuntimePromptExecutionRequestInput,
+    RuntimePromptSyncRequestInput,
     ServiceRestartRequest,
     TaskCapabilitySelectionInput,
     TaskRoutingRequestInput,
@@ -163,6 +164,16 @@ def create_app(
     async def runtime_execute_authorized_task(payload: RuntimeDirectExecutionRequestInput, request: Request):
         try:
             return await node_service.runtime_execute_authorized_task(
+                payload,
+                correlation_id=request.headers.get("X-Correlation-Id"),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=getattr(exc, "detail", str(exc))) from exc
+
+    @app.post("/api/runtime/prompts/sync")
+    async def runtime_sync_prompts(payload: RuntimePromptSyncRequestInput, request: Request):
+        try:
+            return await node_service.runtime_sync_prompts(
                 payload,
                 correlation_id=request.headers.get("X-Correlation-Id"),
             )

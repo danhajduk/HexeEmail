@@ -34,6 +34,7 @@ class AppConfig(BaseSettings):
     node_software_version: str = Field(alias="NODE_SOFTWARE_VERSION")
     node_nonce: str = Field(alias="NODE_NONCE")
     runtime_dir: Path = Field(default=Path("runtime"), alias="RUNTIME_DIR")
+    prompt_definition_dir: Path = Field(default=Path("src/runtime_prompts"), alias="PROMPT_DEFINITION_DIR")
     api_port: int = Field(default=9003, alias="API_PORT")
     ui_port: int = Field(default=8083, alias="UI_PORT")
     onboarding_protocol_version: str = Field(default="1.0", alias="ONBOARDING_PROTOCOL_VERSION")
@@ -74,6 +75,11 @@ class AppConfig(BaseSettings):
     @field_validator("runtime_dir")
     @classmethod
     def normalize_runtime_dir(cls, value: Path) -> Path:
+        return value
+
+    @field_validator("prompt_definition_dir")
+    @classmethod
+    def normalize_prompt_definition_dir(cls, value: Path) -> Path:
         return value
 
     @property

@@ -588,7 +588,7 @@ async def test_core_service_resolve_and_authorize_routes_forward_trusted_node_co
 
 
 @pytest.mark.asyncio
-async def test_runtime_execute_authorized_task_registers_email_classifier_prompt(config, core_client_factory):
+async def test_runtime_sync_prompts_registers_missing_email_classifier_prompt(config, core_client_factory):
     core_app = build_core_app()
     service = NodeService(config, core_client=core_client_factory(core_app), mqtt_manager=FakeMQTTManager())
     await service.start()
@@ -596,9 +596,8 @@ async def test_runtime_execute_authorized_task_registers_email_classifier_prompt
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.post(
-            "/api/runtime/execute-authorized-task",
+            "/api/runtime/prompts/sync",
             json={
-                "task_family": "task.classification",
                 "target_api_base_url": "http://10.0.0.100:9002",
             },
         )
@@ -607,9 +606,9 @@ async def test_runtime_execute_authorized_task_registers_email_classifier_prompt
 
     assert response.status_code == 200
     body = response.json()
-    assert body["registration"]["prompt_id"] == "prompt.email.classifier"
-    assert body["registration"]["service_id"] == "node-email"
-    assert body["registration"]["status"] == "active"
+    assert body["registrations"][0]["prompt_id"] == "prompt.email.classifier"
+    assert body["registrations"][0]["service_id"] == "node-email"
+    assert body["registrations"][0]["status"] == "active"
     assert body["usage_summary"] is None
 
     assert core_app.state.prompt_service_lifecycle_requests == []
@@ -624,8 +623,101 @@ async def test_runtime_execute_authorized_task_registers_email_classifier_prompt
         "structured_output_required": True,
     }
     assert registration_request["definition"]["template_variables"] == ["normalized_text"]
+    assert service.state.runtime_prompt_sync_target_api_base_url == "http://10.0.0.100:9002"
     assert core_app.state.execution_direct_requests == []
     assert core_app.state.usage_summary_requests == []
+
+
+@pytest.mark.asyncio
+async def test_runtime_sync_prompts_skips_current_prompt_version(config, core_client_factory):
+    core_app = build_core_app()
+    core_app.state.prompt_services["prompt.email.classifier"] = {
+        "prompt_id": "prompt.email.classifier",
+        "service_id": "node-email",
+        "prompt_name": "Email Classifier",
+        "status": "active",
+        "current_version": "v1",
+        "versions": ["v1"],
+    }
+    service = NodeService(config, core_client=core_client_factory(core_app), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/runtime/prompts/sync",
+            json={"target_api_base_url": "http://10.0.0.100:9002"},
+        )
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["sync_actions"] == [
+        {
+            "prompt_id": "prompt.email.classifier",
+            "action": "unchanged",
+            "version": "v1",
+            "remote_version": "v1",
+        }
+    ]
+    assert core_app.state.prompt_service_registration_requests == []
+    assert core_app.state.prompt_service_lifecycle_requests == []
+
+
+@pytest.mark.asyncio
+async def test_runtime_sync_prompts_retires_and_reregisters_outdated_prompt(config, core_client_factory):
+    core_app = build_core_app()
+    core_app.state.prompt_services["prompt.email.classifier"] = {
+        "prompt_id": "prompt.email.classifier",
+        "service_id": "node-email",
+        "prompt_name": "Email Classifier",
+        "status": "active",
+        "current_version": "v0",
+        "versions": ["v0"],
+    }
+    service = NodeService(config, core_client=core_client_factory(core_app), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/runtime/prompts/sync",
+            json={"target_api_base_url": "http://10.0.0.100:9002"},
+        )
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["sync_actions"] == [
+        {
+            "prompt_id": "prompt.email.classifier",
+            "action": "replaced",
+            "version": "v1",
+            "remote_version": "v0",
+        }
+    ]
+    assert len(core_app.state.prompt_service_lifecycle_requests) == 1
+    assert core_app.state.prompt_service_lifecycle_requests[0]["prompt_id"] == "prompt.email.classifier"
+    assert core_app.state.prompt_service_lifecycle_requests[0]["state"] == "retired"
+    assert len(core_app.state.prompt_service_registration_requests) == 1
+
+
+@pytest.mark.asyncio
+async def test_weekly_prompt_sync_runs_once_per_week_slot(config, core_client_factory):
+    core_app = build_core_app()
+    service = NodeService(config, core_client=core_client_factory(core_app), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    service.state.runtime_prompt_sync_target_api_base_url = "http://10.0.0.100:9002"
+
+    await service._run_weekly_prompt_sync_if_due()
+    await service._run_weekly_prompt_sync_if_due()
+
+    await service.stop()
+
+    assert len(core_app.state.prompt_service_registration_requests) == 1
+    assert service.state.runtime_prompt_sync_weekly_slot_key is not None
 
 
 @pytest.mark.asyncio

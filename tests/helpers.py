@@ -37,6 +37,7 @@ def build_core_app():
     app.state.execution_direct_requests = []
     app.state.prompt_service_lifecycle_requests = []
     app.state.prompt_service_registration_requests = []
+    app.state.prompt_services = {}
     app.state.usage_summary_requests = []
 
     @app.post("/api/system/nodes/onboarding/sessions")
@@ -214,12 +215,24 @@ def build_core_app():
             "completed_at": "2026-04-02T12:34:56-07:00",
         }
 
-    @app.post("/api/prompts/services/prompt.email.classifier/lifecycle")
-    async def retire_prompt_service(payload: dict):
-        app.state.prompt_service_lifecycle_requests.append(payload)
+    @app.get("/api/prompts/services")
+    async def list_prompt_services():
+        return {
+            "schema_version": "v1",
+            "prompt_services": list(app.state.prompt_services.values()),
+            "probation": [],
+            "updated_at": "2026-04-02T22:05:00+00:00",
+        }
+
+    @app.post("/api/prompts/services/{prompt_id}/lifecycle")
+    async def retire_prompt_service(prompt_id: str, payload: dict):
+        app.state.prompt_service_lifecycle_requests.append({"prompt_id": prompt_id, **payload})
+        record = app.state.prompt_services.get(prompt_id)
+        if isinstance(record, dict):
+            record["status"] = payload.get("state") or record.get("status")
         return {
             "ok": True,
-            "prompt_id": "prompt.email.classifier",
+            "prompt_id": prompt_id,
             "state": payload.get("state"),
             "reason": payload.get("reason"),
         }
@@ -227,9 +240,18 @@ def build_core_app():
     @app.post("/api/prompts/services")
     async def register_prompt_service(payload: dict):
         app.state.prompt_service_registration_requests.append(payload)
+        prompt_id = payload.get("prompt_id")
+        app.state.prompt_services[prompt_id] = {
+            "prompt_id": prompt_id,
+            "service_id": payload.get("service_id"),
+            "prompt_name": payload.get("prompt_name"),
+            "status": payload.get("status") or "active",
+            "current_version": payload.get("version"),
+            "versions": [payload.get("version")] if payload.get("version") else [],
+        }
         return {
             "ok": True,
-            "prompt_id": payload.get("prompt_id"),
+            "prompt_id": prompt_id,
             "service_id": payload.get("service_id"),
             "status": payload.get("status"),
             "version": payload.get("version"),

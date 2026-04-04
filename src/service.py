@@ -9,6 +9,7 @@ import uuid
 from email.utils import parseaddr
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from urllib.parse import urlparse
 
 import httpx
@@ -43,6 +44,7 @@ from models import (
     OperatorConfigResponse,
     RuntimeDirectExecutionRequestInput,
     RuntimePromptExecutionRequestInput,
+    RuntimePromptSyncRequestInput,
     RuntimeState,
     StatusResponse,
     TaskRoutingPreviewResponse,
@@ -1388,13 +1390,170 @@ class NodeService:
         *,
         correlation_id: str | None = None,
     ) -> dict[str, object]:
-        target_base_url = str(payload.target_api_base_url or "http://127.0.0.1:9002").strip().rstrip("/")
-        normalized_target_base_url = target_base_url[:-4] if target_base_url.endswith("/api") else target_base_url
-        registration_id = f"runtime-{uuid.uuid4().hex}"
-        request_body = self._email_classifier_prompt_registration_payload()
+        return await self.runtime_sync_prompts(
+            RuntimePromptSyncRequestInput(target_api_base_url=payload.target_api_base_url),
+            correlation_id=correlation_id,
+        )
+
+    async def runtime_sync_prompts(
+        self,
+        payload: RuntimePromptSyncRequestInput,
+        *,
+        correlation_id: str | None = None,
+    ) -> dict[str, object]:
+        return await self._sync_runtime_prompts(
+            target_api_base_url=payload.target_api_base_url,
+            correlation_id=correlation_id,
+            persist_runtime_state=True,
+            sync_reason="manual",
+        )
+
+    def _prompt_definition_dir(self) -> Path:
+        directory = self.config.prompt_definition_dir
+        return directory if directory.is_absolute() else Path.cwd() / directory
+
+    def _load_runtime_prompt_definitions(self) -> list[dict[str, object]]:
+        directory = self._prompt_definition_dir()
+        if not directory.exists():
+            raise ValueError(f"Prompt definition directory does not exist: {directory}")
+        prompt_definitions: list[dict[str, object]] = []
+        for path in sorted(directory.glob("*.json")):
+            with path.open("r", encoding="utf-8") as handle:
+                payload = json.load(handle)
+            if not isinstance(payload, dict):
+                raise ValueError(f"Prompt definition must be an object: {path}")
+            if not payload.get("prompt_id"):
+                raise ValueError(f"Prompt definition is missing prompt_id: {path}")
+            if not payload.get("version"):
+                raise ValueError(f"Prompt definition is missing version: {path}")
+            prompt_definitions.append(payload)
+        if not prompt_definitions:
+            raise ValueError(f"No prompt definition JSON files found in {directory}")
+        return prompt_definitions
+
+    def _load_runtime_prompt_definition(self, prompt_id: str) -> dict[str, object]:
+        for prompt_definition in self._load_runtime_prompt_definitions():
+            if prompt_definition.get("prompt_id") == prompt_id:
+                return prompt_definition
+        raise ValueError(f"Prompt definition not found for {prompt_id}")
+
+    @staticmethod
+    def _prompt_registration_payload(prompt_definition: dict[str, object]) -> dict[str, object]:
+        payload = dict(prompt_definition)
+        payload.pop("node_runtime", None)
+        return payload
+
+    @staticmethod
+    def _normalize_target_api_base_url(target_api_base_url: str | None) -> str:
+        target_base_url = str(target_api_base_url or "http://127.0.0.1:9002").strip().rstrip("/")
+        return target_base_url[:-4] if target_base_url.endswith("/api") else target_base_url
+
+    async def _list_remote_prompt_services(self, target_api_base_url: str) -> list[dict[str, object]]:
+        async with httpx.AsyncClient(
+            base_url=target_api_base_url,
+            timeout=self.core_client.timeout,
+            transport=self.core_client.transport,
+        ) as client:
+            response = await client.get("/api/prompts/services")
+            response.raise_for_status()
+            payload = response.json()
+        prompt_services = payload.get("prompt_services") if isinstance(payload, dict) else None
+        return prompt_services if isinstance(prompt_services, list) else []
+
+    async def _register_prompt_service(
+        self,
+        target_api_base_url: str,
+        prompt_definition: dict[str, object],
+    ) -> dict[str, object]:
+        request_body = self._prompt_registration_payload(prompt_definition)
+        async with httpx.AsyncClient(
+            base_url=target_api_base_url,
+            timeout=self.core_client.timeout,
+            transport=self.core_client.transport,
+        ) as client:
+            registration_response = await client.post("/api/prompts/services", json=request_body)
+            registration_response.raise_for_status()
+            return registration_response.json()
+
+    async def _retire_prompt_service(
+        self,
+        target_api_base_url: str,
+        *,
+        prompt_id: str,
+        reason: str,
+    ) -> dict[str, object]:
+        payload = {"state": "retired", "reason": reason}
+        async with httpx.AsyncClient(
+            base_url=target_api_base_url,
+            timeout=self.core_client.timeout,
+            transport=self.core_client.transport,
+        ) as client:
+            lifecycle_response = await client.post(f"/api/prompts/services/{prompt_id}/lifecycle", json=payload)
+            lifecycle_response.raise_for_status()
+            return lifecycle_response.json()
+
+    async def _sync_runtime_prompts(
+        self,
+        *,
+        target_api_base_url: str | None,
+        correlation_id: str | None,
+        persist_runtime_state: bool,
+        sync_reason: str,
+    ) -> dict[str, object]:
+        normalized_target_base_url = self._normalize_target_api_base_url(target_api_base_url)
+        task_id = f"runtime-{uuid.uuid4().hex}"
+        prompt_definitions = self._load_runtime_prompt_definitions()
+        remote_prompt_services: list[dict[str, object]] = []
+        registrations: list[dict[str, object]] = []
+        retirements: list[dict[str, object]] = []
+        sync_actions: list[dict[str, object]] = []
+        registration_payloads = [self._prompt_registration_payload(item) for item in prompt_definitions]
 
         try:
-            registration_payload = await self._register_email_classifier_prompt(normalized_target_base_url)
+            remote_prompt_services = await self._list_remote_prompt_services(normalized_target_base_url)
+            remote_prompts = {
+                str(item.get("prompt_id")): item
+                for item in remote_prompt_services
+                if isinstance(item, dict) and item.get("prompt_id")
+            }
+            for prompt_definition in prompt_definitions:
+                prompt_id = str(prompt_definition["prompt_id"])
+                local_version = str(prompt_definition["version"])
+                remote_record = remote_prompts.get(prompt_id)
+                remote_version = None
+                remote_status = None
+                if isinstance(remote_record, dict):
+                    remote_version = str(remote_record.get("current_version") or "") or None
+                    remote_status = str(remote_record.get("status") or "") or None
+                if remote_record is None:
+                    registration = await self._register_prompt_service(normalized_target_base_url, prompt_definition)
+                    registrations.append(registration)
+                    sync_actions.append(
+                        {"prompt_id": prompt_id, "action": "registered", "version": local_version, "remote_version": None}
+                    )
+                    continue
+                if remote_version == local_version and remote_status == "active":
+                    sync_actions.append(
+                        {"prompt_id": prompt_id, "action": "unchanged", "version": local_version, "remote_version": remote_version}
+                    )
+                    continue
+                if remote_status != "retired":
+                    retirement = await self._retire_prompt_service(
+                        normalized_target_base_url,
+                        prompt_id=prompt_id,
+                        reason=f"Replacing {remote_version or 'unknown'} with {local_version} from node prompt JSON.",
+                    )
+                    retirements.append(retirement)
+                registration = await self._register_prompt_service(normalized_target_base_url, prompt_definition)
+                registrations.append(registration)
+                sync_actions.append(
+                    {
+                        "prompt_id": prompt_id,
+                        "action": "replaced",
+                        "version": local_version,
+                        "remote_version": remote_version,
+                    }
+                )
         except Exception as exc:
             response_payload: dict[str, object] | None = None
             message = str(exc)
@@ -1403,155 +1562,97 @@ class NodeService:
                     response_body = exc.response.json()
                 except Exception:
                     response_body = exc.response.text
-                response_payload = {
-                    "status_code": exc.response.status_code,
-                    "body": response_body,
-                }
+                response_payload = {"status_code": exc.response.status_code, "body": response_body}
                 message = f"{message}: {response_body}"
-            now = datetime.now(UTC).isoformat()
-            current = self._runtime_task_state()
-            self._save_runtime_task_state(
-                request_status="failed",
-                last_step="register",
-                detail=message,
-                preview_response=current.get("preview_response"),
-                resolve_response=current.get("resolve_response"),
-                authorize_response=current.get("authorize_response"),
-                registration_request_payload=request_body,
-                execution_response=response_payload,
-                usage_summary_response=None,
-                started_at=current.get("started_at") or now,
-                updated_at=now,
-            )
+            if persist_runtime_state:
+                now = datetime.now(UTC).isoformat()
+                current = self._runtime_task_state()
+                self._save_runtime_task_state(
+                    request_status="failed",
+                    last_step="register",
+                    detail=message,
+                    preview_response=current.get("preview_response"),
+                    resolve_response=current.get("resolve_response"),
+                    authorize_response=current.get("authorize_response"),
+                    registration_request_payload={"prompts": registration_payloads},
+                    execution_response=response_payload,
+                    usage_summary_response=None,
+                    started_at=current.get("started_at") or now,
+                    updated_at=now,
+                )
             error = ValueError(message)
             error.detail = {
                 "message": message,
-                "request_payload": request_body,
+                "request_payload": {"prompts": registration_payloads},
                 "response_payload": response_payload,
             }
             raise error from exc
 
+        if sync_reason == "manual":
+            self.state.runtime_prompt_sync_target_api_base_url = normalized_target_base_url
+            self.state.runtime_prompt_sync_weekly_slot_key = self._prompt_sync_weekly_slot_key(datetime.now().astimezone())
+            self.state_store.save(self.state)
         result = {
             "ok": True,
-            "task_id": registration_id,
-            "trace_id": correlation_id or registration_id,
+            "task_id": task_id,
+            "trace_id": correlation_id or task_id,
             "target_api_base_url": normalized_target_base_url,
-            "request_payload": request_body,
-            "registration": registration_payload,
+            "request_payload": {"prompts": registration_payloads},
+            "remote_prompt_services": remote_prompt_services,
+            "registrations": registrations,
+            "retirements": retirements,
+            "sync_actions": sync_actions,
             "usage_summary": None,
         }
-        now = datetime.now(UTC).isoformat()
-        current = self._runtime_task_state()
-        self._save_runtime_task_state(
-            request_status="registered",
-            last_step="register",
-            detail="Registered prompt.email.classifier on the AI node prompt service.",
-            preview_response=current.get("preview_response"),
-            resolve_response=current.get("resolve_response"),
-            authorize_response=current.get("authorize_response"),
-            registration_request_payload=result["request_payload"],
-            execution_response=result["registration"],
-            usage_summary_response=None,
-            started_at=current.get("started_at") or now,
-            updated_at=now,
-        )
+        if persist_runtime_state:
+            now = datetime.now(UTC).isoformat()
+            current = self._runtime_task_state()
+            registered_count = sum(1 for item in sync_actions if item.get("action") == "registered")
+            replaced_count = sum(1 for item in sync_actions if item.get("action") == "replaced")
+            unchanged_count = sum(1 for item in sync_actions if item.get("action") == "unchanged")
+            self._save_runtime_task_state(
+                request_status="registered",
+                last_step="register",
+                detail=(
+                    f"Prompt sync completed: {registered_count} registered, "
+                    f"{replaced_count} replaced, {unchanged_count} unchanged."
+                ),
+                preview_response=current.get("preview_response"),
+                resolve_response=current.get("resolve_response"),
+                authorize_response=current.get("authorize_response"),
+                registration_request_payload=result["request_payload"],
+                execution_response={
+                    "registrations": registrations,
+                    "retirements": retirements,
+                    "sync_actions": sync_actions,
+                },
+                usage_summary_response=None,
+                started_at=current.get("started_at") or now,
+                updated_at=now,
+            )
         return result
 
-    def _email_classifier_prompt_registration_payload(self) -> dict[str, object]:
-        return {
-            "prompt_id": "prompt.email.classifier",
-            "service_id": "node-email",
-            "task_family": "task.classification",
-            "prompt_name": "Email Classifier",
-            "owner_service": "node-email",
-            "privacy_class": "internal",
-            "status": "active",
-            "execution_policy": {
-                "allow_direct_execution": True,
-                "allow_version_pinning": True,
-            },
-            "provider_preferences": {
-                "preferred_providers": ["openai"],
-            },
-            "constraints": {
-                "max_timeout_s": 60,
-                "structured_output_required": True,
-            },
-            "metadata": {
-                "purpose": "classify incoming email into email-node categories",
-                "labels": [
-                    "action_required",
-                    "direct_human",
-                    "financial",
-                    "order",
-                    "invoice",
-                    "shipment",
-                    "security",
-                    "system",
-                    "newsletter",
-                    "marketing",
-                    "unknown",
-                ],
-            },
-            "definition": {
-                "system_prompt": (
-                    "You are an email classification service for the Email Node. "
-                    "Classify the email into exactly one of the following labels: "
-                    "action_required, direct_human, financial, order, invoice, shipment, "
-                    "security, system, newsletter, marketing, unknown. Use the normalized "
-                    "email input as the source of truth. Be strict and prefer the most "
-                    "specific correct label. Classification guidance: action_required = "
-                    "direct action needed by the recipient; direct_human = person-to-person "
-                    "or community/personal message not primarily automated marketing; "
-                    "financial = banking, account balance, payments, loans, statements, "
-                    "financial activity unless a more specific invoice label clearly applies; "
-                    "order = order placed, order confirmation, purchase confirmation; "
-                    "invoice = bill, invoice, statement, receipt, charge record, payment "
-                    "receipt; shipment = shipped, out for delivery, delivered, pickup ready, "
-                    "travel/delivery status; security = fraud alerts, blocked activity, "
-                    "password resets, suspicious sign-in, account protection, website/app "
-                    "blocked, security monitoring; system = operational notices, "
-                    "product/account updates, app/account state changes, reminders, "
-                    "claims/repair status, task updates, service notifications; newsletter = "
-                    "digest, roundup, editorial updates, forum/news/community/event "
-                    "newsletters; marketing = promotions, discounts, offers, sales, product "
-                    "pushes, invitations to buy/apply/upgrade; unknown = only when the "
-                    "message does not fit any label with reasonable confidence. If multiple "
-                    "labels seem possible, choose the most specific one. Return JSON only "
-                    "with keys: label, confidence, rationale. confidence must be a number "
-                    "from 0.0 to 1.0. rationale must be short, one sentence max."
-                ),
-                "template_variables": ["normalized_text"],
-                "default_inputs": {},
-            },
-            "version": "v1",
-        }
+    @staticmethod
+    def _prompt_sync_weekly_slot_key(now: datetime) -> str:
+        iso_year, iso_week, _ = now.isocalendar()
+        return f"{iso_year}-W{iso_week:02d}"
 
-    async def _register_email_classifier_prompt(self, target_api_base_url: str) -> dict[str, object]:
-        request_body = self._email_classifier_prompt_registration_payload()
-        try:
-            AI_LOGGER.info(
-                "Registering email classifier prompt with AI node",
-                extra={"event_data": {"target_api_base_url": target_api_base_url}},
-            )
-            async with httpx.AsyncClient(
-                base_url=target_api_base_url,
-                timeout=self.core_client.timeout,
-                transport=self.core_client.transport,
-            ) as client:
-                registration_response = await client.post("/api/prompts/services", json=request_body)
-                registration_response.raise_for_status()
-                AI_LOGGER.info(
-                    "AI prompt registration completed",
-                    extra={"event_data": {"status_code": registration_response.status_code}},
-                )
-                return registration_response.json()
-        except Exception as exc:
-            AI_LOGGER.error(
-                "AI prompt registration failed",
-                extra={"event_data": {"target_api_base_url": target_api_base_url, "detail": str(exc)}},
-            )
-            raise ValueError(str(exc)) from exc
+    async def _run_weekly_prompt_sync_if_due(self) -> None:
+        target_api_base_url = self.state.runtime_prompt_sync_target_api_base_url
+        if not target_api_base_url:
+            return
+        now = datetime.now().astimezone()
+        slot_key = self._prompt_sync_weekly_slot_key(now)
+        if self.state.runtime_prompt_sync_weekly_slot_key == slot_key:
+            return
+        await self._sync_runtime_prompts(
+            target_api_base_url=target_api_base_url,
+            correlation_id=None,
+            persist_runtime_state=False,
+            sync_reason="weekly",
+        )
+        self.state.runtime_prompt_sync_weekly_slot_key = slot_key
+        self.state_store.save(self.state)
 
     async def runtime_execute_email_classifier(
         self,
@@ -1842,13 +1943,17 @@ class NodeService:
             my_addresses=my_addresses,
             sender_reputation=sender_reputation,
         )
+        prompt_definition = self._load_runtime_prompt_definition("prompt.email.classifier")
+        prompt_runtime = prompt_definition.get("node_runtime")
+        if not isinstance(prompt_runtime, dict) or not isinstance(prompt_runtime.get("json_schema"), dict):
+            raise ValueError("prompt.email.classifier is missing node_runtime.json_schema")
 
         task_id = self._next_email_classify_task_id()
         trace_id = correlation_id or f"trace-email-{uuid.uuid4().hex}"
         request_body = {
             "task_id": task_id,
-            "prompt_id": "prompt.email.classifier",
-            "prompt_version": "v1",
+            "prompt_id": str(prompt_definition["prompt_id"]),
+            "prompt_version": str(prompt_definition["version"]),
             "task_family": "task.classification",
             "requested_by": "node-email",
             "service_id": "node-email",
@@ -1856,39 +1961,9 @@ class NodeService:
             "trace_id": trace_id,
             "inputs": {
                 "text": normalized_text,
-                "json_schema": {
-                    "type": "object",
-                    "additionalProperties": False,
-                    "properties": {
-                        "label": {
-                            "type": "string",
-                            "enum": [
-                                "action_required",
-                                "direct_human",
-                                "financial",
-                                "order",
-                                "invoice",
-                                "shipment",
-                                "security",
-                                "system",
-                                "newsletter",
-                                "marketing",
-                                "unknown",
-                            ],
-                        },
-                        "confidence": {
-                            "type": "number",
-                            "minimum": 0,
-                            "maximum": 1,
-                        },
-                        "rationale": {
-                            "type": "string",
-                        },
-                    },
-                    "required": ["label", "confidence", "rationale"],
-                },
+                "json_schema": prompt_runtime["json_schema"],
             },
-            "timeout_s": 60,
+            "timeout_s": int(prompt_runtime.get("timeout_s", 60)),
         }
 
         try:
@@ -2916,6 +2991,13 @@ class NodeService:
                 self._set_gmail_fetch_notification_state("error", f"Gmail fetch scheduler failed: {exc}")
                 LOGGER.error(
                     "Scheduled Gmail fetch loop failed",
+                    extra={"event_data": {"detail": str(exc)}},
+                )
+            try:
+                await self._run_weekly_prompt_sync_if_due()
+            except Exception as exc:
+                AI_LOGGER.error(
+                    "Weekly prompt sync failed",
                     extra={"event_data": {"detail": str(exc)}},
                 )
             await asyncio.sleep(self._seconds_until_next_minute())

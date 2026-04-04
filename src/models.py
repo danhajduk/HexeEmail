@@ -104,6 +104,12 @@ class RuntimePromptExecutionRequestInput(BaseModel):
     body: str | None = None
 
 
+class RuntimePromptSyncRequestInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    target_api_base_url: str | None = None
+
+
 class RefreshTriggerRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -145,6 +151,8 @@ class RuntimeState(BaseModel):
     active_governance_version: str | None = None
     operational_readiness: bool = False
     runtime_email_classify_counter: int = 0
+    runtime_prompt_sync_target_api_base_url: str | None = None
+    runtime_prompt_sync_weekly_slot_key: str | None = None
     gmail_hourly_batch_classification_slot_key: str | None = None
     gmail_last_hour_pipeline_state: dict[str, object] = Field(default_factory=dict)
     gmail_fetch_scheduler_state: dict[str, object] = Field(default_factory=dict)
