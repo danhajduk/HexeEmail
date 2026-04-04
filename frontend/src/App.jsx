@@ -1944,6 +1944,7 @@ export function App() {
   const [uiUpdatedAt, setUiUpdatedAt] = useState(null);
   const [backendReachable, setBackendReachable] = useState(true);
   const [retryingBackend, setRetryingBackend] = useState(false);
+  const [bootstrapLoaded, setBootstrapLoaded] = useState(false);
 
   async function loadBootstrap({ fromRetry = false } = {}) {
     try {
@@ -1959,6 +1960,7 @@ export function App() {
         );
         setUiUpdatedAt(new Date().toISOString());
         setBackendReachable(true);
+        setBootstrapLoaded(true);
       });
 
       if (!touched) {
@@ -1972,6 +1974,7 @@ export function App() {
       setError("");
     } catch (fetchError) {
       setBackendReachable(false);
+      setBootstrapLoaded(true);
       setUiUpdatedAt(new Date().toISOString());
       setError(fetchError.message);
       if (!fromRetry) {
@@ -2203,6 +2206,9 @@ export function App() {
   }, [view]);
 
   useEffect(() => {
+    if (!bootstrapLoaded || !backendReachable) {
+      return;
+    }
     const dashboardReady = Boolean(bootstrap?.status?.operational_readiness);
     if (view === "provider") {
       return;
@@ -2214,7 +2220,7 @@ export function App() {
     if (!dashboardReady && view === "dashboard") {
       setView("setup");
     }
-  }, [bootstrap?.status?.operational_readiness, setupPinned, view]);
+  }, [backendReachable, bootstrap?.status?.operational_readiness, bootstrapLoaded, setupPinned, view]);
 
   function openSetup() {
     setSetupPinned(true);
