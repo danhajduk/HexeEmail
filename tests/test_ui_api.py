@@ -23,6 +23,7 @@ from providers.gmail.models import (
     GmailOAuthConfig,
     GmailSenderReputationInputs,
     GmailSenderReputationRecord,
+    GmailShipmentRecord,
     GmailSpamhausCheck,
     GmailStoredMessage,
     GmailTokenRecord,
@@ -1325,6 +1326,45 @@ async def test_ui_bootstrap_exposes_scheduled_tasks(config, core_client_factory)
     assert monthly_next.day == 1
     assert monthly_next.hour == 0
     assert monthly_next.minute == 1
+
+
+@pytest.mark.asyncio
+async def test_ui_bootstrap_exposes_tracked_orders(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    gmail_adapter = service.provider_registry.get_provider("gmail")
+    gmail_adapter.message_store.upsert_shipment_record(
+        GmailShipmentRecord(
+            account_id="primary",
+            record_id="ship-1",
+            seller="amazon",
+            carrier="fedex",
+            order_number="111-1234567-1234567",
+            tracking_number="449044304137821",
+            domain="amazon.com",
+            last_known_status="delivered",
+            last_seen_at=datetime(2026, 4, 3, 11, 0, 0).astimezone(),
+            status_updated_at=datetime(2026, 4, 3, 11, 0, 0).astimezone(),
+            updated_at=datetime(2026, 4, 3, 11, 5, 0).astimezone(),
+        )
+    )
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/node/bootstrap")
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["tracked_orders"]) == 1
+    tracked = body["tracked_orders"][0]
+    assert tracked["account_id"] == "primary"
+    assert tracked["seller"] == "amazon"
+    assert tracked["carrier"] == "fedex"
+    assert tracked["order_number"] == "111-1234567-1234567"
+    assert tracked["tracking_number"] == "449044304137821"
+    assert tracked["last_known_status"] == "delivered"
 
 
 @pytest.mark.asyncio

@@ -256,6 +256,7 @@ class UiBootstrapResponse(BaseModel):
     runtime_task_state: dict[str, object] = Field(default_factory=dict)
     scheduled_tasks: list[dict[str, object]] = Field(default_factory=list)
     scheduled_task_legend: list[dict[str, object]] = Field(default_factory=list)
+    tracked_orders: list[dict[str, object]] = Field(default_factory=list)
 
 
 class GmailConnectStartResponse(BaseModel):

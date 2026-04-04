@@ -818,6 +818,33 @@ class GmailMessageStore:
             ).fetchall()
         return [self._row_to_shipment_record(row) for row in rows]
 
+    def list_all_shipment_records(self, *, limit: int = 500) -> list[GmailShipmentRecord]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    account_id,
+                    record_id,
+                    seller,
+                    carrier,
+                    order_number,
+                    tracking_number,
+                    domain,
+                    last_known_status,
+                    last_seen_at,
+                    status_updated_at,
+                    updated_at
+                FROM gmail_shipment_records
+                ORDER BY
+                    COALESCE(status_updated_at, last_seen_at, updated_at) DESC,
+                    updated_at DESC,
+                    record_id ASC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        return [self._row_to_shipment_record(row) for row in rows]
+
     def get_shipment_record(self, account_id: str, record_id: str) -> GmailShipmentRecord | None:
         with self._connect() as connection:
             row = connection.execute(

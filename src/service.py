@@ -576,6 +576,26 @@ class NodeService:
         ]
         return tasks
 
+    def _tracked_orders_snapshot(self) -> list[dict[str, object]]:
+        gmail_adapter = self.provider_registry.get_provider("gmail")
+        records = gmail_adapter.message_store.list_all_shipment_records(limit=500)
+        return [
+            {
+                "account_id": record.account_id,
+                "record_id": record.record_id,
+                "seller": record.seller,
+                "carrier": record.carrier,
+                "order_number": record.order_number,
+                "tracking_number": record.tracking_number,
+                "domain": record.domain,
+                "last_known_status": record.last_known_status,
+                "last_seen_at": record.last_seen_at.isoformat() if record.last_seen_at is not None else None,
+                "status_updated_at": record.status_updated_at.isoformat() if record.status_updated_at is not None else None,
+                "updated_at": record.updated_at.isoformat() if record.updated_at is not None else None,
+            }
+            for record in records
+        ]
+
     def _next_email_classify_task_id(self) -> str:
         next_counter = int(self.state.runtime_email_classify_counter or 0) + 1
         self.state.runtime_email_classify_counter = next_counter
@@ -3235,6 +3255,7 @@ class NodeService:
             runtime_task_state=self._runtime_task_state(),
             scheduled_tasks=self._scheduled_tasks_snapshot(),
             scheduled_task_legend=self._scheduled_task_legend(),
+            tracked_orders=self._tracked_orders_snapshot(),
         )
 
     async def governance_status(self) -> dict[str, object]:

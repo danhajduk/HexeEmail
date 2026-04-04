@@ -62,7 +62,7 @@ const TRAINING_LABEL_OPTIONS = [
   "unknown",
 ];
 
-const DASHBOARD_SECTIONS = new Set(["overview", "gmail", "runtime", "scheduled"]);
+const DASHBOARD_SECTIONS = new Set(["overview", "gmail", "runtime", "scheduled", "orders"]);
 
 function parseHashRoute(hash) {
   const normalized = String(hash || "").replace(/^#\/?/, "").replace(/^\/+|\/+$/g, "");
@@ -257,6 +257,15 @@ function formatScheduleTimestamp(value) {
     return "-";
   }
   return formatTelemetryTimestamp(value);
+}
+
+function trackedOrderSortTime(record) {
+  const value = record?.status_updated_at || record?.last_seen_at || record?.updated_at || null;
+  if (!value) {
+    return Number.POSITIVE_INFINITY;
+  }
+  const parsed = new Date(value).getTime();
+  return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed;
 }
 
 function deriveModelTrainingState(modelStatus, providerConnected) {
@@ -3334,6 +3343,15 @@ export function App() {
   const scheduledTaskLegend = Array.isArray(bootstrap?.scheduled_task_legend) && bootstrap.scheduled_task_legend.length
     ? bootstrap.scheduled_task_legend
     : FALLBACK_SCHEDULED_TASK_LEGEND;
+  const trackedOrders = Array.isArray(bootstrap?.tracked_orders) ? bootstrap.tracked_orders : [];
+  const trackedOrdersSorted = [...trackedOrders].sort((left, right) => {
+    const leftTime = trackedOrderSortTime(left);
+    const rightTime = trackedOrderSortTime(right);
+    if (leftTime !== rightTime) {
+      return rightTime - leftTime;
+    }
+    return String(left?.order_number || left?.record_id || "").localeCompare(String(right?.order_number || right?.record_id || ""));
+  });
   const mqttHealth = status?.mqtt_health || {};
   const lastHeartbeatAt = mqttHealth?.last_status_report_at || status?.last_heartbeat_at || null;
   const mqttConnected = status?.mqtt_connection_status === "connected" || mqttHealth?.health_status === "connected";
@@ -3574,6 +3592,13 @@ export function App() {
                   onClick={() => openDashboard("scheduled")}
                 >
                   Scheduled Tasks
+                </button>
+                <button
+                  type="button"
+                  className={`btn operational-nav-btn ${dashboardSection === "orders" ? "btn-primary" : ""}`}
+                  onClick={() => openDashboard("orders")}
+                >
+                  Tracked Orders
                 </button>
                 <button type="button" className="btn operational-nav-btn">Activity</button>
                 <button type="button" className="btn operational-nav-btn">Diagnostics</button>
@@ -4195,6 +4220,57 @@ export function App() {
                         </div>
                       ))}
                     </div>
+                  </article>
+                </section>
+              ) : dashboardSection === "orders" ? (
+                <section className="grid scheduled-tasks-grid">
+                  <article className="card scheduled-tasks-card">
+                    <div className="card-header">
+                      <h2>Tracked Orders</h2>
+                      <p className="muted">Existing shipment and order records tracked by the local Gmail shipment reconciler.</p>
+                    </div>
+                    {trackedOrdersSorted.length ? (
+                      <div className="scheduled-tasks-table-wrap">
+                        <table className="scheduled-tasks-table">
+                          <thead>
+                            <tr>
+                              <th>Seller</th>
+                              <th>Carrier</th>
+                              <th>Order Number</th>
+                              <th>Tracking Number</th>
+                              <th>Status</th>
+                              <th>Domain</th>
+                              <th>Account</th>
+                              <th>Last Seen</th>
+                              <th>Status Updated</th>
+                              <th>Updated</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {trackedOrdersSorted.map((record) => (
+                              <tr key={`${record.account_id || "account"}:${record.record_id || record.order_number || record.tracking_number || "record"}`}>
+                                <td>{record.seller || "-"}</td>
+                                <td>{record.carrier || "-"}</td>
+                                <td><code>{record.order_number || "-"}</code></td>
+                                <td><code>{record.tracking_number || "-"}</code></td>
+                                <td>
+                                  <span className={`status-pill tone-${record.last_known_status ? "success" : "neutral"}`}>
+                                    {record.last_known_status || "unknown"}
+                                  </span>
+                                </td>
+                                <td>{record.domain || "-"}</td>
+                                <td>{record.account_id || "-"}</td>
+                                <td>{formatScheduleTimestamp(record.last_seen_at)}</td>
+                                <td>{formatScheduleTimestamp(record.status_updated_at)}</td>
+                                <td>{formatScheduleTimestamp(record.updated_at)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="callout">No tracked order records are available yet.</div>
+                    )}
                   </article>
                 </section>
               ) : (
