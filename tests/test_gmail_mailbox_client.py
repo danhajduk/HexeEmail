@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import base64
 
 from fastapi import FastAPI, Query
 from httpx import ASGITransport
@@ -105,6 +106,41 @@ async def test_gmail_mailbox_client_fetches_message_metadata():
     assert messages[0].subject == "Hello"
     assert messages[0].sender == "Sender <sender@example.com>"
     assert messages[0].recipients == ["primary@example.com"]
+
+
+@pytest.mark.asyncio
+async def test_gmail_mailbox_client_fetches_full_message_text_from_plain_part():
+    app = FastAPI()
+    encoded_text = base64.urlsafe_b64encode(b"Hello Dan,\nYour order ships tomorrow.\n").decode("ascii").rstrip("=")
+
+    @app.get("/messages/msg-1")
+    async def get_message():
+        return {
+            "id": "msg-1",
+            "threadId": "thread-1",
+            "snippet": "Your order ships tomorrow.",
+            "payload": {
+                "mimeType": "multipart/alternative",
+                "parts": [
+                    {
+                        "mimeType": "text/plain",
+                        "body": {
+                            "data": encoded_text,
+                        },
+                    }
+                ],
+            },
+        }
+
+    client = GmailMailboxClient(transport=ASGITransport(app=app))
+    client.MESSAGE_ENDPOINT_TEMPLATE = "http://google.test/messages/{message_id}"
+    token = GmailTokenRecord(account_id="primary", access_token="access-token")
+
+    full_message = await client.fetch_full_message_text(token_record=token, message_id="msg-1")
+    await client.aclose()
+
+    assert full_message["message_id"] == "msg-1"
+    assert full_message["text_body"] == "Hello Dan,\nYour order ships tomorrow."
 
 
 @pytest.mark.asyncio

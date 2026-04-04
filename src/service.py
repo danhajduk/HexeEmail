@@ -746,18 +746,21 @@ class NodeService:
         *,
         account_id: str,
         message,
+        full_message_text: str | None = None,
+        full_message_payload: dict[str, object] | None = None,
     ) -> dict[str, object]:
         adapter = self.provider_registry.get_provider("gmail")
         account_record = adapter.account_store.load_account(account_id)
         my_addresses = [account_record.email_address] if account_record is not None and account_record.email_address else []
-        payload = self._message_payload_json(message.raw_payload)
+        payload = full_message_payload if isinstance(full_message_payload, dict) else self._message_payload_json(message.raw_payload)
         header_map = self._message_header_map(payload)
         from_name, from_email = parseaddr(message.sender or header_map.get("from", ""))
         to_recipients = [address for _, address in getaddresses([header_map.get("to", "")]) if address]
         cc_recipients = [address for _, address in getaddresses([header_map.get("cc", "")]) if address]
         if not to_recipients:
             to_recipients = [recipient for recipient in message.recipients if recipient]
-        normalized_body_text = normalize_email_for_classifier(message, my_addresses=my_addresses)
+        extracted_text = str(full_message_text or "").strip()
+        normalized_body_text = extracted_text or normalize_email_for_classifier(message, my_addresses=my_addresses)
         return {
             "text": normalized_body_text,
             "account_id": account_id,
@@ -801,6 +804,28 @@ class NodeService:
         normalized_target_base_url = self._normalize_target_api_base_url(
             target_api_base_url or self._default_ai_runtime_target_api_base_url()
         )
+        adapter = self.provider_registry.get_provider("gmail")
+        full_message_text = None
+        full_message_payload = None
+        if hasattr(adapter, "fetch_full_message_text"):
+            try:
+                full_message = await adapter.fetch_full_message_text(account_id, message.message_id)
+            except Exception as exc:
+                AI_LOGGER.warning(
+                    "Full Gmail message fetch for action decision failed; using stored message fallback",
+                    extra={
+                        "event_data": {
+                            "message_id": message.message_id,
+                            "detail": str(exc),
+                        }
+                    },
+                )
+            else:
+                if isinstance(full_message, dict):
+                    full_message_text = str(full_message.get("text_body") or "").strip() or None
+                    raw_payload = full_message.get("raw_payload")
+                    if isinstance(raw_payload, dict):
+                        full_message_payload = raw_payload
         request_body = {
             "task_id": f"email-action-{uuid.uuid4().hex}",
             "prompt_id": str(prompt_definition["prompt_id"]),
@@ -811,7 +836,12 @@ class NodeService:
             "customer_id": "local-user",
             "trace_id": f"trace-action-{uuid.uuid4().hex}",
             "inputs": {
-                **self._build_action_decision_inputs(account_id=account_id, message=message),
+                **self._build_action_decision_inputs(
+                    account_id=account_id,
+                    message=message,
+                    full_message_text=full_message_text,
+                    full_message_payload=full_message_payload,
+                ),
                 "json_schema": prompt_runtime["json_schema"],
             },
             "timeout_s": int(prompt_runtime.get("timeout_s", 45)),

@@ -905,6 +905,35 @@ async def test_runtime_execute_latest_email_action_decision_uses_newest_actionab
         local_label_confidence=0.96,
     )
     adapter.message_store.upsert_messages([older_action, newest_order])
+    google_app = FastAPI()
+
+    @google_app.get("/messages/{message_id}")
+    async def get_full_message(message_id: str):
+        assert message_id == "order-newest"
+        return {
+            "id": "order-newest",
+            "threadId": "thread-1",
+            "snippet": "Amazon order",
+            "payload": {
+                "mimeType": "multipart/alternative",
+                "headers": [
+                    {"name": "From", "value": "Order Sender <order@example.com>"},
+                    {"name": "To", "value": "primary@example.com"},
+                    {"name": "Subject", "value": "Newest order"},
+                ],
+                "parts": [
+                    {
+                        "mimeType": "text/plain",
+                        "body": {
+                            "data": "RnVsbCBlbWFpbCBib2R5IGZvciBhY3Rpb24gZGVjaXNpb24u"
+                        },
+                    }
+                ],
+            },
+        }
+
+    adapter.mailbox_client._client = httpx.AsyncClient(transport=ASGITransport(app=google_app), timeout=10.0)
+    adapter.mailbox_client.MESSAGE_ENDPOINT_TEMPLATE = "http://google.test/messages/{message_id}"
     app = create_app(config=config, service=service)
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -928,7 +957,8 @@ async def test_runtime_execute_latest_email_action_decision_uses_newest_actionab
     assert execution_request["prompt_id"] == "prompt.email.action_decision"
     assert execution_request["prompt_version"] == "v1.1"
     assert execution_request["inputs"]["message_id"] == "order-newest"
-    assert execution_request["inputs"]["text"]
+    assert execution_request["inputs"]["text"] == "Full email body for action decision."
+    assert execution_request["inputs"]["body_text"] == "Full email body for action decision."
 
 
 @pytest.mark.asyncio

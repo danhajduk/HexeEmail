@@ -230,3 +230,18 @@ Original task details:
 - retire the legacy `training_model_meta.json` path after the DB migration is stable
 - remove unnecessary runtime JSON writes for local model metadata
 - keep the local model binary file if still needed, but stop using JSON for the model metadata state
+
+## Task 107
+Original task details:
+- before sending an email to the AI action-decision flow, fetch the full Gmail message by `message_id`
+- do this for the action-decision path instead of relying only on the locally stored normalized message/snippet view
+- keep the fetch scoped to the target message so it does not disturb the existing batch fetch windows
+- use the fetched full message as the source for the action-decision input build
+
+## Task 108
+Original task details:
+- build a text-only email extraction path for the full-message fetch used by AI action decision
+- prefer Gmail `text/plain` content when available
+- if the message is HTML-only, convert the HTML body to readable plain text before sending to AI
+- use that extracted text for the AI action-decision request instead of the current normalized classifier body text
+- keep attachments out of the AI body text for now

@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import calendar
 import json
+import re
 from datetime import datetime, timedelta
 from email.utils import getaddresses
+from html import unescape
 
 import httpx
 
@@ -263,12 +266,103 @@ class GmailMailboxClient:
             raw_payload=json.dumps(payload, separators=(",", ":")),
         )
 
+    async def fetch_full_message_text(
+        self,
+        *,
+        token_record: GmailTokenRecord,
+        message_id: str,
+    ) -> dict[str, object]:
+        response = await self._gmail_get(
+            account_id=token_record.account_id,
+            access_token=token_record.access_token,
+            url=self.MESSAGE_ENDPOINT_TEMPLATE.format(message_id=message_id),
+            params={
+                "format": "full",
+            },
+            operation="messages.get",
+            quota_units=self.MESSAGE_GET_QUOTA_UNITS,
+        )
+        payload = self._json_payload(response, "gmail full message fetch")
+        if response.is_error:
+            detail = payload.get("error", {}).get("message") if isinstance(payload, dict) else None
+            raise GmailMailboxClientError(detail or f"gmail full message fetch failed with status {response.status_code}")
+        if not isinstance(payload, dict):
+            raise GmailMailboxClientError("gmail full message fetch returned an invalid payload")
+        text_body = self._extract_text_body(payload)
+        return {
+            "message_id": payload.get("id") if isinstance(payload.get("id"), str) else message_id,
+            "thread_id": payload.get("threadId") if isinstance(payload.get("threadId"), str) else None,
+            "snippet": payload.get("snippet") if isinstance(payload.get("snippet"), str) else None,
+            "text_body": text_body,
+            "raw_payload": payload,
+        }
+
     def _parse_internal_date(self, value: object) -> datetime:
         if isinstance(value, str) and value.isdigit():
             return datetime.fromtimestamp(int(value) / 1000).astimezone()
         if isinstance(value, int):
             return datetime.fromtimestamp(value / 1000).astimezone()
         return datetime.now().astimezone()
+
+    def _extract_text_body(self, payload: dict[str, object]) -> str:
+        gmail_payload = payload.get("payload")
+        if not isinstance(gmail_payload, dict):
+            return ""
+        text_parts = self._collect_mime_parts(gmail_payload, mime_type="text/plain")
+        if text_parts:
+            return self._normalize_extracted_text("\n\n".join(text_parts))
+        html_parts = self._collect_mime_parts(gmail_payload, mime_type="text/html")
+        if html_parts:
+            html_text = "\n\n".join(self._html_to_text(part) for part in html_parts if part)
+            return self._normalize_extracted_text(html_text)
+        body_data = self._decode_body_data(gmail_payload)
+        if body_data:
+            return self._normalize_extracted_text(body_data)
+        return ""
+
+    def _collect_mime_parts(self, payload: dict[str, object], *, mime_type: str) -> list[str]:
+        collected: list[str] = []
+        payload_mime_type = str(payload.get("mimeType") or "").lower()
+        if payload_mime_type == mime_type:
+            decoded = self._decode_body_data(payload)
+            if decoded:
+                collected.append(decoded)
+        parts = payload.get("parts")
+        if isinstance(parts, list):
+            for part in parts:
+                if isinstance(part, dict):
+                    collected.extend(self._collect_mime_parts(part, mime_type=mime_type))
+        return collected
+
+    def _decode_body_data(self, payload: dict[str, object]) -> str:
+        body = payload.get("body")
+        if not isinstance(body, dict):
+            return ""
+        data = body.get("data")
+        if not isinstance(data, str) or not data:
+            return ""
+        padding = "=" * (-len(data) % 4)
+        try:
+            decoded = base64.urlsafe_b64decode((data + padding).encode("ascii")).decode("utf-8", errors="replace")
+        except Exception:
+            return ""
+        return decoded
+
+    def _html_to_text(self, html: str) -> str:
+        text = re.sub(r"(?i)<\s*br\s*/?\s*>", "\n", html)
+        text = re.sub(r"(?i)</\s*p\s*>", "\n\n", text)
+        text = re.sub(r"(?i)</\s*div\s*>", "\n", text)
+        text = re.sub(r"(?i)<\s*li\s*>", "- ", text)
+        text = re.sub(r"(?is)<\s*script.*?>.*?<\s*/\s*script\s*>", " ", text)
+        text = re.sub(r"(?is)<\s*style.*?>.*?<\s*/\s*style\s*>", " ", text)
+        text = re.sub(r"(?s)<[^>]+>", " ", text)
+        return unescape(text)
+
+    def _normalize_extracted_text(self, text: str) -> str:
+        normalized = text.replace("\r\n", "\n").replace("\r", "\n")
+        normalized = re.sub(r"\n{3,}", "\n\n", normalized)
+        normalized = re.sub(r"[ \t]+", " ", normalized)
+        return "\n".join(line.strip() for line in normalized.split("\n")).strip()
 
     def _json_payload(self, response: httpx.Response, operation: str) -> object:
         try:

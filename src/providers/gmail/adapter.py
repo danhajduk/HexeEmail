@@ -258,6 +258,23 @@ class GmailProviderAdapter(EmailProviderAdapter):
     async def message_store_summary(self, account_id: str) -> dict[str, object]:
         return self.message_store.account_summary(account_id)
 
+    async def fetch_full_message_text(self, account_id: str, message_id: str) -> dict[str, object]:
+        try:
+            oauth_config = self.config_store.load()
+        except GmailProviderConfigError as exc:
+            raise GmailMailboxClientError(str(exc)) from exc
+        token_record = await self.token_client.refresh_if_needed(
+            oauth_config,
+            account_id=account_id,
+            token_store=self.token_store,
+            account_store=self.account_store,
+        )
+        if token_record is None:
+            raise GmailMailboxClientError("gmail token is not available yet")
+        if getattr(self.mailbox_client, "quota_tracker", None) is None:
+            self.mailbox_client.quota_tracker = self.quota_tracker
+        return await self.mailbox_client.fetch_full_message_text(token_record=token_record, message_id=message_id)
+
     async def available_labels(self, account_id: str, *, refresh: bool = True) -> dict[str, object]:
         account_record = self.account_store.load_account(account_id)
         cached = self.label_cache_store.load(account_id)

@@ -104,3 +104,5 @@ Task 103: Add runtime settings and model metadata tables in SQLite - Completed o
 Task 104: Move Gmail local model metadata from JSON to SQLite - Completed on 04/03/2026 19:02
 Task 105: Update runtime and UI status reads to use DB-backed model metadata - Completed on 04/03/2026 19:02
 Task 106: Retire legacy training model metadata JSON after migration - Completed on 04/03/2026 19:02
+Task 107: Fetch full Gmail message before AI action decision - Completed on 04/03/2026 19:23
+Task 108: Build text-only full-email extraction for AI action decision - Completed on 04/03/2026 19:23
