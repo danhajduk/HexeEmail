@@ -146,7 +146,8 @@ async def test_trust_activation_publishes_online_notification(core_client_factor
 @pytest.mark.asyncio
 async def test_action_required_email_notification_is_reusable_and_marks_message(config, core_client_factory):
     mqtt_manager = FakeMQTTManager()
-    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=mqtt_manager)
+    core_app = build_core_app()
+    service = NodeService(config, core_client=core_client_factory(core_app), mqtt_manager=mqtt_manager)
     service.state.trust_state = "trusted"
     service.state.node_id = "node-1"
     service.mqtt_manager.status.state = "connected"
@@ -179,7 +180,7 @@ async def test_action_required_email_notification_is_reusable_and_marks_message(
         )
     )
 
-    sent = service._notify_for_new_email_classification(
+    sent = await service._notify_for_new_email_classification(
         account_id="primary",
         message_id="msg-1",
         classification_label=GmailTrainingLabel.ACTION_REQUIRED,
@@ -189,15 +190,24 @@ async def test_action_required_email_notification_is_reusable_and_marks_message(
 
     assert sent is True
     assert len(mqtt_manager.notification_requests) == 1
+    assert len(core_app.state.execution_direct_requests) == 1
     request = mqtt_manager.notification_requests[0]
     assert request.content is not None
     assert "Sender <sender@example.com>" in (request.content.message or "")
     assert "Please approve today" in (request.content.message or "")
-    assert "0.97" in (request.content.message or "")
+    assert "Summary: Email needs a user response soon." in (request.content.message or "")
+    assert "Recommended actions:" in (request.content.message or "")
+    assert "Flag Follow Up Needed" in (request.content.message or "")
+    assert "Human review required: yes" in (request.content.message or "")
+    assert "Classifier confidence: 0.97" in (request.content.message or "")
     assert "Sender reputation: risky (-1.50)" in (request.content.message or "")
     assert store.has_notification_label("primary", "msg-1", GmailTrainingLabel.ACTION_REQUIRED.value) is True
+    saved_message = store.get_message("primary", "msg-1")
+    assert saved_message is not None
+    assert saved_message.action_decision_payload is not None
+    assert saved_message.action_decision_payload["summary"] == "Email needs a user response soon."
 
-    sent_again = service._notify_for_new_email_classification(
+    sent_again = await service._notify_for_new_email_classification(
         account_id="primary",
         message_id="msg-1",
         classification_label=GmailTrainingLabel.ACTION_REQUIRED,
@@ -230,7 +240,7 @@ async def test_order_email_notification_uses_order_flag(config, core_client_fact
         ]
     )
 
-    sent = service._notify_for_new_email_classification(
+    sent = await service._notify_for_new_email_classification(
         account_id="primary",
         message_id="msg-2",
         classification_label=GmailTrainingLabel.ORDER,
@@ -243,8 +253,9 @@ async def test_order_email_notification_uses_order_flag(config, core_client_fact
     request = mqtt_manager.notification_requests[0]
     assert request.content is not None
     assert "Your order has shipped" in (request.content.message or "")
+    assert "Summary: Email needs a user response soon." in (request.content.message or "")
     assert request.delivery is not None
-    assert request.delivery.urgency == "notification"
+    assert request.delivery.urgency == "actions_needed"
     assert store.has_notification_label("primary", "msg-2", GmailTrainingLabel.ORDER.value) is True
 
 

@@ -206,6 +206,41 @@ def test_gmail_message_store_tracks_notification_flags_per_label(runtime_dir):
     assert store.has_notification_label("primary", "msg-1", GmailTrainingLabel.ORDER.value) is False
 
 
+def test_gmail_message_store_persists_action_decision_payload(runtime_dir):
+    store = GmailMessageStore(runtime_dir)
+    store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="msg-1",
+                subject="Review order",
+                sender="Sender <sender@example.com>",
+                received_at=datetime(2026, 4, 2, 12, 0, 0),
+            )
+        ],
+        now=datetime(2026, 4, 2, 12, 30, 0),
+    )
+
+    store.update_action_decision(
+        "primary",
+        "msg-1",
+        payload={
+            "summary": "Needs review",
+            "recommended_actions": [{"action": "notify", "confidence": 0.9, "reason": "Important"}],
+        },
+        prompt_version="v1",
+        updated_at=datetime(2026, 4, 2, 12, 45, 0),
+    )
+
+    saved = store.get_message("primary", "msg-1")
+
+    assert saved is not None
+    assert saved.action_decision_payload is not None
+    assert saved.action_decision_payload["summary"] == "Needs review"
+    assert saved.action_decision_prompt_version == "v1"
+    assert saved.action_decision_updated_at == datetime(2026, 4, 2, 12, 45, 0)
+
+
 def test_gmail_message_store_persists_sender_reputation_records(runtime_dir):
     store = GmailMessageStore(runtime_dir)
 

@@ -1,0 +1,258 @@
+{
+  "prompt_id": "prompt.email.action_decision",
+  "service_id": "node-email",
+  "task_family": "task.classification",
+  "prompt_name": "Email action decision",
+  "owner_service": "node-email",
+  "privacy_class": "restricted",
+  "execution_policy": {
+    "allow_direct_execution": true,
+    "allow_version_pinning": true
+  },
+  "provider_preferences": {
+    "default_provider": "openai",
+    "default_model": "gpt-5.4-mini",
+    "preferred_models": [
+      "gpt-5.4-mini",
+      "gpt-5-mini"
+    ]
+  },
+  "constraints": {
+    "max_timeout_s": 45,
+    "structured_output_required": true
+  },
+  "definition": {
+    "system_prompt": "You are an email decision engine for Hexe Email Node. Read the full normalized email and return a structured classification and action decision. You must classify the email into exactly one canonical label from this allowed set: ACTION_REQUIRED, DIRECT_HUMAN, FINANCIAL, ORDER, INVOICE, SHIPMENT, SECURITY, SYSTEM, NEWSLETTER, MARKETING, UNKNOWN. Do not invent new labels. Then identify urgency, delivery/calendar/time-sensitive signals, and recommended next actions. Be conservative when uncertain. Prefer human review when the message is ambiguous, risky, security-related, financially sensitive, or could trigger an unwanted automated action. Return JSON only.",
+    "prompt_template": "Analyze the following email and return a structured JSON decision.\n\nEmail metadata:\n- account_id: {{account_id}}\n- message_id: {{message_id}}\n- thread_id: {{thread_id}}\n- received_at: {{received_at}}\n- subject: {{subject}}\n- from_name: {{from_name}}\n- from_email: {{from_email}}\n- to: {{to_recipients}}\n- cc: {{cc_recipients}}\n- labels: {{labels}}\n- has_attachments: {{has_attachments}}\n\nEmail body:\n{{body_text}}\n\nOptional snippet:\n{{snippet}}\n\nReturn JSON with this shape:\n{\n  \"primary_label\": \"ACTION_REQUIRED|DIRECT_HUMAN|FINANCIAL|ORDER|INVOICE|SHIPMENT|SECURITY|SYSTEM|NEWSLETTER|MARKETING|UNKNOWN\",\n  \"summary\": \"short summary\",\n  \"urgency\": \"low|normal|high|urgent\",\n  \"confidence\": 0.0,\n  \"recommended_actions\": [\n    {\n      \"action\": \"none|notify|track_shipment|flag_time_sensitive|flag_calendar_candidate|flag_follow_up_needed|mark_priority|human_review_required\",\n      \"confidence\": 0.0,\n      \"reason\": \"short reason\"\n    }\n  ],\n  \"tracking_signals\": {\n    \"is_shipment_related\": false,\n    \"carrier\": null,\n    \"tracking_numbers\": [],\n    \"delivery_status\": null\n  },\n  \"calendar_signals\": {\n    \"has_calendar_invite\": false,\n    \"has_meeting_request\": false,\n    \"time_mentions\": []\n  },\n  \"time_signals\": {\n    \"is_time_sensitive\": false,\n    \"deadline_mentions\": [],\n    \"time_window_mentions\": []\n  },\n  \"sender_signal\": {\n    \"trust_hint\": \"trusted|neutral|suspicious|unknown\",\n    \"reasons\": []\n  },\n  \"human_review_required\": false\n}\n\nClassification guidance:\n- ACTION_REQUIRED: message requires a user action, response, confirmation, decision, or next step.\n- DIRECT_HUMAN: clearly personal or directly human communication not best treated as automated system mail.\n- FINANCIAL: finance-related communication that is not better classified as invoice/order/shipment.\n- ORDER: purchase/order lifecycle communication.\n- INVOICE: invoice, bill, receipt, billing statement, payment record, or charge-related document.\n- SHIPMENT: shipping, delivery, package tracking, carrier updates.\n- SECURITY: login alerts, verification, suspicious access, password/security events.\n- SYSTEM: automated service/system messages not better classified elsewhere.\n- NEWSLETTER: subscription/news digest/editorial bulk content.\n- MARKETING: promotions, offers, campaigns, ads, sales outreach.\n- UNKNOWN: not enough evidence for a stronger class.\n\nAction rules:\n- If the email is shipment or delivery related, include track_shipment.\n- If the email includes deadlines, appointments, expiring links, delivery windows, or urgent required steps, include flag_time_sensitive.\n- If the email appears to include a meeting invite or scheduling request, include flag_calendar_candidate.\n- If the email clearly needs a later response or manual step, include flag_follow_up_needed.\n- If the email is risky, suspicious, security-sensitive, financially sensitive, or ambiguous, include human_review_required.\n- If the email is obviously important, include mark_priority.\n- Use none only when no action signal is needed.\n- Return JSON only.",
+    "template_variables": [
+      "account_id",
+      "message_id",
+      "thread_id",
+      "received_at",
+      "subject",
+      "from_name",
+      "from_email",
+      "to_recipients",
+      "cc_recipients",
+      "labels",
+      "has_attachments",
+      "body_text",
+      "snippet"
+    ],
+    "default_inputs": {
+      "cc_recipients": [],
+      "labels": [],
+      "has_attachments": false,
+      "snippet": ""
+    }
+  },
+  "version": "v1.1",
+  "status": "active",
+  "metadata": {
+    "content_type": "email",
+    "prompt_role": "classification_and_action_decision",
+    "delegated_by": "node-email",
+    "intended_executor": "node-ai",
+    "canonical_label_source": "GmailTrainingLabel"
+  },
+  "node_runtime": {
+    "timeout_s": 45,
+    "json_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "primary_label": {
+          "type": "string",
+          "enum": [
+            "ACTION_REQUIRED",
+            "DIRECT_HUMAN",
+            "FINANCIAL",
+            "ORDER",
+            "INVOICE",
+            "SHIPMENT",
+            "SECURITY",
+            "SYSTEM",
+            "NEWSLETTER",
+            "MARKETING",
+            "UNKNOWN"
+          ]
+        },
+        "summary": {
+          "type": "string"
+        },
+        "urgency": {
+          "type": "string",
+          "enum": [
+            "low",
+            "normal",
+            "high",
+            "urgent"
+          ]
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "recommended_actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "notify",
+                  "summarize",
+                  "track_shipment",
+                  "flag_time_sensitive",
+                  "flag_calendar_candidate",
+                  "flag_follow_up_needed",
+                  "mark_priority",
+                  "human_review_required"
+                ]
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "action",
+              "confidence",
+              "reason"
+            ]
+          }
+        },
+        "tracking_signals": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "is_shipment_related": {
+              "type": "boolean"
+            },
+            "carrier": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "tracking_numbers": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "delivery_status": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "is_shipment_related",
+            "carrier",
+            "tracking_numbers",
+            "delivery_status"
+          ]
+        },
+        "calendar_signals": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "has_calendar_invite": {
+              "type": "boolean"
+            },
+            "has_meeting_request": {
+              "type": "boolean"
+            },
+            "time_mentions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "has_calendar_invite",
+            "has_meeting_request",
+            "time_mentions"
+          ]
+        },
+        "time_signals": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "is_time_sensitive": {
+              "type": "boolean"
+            },
+            "deadline_mentions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "time_window_mentions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "is_time_sensitive",
+            "deadline_mentions",
+            "time_window_mentions"
+          ]
+        },
+        "sender_signal": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "trust_hint": {
+              "type": "string",
+              "enum": [
+                "trusted",
+                "neutral",
+                "suspicious",
+                "unknown"
+              ]
+            },
+            "reasons": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "trust_hint",
+            "reasons"
+          ]
+        },
+        "human_review_required": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "primary_label",
+        "summary",
+        "urgency",
+        "confidence",
+        "recommended_actions",
+        "tracking_signals",
+        "calendar_signals",
+        "time_signals",
+        "sender_signal",
+        "human_review_required"
+      ]
+    }
+  }
+}

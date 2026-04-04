@@ -197,6 +197,63 @@ def build_core_app():
     @app.post("/api/execution/direct")
     async def execute_direct(payload: dict, authorization: str | None = Header(default=None)):
         app.state.execution_direct_requests.append(payload)
+        if payload.get("prompt_id") == "prompt.email.action_decision":
+            return {
+                "task_id": payload.get("task_id"),
+                "status": "completed",
+                "output": {
+                    "primary_label": "ACTION_REQUIRED",
+                    "summary": "Email needs a user response soon.",
+                    "urgency": "high",
+                    "confidence": 0.93,
+                    "recommended_actions": [
+                        {
+                            "action": "notify",
+                            "confidence": 0.99,
+                            "reason": "The user should see this message.",
+                        },
+                        {
+                            "action": "flag_follow_up_needed",
+                            "confidence": 0.95,
+                            "reason": "A reply or approval is likely needed.",
+                        },
+                        {
+                            "action": "human_review_required",
+                            "confidence": 0.84,
+                            "reason": "The request is sensitive enough to avoid automation.",
+                        },
+                    ],
+                    "tracking_signals": {
+                        "is_shipment_related": False,
+                        "carrier": None,
+                        "tracking_numbers": [],
+                        "delivery_status": None,
+                    },
+                    "calendar_signals": {
+                        "has_calendar_invite": False,
+                        "has_meeting_request": False,
+                        "time_mentions": [],
+                    },
+                    "time_signals": {
+                        "is_time_sensitive": True,
+                        "deadline_mentions": ["today"],
+                        "time_window_mentions": [],
+                    },
+                    "sender_signal": {
+                        "trust_hint": "neutral",
+                        "reasons": ["No strong sender risk indicators."],
+                    },
+                    "human_review_required": True,
+                },
+                "metrics": {
+                    "total_tokens": 234,
+                },
+                "error_code": None,
+                "error_message": None,
+                "provider_used": payload.get("requested_provider") or "openai",
+                "model_used": payload.get("requested_model") or "gpt-5.4-mini",
+                "completed_at": "2026-04-02T12:34:56-07:00",
+            }
         return {
             "task_id": payload.get("task_id"),
             "status": "completed",
@@ -219,9 +276,19 @@ def build_core_app():
     async def list_prompt_services():
         return {
             "schema_version": "v1",
-            "prompt_services": list(app.state.prompt_services.values()),
-            "probation": [],
-            "updated_at": "2026-04-02T22:05:00+00:00",
+            "state": {
+                "prompt_services": list(app.state.prompt_services.values()),
+                "probation": [],
+                "updated_at": "2026-04-02T22:05:00+00:00",
+            },
+        }
+
+    @app.get("/api/prompts/services/{prompt_id}")
+    async def get_prompt_service(prompt_id: str):
+        prompt = app.state.prompt_services.get(prompt_id)
+        return {
+            "configured": isinstance(prompt, dict),
+            "prompt": prompt,
         }
 
     @app.post("/api/prompts/services/{prompt_id}/lifecycle")

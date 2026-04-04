@@ -6,7 +6,7 @@ import json
 import re
 import socket
 import uuid
-from email.utils import parseaddr
+from email.utils import getaddresses, parseaddr
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -315,6 +315,165 @@ class NodeService:
             if value > 1:
                 value = value / 100.0
         return max(0.0, min(1.0, value))
+
+    @staticmethod
+    def _parse_action_decision_output(output: object) -> dict[str, object] | None:
+        if not isinstance(output, dict):
+            return None
+        if "primary_label" in output or "recommended_actions" in output:
+            return output
+        result = output.get("result")
+        if isinstance(result, dict) and ("primary_label" in result or "recommended_actions" in result):
+            return result
+        text = output.get("text")
+        if not isinstance(text, str):
+            return None
+        try:
+            parsed = json.loads(text)
+        except Exception:
+            return None
+        return parsed if isinstance(parsed, dict) else None
+
+    def _default_ai_runtime_target_api_base_url(self) -> str:
+        return self._normalize_target_api_base_url(self.state.runtime_prompt_sync_target_api_base_url)
+
+    @staticmethod
+    def _message_payload_json(raw_payload: str | None) -> dict[str, object]:
+        if not raw_payload:
+            return {}
+        try:
+            payload = json.loads(raw_payload)
+        except Exception:
+            return {}
+        return payload if isinstance(payload, dict) else {}
+
+    @staticmethod
+    def _message_header_map(payload: dict[str, object]) -> dict[str, str]:
+        headers = payload.get("payload", {}).get("headers") if isinstance(payload.get("payload"), dict) else []
+        header_map: dict[str, str] = {}
+        if isinstance(headers, list):
+            for header in headers:
+                if not isinstance(header, dict):
+                    continue
+                name = header.get("name")
+                value = header.get("value")
+                if isinstance(name, str) and isinstance(value, str):
+                    header_map[name.lower()] = value
+        return header_map
+
+    @staticmethod
+    def _message_has_attachment(payload: dict[str, object]) -> bool:
+        root_payload = payload.get("payload")
+        if not isinstance(root_payload, dict):
+            return False
+        parts = root_payload.get("parts")
+        if not isinstance(parts, list):
+            return False
+        return any(isinstance(part, dict) and str(part.get("filename") or "").strip() for part in parts)
+
+    def _build_action_decision_inputs(
+        self,
+        *,
+        account_id: str,
+        message,
+    ) -> dict[str, object]:
+        adapter = self.provider_registry.get_provider("gmail")
+        account_record = adapter.account_store.load_account(account_id)
+        my_addresses = [account_record.email_address] if account_record is not None and account_record.email_address else []
+        payload = self._message_payload_json(message.raw_payload)
+        header_map = self._message_header_map(payload)
+        from_name, from_email = parseaddr(message.sender or header_map.get("from", ""))
+        to_recipients = [address for _, address in getaddresses([header_map.get("to", "")]) if address]
+        cc_recipients = [address for _, address in getaddresses([header_map.get("cc", "")]) if address]
+        if not to_recipients:
+            to_recipients = [recipient for recipient in message.recipients if recipient]
+        return {
+            "account_id": account_id,
+            "message_id": message.message_id,
+            "thread_id": message.thread_id or "",
+            "received_at": message.received_at.isoformat(),
+            "subject": message.subject or "",
+            "from_name": from_name or "",
+            "from_email": from_email or "",
+            "to_recipients": to_recipients,
+            "cc_recipients": cc_recipients,
+            "labels": list(message.label_ids or []),
+            "has_attachments": self._message_has_attachment(payload),
+            "body_text": normalize_email_for_classifier(message, my_addresses=my_addresses),
+            "snippet": message.snippet or "",
+        }
+
+    async def _execute_email_action_decision_for_message(
+        self,
+        *,
+        account_id: str,
+        message,
+        classification_label: GmailTrainingLabel,
+        target_api_base_url: str | None = None,
+    ) -> dict[str, object] | None:
+        if classification_label not in {GmailTrainingLabel.ACTION_REQUIRED, GmailTrainingLabel.ORDER}:
+            return None
+        prompt_definition = self._load_runtime_prompt_definition("prompt.email.action_decision")
+        prompt_runtime = prompt_definition.get("node_runtime")
+        if not isinstance(prompt_runtime, dict) or not isinstance(prompt_runtime.get("json_schema"), dict):
+            raise ValueError("prompt.email.action_decision is missing node_runtime.json_schema")
+        if (
+            isinstance(message.action_decision_payload, dict)
+            and message.action_decision_prompt_version == str(prompt_definition["version"])
+        ):
+            return message.action_decision_payload
+
+        normalized_target_base_url = self._normalize_target_api_base_url(
+            target_api_base_url or self._default_ai_runtime_target_api_base_url()
+        )
+        request_body = {
+            "task_id": f"email-action-{uuid.uuid4().hex}",
+            "prompt_id": str(prompt_definition["prompt_id"]),
+            "prompt_version": str(prompt_definition["version"]),
+            "task_family": str(prompt_definition.get("task_family") or "task.classification"),
+            "requested_by": "node-email",
+            "service_id": str(prompt_definition.get("service_id") or "node-email"),
+            "customer_id": "local-user",
+            "trace_id": f"trace-action-{uuid.uuid4().hex}",
+            "inputs": {
+                **self._build_action_decision_inputs(account_id=account_id, message=message),
+                "json_schema": prompt_runtime["json_schema"],
+            },
+            "timeout_s": int(prompt_runtime.get("timeout_s", 45)),
+        }
+        try:
+            async with httpx.AsyncClient(
+                base_url=normalized_target_base_url,
+                timeout=self.core_client.timeout,
+                transport=self.core_client.transport,
+            ) as client:
+                execution_response = await client.post("/api/execution/direct", json=request_body)
+                execution_response.raise_for_status()
+                execution_payload = execution_response.json()
+        except Exception as exc:
+            AI_LOGGER.error(
+                "AI action decision execution failed",
+                extra={
+                    "event_data": {
+                        "target_api_base_url": normalized_target_base_url,
+                        "message_id": message.message_id,
+                        "detail": str(exc),
+                    }
+                },
+            )
+            return None
+        decision = self._parse_action_decision_output(
+            execution_payload.get("output") if isinstance(execution_payload, dict) else None
+        )
+        if not isinstance(decision, dict):
+            return None
+        self.provider_registry.get_provider("gmail").message_store.update_action_decision(
+            account_id,
+            message.message_id,
+            payload=decision,
+            prompt_version=str(prompt_definition["version"]),
+        )
+        return decision
 
     async def start(self) -> None:
         try:
@@ -959,6 +1118,7 @@ class NodeService:
         sender_reputation: dict[str, object] | None,
         message_id: str,
         source_component: str,
+        action_decision: dict[str, object] | None = None,
     ) -> bool:
         notification_specs = {
             GmailTrainingLabel.ACTION_REQUIRED: {
@@ -984,21 +1144,36 @@ class NodeService:
         sender_text = (sender or "Unknown sender").strip() or "Unknown sender"
         subject_text = (subject or "(no subject)").strip() or "(no subject)"
         sender_reputation_text = self._sender_reputation_notification_text(sender_reputation)
-        message_lines = [
-            f"From: {sender_text}",
-            f"Subject: {subject_text}",
-            f"Confidence: {confidence_text}",
-        ]
-        if sender_reputation_text:
+        message_lines = self._render_email_notification_message_lines(
+            classification_label=classification_label,
+            sender_text=sender_text,
+            subject_text=subject_text,
+            confidence_text=confidence_text,
+            sender_reputation_text=sender_reputation_text,
+            action_decision=action_decision,
+        )
+        delivery_severity, delivery_urgency = self._email_notification_delivery_profile(
+            classification_label=classification_label,
+            action_decision=action_decision,
+        )
+        notification_title = self._email_notification_title(
+            classification_label=classification_label,
+            action_decision=action_decision,
+        )
+        notification_summary = self._email_notification_summary(
+            classification_label=classification_label,
+            action_decision=action_decision,
+        )
+        if sender_reputation_text and sender_reputation_text not in message_lines:
             message_lines.append(sender_reputation_text)
         return self.send_user_notification(
-            title=spec["title"],
+            title=notification_title,
             message="\n".join(message_lines),
-            severity=spec["severity"],
-            urgency=spec["urgency"],
+            severity=delivery_severity,
+            urgency=delivery_urgency,
             dedupe_key=f"gmail-classification-{classification_label.value}-{message_id}",
             event_type=spec["event_type"],
-            summary=spec["summary"],
+            summary=notification_summary,
             source_component=source_component,
             data={
                 "message_id": message_id,
@@ -1007,10 +1182,147 @@ class NodeService:
                 "subject": subject,
                 "confidence": confidence,
                 "sender_reputation": sender_reputation,
+                "action_decision": action_decision,
             },
         )
 
-    def _notify_for_new_email_classification(
+    def _email_notification_title(
+        self,
+        *,
+        classification_label: GmailTrainingLabel,
+        action_decision: dict[str, object] | None,
+    ) -> str:
+        return "Action Required email" if classification_label == GmailTrainingLabel.ACTION_REQUIRED else "Order email"
+
+    def _email_notification_summary(
+        self,
+        *,
+        classification_label: GmailTrainingLabel,
+        action_decision: dict[str, object] | None,
+    ) -> str:
+        if not isinstance(action_decision, dict):
+            return "New action-required email classified" if classification_label == GmailTrainingLabel.ACTION_REQUIRED else "New order email classified"
+        summary = str(action_decision.get("summary") or "").strip()
+        if summary:
+            return summary
+        return "New action-required email classified" if classification_label == GmailTrainingLabel.ACTION_REQUIRED else "New order email classified"
+
+    @staticmethod
+    def _format_action_name(action_name: str) -> str:
+        return action_name.replace("_", " ").strip().title()
+
+    def _email_notification_delivery_profile(
+        self,
+        *,
+        classification_label: GmailTrainingLabel,
+        action_decision: dict[str, object] | None,
+    ) -> tuple[str, str]:
+        severity = "warning" if classification_label == GmailTrainingLabel.ACTION_REQUIRED else "info"
+        urgency = "actions_needed" if classification_label == GmailTrainingLabel.ACTION_REQUIRED else "notification"
+        if not isinstance(action_decision, dict):
+            return severity, urgency
+        urgency_value = str(action_decision.get("urgency") or "").strip().lower()
+        action_names = {
+            str(item.get("action") or "").strip().lower()
+            for item in action_decision.get("recommended_actions") or []
+            if isinstance(item, dict)
+        }
+        if urgency_value in {"high", "urgent"} or "flag_time_sensitive" in action_names:
+            severity = "warning"
+            urgency = "actions_needed"
+        if bool(action_decision.get("human_review_required")) or "human_review_required" in action_names:
+            severity = "warning"
+            urgency = "actions_needed"
+        if "mark_priority" in action_names and severity == "info":
+            severity = "warning"
+        return severity, urgency
+
+    def _render_email_notification_message_lines(
+        self,
+        *,
+        classification_label: GmailTrainingLabel,
+        sender_text: str,
+        subject_text: str,
+        confidence_text: str,
+        sender_reputation_text: str | None,
+        action_decision: dict[str, object] | None,
+    ) -> list[str]:
+        if not isinstance(action_decision, dict):
+            lines = [
+                f"From: {sender_text}",
+                f"Subject: {subject_text}",
+                f"Confidence: {confidence_text}",
+            ]
+            if sender_reputation_text:
+                lines.append(sender_reputation_text)
+            return lines
+
+        lines = [
+            f"From: {sender_text}",
+            f"Subject: {subject_text}",
+        ]
+        summary = str(action_decision.get("summary") or "").strip()
+        if summary:
+            lines.append(f"Summary: {summary}")
+        urgency_value = str(action_decision.get("urgency") or "").strip().lower()
+        if urgency_value:
+            lines.append(f"Urgency: {urgency_value}")
+        recommended_actions = action_decision.get("recommended_actions")
+        if isinstance(recommended_actions, list) and recommended_actions:
+            lines.append("Recommended actions:")
+            for item in recommended_actions:
+                if not isinstance(item, dict):
+                    continue
+                action_name = str(item.get("action") or "").strip().lower()
+                if not action_name:
+                    continue
+                reason = str(item.get("reason") or "").strip()
+                action_confidence = self._normalize_classifier_confidence(item.get("confidence"))
+                if reason and action_confidence is not None:
+                    lines.append(f"- {self._format_action_name(action_name)} ({action_confidence:.2f}): {reason}")
+                elif reason:
+                    lines.append(f"- {self._format_action_name(action_name)}: {reason}")
+                elif action_confidence is not None:
+                    lines.append(f"- {self._format_action_name(action_name)} ({action_confidence:.2f})")
+                else:
+                    lines.append(f"- {self._format_action_name(action_name)}")
+        tracking_signals = action_decision.get("tracking_signals")
+        if isinstance(tracking_signals, dict) and bool(tracking_signals.get("is_shipment_related")):
+            carrier = str(tracking_signals.get("carrier") or "").strip()
+            delivery_status = str(tracking_signals.get("delivery_status") or "").strip()
+            tracking_numbers = tracking_signals.get("tracking_numbers")
+            tracking_numbers_text = ", ".join(str(item).strip() for item in tracking_numbers or [] if str(item).strip())
+            tracking_parts = [part for part in [carrier, delivery_status, tracking_numbers_text] if part]
+            if tracking_parts:
+                lines.append(f"Tracking: {' | '.join(tracking_parts)}")
+        time_signals = action_decision.get("time_signals")
+        if isinstance(time_signals, dict):
+            deadline_mentions = time_signals.get("deadline_mentions")
+            time_window_mentions = time_signals.get("time_window_mentions")
+            deadline_text = ", ".join(str(item).strip() for item in deadline_mentions or [] if str(item).strip())
+            time_window_text = ", ".join(str(item).strip() for item in time_window_mentions or [] if str(item).strip())
+            if deadline_text:
+                lines.append(f"Deadlines: {deadline_text}")
+            if time_window_text:
+                lines.append(f"Time windows: {time_window_text}")
+        calendar_signals = action_decision.get("calendar_signals")
+        if isinstance(calendar_signals, dict) and (
+            bool(calendar_signals.get("has_calendar_invite")) or bool(calendar_signals.get("has_meeting_request"))
+        ):
+            time_mentions = calendar_signals.get("time_mentions")
+            time_mentions_text = ", ".join(str(item).strip() for item in time_mentions or [] if str(item).strip())
+            if time_mentions_text:
+                lines.append(f"Calendar signals: {time_mentions_text}")
+            else:
+                lines.append("Calendar signals: meeting or invite detected")
+        if bool(action_decision.get("human_review_required")):
+            lines.append("Human review required: yes")
+        if sender_reputation_text:
+            lines.append(sender_reputation_text)
+        lines.append(f"Classifier confidence: {confidence_text}")
+        return lines
+
+    async def _notify_for_new_email_classification(
         self,
         *,
         account_id: str,
@@ -1028,6 +1340,14 @@ class NodeService:
         if message is None:
             return False
         sender_reputation = self._sender_reputation_context(account_id, sender=message.sender)
+        action_decision = await self._execute_email_action_decision_for_message(
+            account_id=account_id,
+            message=message,
+            classification_label=classification_label,
+        )
+        refreshed_message = adapter.message_store.get_message(account_id, message_id)
+        if refreshed_message is not None:
+            message = refreshed_message
         sent = self.send_email_classification_notification(
             classification_label=classification_label,
             sender=message.sender,
@@ -1036,6 +1356,7 @@ class NodeService:
             sender_reputation=sender_reputation,
             message_id=message_id,
             source_component=source_component,
+            action_decision=action_decision or message.action_decision_payload,
         )
         if sent:
             adapter.message_store.mark_notification_label_sent(account_id, message_id, classification_label.value)
@@ -1457,8 +1778,28 @@ class NodeService:
             response = await client.get("/api/prompts/services")
             response.raise_for_status()
             payload = response.json()
-        prompt_services = payload.get("prompt_services") if isinstance(payload, dict) else None
+        state = payload.get("state") if isinstance(payload, dict) else None
+        prompt_services = state.get("prompt_services") if isinstance(state, dict) else None
         return prompt_services if isinstance(prompt_services, list) else []
+
+    async def _get_remote_prompt_service(
+        self,
+        target_api_base_url: str,
+        *,
+        prompt_id: str,
+    ) -> dict[str, object] | None:
+        async with httpx.AsyncClient(
+            base_url=target_api_base_url,
+            timeout=self.core_client.timeout,
+            transport=self.core_client.transport,
+        ) as client:
+            response = await client.get(f"/api/prompts/services/{prompt_id}")
+            response.raise_for_status()
+            payload = response.json()
+        if not isinstance(payload, dict) or not payload.get("configured"):
+            return None
+        prompt = payload.get("prompt")
+        return prompt if isinstance(prompt, dict) else None
 
     async def _register_prompt_service(
         self,
@@ -1511,15 +1852,13 @@ class NodeService:
 
         try:
             remote_prompt_services = await self._list_remote_prompt_services(normalized_target_base_url)
-            remote_prompts = {
-                str(item.get("prompt_id")): item
-                for item in remote_prompt_services
-                if isinstance(item, dict) and item.get("prompt_id")
-            }
             for prompt_definition in prompt_definitions:
                 prompt_id = str(prompt_definition["prompt_id"])
                 local_version = str(prompt_definition["version"])
-                remote_record = remote_prompts.get(prompt_id)
+                remote_record = await self._get_remote_prompt_service(
+                    normalized_target_base_url,
+                    prompt_id=prompt_id,
+                )
                 remote_version = None
                 remote_status = None
                 if isinstance(remote_record, dict):
@@ -1746,7 +2085,7 @@ class NodeService:
             )
             return result
 
-        local_processed, ai_candidates = self._classify_candidates_locally(account_id=account_id, candidates=candidates)
+        local_processed, ai_candidates = await self._classify_candidates_locally(account_id=account_id, candidates=candidates)
         local_classified = max(local_processed - len(ai_candidates), 0)
         if local_processed > 0 and hasattr(adapter, "refresh_sender_reputations"):
             await adapter.refresh_sender_reputations(account_id)
@@ -1886,7 +2225,7 @@ class NodeService:
         )
         return final_result
 
-    def _classify_candidates_locally(self, *, account_id: str, candidates: list) -> tuple[int, list]:
+    async def _classify_candidates_locally(self, *, account_id: str, candidates: list) -> tuple[int, list]:
         adapter = self.provider_registry.get_provider("gmail")
         model_status = adapter.training_model_store.status()
         if not candidates:
@@ -1911,7 +2250,7 @@ class NodeService:
                 confidence=predicted_confidence,
                 manual_classification=False,
             )
-            self._notify_for_new_email_classification(
+            await self._notify_for_new_email_classification(
                 account_id=account_id,
                 message_id=message.message_id,
                 classification_label=predicted_label,
@@ -2022,7 +2361,7 @@ class NodeService:
                     confidence=parsed_confidence,
                     manual_classification=False,
                 )
-                self._notify_for_new_email_classification(
+                await self._notify_for_new_email_classification(
                     account_id=account_id,
                     message_id=message.message_id,
                     classification_label=parsed_label,
@@ -2786,7 +3125,7 @@ class NodeService:
             # Debug-only visibility: surface the same user notifications when Training-page
             # manual classification saves assign action_required/order labels.
             for item in payload.items:
-                self._notify_for_new_email_classification(
+                await self._notify_for_new_email_classification(
                     account_id=account_id,
                     message_id=item.message_id,
                     classification_label=item.label,
@@ -2857,7 +3196,7 @@ class NodeService:
             # Debug-only visibility: surface the same user notifications when Training-page
             # review saves assign action_required/order labels.
             for item in payload.items:
-                self._notify_for_new_email_classification(
+                await self._notify_for_new_email_classification(
                     account_id=account_id,
                     message_id=item.message_id,
                     classification_label=item.selected_label,

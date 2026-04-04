@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import calendar
+import json
 import os
 import sqlite3
 from datetime import datetime, timedelta
@@ -59,6 +60,9 @@ class GmailMessageStore:
             self._ensure_column(connection, "gmail_messages", "manual_classification", "INTEGER NOT NULL DEFAULT 0")
             self._ensure_column(connection, "gmail_messages", "action_required_notification_sent", "INTEGER NOT NULL DEFAULT 0")
             self._ensure_column(connection, "gmail_messages", "order_notification_sent", "INTEGER NOT NULL DEFAULT 0")
+            self._ensure_column(connection, "gmail_messages", "action_decision_payload", "TEXT")
+            self._ensure_column(connection, "gmail_messages", "action_decision_prompt_version", "TEXT")
+            self._ensure_column(connection, "gmail_messages", "action_decision_updated_at", "TEXT")
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS gmail_spamhaus_checks (
@@ -155,8 +159,11 @@ class GmailMessageStore:
                     raw_payload,
                     local_label,
                     local_label_confidence,
-                    manual_classification
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    manual_classification,
+                    action_decision_payload,
+                    action_decision_prompt_version,
+                    action_decision_updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(account_id, message_id) DO UPDATE SET
                     thread_id=excluded.thread_id,
                     subject=excluded.subject,
@@ -175,7 +182,16 @@ class GmailMessageStore:
                     manual_classification=CASE
                         WHEN excluded.local_label IS NOT NULL THEN excluded.manual_classification
                         ELSE gmail_messages.manual_classification
-                    END
+                    END,
+                    action_decision_payload=COALESCE(gmail_messages.action_decision_payload, excluded.action_decision_payload),
+                    action_decision_prompt_version=COALESCE(
+                        gmail_messages.action_decision_prompt_version,
+                        excluded.action_decision_prompt_version
+                    ),
+                    action_decision_updated_at=COALESCE(
+                        gmail_messages.action_decision_updated_at,
+                        excluded.action_decision_updated_at
+                    )
                 """,
                 [
                     (
@@ -193,6 +209,13 @@ class GmailMessageStore:
                         message.local_label,
                         message.local_label_confidence,
                         int(bool(message.manual_classification)),
+                        (
+                            json.dumps(message.action_decision_payload, sort_keys=True, separators=(",", ":"))
+                            if isinstance(message.action_decision_payload, dict)
+                            else None
+                        ),
+                        message.action_decision_prompt_version,
+                        message.action_decision_updated_at.isoformat() if message.action_decision_updated_at else None,
                     )
                     for message in messages
                 ],
@@ -228,7 +251,10 @@ class GmailMessageStore:
                     raw_payload,
                     local_label,
                     local_label_confidence,
-                    manual_classification
+                    manual_classification,
+                    action_decision_payload,
+                    action_decision_prompt_version,
+                    action_decision_updated_at
                 FROM gmail_messages
                 WHERE account_id = ?
                 ORDER BY received_at DESC
@@ -263,7 +289,10 @@ class GmailMessageStore:
                     raw_payload,
                     local_label,
                     local_label_confidence,
-                    manual_classification
+                    manual_classification,
+                    action_decision_payload,
+                    action_decision_prompt_version,
+                    action_decision_updated_at
                 FROM gmail_messages
                 WHERE account_id = ?
                 ORDER BY received_at DESC
@@ -289,7 +318,10 @@ class GmailMessageStore:
                     raw_payload,
                     local_label,
                     local_label_confidence,
-                    manual_classification
+                    manual_classification,
+                    action_decision_payload,
+                    action_decision_prompt_version,
+                    action_decision_updated_at
                 FROM gmail_messages
                 WHERE account_id = ?
                   AND received_at >= ?
@@ -534,6 +566,28 @@ class GmailMessageStore:
                 WHERE account_id = ? AND message_id = ?
                 """,
                 (label.value, confidence, 1 if manual_classification else 0, account_id, message_id),
+            )
+            connection.commit()
+
+    def update_action_decision(
+        self,
+        account_id: str,
+        message_id: str,
+        *,
+        payload: dict[str, object],
+        prompt_version: str,
+        updated_at: datetime | None = None,
+    ) -> None:
+        decision_updated_at = updated_at or datetime.now().astimezone()
+        serialized_payload = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE gmail_messages
+                SET action_decision_payload = ?, action_decision_prompt_version = ?, action_decision_updated_at = ?
+                WHERE account_id = ? AND message_id = ?
+                """,
+                (serialized_payload, prompt_version, decision_updated_at.isoformat(), account_id, message_id),
             )
             connection.commit()
 
@@ -1227,6 +1281,19 @@ class GmailMessageStore:
             local_label=row["local_label"] if "local_label" in row.keys() else None,
             local_label_confidence=row["local_label_confidence"] if "local_label_confidence" in row.keys() else None,
             manual_classification=bool(row["manual_classification"]) if "manual_classification" in row.keys() else False,
+            action_decision_payload=(
+                json.loads(row["action_decision_payload"])
+                if "action_decision_payload" in row.keys() and isinstance(row["action_decision_payload"], str) and row["action_decision_payload"]
+                else None
+            ),
+            action_decision_prompt_version=(
+                row["action_decision_prompt_version"] if "action_decision_prompt_version" in row.keys() else None
+            ),
+            action_decision_updated_at=(
+                datetime.fromisoformat(row["action_decision_updated_at"])
+                if "action_decision_updated_at" in row.keys() and row["action_decision_updated_at"]
+                else None
+            ),
         )
 
     def _row_to_sender_reputation(self, row: sqlite3.Row) -> GmailSenderReputationRecord:

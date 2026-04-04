@@ -606,18 +606,24 @@ async def test_runtime_sync_prompts_registers_missing_email_classifier_prompt(co
 
     assert response.status_code == 200
     body = response.json()
-    assert body["registrations"][0]["prompt_id"] == "prompt.email.classifier"
-    assert body["registrations"][0]["service_id"] == "node-email"
-    assert body["registrations"][0]["status"] == "active"
+    registered_ids = {item["prompt_id"] for item in body["registrations"]}
+    assert "prompt.email.classifier" in registered_ids
+    assert "prompt.email.action_decision" in registered_ids
     assert body["usage_summary"] is None
 
     assert core_app.state.prompt_service_lifecycle_requests == []
-    assert len(core_app.state.prompt_service_registration_requests) == 1
-    registration_request = core_app.state.prompt_service_registration_requests[0]
+    assert len(core_app.state.prompt_service_registration_requests) == 2
+    registration_request = next(
+        item for item in core_app.state.prompt_service_registration_requests if item["prompt_id"] == "prompt.email.classifier"
+    )
     assert registration_request["prompt_id"] == "prompt.email.classifier"
     assert registration_request["service_id"] == "node-email"
     assert registration_request["task_family"] == "task.classification"
-    assert registration_request["provider_preferences"] == {"preferred_providers": ["openai"]}
+    assert registration_request["provider_preferences"] == {
+        "default_provider": "openai",
+        "default_model": "gpt-5.4-nano",
+        "preferred_models": ["gpt-5.4-nano", "gpt-5-mini"],
+    }
     assert registration_request["constraints"] == {
         "max_timeout_s": 60,
         "structured_output_required": True,
@@ -631,10 +637,59 @@ async def test_runtime_sync_prompts_registers_missing_email_classifier_prompt(co
 @pytest.mark.asyncio
 async def test_runtime_sync_prompts_skips_current_prompt_version(config, core_client_factory):
     core_app = build_core_app()
+    local_action_version = "v1"
     core_app.state.prompt_services["prompt.email.classifier"] = {
         "prompt_id": "prompt.email.classifier",
         "service_id": "node-email",
         "prompt_name": "Email Classifier",
+        "status": "active",
+        "current_version": "v1.1",
+        "versions": ["v1.1"],
+    }
+    core_app.state.prompt_services["prompt.email.action_decision"] = {
+        "prompt_id": "prompt.email.action_decision",
+        "service_id": "node-email",
+        "prompt_name": "Email action decision",
+        "status": "active",
+        "current_version": local_action_version,
+        "versions": [local_action_version],
+    }
+    service = NodeService(config, core_client=core_client_factory(core_app), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/runtime/prompts/sync",
+            json={"target_api_base_url": "http://10.0.0.100:9002"},
+        )
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    sync_actions = {(item["prompt_id"], item["action"], item["remote_version"]) for item in body["sync_actions"]}
+    assert ("prompt.email.classifier", "unchanged", "v1.1") in sync_actions
+    assert ("prompt.email.action_decision", "unchanged", local_action_version) in sync_actions
+    assert core_app.state.prompt_service_registration_requests == []
+    assert core_app.state.prompt_service_lifecycle_requests == []
+
+
+@pytest.mark.asyncio
+async def test_runtime_sync_prompts_retires_and_reregisters_outdated_prompt(config, core_client_factory):
+    core_app = build_core_app()
+    core_app.state.prompt_services["prompt.email.classifier"] = {
+        "prompt_id": "prompt.email.classifier",
+        "service_id": "node-email",
+        "prompt_name": "Email Classifier",
+        "status": "active",
+        "current_version": "v0",
+        "versions": ["v0"],
+    }
+    core_app.state.prompt_services["prompt.email.action_decision"] = {
+        "prompt_id": "prompt.email.action_decision",
+        "service_id": "node-email",
+        "prompt_name": "Email action decision",
         "status": "active",
         "current_version": "v1",
         "versions": ["v1"],
@@ -653,51 +708,18 @@ async def test_runtime_sync_prompts_skips_current_prompt_version(config, core_cl
 
     assert response.status_code == 200
     body = response.json()
-    assert body["sync_actions"] == [
-        {
-            "prompt_id": "prompt.email.classifier",
-            "action": "unchanged",
-            "version": "v1",
-            "remote_version": "v1",
-        }
-    ]
-    assert core_app.state.prompt_service_registration_requests == []
-    assert core_app.state.prompt_service_lifecycle_requests == []
-
-
-@pytest.mark.asyncio
-async def test_runtime_sync_prompts_retires_and_reregisters_outdated_prompt(config, core_client_factory):
-    core_app = build_core_app()
-    core_app.state.prompt_services["prompt.email.classifier"] = {
+    assert {
         "prompt_id": "prompt.email.classifier",
-        "service_id": "node-email",
-        "prompt_name": "Email Classifier",
-        "status": "active",
-        "current_version": "v0",
-        "versions": ["v0"],
-    }
-    service = NodeService(config, core_client=core_client_factory(core_app), mqtt_manager=FakeMQTTManager())
-    await service.start()
-    app = create_app(config=config, service=service)
-
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.post(
-            "/api/runtime/prompts/sync",
-            json={"target_api_base_url": "http://10.0.0.100:9002"},
-        )
-
-    await service.stop()
-
-    assert response.status_code == 200
-    body = response.json()
-    assert body["sync_actions"] == [
-        {
-            "prompt_id": "prompt.email.classifier",
-            "action": "replaced",
-            "version": "v1",
-            "remote_version": "v0",
-        }
-    ]
+        "action": "replaced",
+        "version": "v1.1",
+        "remote_version": "v0",
+    } in body["sync_actions"]
+    assert {
+        "prompt_id": "prompt.email.action_decision",
+        "action": "unchanged",
+        "version": "v1",
+        "remote_version": "v1",
+    } in body["sync_actions"]
     assert len(core_app.state.prompt_service_lifecycle_requests) == 1
     assert core_app.state.prompt_service_lifecycle_requests[0]["prompt_id"] == "prompt.email.classifier"
     assert core_app.state.prompt_service_lifecycle_requests[0]["state"] == "retired"
@@ -716,7 +738,7 @@ async def test_weekly_prompt_sync_runs_once_per_week_slot(config, core_client_fa
 
     await service.stop()
 
-    assert len(core_app.state.prompt_service_registration_requests) == 1
+    assert len(core_app.state.prompt_service_registration_requests) == 2
     assert service.state.runtime_prompt_sync_weekly_slot_key is not None
 
 

@@ -11,8 +11,11 @@
     "allow_version_pinning": true
   },
   "provider_preferences": {
-    "preferred_providers": [
-      "openai"
+    "default_provider": "openai",
+    "default_model": "gpt-5.4-nano",
+    "preferred_models": [
+      "gpt-5.4-nano",
+      "gpt-5-mini"
     ]
   },
   "constraints": {
@@ -42,7 +45,7 @@
     ],
     "default_inputs": {}
   },
-  "version": "v1",
+  "version": "v1.1",
   "node_runtime": {
     "timeout_s": 60,
     "json_schema": {

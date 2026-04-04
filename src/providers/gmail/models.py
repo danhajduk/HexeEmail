@@ -135,6 +135,9 @@ class GmailStoredMessage(BaseModel):
     local_label: str | None = None
     local_label_confidence: float | None = None
     manual_classification: bool = False
+    action_decision_payload: dict[str, object] | None = None
+    action_decision_prompt_version: str | None = None
+    action_decision_updated_at: datetime | None = None
 
 
 class GmailTrainingLabel(str, Enum):

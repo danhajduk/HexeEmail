@@ -91,3 +91,15 @@ Chosen fix: Store the prompt registration body and node-local execution metadata
 What changed: Added `src/runtime_prompts/prompt.email.classifier.json`, removed the hardcoded prompt-registration builder from `NodeService`, and updated the runtime email-classifier execution path to read the prompt id, version, timeout, and structured output schema from the JSON definition.
 Verification: `python -m py_compile src/config.py src/models.py src/main.py src/service.py tests/helpers.py tests/test_ui_api.py` passed. `npm run build` passed in `frontend/`.
 ###########
+Task #099
+Step objective: Run the AI action-decision prompt for newly classified `action_required` and `order` emails.
+Chosen fix: Reuse the existing AI-node direct execution pattern with a second runtime prompt definition, persist the action-decision response on the Gmail message row, and execute it only for the qualifying classification labels so later notification/UI work can reuse the stored decision.
+What changed: Added `prompt.email.action_decision` runtime JSON with structured-output schema, extended Gmail stored-message persistence with action-decision payload/version/timestamp fields, implemented an AI action-decision execution helper that builds prompt-template inputs from stored Gmail message metadata, and cached the returned decision on the message to avoid re-running the same prompt version unnecessarily.
+Verification: `python -m py_compile src/service.py src/providers/gmail/models.py src/providers/gmail/message_store.py tests/helpers.py tests/test_notifications.py tests/test_gmail_message_store.py tests/test_ui_api.py` passed. Prompt JSON validation passed for `src/runtime_prompts/prompt.email.classifier.json` and `src/runtime_prompts/prompt.email.action_decision.json`.
+###########
+Task #100
+Step objective: Replace the old classified-email notification body with the action-decision reply in a readable operator format.
+Chosen fix: Keep the existing notification dedupe and delivery path, but render the stored AI decision into a readable summary with recommended actions, urgency, time/tracking hints, and human-review visibility, while gracefully falling back to the old debug-style message if no action-decision response is available.
+What changed: Converted the classified-email notification hook to async so it can obtain the action-decision result, updated local/AI/manual classification call sites to await it, and reformatted action-required/order notifications to include AI summary, recommended actions, deadlines, shipment hints, and human-review guidance instead of the old minimal sender/subject/confidence lines.
+Verification: `python -m py_compile src/service.py src/providers/gmail/models.py src/providers/gmail/message_store.py tests/helpers.py tests/test_notifications.py tests/test_gmail_message_store.py tests/test_ui_api.py` passed.
+###########

@@ -155,3 +155,22 @@ Original task details:
 Original task details:
 - extract the current hardcoded prompt definition(s) into JSON
 - keep the JSON file(s) in the dedicated prompt-registration folder used by Task 097
+
+## Task 099
+Original task details:
+- on every new mail classified as `action_required` or `order`, use the `prompt.email.action_decision` prompt on ai
+- possible actions:
+  - `none` -> no action required
+  - `notify` -> surface email to user (UI / HA / notification)
+  - `summarize` -> generate summary via AI node
+  - `track_shipment` -> extract and track delivery / shipment info
+  - `flag_follow_up_needed` -> user likely needs to respond or take action
+  - `flag_time_sensitive` -> deadlines, expiring links, delivery windows
+  - `mark_priority` -> elevate importance / highlight
+  - `human_review_required` -> uncertain, risky, or sensitive -> do not automate
+
+## Task 100
+Original task details:
+- replace the previous user message for new `action_required` and `order` emails
+- use the reply from the `prompt.email.action_decision` ai request
+- make the notification/output more readable
