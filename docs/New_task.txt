@@ -47,4 +47,3 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[WIP] Task 105: Extract AI node and email provider calls into modular gateway services and move prompt JSON files into runtime storage
