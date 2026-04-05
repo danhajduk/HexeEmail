@@ -237,3 +237,4 @@ Task 228: Implement prompt service client for pattern creation - Completed on 04
 Task 229: Implement JSON parsing and validation pipeline - Completed on 04/05/2026 14:45
 Task 230: Implement template file writer (draft) - Completed on 04/05/2026 14:45
 Task 231: Implement pattern generation service - Completed on 04/05/2026 14:47
+Task 232: Add API endpoint for pattern generation - Completed on 04/05/2026 14:48

@@ -49,29 +49,7 @@ Do not edit above this line:
 #######################################################################
 
 
-[WIP] Task 232: Add API endpoint for pattern generation
-
-- Add internal endpoint for triggering pattern creation
-- File: src/email_node/api/patterns.py
-
-Route:
-POST /api/patterns/generate
-
-Input:
-- request model from Task 226
-
-Output:
-- success:
-  - template_id
-  - file_path
-- error:
-  - validation or generation error
-
-Acceptance:
-- Endpoint triggers full flow
-- Returns deterministic result
-
-[TODO] Task 233: Add CLI tool for pattern generation
+[WIP] Task 233: Add CLI tool for pattern generation
 
 - Add CLI entry point
 - File: scripts/generate_pattern.py

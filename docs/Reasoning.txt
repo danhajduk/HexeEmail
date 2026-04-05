@@ -199,3 +199,9 @@ Chosen fix: Expose a small router in `src/email_node/api/patterns.py` that accep
 What changed: Added `src/email_node/api/patterns.py` and `src/email_node/api/__init__.py`, wired the route into `src/main.py`, added `NodeService.generate_pattern_template()` in `src/service.py`, and added `tests/test_pattern_generation_api.py` covering success and failure responses.
 Verification: `python -m py_compile src/main.py src/service.py src/email_node/api/__init__.py src/email_node/api/patterns.py tests/test_pattern_generation_api.py` passed.
 ###########
+Task #233
+Step objective: Add the CLI tool for pattern generation.
+Chosen fix: Add a lightweight async CLI wrapper around the new pattern-generation service so sample email JSON files can be submitted locally without going through the API layer, while keeping the service factory injectable for tests.
+What changed: Added `scripts/generate_pattern.py` with `run_cli()` and `main()` entrypoints, and added `tests/test_generate_pattern_script.py` covering success and error output behavior.
+Verification: `python -m py_compile scripts/generate_pattern.py tests/test_generate_pattern_script.py` passed.
+###########
