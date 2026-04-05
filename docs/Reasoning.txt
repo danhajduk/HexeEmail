@@ -187,3 +187,9 @@ Chosen fix: Add a small writer class that saves validated response models as pre
 What changed: Added `src/email_node/patterns/pattern_generation_writer.py`, exported it from `src/email_node/patterns/__init__.py`, and added `tests/test_pattern_generation_writer.py` covering normal writes, overwrite rejection, and allowed overwrite behavior.
 Verification: `python -m py_compile src/email_node/patterns/__init__.py src/email_node/patterns/pattern_generation_writer.py tests/test_pattern_generation_writer.py` passed.
 ###########
+Task #231
+Step objective: Implement the pattern generation orchestration service.
+Chosen fix: Add a thin service layer that composes the pipeline and writer, returns a stable success payload on completion, and raises a dedicated service error when the pipeline or writer fails.
+What changed: Added `src/email_node/patterns/pattern_generation_service.py`, exported it from `src/email_node/patterns/__init__.py`, and added `tests/test_pattern_generation_service.py` covering end-to-end success and structured failure propagation.
+Verification: `python -m py_compile src/email_node/patterns/__init__.py src/email_node/patterns/pattern_generation_service.py tests/test_pattern_generation_service.py` passed.
+###########

@@ -49,27 +49,7 @@ Do not edit above this line:
 #######################################################################
 
 
-[WIP] Task 230: Implement template file writer (draft)
-
-- Save generated templates to disk
-- Directory: email_node/patterns/draft/
-
-Requirements:
-- File name format:
-  - {template_id}.json
-- Write pretty JSON (indent=2)
-- Overwrite behavior:
-  - allow overwrite only if explicitly enabled
-
-- Add metadata:
-  - add generated_at timestamp (optional if schema allows)
-  - DO NOT modify schema fields
-
-Acceptance:
-- Template saved correctly
-- File readable and valid JSON
-
-[TODO] Task 231: Implement pattern generation service
+[WIP] Task 231: Implement pattern generation service
 
 - Create orchestration service
 - File: src/email_node/patterns/pattern_generation_service.py
