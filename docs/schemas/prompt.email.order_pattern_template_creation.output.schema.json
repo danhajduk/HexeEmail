@@ -1,0 +1,320 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Structured output schema embedded in runtime/prompts/prompt.email.order_pattern_template_creation.json.",
+  "properties": {
+    "confidence_rules": {
+      "additionalProperties": false,
+      "properties": {
+        "high_requires": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "high_requires"
+      ],
+      "type": "object"
+    },
+    "enabled": {
+      "type": "boolean"
+    },
+    "extract": {
+      "additionalProperties": {
+        "additionalProperties": false,
+        "oneOf": [
+          {
+            "properties": {
+              "method": {
+                "const": "regex"
+              },
+              "pattern": {
+                "type": "string"
+              },
+              "transforms": {
+                "items": {
+                  "enum": [
+                    "trim",
+                    "collapse_spaces",
+                    "normalize_currency",
+                    "normalize_order_number",
+                    "normalize_phone_number",
+                    "normalize_url"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "method",
+              "pattern"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "method": {
+                "const": "line_contains"
+              },
+              "value": {
+                "type": "string"
+              },
+              "transforms": {
+                "items": {
+                  "enum": [
+                    "trim",
+                    "collapse_spaces",
+                    "normalize_currency",
+                    "normalize_order_number",
+                    "normalize_phone_number",
+                    "normalize_url"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "method",
+              "value"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "method": {
+                "const": "line_after"
+              },
+              "marker": {
+                "type": "string"
+              },
+              "transforms": {
+                "items": {
+                  "enum": [
+                    "trim",
+                    "collapse_spaces",
+                    "normalize_currency",
+                    "normalize_order_number",
+                    "normalize_phone_number",
+                    "normalize_url"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "method",
+              "marker"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "method": {
+                "const": "between_markers"
+              },
+              "start_marker": {
+                "type": "string"
+              },
+              "end_marker": {
+                "type": "string"
+              },
+              "transforms": {
+                "items": {
+                  "enum": [
+                    "trim",
+                    "collapse_spaces",
+                    "normalize_currency",
+                    "normalize_order_number",
+                    "normalize_phone_number",
+                    "normalize_url"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "method",
+              "start_marker",
+              "end_marker"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "method": {
+                "const": "all_matches"
+              },
+              "pattern": {
+                "type": "string"
+              },
+              "transforms": {
+                "items": {
+                  "enum": [
+                    "trim",
+                    "collapse_spaces",
+                    "normalize_currency",
+                    "normalize_order_number",
+                    "normalize_phone_number",
+                    "normalize_url"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "method",
+              "pattern"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "method": {
+                "const": "first_match"
+              },
+              "pattern": {
+                "type": "string"
+              },
+              "transforms": {
+                "items": {
+                  "enum": [
+                    "trim",
+                    "collapse_spaces",
+                    "normalize_currency",
+                    "normalize_order_number",
+                    "normalize_phone_number",
+                    "normalize_url"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "method",
+              "pattern"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "method": {
+                "const": "link_by_label"
+              },
+              "label": {
+                "type": "string"
+              },
+              "transforms": {
+                "items": {
+                  "enum": [
+                    "trim",
+                    "collapse_spaces",
+                    "normalize_currency",
+                    "normalize_order_number",
+                    "normalize_phone_number",
+                    "normalize_url"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "method",
+              "label"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "method": {
+                "const": "link_by_type"
+              },
+              "link_type": {
+                "type": "string"
+              },
+              "transforms": {
+                "items": {
+                  "enum": [
+                    "trim",
+                    "collapse_spaces",
+                    "normalize_currency",
+                    "normalize_order_number",
+                    "normalize_phone_number",
+                    "normalize_url"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "method",
+              "link_type"
+            ],
+            "type": "object"
+          }
+        ],
+        "type": "object"
+      },
+      "type": "object"
+    },
+    "match": {
+      "additionalProperties": false,
+      "properties": {
+        "vendor_identity": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "post_process": {
+      "type": "object"
+    },
+    "profile_id": {
+      "type": "string"
+    },
+    "required_fields": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "schema_version": {
+      "enum": [
+        "order-phase4-template.v1"
+      ],
+      "type": "string"
+    },
+    "template_id": {
+      "type": "string"
+    },
+    "template_version": {
+      "enum": [
+        "v1"
+      ],
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "template_id",
+    "profile_id",
+    "template_version",
+    "enabled",
+    "match",
+    "extract",
+    "required_fields",
+    "confidence_rules",
+    "post_process"
+  ],
+  "title": "prompt.email.order_pattern_template_creation Output Schema",
+  "type": "object"
+}

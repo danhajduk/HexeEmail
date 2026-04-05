@@ -35,8 +35,20 @@ The current schema set covers:
 - [prompt.email.summarization.output.schema.json](/home/dan/Projects/HexeEmail/docs/schemas/prompt.email.summarization.output.schema.json)
   Structured output schema for `prompt.email.summarization`.
 
+- [prompt.email.order_pattern_template_creation.output.schema.json](/home/dan/Projects/HexeEmail/docs/schemas/prompt.email.order_pattern_template_creation.output.schema.json)
+  Structured output schema for `prompt.email.order_pattern_template_creation`.
+
+- [prompt.email.lifecycle_degradation_probe.output.schema.json](/home/dan/Projects/HexeEmail/docs/schemas/prompt.email.lifecycle_degradation_probe.output.schema.json)
+  Structured output schema for `prompt.email.lifecycle_degradation_probe`.
+
 - [gmail-order-template.schema.json](/home/dan/Projects/HexeEmail/docs/schemas/gmail-order-template.schema.json)
   Contract for the JSON templates stored under `runtime/order_templates/`.
+
+- [pattern-generation-request.schema.json](/home/dan/Projects/HexeEmail/docs/schemas/pattern-generation-request.schema.json)
+  Request contract for node-local pattern generation.
+
+- [pattern-generation-response.schema.json](/home/dan/Projects/HexeEmail/docs/schemas/pattern-generation-response.schema.json)
+  Strict response contract for node-local pattern generation.
 
 ## Notes
 

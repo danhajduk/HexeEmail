@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Structured output schema embedded in runtime/prompts/prompt.email.lifecycle_degradation_probe.json.",
+  "properties": {
+    "matched_terms": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "probe_result": {
+      "enum": [
+        "ok",
+        "empty"
+      ],
+      "type": "string"
+    },
+    "summary": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "probe_result",
+    "matched_terms",
+    "summary"
+  ],
+  "title": "prompt.email.lifecycle_degradation_probe Output Schema",
+  "type": "object"
+}

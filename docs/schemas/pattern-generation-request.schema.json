@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Request contract for node-local pattern generation, derived from src/email_node/patterns/pattern_generation_request.py.",
+  "properties": {
+    "body_html": {
+      "default": "",
+      "type": "string"
+    },
+    "body_text": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "expected_label": {
+      "enum": [
+        "ORDER",
+        "SHIPMENT"
+      ],
+      "type": "string"
+    },
+    "from_email": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "from_name": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "links_json": {
+      "default": [],
+      "items": {
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "profile_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "received_at": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "subject": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "template_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "template_version": {
+      "default": "v1",
+      "type": "string"
+    },
+    "vendor_identity": {
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "template_id",
+    "profile_id",
+    "vendor_identity",
+    "expected_label",
+    "from_name",
+    "from_email",
+    "subject",
+    "received_at",
+    "body_text"
+  ],
+  "title": "Pattern Generation Request",
+  "type": "object"
+}
