@@ -205,3 +205,9 @@ Chosen fix: Add a lightweight async CLI wrapper around the new pattern-generatio
 What changed: Added `scripts/generate_pattern.py` with `run_cli()` and `main()` entrypoints, and added `tests/test_generate_pattern_script.py` covering success and error output behavior.
 Verification: `python -m py_compile scripts/generate_pattern.py tests/test_generate_pattern_script.py` passed.
 ###########
+Task #234
+Step objective: Add logging and diagnostics to the pattern generation flow.
+Chosen fix: Add structured logs around safe request metadata in the client, truncated raw AI output with an opt-in full-response debug mode, schema validation failures in the pipeline, and the final saved file path in the service.
+What changed: Updated `src/email_node/patterns/pattern_generation_client.py`, `src/email_node/patterns/pattern_generation_pipeline.py`, and `src/email_node/patterns/pattern_generation_service.py` with structured diagnostics while avoiding body-text logging by default.
+Verification: `python -m py_compile src/email_node/patterns/pattern_generation_client.py src/email_node/patterns/pattern_generation_pipeline.py src/email_node/patterns/pattern_generation_service.py` passed.
+###########

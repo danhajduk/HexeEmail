@@ -7,10 +7,14 @@ from pydantic import ValidationError
 from email_node.patterns.pattern_generation_client import PatternGenerationClientError
 from email_node.patterns.pattern_generation_request import PatternGenerationRequest
 from email_node.patterns.pattern_generation_response import PatternGenerationResponse
+from logging_utils import get_logger
 
 
 class PatternGenerationPipelineError(RuntimeError):
     pass
+
+
+LOGGER = get_logger(__name__)
 
 
 class PatternGenerationPipeline:
@@ -48,4 +52,14 @@ class PatternGenerationPipeline:
         try:
             return PatternGenerationResponse.model_validate(normalized)
         except ValidationError as exc:
+            LOGGER.error(
+                "Pattern generation response validation failed",
+                extra={
+                    "event_data": {
+                        "template_id": normalized.get("template_id"),
+                        "profile_id": normalized.get("profile_id"),
+                        "detail": str(exc),
+                    }
+                },
+            )
             raise PatternGenerationPipelineError(f"Pattern generation response failed schema validation: {exc}") from exc

@@ -49,26 +49,7 @@ Do not edit above this line:
 #######################################################################
 
 
-[WIP] Task 233: Add CLI tool for pattern generation
-
-- Add CLI entry point
-- File: scripts/generate_pattern.py
-
-Usage:
-python generate_pattern.py --input sample.json
-
-Requirements:
-- Load sample email JSON
-- Call pattern generation service
-- Print:
-  - success + file path
-  - or error
-
-Acceptance:
-- CLI works end-to-end
-- Useful for batch testing
-
-[TODO] Task 234: Add logging and diagnostics
+[WIP] Task 234: Add logging and diagnostics
 
 - Add structured logs for:
   - request payload (safe fields only)

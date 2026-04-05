@@ -7,6 +7,7 @@ from pathlib import Path
 import httpx
 
 from email_node.patterns.pattern_generation_request import PatternGenerationRequest
+from logging_utils import get_logger
 
 
 class PatternGenerationClientError(RuntimeError):
@@ -15,6 +16,9 @@ class PatternGenerationClientError(RuntimeError):
 
 class PatternGenerationParseError(PatternGenerationClientError):
     pass
+
+
+LOGGER = get_logger(__name__)
 
 
 class PatternGenerationClient:
@@ -27,6 +31,7 @@ class PatternGenerationClient:
         prompt_definition_path: Path | None = None,
         transport: httpx.AsyncBaseTransport | None = None,
         timeout: float = 30.0,
+        debug_full_response: bool = False,
     ) -> None:
         self.target_api_base_url = target_api_base_url.rstrip("/")
         self.prompt_definition_path = prompt_definition_path or (
@@ -34,6 +39,7 @@ class PatternGenerationClient:
         )
         self.transport = transport
         self.timeout = timeout
+        self.debug_full_response = debug_full_response
 
     def load_prompt_definition(self) -> dict[str, object]:
         try:
@@ -95,6 +101,22 @@ class PatternGenerationClient:
         return parsed
 
     async def _execute_once(self, request_body: dict[str, object]) -> dict[str, object]:
+        safe_inputs = request_body.get("inputs", {})
+        LOGGER.info(
+            "Pattern generation request started",
+            extra={
+                "event_data": {
+                    "target_api_base_url": self.target_api_base_url,
+                    "prompt_id": request_body.get("prompt_id"),
+                    "task_id": request_body.get("task_id"),
+                    "template_id": safe_inputs.get("template_id") if isinstance(safe_inputs, dict) else None,
+                    "profile_id": safe_inputs.get("profile_id") if isinstance(safe_inputs, dict) else None,
+                    "vendor_identity": safe_inputs.get("vendor_identity") if isinstance(safe_inputs, dict) else None,
+                    "expected_label": safe_inputs.get("expected_label") if isinstance(safe_inputs, dict) else None,
+                    "from_email": safe_inputs.get("from_email") if isinstance(safe_inputs, dict) else None,
+                }
+            },
+        )
         async with httpx.AsyncClient(
             base_url=self.target_api_base_url,
             transport=self.transport,
@@ -106,6 +128,18 @@ class PatternGenerationClient:
         if not isinstance(payload, dict):
             raise PatternGenerationClientError("AI execution response must be a JSON object")
         output = payload.get("output")
+        output_preview = output if self.debug_full_response else str(output)[:500]
+        LOGGER.info(
+            "Pattern generation raw AI response received",
+            extra={
+                "event_data": {
+                    "task_id": request_body.get("task_id"),
+                    "status": payload.get("status"),
+                    "output_preview": output_preview,
+                    "debug_full_response": self.debug_full_response,
+                }
+            },
+        )
         return self._parse_json_only_output(output)
 
     async def generate_pattern(self, request: PatternGenerationRequest) -> dict[str, object]:
