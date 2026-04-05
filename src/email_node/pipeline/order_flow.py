@@ -47,6 +47,7 @@ class OrderFlowPipeline:
         phase3 = self.phase3_detector.detect(phase2)
         phase4 = self.phase4_extractor.extract(phase3)
         phase4 = await self.attach_probation_template(phase4)
+        phase4 = self._run_probation_shadow_mode(phase4)
         return {
             "phase2": phase2,
             "phase3": phase3,
@@ -134,6 +135,32 @@ class OrderFlowPipeline:
             }
         )
 
+    def _run_probation_shadow_mode(self, phase4):
+        if not getattr(phase4, "template_id", None):
+            return phase4
+        probation_state = self.probation_store.find_state(
+            profile_id=getattr(phase4, "profile_id", None),
+            vendor_identity=getattr(phase4, "vendor_identity", None),
+            status="probation",
+        )
+        if probation_state is None:
+            return phase4
+        evaluation = self.probation_evaluator.evaluate(phase4.phase3_reference, template_id=probation_state.template_id)
+        updated_state = ProbationMetrics.update_state(probation_state, evaluation)
+        updated_state = self.probation_promotion.evaluate_and_apply(updated_state)
+        self.probation_store.save_state(updated_state)
+        comparison = self._build_shadow_comparison(phase4, evaluation)
+        self.probation_store.save_shadow_comparison(probation_state.template_id, phase4.message_id, comparison)
+        return phase4.model_copy(
+            update={
+                "template_diagnostics": list(phase4.template_diagnostics)
+                + [
+                    f"probation_template:shadow:{probation_state.template_id}",
+                    f"probation_template:state:{probation_state.template_id}:{updated_state.status}",
+                ]
+            }
+        )
+
     @staticmethod
     def _should_attempt_probation(phase4) -> bool:
         if getattr(phase4, "extraction_status", None) != "unresolved":
@@ -183,3 +210,31 @@ class OrderFlowPipeline:
             body_html="",
             links_json=[item for item in links_json if isinstance(item, dict)],
         )
+
+    @staticmethod
+    def _build_shadow_comparison(phase4, evaluation) -> dict[str, object]:
+        active_fields = {
+            field_name: field.value
+            for field_name, field in getattr(phase4, "extracted_fields", {}).items()
+        }
+        probation_fields = dict(evaluation.extracted_fields)
+        all_field_names = sorted(set(active_fields) | set(probation_fields))
+        extraction_variance = {
+            field_name: {
+                "active": active_fields.get(field_name),
+                "probation": probation_fields.get(field_name),
+            }
+            for field_name in all_field_names
+            if active_fields.get(field_name) != probation_fields.get(field_name)
+        }
+        differing_required_fields = sorted(set(evaluation.missing_required_fields))
+        differing_high_requires = sorted(set(evaluation.missing_high_requires))
+        return {
+            "message_id": phase4.message_id,
+            "active_template_id": phase4.template_id,
+            "probation_template_id": evaluation.template_id,
+            "profile_id": phase4.profile_id,
+            "required_field_differences": differing_required_fields,
+            "high_requires_differences": differing_high_requires,
+            "extraction_variance": extraction_variance,
+        }

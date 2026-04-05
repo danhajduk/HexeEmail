@@ -13,14 +13,17 @@ class ProbationStore:
         templates_dir: Path | None = None,
         state_dir: Path | None = None,
         evaluations_dir: Path | None = None,
+        shadow_dir: Path | None = None,
     ) -> None:
         base_dir = Path(__file__).resolve().parent
         self.templates_dir = templates_dir or (base_dir / "probation")
         self.state_dir = state_dir or (base_dir / "probation_state")
         self.evaluations_dir = evaluations_dir or (base_dir / "probation_evaluations")
+        self.shadow_dir = shadow_dir or (base_dir / "probation_shadow")
         self.templates_dir.mkdir(parents=True, exist_ok=True)
         self.state_dir.mkdir(parents=True, exist_ok=True)
         self.evaluations_dir.mkdir(parents=True, exist_ok=True)
+        self.shadow_dir.mkdir(parents=True, exist_ok=True)
 
     def build_template_path(self, template_id: str) -> Path:
         return self.templates_dir / f"{template_id}.json"
@@ -30,6 +33,9 @@ class ProbationStore:
 
     def build_evaluation_path(self, template_id: str, message_id: str) -> Path:
         return self.evaluations_dir / template_id / f"{message_id}.json"
+
+    def build_shadow_path(self, template_id: str, message_id: str) -> Path:
+        return self.shadow_dir / template_id / f"{message_id}.json"
 
     def save_template_payload(self, template_id: str, payload: dict[str, object]) -> Path:
         path = self.build_template_path(template_id)
@@ -75,6 +81,23 @@ class ProbationStore:
             if isinstance(payload, dict):
                 evaluations.append(payload)
         return evaluations
+
+    def save_shadow_comparison(self, template_id: str, message_id: str, payload: dict[str, object]) -> Path:
+        path = self.build_shadow_path(template_id, message_id)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload, indent=2, sort_keys=False) + "\n", encoding="utf-8")
+        return path
+
+    def list_shadow_comparisons(self, template_id: str) -> list[dict[str, object]]:
+        root = self.shadow_dir / template_id
+        if not root.exists():
+            return []
+        comparisons: list[dict[str, object]] = []
+        for path in sorted(root.glob("*.json")):
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(payload, dict):
+                comparisons.append(payload)
+        return comparisons
 
     def list_states(self) -> list[ProbationTemplateState]:
         states: list[ProbationTemplateState] = []
