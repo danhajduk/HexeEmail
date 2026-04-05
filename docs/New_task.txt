@@ -49,40 +49,7 @@ Do not edit above this line:
 #######################################################################
 
 
-[WIP] Task 226: Define pattern generation request contract
-
-- Create request model for AI-driven pattern creation
-- File: src/email_node/patterns/pattern_generation_request.py
-
-Requirements:
-- Define a strict request schema with fields:
-  - template_id (string)
-  - profile_id (string)
-  - template_version (string, default "v1")
-  - vendor_identity (string)
-  - expected_label (string: ORDER|SHIPMENT)
-  - from_name (string)
-  - from_email (string)
-  - subject (string)
-  - received_at (string)
-  - body_text (string)
-  - body_html (string, optional)
-  - links_json (array, default [])
-
-- Add validation:
-  - required fields must be present
-  - body_text must not be empty
-  - template_id/profile_id must be non-empty strings
-
-- Add default handling:
-  - body_html -> ""
-  - links_json -> []
-
-Acceptance:
-- Model validates valid input
-- Rejects missing required fields
-- Defaults applied correctly
-[TODO] Task 227: Define pattern generation response contract
+[WIP] Task 227: Define pattern generation response contract
 
 - Create strict response schema for Phase 4 template
 - File: src/email_node/patterns/pattern_generation_response.py

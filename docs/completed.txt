@@ -231,3 +231,4 @@ Task 223: Recheck lifecycle/status surfaces against updated AI-node startup-resu
 Task 224: Add focused tests for prompt sync, update, review, migration, and lifecycle-aware reporting - Completed on 04/04/2026 19:45
 Task 225: Update repo docs for the prompt lifecycle/access contract alignment - Completed on 04/04/2026 19:45
 Task 105: Extract AI node and email provider calls into modular gateway services and move prompt JSON files into runtime storage - Completed on 04/05/2026 13:32
+Task 226: Define pattern generation request contract - Completed on 04/05/2026 14:39
