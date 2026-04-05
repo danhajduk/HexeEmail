@@ -47,6 +47,36 @@ async def test_ai_gateway_execute_direct_rejects_when_disabled():
 
 
 @pytest.mark.asyncio
+async def test_ai_gateway_execute_direct_normalizes_target_url_and_returns_payload():
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["url"] = str(request.url)
+        captured["body"] = request.read().decode("utf-8")
+        return httpx.Response(200, json={"status": "completed", "output": {"label": "order"}})
+
+    service = SimpleNamespace(
+        runtime=SimpleNamespace(
+            runtime_ai_calls_enabled=lambda: True,
+            runtime_ai_disabled_message=lambda: "AI calls are disabled in Runtime Settings.",
+            normalize_target_api_base_url=lambda value: "http://node.test" if value == "http://node.test/api" else (value or "http://node.test"),
+        ),
+        core_client=SimpleNamespace(timeout=10.0, transport=httpx.MockTransport(handler)),
+    )
+    gateway = AiNodeGateway(service)
+
+    normalized_url, payload = await gateway.execute_direct(
+        "http://node.test/api",
+        request_body={"prompt_id": "prompt.email.classifier"},
+    )
+
+    assert normalized_url == "http://node.test"
+    assert captured["url"] == "http://node.test/api/execution/direct"
+    assert '"prompt_id":"prompt.email.classifier"' in str(captured["body"])
+    assert payload == {"status": "completed", "output": {"label": "order"}}
+
+
+@pytest.mark.asyncio
 async def test_email_provider_gateway_blocks_remote_fetch_when_disabled():
     state = {"called": False}
 

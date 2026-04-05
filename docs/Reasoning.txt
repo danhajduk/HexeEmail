@@ -145,3 +145,9 @@ Chosen fix: Add a dedicated test file that exercises the most important gateway 
 What changed: Added `tests/test_gateway_boundaries.py` covering `AiNodeGateway.get_prompt_service`, `AiNodeGateway.execute_direct`, and `EmailProviderGateway.gmail_fetch_full_message_payload`.
 Verification: `python -m py_compile tests/test_gateway_boundaries.py src/node_backend/ai_gateway.py src/node_backend/email_provider_gateway.py` passed.
 ###########
+Task #105
+Step objective: Document the canonical gateway boundaries and expand direct gateway contract coverage.
+Chosen fix: Update the runtime doc to name `AiNodeGateway` and `EmailProviderGateway` as the supported outbound boundaries, then add one more direct test for AI URL normalization and successful payload passthrough.
+What changed: Updated `docs/runtime.md` with an outbound-boundaries section and expanded `tests/test_gateway_boundaries.py` with a success-path `AiNodeGateway.execute_direct` contract test.
+Verification: `python -m py_compile tests/test_gateway_boundaries.py` passed.
+###########

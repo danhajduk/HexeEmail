@@ -50,6 +50,20 @@ Current operator-visible runtime surfaces include:
 
 Scheduler and background-task ownership is now centered in [scheduler.py](/home/dan/Projects/HexeEmail/src/node_backend/scheduler.py), with provider-specific runtime execution routed through [providers.py](/home/dan/Projects/HexeEmail/src/node_backend/providers.py).
 
+## Outbound boundaries
+
+Canonical outbound integration boundaries now live in:
+
+- [src/node_backend/ai_gateway.py](/home/dan/Projects/HexeEmail/src/node_backend/ai_gateway.py) for all outbound AI-node requests
+- [src/node_backend/email_provider_gateway.py](/home/dan/Projects/HexeEmail/src/node_backend/email_provider_gateway.py) for all outbound email-provider requests
+
+Current expectations:
+
+- orchestration code in [src/service.py](/home/dan/Projects/HexeEmail/src/service.py), [src/node_backend/providers.py](/home/dan/Projects/HexeEmail/src/node_backend/providers.py), and [src/node_backend/scheduler.py](/home/dan/Projects/HexeEmail/src/node_backend/scheduler.py) should call these gateways instead of building remote transport behavior directly
+- `AiNodeGateway` owns target URL normalization and AI disable enforcement before outbound prompt-service or direct-execution requests
+- `EmailProviderGateway` owns provider disable enforcement before outbound Gmail/provider fetch, full-message, label-refresh, and OAuth-exchange calls
+- local provider state reads, SQLite-backed stores, and purely local orchestration can stay outside the gateways
+
 ## Prompt lifecycle alignment
 
 The runtime prompt integration is aligned to the Hexe AI Node prompt lifecycle/access policy described in:
