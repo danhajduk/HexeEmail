@@ -239,3 +239,5 @@ Task 230: Implement template file writer (draft) - Completed on 04/05/2026 14:45
 Task 231: Implement pattern generation service - Completed on 04/05/2026 14:47
 Task 232: Add API endpoint for pattern generation - Completed on 04/05/2026 14:48
 Task 233: Add CLI tool for pattern generation - Completed on 04/05/2026 14:49
+Task 234: Add logging and diagnostics - Completed on 04/05/2026 14:50
+Task 235: Add initial test coverage - Completed on 04/05/2026 14:50

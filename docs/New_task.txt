@@ -48,33 +48,3 @@ Standards reference:
 Do not edit above this line:
 #######################################################################
 
-
-[WIP] Task 234: Add logging and diagnostics
-
-- Add structured logs for:
-  - request payload (safe fields only)
-  - raw AI response (truncated)
-  - validation errors
-  - saved file path
-
-Requirements:
-- No sensitive data leakage
-- Add debug mode for full response capture
-
-Acceptance:
-- Logs allow debugging failed generations
-
-[TODO] Task 235: Add initial test coverage
-
-- Create tests for:
-  - valid generation flow
-  - invalid JSON response
-  - schema validation failure
-  - file write success
-
-Files:
-tests/test_pattern_generation.py
-
-Acceptance:
-- Tests cover success + failure paths
-- No silent failures
