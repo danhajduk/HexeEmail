@@ -932,6 +932,23 @@ async def test_weekly_prompt_sync_runs_once_per_week_slot(config, core_client_fa
 
 
 @pytest.mark.asyncio
+async def test_weekly_prompt_sync_skips_when_ai_calls_disabled(config, core_client_factory):
+    core_app = build_core_app()
+    service = NodeService(config, core_client=core_client_factory(core_app), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    service.state.runtime_prompt_sync_target_api_base_url = "http://10.0.0.100:9002"
+    service._save_runtime_task_state(ai_calls_enabled=False)
+
+    await service._run_weekly_prompt_sync_if_due()
+
+    await service.stop()
+
+    assert core_app.state.prompt_service_registration_requests == []
+    assert service.state.runtime_prompt_sync_weekly_slot_key is None
+    assert service.state.runtime_prompt_sync_last_scheduled_at is None
+
+
+@pytest.mark.asyncio
 async def test_runtime_execute_email_classifier_posts_normalized_email(config, core_client_factory):
     core_app = build_core_app()
     service = NodeService(config, core_client=core_client_factory(core_app), mqtt_manager=FakeMQTTManager())
@@ -1181,6 +1198,59 @@ async def test_runtime_settings_can_disable_ai_calls(config, core_client_factory
     assert body["ok"] is True
     assert body["runtime_task_state"]["ai_calls_enabled"] is False
     assert service.state.runtime_task_state["ai_calls_enabled"] is False
+
+
+@pytest.mark.asyncio
+async def test_runtime_sync_prompts_rejects_when_ai_calls_disabled(config, core_client_factory):
+    core_app = build_core_app()
+    service = NodeService(config, core_client=core_client_factory(core_app), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    service._save_runtime_task_state(ai_calls_enabled=False)
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/runtime/prompts/sync",
+            json={"target_api_base_url": "http://10.0.0.100:9002"},
+        )
+
+    await service.stop()
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "AI calls are disabled in Runtime Settings."
+    assert core_app.state.prompt_service_registration_requests == []
+    assert core_app.state.prompt_service_update_requests == []
+    assert core_app.state.prompt_service_lifecycle_requests == []
+    assert service.state.runtime_task_state["request_status"] == "failed"
+    assert service.state.runtime_task_state["last_step"] == "register"
+
+
+@pytest.mark.asyncio
+async def test_runtime_review_prompt_rejects_when_ai_calls_disabled(config, core_client_factory):
+    core_app = build_core_app()
+    service = NodeService(config, core_client=core_client_factory(core_app), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    service._save_runtime_task_state(ai_calls_enabled=False)
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/runtime/prompts/review",
+            json={
+                "target_api_base_url": "http://10.0.0.100:9002",
+                "prompt_id": "prompt.email.classifier",
+                "review_status": "approved",
+                "reason": "Do not send while disabled.",
+            },
+        )
+
+    await service.stop()
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "AI calls are disabled in Runtime Settings."
+    assert core_app.state.prompt_service_review_requests == []
+    assert service.state.runtime_task_state["request_status"] == "failed"
+    assert service.state.runtime_task_state["last_step"] == "review"
 
 
 @pytest.mark.asyncio

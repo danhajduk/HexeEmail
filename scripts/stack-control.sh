@@ -98,6 +98,37 @@ status_component() {
   fi
 }
 
+port_listener_pid() {
+  local port="$1"
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null | head -n 1
+    return
+  fi
+  if command -v ss >/dev/null 2>&1; then
+    ss -ltnp 2>/dev/null | awk -v port=":$port" '$4 ~ port { print $NF }' | sed -n 's/.*pid=\([0-9]\+\).*/\1/p' | head -n 1
+    return
+  fi
+  return 1
+}
+
+status_component_with_port() {
+  local name="$1"
+  local pid_file="$2"
+  local port="$3"
+  if is_running "$pid_file"; then
+    echo "$name: running (pid $(cat "$pid_file"))"
+    return
+  fi
+
+  local pid=""
+  pid="$(port_listener_pid "$port" || true)"
+  if [[ -n "$pid" ]]; then
+    echo "$name: running (pid $pid, unmanaged)"
+  else
+    echo "$name: stopped"
+  fi
+}
+
 main() {
   if [[ -z "$ACTION" ]]; then
     echo "Usage: $0 {start|stop|restart|status}"
@@ -122,11 +153,11 @@ main() {
       "$0" start
       ;;
     status)
-      status_component "backend" "$BACKEND_PID_FILE"
-      status_component "frontend" "$FRONTEND_PID_FILE"
+      local api_port="${API_PORT:-9003}"
+      local ui_port="${UI_PORT:-8083}"
+      status_component_with_port "backend" "$BACKEND_PID_FILE" "$api_port"
+      status_component_with_port "frontend" "$FRONTEND_PID_FILE" "$ui_port"
       if command -v curl >/dev/null 2>&1; then
-        local api_port="${API_PORT:-9003}"
-        local ui_port="${UI_PORT:-8083}"
         if curl -fsS "http://127.0.0.1:${api_port}/health/live" >/dev/null 2>&1; then
           echo "backend_http: healthy (http://127.0.0.1:${api_port}/health/live)"
         else
