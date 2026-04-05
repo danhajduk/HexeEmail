@@ -241,3 +241,23 @@ Task 232: Add API endpoint for pattern generation - Completed on 04/05/2026 14:4
 Task 233: Add CLI tool for pattern generation - Completed on 04/05/2026 14:49
 Task 234: Add logging and diagnostics - Completed on 04/05/2026 14:50
 Task 235: Add initial test coverage - Completed on 04/05/2026 14:50
+Task 236: Add probation template logic into the ORDER Phase 4 loop - Completed on 04/05/2026 15:45
+Task 237: Define probation template state contract - Completed on 04/05/2026 15:45
+Task 238: Implement probation template registry and storage - Completed on 04/05/2026 15:45
+Task 239: Define probation evaluation result contract - Completed on 04/05/2026 15:45
+Task 240: Implement probation template evaluator - Completed on 04/05/2026 15:45
+Task 241: Add probation metrics aggregation - Completed on 04/05/2026 15:45
+Task 242: Define probation promotion policy - Completed on 04/05/2026 15:45
+Task 243: Implement auto-promotion gate - Completed on 04/05/2026 15:45
+Task 244: Implement probation-to-active template promotion - Completed on 04/05/2026 15:45
+Task 245: Add shadow-mode comparison with active templates - Completed on 04/05/2026 15:45
+Task 246: Add probation diagnostics API - Completed on 04/05/2026 15:45
+Task 247: Add CLI tools for probation testing - Completed on 04/05/2026 15:45
+Task 248: Add structured logging for probation lifecycle - Completed on 04/05/2026 15:45
+Task 249: Add end-to-end probation lifecycle tests - Completed on 04/05/2026 15:45
+Task 250: Document probation lifecycle and auto-promotion - Completed on 04/05/2026 15:45
+Task 251: Define ORDER unresolved-template generation request mapper - Completed on 04/05/2026 15:45
+Task 252: Add runtime control for unresolved ORDER template generation - Completed on 04/05/2026 15:45
+Task 253: Trigger pattern generation from unresolved ORDER Phase 4 results - Completed on 04/05/2026 15:45
+Task 254: Add idempotency and duplicate-generation protection for unresolved ORDER profiles - Completed on 04/05/2026 15:45
+Task 255: Add tests and docs for unresolved ORDER auto-generation handoff - Completed on 04/05/2026 15:45
