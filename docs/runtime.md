@@ -44,6 +44,7 @@ Current operator-visible runtime surfaces include:
 - prompt admin APIs for sync and review
 - services status/restart APIs
 - frontend dashboard and setup flow
+- runtime settings now gate AI-node calls and provider calls separately
 
 ## Runtime notes
 

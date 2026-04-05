@@ -94,7 +94,8 @@ class RuntimePromptReviewRequestInput(BaseModel):
 class RuntimeTaskSettingsInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    ai_calls_enabled: bool
+    ai_calls_enabled: bool | None = None
+    provider_calls_enabled: bool | None = None
 
 
 class RefreshTriggerRequest(BaseModel):

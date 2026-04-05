@@ -25,6 +25,12 @@ Chosen fix: Add dedicated `AiNodeGateway` and `EmailProviderGateway` modules, ro
 What changed: Added gateway modules under `src/node_backend/`, wired `NodeService`, `ProviderManager`, and the Gmail status scheduler to use the new gateways for AI-node prompt/execution calls and Gmail remote mailbox/token flows, changed the default prompt-definition directory to `runtime/prompts`, copied the existing prompt JSON definitions into `runtime/prompts/`, deleted the old `src/runtime_prompts/` copies, and updated prompt-location docs/schema references.
 Verification: `python -m py_compile src/config.py src/node_backend/__init__.py src/node_backend/runtime.py src/node_backend/ai_gateway.py src/node_backend/email_provider_gateway.py src/node_backend/providers.py src/node_backend/scheduler.py src/service.py` passed.
 ###########
+Task #105
+Step objective: Add provider-call gating through the new email-provider gateway and expose it on the runtime page.
+Chosen fix: Persist a separate `provider_calls_enabled` runtime setting, enforce it inside `EmailProviderGateway`, and make status/polling code fall back to cached/local data so disable mode stays quiet instead of turning into repeated errors.
+What changed: Added `provider_calls_enabled` runtime state and settings handling, enforced provider-call disable checks inside `EmailProviderGateway`, updated Gmail status and scheduler flows to skip remote provider calls cleanly when disabled, added a second runtime toggle in the dashboard UI, and expanded the dashboard render test coverage to include the new toggle state.
+Verification: `python -m py_compile src/node_backend/runtime.py src/node_models/runtime.py src/node_backend/email_provider_gateway.py src/node_backend/providers.py src/node_backend/scheduler.py src/service.py` passed. `npm --prefix frontend test -- --run src/features/dashboard/dashboard.test.jsx` passed.
+###########
 Task #086
 Step objective: Add sender reputation storage based on DB ratings/signals.
 Chosen fix: Add sender reputation records to the local Gmail storage layer so later aggregation and API tasks can reuse one persisted shape instead of duplicating sender/domain score data.

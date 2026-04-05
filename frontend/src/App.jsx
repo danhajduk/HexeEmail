@@ -34,6 +34,7 @@ const EMPTY_PROVIDER_FORM = {
 
 const EMPTY_RUNTIME_TASK_FORM = {
   ai_calls_enabled: true,
+  provider_calls_enabled: true,
   requested_node_type: "ai",
   task_family: "task.classification",
   content_type: "email",
@@ -47,6 +48,7 @@ const EMPTY_RUNTIME_TASK_FORM = {
 
 const EMPTY_RUNTIME_TASK_STATUS = {
   ai_calls_enabled: true,
+  provider_calls_enabled: true,
   request_status: "idle",
   last_step: "none",
   detail: "No runtime task request has been started yet.",
@@ -885,11 +887,13 @@ export function App() {
             : {
                 ...current,
                 ai_calls_enabled: payload.runtime_task_state?.ai_calls_enabled ?? true,
+                provider_calls_enabled: payload.runtime_task_state?.provider_calls_enabled ?? true,
               },
         );
         setRuntimeTaskForm((current) => ({
           ...current,
           ai_calls_enabled: payload.runtime_task_state?.ai_calls_enabled ?? true,
+          provider_calls_enabled: payload.runtime_task_state?.provider_calls_enabled ?? true,
         }));
         setUiUpdatedAt(new Date().toISOString());
         setBackendReachable(true);
@@ -1203,11 +1207,44 @@ export function App() {
         ...current,
         ...(payload.runtime_task_state || {}),
       }));
-      setRuntimeTaskNotice(enabled ? "AI calls enabled for runtime actions." : "AI calls disabled for runtime actions.");
+      setRuntimeTaskNotice(enabled ? "AI node calls enabled for runtime actions." : "AI node calls disabled for runtime actions.");
     } catch (taskError) {
       setRuntimeTaskForm((current) => ({
         ...current,
         ai_calls_enabled: !enabled,
+      }));
+      setRuntimeTaskError(taskError.message);
+    } finally {
+      setRuntimeTaskPending("");
+    }
+  }
+
+  async function updateRuntimeProviderCallsEnabled(enabled) {
+    setRuntimeTaskPending("settings");
+    setRuntimeTaskError("");
+    setRuntimeTaskNotice("");
+    setRuntimeTaskForm((current) => ({
+      ...current,
+      provider_calls_enabled: enabled,
+    }));
+    try {
+      const payload = await fetchJson("/api/runtime/settings", {
+        method: "POST",
+        body: JSON.stringify({
+          provider_calls_enabled: enabled,
+        }),
+      });
+      setRuntimeTaskStatus((current) => ({
+        ...current,
+        ...(payload.runtime_task_state || {}),
+      }));
+      setRuntimeTaskNotice(
+        enabled ? "Email provider calls enabled for runtime actions." : "Email provider calls disabled for runtime actions.",
+      );
+    } catch (taskError) {
+      setRuntimeTaskForm((current) => ({
+        ...current,
+        provider_calls_enabled: !enabled,
       }));
       setRuntimeTaskError(taskError.message);
     } finally {
@@ -2679,6 +2716,7 @@ export function App() {
                   runtimeTaskPending={runtimeTaskPending}
                   handleRuntimeTaskFormChange={handleRuntimeTaskFormChange}
                   updateRuntimeAiCallsEnabled={updateRuntimeAiCallsEnabled}
+                  updateRuntimeProviderCallsEnabled={updateRuntimeProviderCallsEnabled}
                   runRuntimeResolveFlow={runRuntimeResolveFlow}
                   runRuntimeAuthorize={runRuntimeAuthorize}
                   runRuntimeRegisterPrompt={runRuntimeRegisterPrompt}

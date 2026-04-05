@@ -35,7 +35,7 @@ describe("dashboard feature sections", () => {
         openTraining={() => {}}
         runtimeTaskPending=""
         runRuntimeExecuteEmailClassifierBatch={() => {}}
-        runtimeTaskForm={{ ai_calls_enabled: true }}
+        runtimeTaskForm={{ ai_calls_enabled: true, provider_calls_enabled: true }}
         runtimeBatchExecution={null}
         runtimeBatchProgressPercent={0}
         gmailLastHourPipelinePills={[{ key: "fetch", label: "fetch", value: "done" }]}
@@ -96,9 +96,10 @@ describe("dashboard feature sections", () => {
       <RuntimeDashboardSection
         runtimeTaskError=""
         runtimeTaskNotice=""
-        runtimeTaskStatus={{ ai_calls_enabled: true, request_status: "idle", last_step: "none", detail: "ready" }}
+        runtimeTaskStatus={{ ai_calls_enabled: true, provider_calls_enabled: true, request_status: "idle", last_step: "none", detail: "ready" }}
         runtimeTaskForm={{
           ai_calls_enabled: true,
+          provider_calls_enabled: true,
           requested_node_type: "ai",
           task_family: "task.classification",
           content_type: "email",
@@ -117,6 +118,7 @@ describe("dashboard feature sections", () => {
         runtimeTaskPending=""
         handleRuntimeTaskFormChange={() => {}}
         updateRuntimeAiCallsEnabled={() => {}}
+        updateRuntimeProviderCallsEnabled={() => {}}
         runRuntimeResolveFlow={() => {}}
         runRuntimeAuthorize={() => {}}
         runRuntimeRegisterPrompt={() => {}}

@@ -15,6 +15,7 @@ class RuntimeManager:
     def default_runtime_task_state() -> dict[str, object]:
         return {
             "ai_calls_enabled": True,
+            "provider_calls_enabled": True,
             "request_status": "idle",
             "last_step": "none",
             "detail": "No runtime task request has been started yet.",
@@ -47,9 +48,18 @@ class RuntimeManager:
         value = current.get("ai_calls_enabled")
         return True if value is None else bool(value)
 
+    def runtime_provider_calls_enabled(self) -> bool:
+        current = self.runtime_task_state()
+        value = current.get("provider_calls_enabled")
+        return True if value is None else bool(value)
+
     @staticmethod
     def runtime_ai_disabled_message() -> str:
         return "AI calls are disabled in Runtime Settings."
+
+    @staticmethod
+    def runtime_provider_disabled_message() -> str:
+        return "Provider calls are disabled in Runtime Settings."
 
     def prompt_definition_dir(self) -> Path:
         directory = self.service.config.prompt_definition_dir

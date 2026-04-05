@@ -162,6 +162,12 @@ class NodeService:
     def _runtime_ai_disabled_message(self) -> str:
         return self.runtime.runtime_ai_disabled_message()
 
+    def _runtime_provider_calls_enabled(self) -> bool:
+        return self.runtime.runtime_provider_calls_enabled()
+
+    def _runtime_provider_disabled_message(self) -> str:
+        return self.runtime.runtime_provider_disabled_message()
+
     @staticmethod
     def _default_gmail_last_hour_pipeline_state() -> dict[str, object]:
         return BackgroundTaskManager.default_gmail_last_hour_pipeline_state()
@@ -1981,7 +1987,19 @@ class NodeService:
         }
 
     async def update_runtime_task_settings(self, payload: RuntimeTaskSettingsInput) -> dict[str, object]:
-        state = self._save_runtime_task_state(ai_calls_enabled=bool(payload.ai_calls_enabled))
+        current = self._runtime_task_state()
+        state = self._save_runtime_task_state(
+            ai_calls_enabled=(
+                current.get("ai_calls_enabled")
+                if payload.ai_calls_enabled is None
+                else bool(payload.ai_calls_enabled)
+            ),
+            provider_calls_enabled=(
+                current.get("provider_calls_enabled")
+                if payload.provider_calls_enabled is None
+                else bool(payload.provider_calls_enabled)
+            ),
+        )
         return {
             "ok": True,
             "runtime_task_state": state,

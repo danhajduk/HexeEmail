@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from providers.gmail.models import GmailTrainingLabel
+from providers.models import ProviderHealth, ProviderId
 from providers.registry import ProviderRegistry
 
 
@@ -30,9 +31,17 @@ class ProviderManager:
             accounts = await adapter.list_accounts()
             health = None
             if accounts:
-                health = (await self.service.email_provider_gateway.gmail_get_account_health(accounts[0].account_id)).model_dump(
-                    mode="json"
-                )
+                try:
+                    health = (await self.service.email_provider_gateway.gmail_get_account_health(accounts[0].account_id)).model_dump(
+                        mode="json"
+                    )
+                except ValueError as exc:
+                    health = ProviderHealth(
+                        provider_id=ProviderId.GMAIL,
+                        account_id=accounts[0].account_id,
+                        status="unknown",
+                        detail=str(exc),
+                    ).model_dump(mode="json")
             summaries[provider_id] = {
                 "provider_id": provider_id,
                 "provider_state": await adapter.get_provider_state(),
@@ -58,12 +67,23 @@ class ProviderManager:
     async def gmail_account_status(self, account_id: str) -> dict[str, object]:
         adapter = self.service.provider_registry.get_provider("gmail")
         account = next((account for account in await adapter.list_accounts() if account.account_id == account_id), None)
-        health = await self.service.email_provider_gateway.gmail_get_account_health(account_id)
+        try:
+            health = await self.service.email_provider_gateway.gmail_get_account_health(account_id)
+        except ValueError as exc:
+            health = ProviderHealth(
+                provider_id=ProviderId.GMAIL,
+                account_id=account_id,
+                status="unknown",
+                detail=str(exc),
+            )
         mailbox_status = (
-            await self.service.email_provider_gateway.gmail_refresh_mailbox_status(account_id, store_unread_messages=False)
-            if hasattr(adapter, "refresh_mailbox_status")
-            else await adapter.get_mailbox_status(account_id) if hasattr(adapter, "get_mailbox_status") else None
+            await adapter.get_mailbox_status(account_id) if hasattr(adapter, "get_mailbox_status") else None
         )
+        if hasattr(adapter, "refresh_mailbox_status") and self.service._runtime_provider_calls_enabled():
+            mailbox_status = await self.service.email_provider_gateway.gmail_refresh_mailbox_status(
+                account_id,
+                store_unread_messages=False,
+            )
         return {
             "account": account.model_dump(mode="json") if account is not None else None,
             "health": health.model_dump(mode="json"),
@@ -77,18 +97,20 @@ class ProviderManager:
         statuses: list[dict[str, object]] = []
         for account in accounts:
             mailbox_status = (
-                await self.service.email_provider_gateway.gmail_refresh_mailbox_status(
+                await adapter.get_mailbox_status(account.account_id) if hasattr(adapter, "get_mailbox_status") else None
+            )
+            if hasattr(adapter, "refresh_mailbox_status") and self.service._runtime_provider_calls_enabled():
+                mailbox_status = await self.service.email_provider_gateway.gmail_refresh_mailbox_status(
                     account.account_id,
                     store_unread_messages=False,
                 )
-                if hasattr(adapter, "refresh_mailbox_status")
-                else await adapter.get_mailbox_status(account.account_id) if hasattr(adapter, "get_mailbox_status") else None
-            )
             labels = (
-                await self.service.email_provider_gateway.gmail_available_labels(account.account_id)
+                await adapter.available_labels(account.account_id, refresh=False)
                 if hasattr(adapter, "available_labels")
                 else None
             )
+            if hasattr(adapter, "available_labels") and self.service._runtime_provider_calls_enabled():
+                labels = await self.service.email_provider_gateway.gmail_available_labels(account.account_id)
             message_summary = await adapter.message_store_summary(account.account_id) if hasattr(adapter, "message_store_summary") else None
             classification_summary = (
                 await adapter.local_classification_summary(account.account_id)

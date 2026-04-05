@@ -479,6 +479,12 @@ class BackgroundTaskManager:
         gmail_adapter = self.service.provider_registry.get_provider("gmail")
         accounts = await gmail_adapter.list_accounts()
         eligible_accounts = [account for account in accounts if account.status in {"connected", "token_exchanged", "degraded"}]
+        if not self.service._runtime_provider_calls_enabled():
+            GMAIL_POLL_LOGGER.info(
+                "Gmail status polling pass skipped because provider calls are disabled",
+                extra={"event_data": {"account_count": len(accounts)}},
+            )
+            return
         GMAIL_POLL_LOGGER.info(
             "Gmail status polling pass started",
             extra={"event_data": {"account_count": len(accounts), "eligible_account_count": len(eligible_accounts)}},
@@ -539,6 +545,18 @@ class BackgroundTaskManager:
             self.save_gmail_fetch_scheduler_state(
                 status="idle",
                 detail="Gmail fetch scheduler is idle because Gmail is disabled.",
+                last_checked_at=datetime.now(UTC).isoformat(),
+                last_due_windows=[],
+            )
+            return
+        if not self.service._runtime_provider_calls_enabled():
+            self.service.notifications.set_gmail_fetch_notification_state(
+                "warning",
+                "Gmail fetch scheduling is paused because provider calls are disabled.",
+            )
+            self.save_gmail_fetch_scheduler_state(
+                status="idle",
+                detail="Gmail fetch scheduler is idle because provider calls are disabled.",
                 last_checked_at=datetime.now(UTC).isoformat(),
                 last_due_windows=[],
             )

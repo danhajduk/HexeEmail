@@ -11,6 +11,7 @@ export function RuntimeDashboardSection({
   runtimeTaskPending,
   handleRuntimeTaskFormChange,
   updateRuntimeAiCallsEnabled,
+  updateRuntimeProviderCallsEnabled,
   runRuntimeResolveFlow,
   runRuntimeAuthorize,
   runRuntimeRegisterPrompt,
@@ -33,6 +34,7 @@ export function RuntimeDashboardSection({
         {runtimeTaskNotice ? <div className="callout callout-success">{runtimeTaskNotice}</div> : null}
         <dl className="facts">
           <div><dt>AI Calls</dt><dd>{runtimeTaskStatus?.ai_calls_enabled === false ? "disabled" : "enabled"}</dd></div>
+          <div><dt>Provider Calls</dt><dd>{runtimeTaskStatus?.provider_calls_enabled === false ? "disabled" : "enabled"}</dd></div>
           <div><dt>Request Status</dt><dd>{runtimeTaskStatus?.request_status || "idle"}</dd></div>
           <div><dt>Last Step</dt><dd>{runtimeTaskStatus?.last_step || "none"}</dd></div>
           <div><dt>Requested Node Type</dt><dd>{runtimeTaskForm.requested_node_type}</dd></div>
@@ -76,6 +78,19 @@ export function RuntimeDashboardSection({
             >
               <span className="toggle-thumb" />
               <span>{runtimeTaskForm.ai_calls_enabled ? "Enabled" : "Disabled"}</span>
+            </button>
+          </label>
+          <label className="field">
+            <span className="field-label">Provider Calls</span>
+            <button
+              type="button"
+              className={`toggle ${runtimeTaskForm.provider_calls_enabled ? "is-on" : ""}`}
+              aria-pressed={runtimeTaskForm.provider_calls_enabled}
+              disabled={runtimeTaskPending !== ""}
+              onClick={() => updateRuntimeProviderCallsEnabled(!runtimeTaskForm.provider_calls_enabled)}
+            >
+              <span className="toggle-thumb" />
+              <span>{runtimeTaskForm.provider_calls_enabled ? "Enabled" : "Disabled"}</span>
             </button>
           </label>
           <label className="field">
@@ -156,7 +171,12 @@ export function RuntimeDashboardSection({
           >
             {runtimeTaskPending === "authorize" ? "Authorizing..." : "Start Task Authorize"}
           </button>
-          <button type="button" className="btn btn-primary" disabled={runtimeTaskPending !== ""} onClick={runRuntimeRegisterPrompt}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={runtimeTaskPending !== "" || !runtimeTaskForm.ai_calls_enabled}
+            onClick={runRuntimeRegisterPrompt}
+          >
             {runtimeTaskPending === "register" ? "Syncing..." : "Sync Prompts On AI Node"}
           </button>
           <button
