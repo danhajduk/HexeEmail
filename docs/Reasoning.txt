@@ -175,3 +175,9 @@ Chosen fix: Add a standalone async client that loads the local prompt definition
 What changed: Added `src/email_node/patterns/pattern_generation_client.py`, exported the client from `src/email_node/patterns/__init__.py`, and added `tests/test_pattern_generation_client.py` covering success, one retry after markdown-wrapped output, and failure after retry exhaustion.
 Verification: `python -m py_compile src/email_node/patterns/__init__.py src/email_node/patterns/pattern_generation_client.py tests/test_pattern_generation_client.py` passed.
 ###########
+Task #229
+Step objective: Implement the JSON parsing and validation pipeline.
+Chosen fix: Wrap the new client with a small pipeline that normalizes nullable collection fields into schema-safe values, validates the result through the strict response contract, and raises deterministic pipeline errors on client failures or schema mismatches.
+What changed: Added `src/email_node/patterns/pattern_generation_pipeline.py`, exported it from `src/email_node/patterns/__init__.py`, and added `tests/test_pattern_generation_pipeline.py` covering valid output, null-array/post-process normalization, and schema-mismatch failure handling.
+Verification: `python -m py_compile src/email_node/patterns/__init__.py src/email_node/patterns/pattern_generation_pipeline.py tests/test_pattern_generation_pipeline.py` passed.
+###########

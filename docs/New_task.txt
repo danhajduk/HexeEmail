@@ -49,29 +49,7 @@ Do not edit above this line:
 #######################################################################
 
 
-[WIP] Task 228: Implement prompt service client for pattern creation
-
-- Extend prompt client to support pattern generation
-- File: src/email_node/patterns/pattern_generation_client.py
-
-Requirements:
-- Call prompt:
-  - prompt_id = "prompt.email.order_pattern_template_creation"
-- Send request using Task 226 model
-- Receive response as raw JSON string
-
-- Enforce:
-  - JSON-only response
-  - no markdown or text wrapping
-
-- Add retry logic:
-  - retry once if JSON parsing fails
-
-Acceptance:
-- Successfully calls AI node
-- Returns parsed JSON object or raises error
-
-[TODO] Task 229: Implement JSON parsing and validation pipeline
+[WIP] Task 229: Implement JSON parsing and validation pipeline
 
 - Create parser + validator pipeline
 - File: src/email_node/patterns/pattern_generation_pipeline.py
