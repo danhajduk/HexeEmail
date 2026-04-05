@@ -49,31 +49,7 @@ Do not edit above this line:
 #######################################################################
 
 
-[WIP] Task 229: Implement JSON parsing and validation pipeline
-
-- Create parser + validator pipeline
-- File: src/email_node/patterns/pattern_generation_pipeline.py
-
-Flow:
-1. Call AI client
-2. Parse JSON
-3. Validate against response schema
-4. Normalize structure
-
-Requirements:
-- Fail if:
-  - invalid JSON
-  - schema mismatch
-- Normalize:
-  - ensure post_process exists
-  - ensure arrays are arrays (not null)
-- Return validated template object
-
-Acceptance:
-- Valid AI output passes
-- Invalid output fails deterministically
-
-[TODO] Task 230: Implement template file writer (draft)
+[WIP] Task 230: Implement template file writer (draft)
 
 - Save generated templates to disk
 - Directory: email_node/patterns/draft/

@@ -181,3 +181,9 @@ Chosen fix: Wrap the new client with a small pipeline that normalizes nullable c
 What changed: Added `src/email_node/patterns/pattern_generation_pipeline.py`, exported it from `src/email_node/patterns/__init__.py`, and added `tests/test_pattern_generation_pipeline.py` covering valid output, null-array/post-process normalization, and schema-mismatch failure handling.
 Verification: `python -m py_compile src/email_node/patterns/__init__.py src/email_node/patterns/pattern_generation_pipeline.py tests/test_pattern_generation_pipeline.py` passed.
 ###########
+Task #230
+Step objective: Implement the draft template file writer.
+Chosen fix: Add a small writer class that saves validated response models as pretty JSON under `src/email_node/patterns/draft`, rejects accidental overwrites by default, and allows them only when explicitly requested.
+What changed: Added `src/email_node/patterns/pattern_generation_writer.py`, exported it from `src/email_node/patterns/__init__.py`, and added `tests/test_pattern_generation_writer.py` covering normal writes, overwrite rejection, and allowed overwrite behavior.
+Verification: `python -m py_compile src/email_node/patterns/__init__.py src/email_node/patterns/pattern_generation_writer.py tests/test_pattern_generation_writer.py` passed.
+###########
