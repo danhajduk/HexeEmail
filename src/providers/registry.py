@@ -5,16 +5,18 @@ from dataclasses import dataclass, field
 from config import AppConfig
 from providers.base import EmailProviderAdapter
 from providers.gmail.adapter import GmailProviderAdapter
+from providers.gmail.token_client import GmailTokenExchangeClient
 from providers.models import ProviderId
 
 
 @dataclass
 class ProviderRegistry:
     config: AppConfig
+    gmail_token_client: GmailTokenExchangeClient | None = None
     _providers: dict[str, EmailProviderAdapter] = field(default_factory=dict, init=False)
 
     def __post_init__(self) -> None:
-        self.register_provider(GmailProviderAdapter(self.config.runtime_dir))
+        self.register_provider(GmailProviderAdapter(self.config.runtime_dir, token_client=self.gmail_token_client))
 
     def register_provider(self, adapter: EmailProviderAdapter) -> None:
         self._providers[str(adapter.provider_id)] = adapter

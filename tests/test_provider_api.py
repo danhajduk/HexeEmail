@@ -30,9 +30,10 @@ async def test_provider_endpoints_expose_gmail_summary(config, core_client_facto
     app = create_app(config=isolated_config, service=service)
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        providers_response = await client.get("/providers")
-        gmail_response = await client.get("/providers/gmail")
-        validate_response = await client.post("/providers/gmail/validate-config")
+        providers_response = await client.get("/api/providers")
+        gmail_response = await client.get("/api/providers/gmail")
+        validate_response = await client.post("/api/providers/gmail/validate-config")
+        compatibility_response = await client.get("/providers")
 
     await service.stop()
 
@@ -42,6 +43,7 @@ async def test_provider_endpoints_expose_gmail_summary(config, core_client_facto
     assert gmail_response.json()["provider_id"] == "gmail"
     assert validate_response.status_code == 200
     assert "client_secret_ref" not in str(validate_response.json())
+    assert compatibility_response.status_code == 200
 
 
 @pytest.mark.asyncio
@@ -65,8 +67,9 @@ async def test_gmail_config_endpoints_round_trip_runtime_config(config, core_cli
     }
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        update_response = await client.put("/providers/gmail/config", json=payload)
-        get_response = await client.get("/providers/gmail/config")
+        update_response = await client.put("/api/providers/gmail/config", json=payload)
+        get_response = await client.get("/api/providers/gmail/config")
+        compatibility_get_response = await client.get("/providers/gmail/config")
 
     await service.stop()
 
@@ -75,3 +78,4 @@ async def test_gmail_config_endpoints_round_trip_runtime_config(config, core_cli
     assert update_response.json()["validation"]["ok"] is True
     assert get_response.status_code == 200
     assert get_response.json()["config"]["client_id"] == "client-id"
+    assert compatibility_get_response.status_code == 200

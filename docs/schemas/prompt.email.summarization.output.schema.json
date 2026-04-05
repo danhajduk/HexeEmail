@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Structured output schema embedded in src/runtime_prompts/prompt.email.summarization.json.",
+  "properties": {
+    "detailed_summary": {
+      "type": "string"
+    },
+    "entities": {
+      "additionalProperties": false,
+      "properties": {
+        "dates": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "links": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "organizations": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "people": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "times": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "tracking_numbers": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "people",
+        "organizations",
+        "dates",
+        "times",
+        "tracking_numbers",
+        "links"
+      ],
+      "type": "object"
+    },
+    "key_points": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "priority": {
+      "enum": [
+        "low",
+        "normal",
+        "high"
+      ],
+      "type": "string"
+    },
+    "short_summary": {
+      "maxLength": 120,
+      "type": "string"
+    },
+    "signals": {
+      "additionalProperties": false,
+      "properties": {
+        "has_action_request": {
+          "type": "boolean"
+        },
+        "has_deadline": {
+          "type": "boolean"
+        },
+        "has_delivery_info": {
+          "type": "boolean"
+        },
+        "is_time_sensitive": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "is_time_sensitive",
+        "has_deadline",
+        "has_delivery_info",
+        "has_action_request"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "short_summary",
+    "priority",
+    "detailed_summary",
+    "key_points",
+    "entities",
+    "signals"
+  ],
+  "title": "prompt.email.summarization Output Schema",
+  "type": "object"
+}

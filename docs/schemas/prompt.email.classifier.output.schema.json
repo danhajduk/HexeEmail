@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Structured output schema embedded in src/runtime_prompts/prompt.email.classifier.json.",
+  "properties": {
+    "confidence": {
+      "maximum": 1,
+      "minimum": 0,
+      "type": "number"
+    },
+    "label": {
+      "enum": [
+        "action_required",
+        "direct_human",
+        "financial",
+        "order",
+        "invoice",
+        "shipment",
+        "security",
+        "system",
+        "newsletter",
+        "marketing",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "rationale": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "label",
+    "confidence",
+    "rationale"
+  ],
+  "title": "prompt.email.classifier Output Schema",
+  "type": "object"
+}

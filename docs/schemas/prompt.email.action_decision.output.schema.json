@@ -1,0 +1,214 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Structured output schema embedded in src/runtime_prompts/prompt.email.action_decision.json.",
+  "properties": {
+    "calendar_signals": {
+      "additionalProperties": false,
+      "properties": {
+        "has_calendar_invite": {
+          "type": "boolean"
+        },
+        "has_meeting_request": {
+          "type": "boolean"
+        },
+        "time_mentions": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "has_calendar_invite",
+        "has_meeting_request",
+        "time_mentions"
+      ],
+      "type": "object"
+    },
+    "confidence": {
+      "maximum": 1,
+      "minimum": 0,
+      "type": "number"
+    },
+    "human_review_required": {
+      "type": "boolean"
+    },
+    "primary_label": {
+      "enum": [
+        "ACTION_REQUIRED",
+        "DIRECT_HUMAN",
+        "FINANCIAL",
+        "ORDER",
+        "INVOICE",
+        "SHIPMENT",
+        "SECURITY",
+        "SYSTEM",
+        "NEWSLETTER",
+        "MARKETING",
+        "UNKNOWN"
+      ],
+      "type": "string"
+    },
+    "recommended_actions": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "none",
+              "notify",
+              "summarize",
+              "track_shipment",
+              "flag_time_sensitive",
+              "flag_calendar_candidate",
+              "flag_follow_up_needed",
+              "mark_priority",
+              "human_review_required"
+            ],
+            "type": "string"
+          },
+          "confidence": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "confidence",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "sender_signal": {
+      "additionalProperties": false,
+      "properties": {
+        "reasons": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "trust_hint": {
+          "enum": [
+            "trusted",
+            "neutral",
+            "suspicious",
+            "unknown"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "trust_hint",
+        "reasons"
+      ],
+      "type": "object"
+    },
+    "summary": {
+      "type": "string"
+    },
+    "time_signals": {
+      "additionalProperties": false,
+      "properties": {
+        "deadline_mentions": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "is_time_sensitive": {
+          "type": "boolean"
+        },
+        "time_window_mentions": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "is_time_sensitive",
+        "deadline_mentions",
+        "time_window_mentions"
+      ],
+      "type": "object"
+    },
+    "tracking_signals": {
+      "additionalProperties": false,
+      "properties": {
+        "carrier": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "current_status": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "is_shipment_related": {
+          "type": "boolean"
+        },
+        "order_number": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "seller": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tracking_number": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "is_shipment_related",
+        "current_status",
+        "seller",
+        "carrier",
+        "order_number",
+        "tracking_number"
+      ],
+      "type": "object"
+    },
+    "urgency": {
+      "enum": [
+        "low",
+        "normal",
+        "high",
+        "urgent"
+      ],
+      "type": "string"
+    }
+  },
+  "required": [
+    "primary_label",
+    "summary",
+    "urgency",
+    "confidence",
+    "recommended_actions",
+    "tracking_signals",
+    "calendar_signals",
+    "time_signals",
+    "sender_signal",
+    "human_review_required"
+  ],
+  "title": "prompt.email.action_decision Output Schema",
+  "type": "object"
+}

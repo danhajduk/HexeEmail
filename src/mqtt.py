@@ -10,7 +10,8 @@ from typing import Callable
 import paho.mqtt.client as mqtt
 
 from logging_utils import get_logger
-from models import NodeNotificationRequest, NodeNotificationResult, TrustMaterial
+from node_models.node import TrustMaterial
+from node_models.notifications import NodeNotificationRequest, NodeNotificationResult
 
 
 LOGGER = get_logger(__name__)

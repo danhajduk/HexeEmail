@@ -47,6 +47,7 @@ else
   elif [[ -x "$STACK_CONTROL_SCRIPT" ]]; then
     echo "systemd flow unavailable. Falling back to local stack-control script."
     "$STACK_CONTROL_SCRIPT" restart
+    "$STACK_CONTROL_SCRIPT" status
   else
     echo "No restart method available."
     exit 1

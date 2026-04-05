@@ -26,12 +26,27 @@ from core_client import (
     ServiceResolveRequest,
 )
 from logging_utils import get_logger
-from models import (
+from node_backend import (
+    BackgroundTaskManager,
+    GovernanceManager,
+    NotificationManager,
+    OnboardingManager,
+    ProviderManager,
+    RuntimeManager,
+    ScheduleTemplate,
+)
+from node_models.config import OperatorConfig, OperatorConfigInput
+from node_models.node import (
     GmailConnectStartResponse,
     GmailOAuthCallbackResponse,
-    CoreServiceAuthorizeRequestInput,
-    CoreServiceResolveRequestInput,
     MqttHealthResponse,
+    OnboardingStatusResponse,
+    OperatorConfigResponse,
+    StatusResponse,
+    TrustMaterial,
+    UiBootstrapResponse,
+)
+from node_models.notifications import (
     NodeNotificationRequest,
     NodeNotificationResult,
     NotificationContent,
@@ -39,20 +54,17 @@ from models import (
     NotificationEvent,
     NotificationSourceHint,
     NotificationTargets,
-    OnboardingStatusResponse,
-    OperatorConfig,
-    OperatorConfigInput,
-    OperatorConfigResponse,
+)
+from node_models.runtime import (
+    CoreServiceAuthorizeRequestInput,
+    CoreServiceResolveRequestInput,
     RuntimeDirectExecutionRequestInput,
     RuntimePromptExecutionRequestInput,
-    RuntimeTaskSettingsInput,
     RuntimePromptSyncRequestInput,
     RuntimeState,
-    StatusResponse,
+    RuntimeTaskSettingsInput,
     TaskRoutingPreviewResponse,
     TaskRoutingRequestInput,
-    TrustMaterial,
-    UiBootstrapResponse,
 )
 from providers.gmail.adapter import GmailProviderAdapter
 from providers.gmail.config_store import GmailProviderConfigError, GmailProviderConfigStore
@@ -77,19 +89,11 @@ LOGGER = get_logger(__name__)
 AI_LOGGER = get_logger("hexe.ai.runtime")
 GMAIL_POLL_LOGGER = get_logger("hexe.providers.gmail.polling")
 TERMINAL_ONBOARDING_STATES = {"approved", "rejected", "expired", "consumed", "invalid"}
-CORE_ID_PATTERN = re.compile(r"^[0-9a-f]{16}$")
 AVAILABLE_TASK_CAPABILITIES = [
     "task.classification",
     "task.summarization",
     "task.tracking",
 ]
-
-
-@dataclass(frozen=True)
-class ScheduleTemplate:
-    name: str
-    detail: str
-    next_run_resolver: Callable[[datetime], datetime | None]
 
 
 class NodeService:
@@ -121,169 +125,77 @@ class NodeService:
         self.governance_client = governance_client or GovernanceClient()
         self.capability_manifest_builder = CapabilityManifestBuilder()
         self.readiness_evaluator = OperationalReadinessEvaluator()
-        self.provider_registry = ProviderRegistry(config)
-        self.provider_registry.register_provider(GmailProviderAdapter(config.runtime_dir, token_client=self.gmail_token_client))
+        self.available_task_capabilities = list(AVAILABLE_TASK_CAPABILITIES)
         self.operator_config = OperatorConfig(core_base_url=config.core_base_url, node_name=config.node_name)
         self.state = RuntimeState()
         self.trust_material: TrustMaterial | None = None
-        self.polling_task: asyncio.Task | None = None
-        self.gmail_status_task: asyncio.Task | None = None
-        self.gmail_fetch_task: asyncio.Task | None = None
         self.live = True
         self.ready = False
         self.startup_error: str | None = None
-        self._gmail_fetch_notification_state: str | None = None
-        self._mqtt_connect_notification_count = 0
         self.gmail_order_flow = GmailOrderPhase1Processor()
+        self.runtime = RuntimeManager(self)
+        self.onboarding = OnboardingManager(self)
+        self.notifications = NotificationManager(self)
+        self.providers = ProviderManager(self)
+        self.governance = GovernanceManager(self)
+        self.background_tasks = BackgroundTaskManager(self)
+        self.provider_registry = self.providers.build_provider_registry()
 
     @staticmethod
     def _default_runtime_task_state() -> dict[str, object]:
-        return {
-            "ai_calls_enabled": True,
-            "request_status": "idle",
-            "last_step": "none",
-            "detail": "No runtime task request has been started yet.",
-            "preview_response": None,
-            "resolve_response": None,
-            "authorize_response": None,
-            "registration_request_payload": None,
-            "execution_request_payload": None,
-            "execution_response": None,
-            "usage_summary_response": None,
-            "started_at": None,
-            "updated_at": None,
-        }
+        return RuntimeManager.default_runtime_task_state()
 
     def _runtime_task_state(self) -> dict[str, object]:
-        state = dict(self._default_runtime_task_state())
-        persisted = self.state.runtime_task_state if isinstance(self.state.runtime_task_state, dict) else {}
-        state.update(persisted)
-        return state
+        return self.runtime.runtime_task_state()
 
     def _save_runtime_task_state(self, **updates: object) -> dict[str, object]:
-        state = self._runtime_task_state()
-        state.update(updates)
-        self.state.runtime_task_state = state
-        self.state_store.save(self.state)
-        return state
+        return self.runtime.save_runtime_task_state(**updates)
 
     def _runtime_ai_calls_enabled(self) -> bool:
-        current = self._runtime_task_state()
-        value = current.get("ai_calls_enabled")
-        return True if value is None else bool(value)
+        return self.runtime.runtime_ai_calls_enabled()
 
     def _runtime_ai_disabled_message(self) -> str:
-        return "AI calls are disabled in Runtime Settings."
+        return self.runtime.runtime_ai_disabled_message()
 
     @staticmethod
     def _default_gmail_last_hour_pipeline_state() -> dict[str, object]:
-        return {
-            "mode": "idle",
-            "status": "idle",
-            "detail": "No last-hour pipeline run yet.",
-            "started_at": None,
-            "updated_at": None,
-            "last_completed_at": None,
-            "stages": {
-                "fetch": {"status": "idle", "detail": "Waiting", "count": 0},
-                "spamhaus": {"status": "idle", "detail": "Waiting", "count": 0},
-                "local_classification": {"status": "idle", "detail": "Waiting", "count": 0},
-                "ai_classification": {"status": "idle", "detail": "Waiting", "count": 0},
-            },
-        }
+        return BackgroundTaskManager.default_gmail_last_hour_pipeline_state()
 
     @staticmethod
     def _default_gmail_fetch_scheduler_state() -> dict[str, object]:
-        return {
-            "loop_enabled": False,
-            "loop_active": False,
-            "status": "idle",
-            "detail": "Gmail fetch scheduler has not started yet.",
-            "last_checked_at": None,
-            "last_due_windows": [],
-            "last_attempt_at": None,
-            "last_success_at": None,
-            "last_error_at": None,
-            "last_error": None,
-        }
+        return BackgroundTaskManager.default_gmail_fetch_scheduler_state()
 
     def _gmail_fetch_scheduler_state(self) -> dict[str, object]:
-        state = dict(self._default_gmail_fetch_scheduler_state())
-        persisted = (
-            self.state.gmail_fetch_scheduler_state
-            if isinstance(self.state.gmail_fetch_scheduler_state, dict)
-            else {}
-        )
-        state.update(persisted)
-        state["loop_enabled"] = bool(self.config.gmail_fetch_poll_on_startup)
-        state["loop_active"] = bool(self.gmail_fetch_task is not None and not self.gmail_fetch_task.done())
-        return state
+        return self.background_tasks.gmail_fetch_scheduler_state()
 
     def _save_gmail_fetch_scheduler_state(self, **updates: object) -> dict[str, object]:
-        state = self._gmail_fetch_scheduler_state()
-        state.update(updates)
-        self.state.gmail_fetch_scheduler_state = state
-        self.state_store.save(self.state)
-        return state
+        return self.background_tasks.save_gmail_fetch_scheduler_state(**updates)
 
     def _gmail_last_hour_pipeline_state(self) -> dict[str, object]:
-        state = dict(self._default_gmail_last_hour_pipeline_state())
-        persisted = (
-            self.state.gmail_last_hour_pipeline_state
-            if isinstance(self.state.gmail_last_hour_pipeline_state, dict)
-            else {}
-        )
-        state.update(persisted)
-        default_stages = dict(self._default_gmail_last_hour_pipeline_state()["stages"])
-        persisted_stages = persisted.get("stages") if isinstance(persisted.get("stages"), dict) else {}
-        default_stages.update(persisted_stages)
-        state["stages"] = default_stages
-        return state
+        return self.background_tasks.gmail_last_hour_pipeline_state()
 
     def _save_gmail_last_hour_pipeline_state(self, **updates: object) -> dict[str, object]:
-        state = self._gmail_last_hour_pipeline_state()
-        state.update(updates)
-        self.state.gmail_last_hour_pipeline_state = state
-        self.state_store.save(self.state)
-        return state
+        return self.background_tasks.save_gmail_last_hour_pipeline_state(**updates)
 
     @staticmethod
     def _next_daily_run(now: datetime, *, hour: int, minute: int) -> datetime:
-        candidate = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
-        if candidate <= now:
-            candidate = candidate + timedelta(days=1)
-        return candidate
+        return BackgroundTaskManager.next_daily_run(now, hour=hour, minute=minute)
 
     @staticmethod
     def _next_today_window_run(now: datetime) -> datetime:
-        for hour in (0, 6, 12, 18):
-            candidate = now.replace(hour=hour, minute=0, second=0, microsecond=0)
-            if candidate > now:
-                return candidate
-        return (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        return BackgroundTaskManager.next_today_window_run(now)
 
     @staticmethod
     def _next_five_minute_run(now: datetime) -> datetime:
-        total_minutes = now.hour * 60 + now.minute
-        next_total_minutes = ((total_minutes // 5) + 1) * 5
-        day_offset, minute_of_day = divmod(next_total_minutes, 24 * 60)
-        hour, minute = divmod(minute_of_day, 60)
-        candidate = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
-        if day_offset:
-            candidate = candidate + timedelta(days=day_offset)
-        return candidate
+        return BackgroundTaskManager.next_five_minute_run(now)
 
     @staticmethod
     def _next_hourly_run(now: datetime) -> datetime:
-        return (now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1))
+        return BackgroundTaskManager.next_hourly_run(now)
 
     @staticmethod
     def _next_weekly_run(now: datetime, *, weekday: int = 0, hour: int = 0, minute: int = 1) -> datetime:
-        days_ahead = (weekday - now.weekday()) % 7
-        candidate = now.replace(hour=hour, minute=minute, second=0, microsecond=0) + timedelta(days=days_ahead)
-        if candidate <= now:
-            candidate = candidate + timedelta(days=7)
-        return candidate
+        return BackgroundTaskManager.next_weekly_run(now, weekday=weekday, hour=hour, minute=minute)
 
     @staticmethod
     def _next_bi_weekly_run(
@@ -294,35 +206,11 @@ class NodeService:
         hour: int = 0,
         minute: int = 1,
     ) -> datetime:
-        anchor_date = now.replace(
-            year=anchor[0],
-            month=anchor[1],
-            day=anchor[2],
-            hour=hour,
-            minute=minute,
-            second=0,
-            microsecond=0,
-        )
-        candidate = anchor_date
-        if candidate.weekday() != weekday:
-            candidate = candidate + timedelta(days=(weekday - candidate.weekday()) % 7)
-        while candidate <= now:
-            candidate = candidate + timedelta(days=14)
-        return candidate
+        return BackgroundTaskManager.next_bi_weekly_run(now, anchor=anchor, weekday=weekday, hour=hour, minute=minute)
 
     @staticmethod
     def _next_monthly_run(now: datetime, *, day: int = 1, hour: int = 0, minute: int = 1) -> datetime:
-        year = now.year
-        month = now.month
-        candidate = now.replace(day=day, hour=hour, minute=minute, second=0, microsecond=0)
-        if candidate <= now:
-            if month == 12:
-                year += 1
-                month = 1
-            else:
-                month += 1
-            candidate = candidate.replace(year=year, month=month, day=day)
-        return candidate
+        return BackgroundTaskManager.next_monthly_run(now, day=day, hour=hour, minute=minute)
 
     @staticmethod
     def _next_every_other_day_run(
@@ -332,98 +220,23 @@ class NodeService:
         hour: int = 0,
         minute: int = 1,
     ) -> datetime:
-        anchor_date = now.replace(
-            year=anchor[0],
-            month=anchor[1],
-            day=anchor[2],
-            hour=hour,
-            minute=minute,
-            second=0,
-            microsecond=0,
-        )
-        candidate = anchor_date
-        while candidate <= now:
-            candidate = candidate + timedelta(days=2)
-        return candidate
+        return BackgroundTaskManager.next_every_other_day_run(now, anchor=anchor, hour=hour, minute=minute)
 
     @staticmethod
     def _next_twice_a_week_run(now: datetime, *, weekdays: tuple[int, int] = (0, 3), hour: int = 0, minute: int = 1) -> datetime:
-        candidates = [
-            now.replace(hour=hour, minute=minute, second=0, microsecond=0) + timedelta(days=(weekday - now.weekday()) % 7)
-            for weekday in weekdays
-        ]
-        future_candidates = [candidate for candidate in candidates if candidate > now]
-        if future_candidates:
-            return min(future_candidates)
-        next_week_candidates = [candidate + timedelta(days=7) for candidate in candidates]
-        return min(next_week_candidates)
+        return BackgroundTaskManager.next_twice_a_week_run(now, weekdays=weekdays, hour=hour, minute=minute)
 
     @classmethod
     def _schedule_templates(cls) -> dict[str, ScheduleTemplate]:
-        return {
-            "daily": ScheduleTemplate(
-                name="daily",
-                detail="Every day at 00:01",
-                next_run_resolver=lambda now: cls._next_daily_run(now, hour=0, minute=1),
-            ),
-            "weekly": ScheduleTemplate(
-                name="weekly",
-                detail="Monday 00:01",
-                next_run_resolver=lambda now: cls._next_weekly_run(now, weekday=0, hour=0, minute=1),
-            ),
-            "4_times_a_day": ScheduleTemplate(
-                name="4_times_a_day",
-                detail="00:00, 06:00, 12:00, 18:00",
-                next_run_resolver=cls._next_today_window_run,
-            ),
-            "every_5_minutes": ScheduleTemplate(
-                name="every_5_minutes",
-                detail="00:05, 00:10, 00:15, ...",
-                next_run_resolver=cls._next_five_minute_run,
-            ),
-            "hourly": ScheduleTemplate(
-                name="hourly",
-                detail="Hourly at :00",
-                next_run_resolver=cls._next_hourly_run,
-            ),
-            "bi_weekly": ScheduleTemplate(
-                name="bi_weekly",
-                detail="Every 2 weeks",
-                next_run_resolver=lambda now: cls._next_bi_weekly_run(now, weekday=0, hour=0, minute=1),
-            ),
-            "monthly": ScheduleTemplate(
-                name="monthly",
-                detail="First day of each month at 00:01",
-                next_run_resolver=lambda now: cls._next_monthly_run(now, day=1, hour=0, minute=1),
-            ),
-            "every_other_day": ScheduleTemplate(
-                name="every_other_day",
-                detail="Every other day at 00:01",
-                next_run_resolver=lambda now: cls._next_every_other_day_run(now, hour=0, minute=1),
-            ),
-            "twice_a_week": ScheduleTemplate(
-                name="twice_a_week",
-                detail="Monday and Thursday at 00:01",
-                next_run_resolver=lambda now: cls._next_twice_a_week_run(now, weekdays=(0, 3), hour=0, minute=1),
-            ),
-            "on_start": ScheduleTemplate(
-                name="on_start",
-                detail="Runs once after full operational readiness",
-                next_run_resolver=lambda now: None,
-            ),
-        }
+        return BackgroundTaskManager.schedule_templates()
 
     @classmethod
     def _schedule_template_detail(cls, schedule_name: str) -> str:
-        template = cls._schedule_templates().get(schedule_name)
-        return template.detail if template is not None else schedule_name
+        return BackgroundTaskManager.schedule_template_detail(schedule_name)
 
     @classmethod
     def _schedule_template_next_run(cls, schedule_name: str, now: datetime) -> datetime | None:
-        template = cls._schedule_templates().get(schedule_name)
-        if template is None:
-            return None
-        return template.next_run_resolver(now)
+        return BackgroundTaskManager.schedule_template_next_run(schedule_name, now)
 
     @classmethod
     def _scheduled_task_entry(
@@ -441,158 +254,26 @@ class NodeService:
         last_slot_key: str | None = None,
         schedule_detail: str | None = None,
     ) -> dict[str, object]:
-        return {
-            "task_id": task_id,
-            "title": title,
-            "group": group,
-            "schedule_name": schedule_name,
-            "schedule_detail": schedule_detail or cls._schedule_template_detail(schedule_name),
-            "status": status,
-            "last_execution_at": last_execution_at,
-            "next_execution_at": next_execution_at,
-            "last_reason": last_reason,
-            "detail": detail,
-            "last_slot_key": last_slot_key,
-        }
+        return BackgroundTaskManager.scheduled_task_entry(
+            task_id=task_id,
+            title=title,
+            group=group,
+            schedule_name=schedule_name,
+            status=status,
+            last_execution_at=last_execution_at,
+            next_execution_at=next_execution_at,
+            last_reason=last_reason,
+            detail=detail,
+            last_slot_key=last_slot_key,
+            schedule_detail=schedule_detail,
+        )
 
     @classmethod
     def _scheduled_task_legend(cls) -> list[dict[str, str]]:
-        return [
-            {"name": template.name, "detail": template.detail}
-            for template in cls._schedule_templates().values()
-        ]
+        return BackgroundTaskManager.scheduled_task_legend()
 
     def _scheduled_tasks_snapshot(self) -> list[dict[str, object]]:
-        local_now = datetime.now().astimezone()
-        fetch_schedule_state = None
-        gmail_adapter = self.provider_registry.get_provider("gmail")
-        if hasattr(gmail_adapter, "fetch_schedule_state"):
-            fetch_schedule_state = gmail_adapter.fetch_schedule_store.load_state()
-        scheduler_state = self._gmail_fetch_scheduler_state()
-        fetch_loop_active = bool(scheduler_state.get("loop_active"))
-        fetch_loop_status = "active" if fetch_loop_active else "inactive"
-        prompt_sync_configured = bool(self.state.runtime_prompt_sync_target_api_base_url)
-        prompt_sync_status = "active" if (fetch_loop_active and prompt_sync_configured) else "pending" if prompt_sync_configured else "inactive"
-        runtime_authorize_ready = bool(
-            self.state.trust_state == "trusted" and self.state.node_id and self.effective_core_base_url()
-        )
-        runtime_authorize_status = "active" if runtime_authorize_ready else "pending"
-
-        tasks = [
-            self._scheduled_task_entry(
-                task_id="gmail_fetch_yesterday",
-                title="Gmail Fetch Yesterday",
-                group="gmail",
-                schedule_name="daily",
-                status=fetch_loop_status,
-                last_execution_at=(
-                    fetch_schedule_state.yesterday.last_run_at.isoformat()
-                    if fetch_schedule_state is not None and fetch_schedule_state.yesterday.last_run_at is not None
-                    else None
-                ),
-                next_execution_at=self._schedule_template_next_run("daily", local_now).isoformat(),
-                last_reason=(fetch_schedule_state.yesterday.last_run_reason if fetch_schedule_state is not None else None),
-                detail="Fetches the previous day inbox window for local storage refresh.",
-                last_slot_key=(fetch_schedule_state.yesterday.last_slot_key if fetch_schedule_state is not None else None),
-            ),
-            self._scheduled_task_entry(
-                task_id="gmail_fetch_today",
-                title="Gmail Fetch Today",
-                group="gmail",
-                schedule_name="4_times_a_day",
-                status=fetch_loop_status,
-                last_execution_at=(
-                    fetch_schedule_state.today.last_run_at.isoformat()
-                    if fetch_schedule_state is not None and fetch_schedule_state.today.last_run_at is not None
-                    else None
-                ),
-                next_execution_at=self._schedule_template_next_run("4_times_a_day", local_now).isoformat(),
-                last_reason=(fetch_schedule_state.today.last_run_reason if fetch_schedule_state is not None else None),
-                detail="Refreshes the current-day inbox window on the six-hour schedule.",
-                last_slot_key=(fetch_schedule_state.today.last_slot_key if fetch_schedule_state is not None else None),
-            ),
-            self._scheduled_task_entry(
-                task_id="gmail_fetch_last_hour",
-                title="Gmail Fetch Last Hour",
-                group="gmail",
-                schedule_name="every_5_minutes",
-                status=fetch_loop_status,
-                last_execution_at=(
-                    fetch_schedule_state.last_hour.last_run_at.isoformat()
-                    if fetch_schedule_state is not None and fetch_schedule_state.last_hour.last_run_at is not None
-                    else None
-                ),
-                next_execution_at=self._schedule_template_next_run("every_5_minutes", local_now).isoformat(),
-                last_reason=(fetch_schedule_state.last_hour.last_run_reason if fetch_schedule_state is not None else None),
-                detail="Keeps the rolling last-hour inbox window fresh for recent classification work.",
-                last_slot_key=(fetch_schedule_state.last_hour.last_slot_key if fetch_schedule_state is not None else None),
-            ),
-            self._scheduled_task_entry(
-                task_id="gmail_hourly_batch_classification",
-                title="Hourly Batch Classification",
-                group="gmail",
-                schedule_name="hourly",
-                status=fetch_loop_status,
-                last_execution_at=(
-                    self.state.gmail_hourly_batch_classification_last_run_at.isoformat()
-                    if self.state.gmail_hourly_batch_classification_last_run_at is not None
-                    else None
-                ),
-                next_execution_at=self._schedule_template_next_run("hourly", local_now).isoformat(),
-                last_reason="scheduled" if self.state.gmail_hourly_batch_classification_last_run_at is not None else None,
-                detail="Classifies the newest 100 unclassified emails and sends remaining unknowns to AI.",
-                last_slot_key=self.state.gmail_hourly_batch_classification_slot_key,
-            ),
-            self._scheduled_task_entry(
-                task_id="runtime_prompt_sync_weekly",
-                title="Weekly Prompt Sync",
-                group="runtime",
-                schedule_name="weekly",
-                status=prompt_sync_status,
-                last_execution_at=(
-                    self.state.runtime_prompt_sync_last_scheduled_at.isoformat()
-                    if self.state.runtime_prompt_sync_last_scheduled_at is not None
-                    else None
-                ),
-                next_execution_at=(
-                    self._schedule_template_next_run("weekly", local_now).isoformat()
-                    if prompt_sync_configured
-                    else None
-                ),
-                last_reason="scheduled" if self.state.runtime_prompt_sync_last_scheduled_at is not None else None,
-                detail=(
-                    "Scans local runtime prompt JSON files and syncs them to the AI node prompt service."
-                    if prompt_sync_configured
-                    else "Waiting for a prompt sync target to be configured from the Runtime page."
-                ),
-                last_slot_key=self.state.runtime_prompt_sync_weekly_slot_key,
-            ),
-            self._scheduled_task_entry(
-                task_id="runtime_monthly_resolve_authorize",
-                title="Monthly Core Resolve and Authorize",
-                group="runtime",
-                schedule_name="monthly",
-                status=runtime_authorize_status,
-                last_execution_at=(
-                    self.state.runtime_monthly_authorize_last_run_at.isoformat()
-                    if self.state.runtime_monthly_authorize_last_run_at is not None
-                    else None
-                ),
-                next_execution_at=(
-                    self._schedule_template_next_run("monthly", local_now).isoformat()
-                    if runtime_authorize_ready
-                    else None
-                ),
-                last_reason="scheduled" if self.state.runtime_monthly_authorize_last_run_at is not None else None,
-                detail=(
-                    "Refreshes the Core AI service resolution and authorization grant for runtime execution."
-                    if runtime_authorize_ready
-                    else "Waiting for a trusted Core connection before monthly runtime authorization can run."
-                ),
-                last_slot_key=self.state.runtime_monthly_authorize_slot_key,
-            ),
-        ]
-        return tasks
+        return self.background_tasks.scheduled_tasks_snapshot()
 
     def _tracked_orders_snapshot(self) -> list[dict[str, object]]:
         gmail_adapter = self.provider_registry.get_provider("gmail")
@@ -1237,24 +918,10 @@ class NodeService:
             },
         )
         await self._resume_runtime()
-        if self.config.gmail_status_poll_on_startup:
-            self._ensure_gmail_status_polling()
-        if self.config.gmail_fetch_poll_on_startup:
-            self._ensure_gmail_fetch_polling()
+        await self.background_tasks.startup()
 
     async def stop(self) -> None:
-        if self.polling_task is not None:
-            self.polling_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await self.polling_task
-        if self.gmail_status_task is not None:
-            self.gmail_status_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await self.gmail_status_task
-        if self.gmail_fetch_task is not None:
-            self.gmail_fetch_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await self.gmail_fetch_task
+        await self.background_tasks.shutdown()
         self.mqtt_manager.disconnect()
         for provider_id in self.provider_registry.provider_ids():
             await self.provider_registry.get_provider(provider_id).aclose()
@@ -1420,130 +1087,28 @@ class NodeService:
         return await self.start_onboarding(force=True)
 
     def _reset_onboarding_state(self) -> None:
-        if self.polling_task is not None and not self.polling_task.done():
-            self.polling_task.cancel()
-        self.state.onboarding_session_id = None
-        self.state.approval_url = None
-        self.state.onboarding_status = "not_started"
-        self.state.onboarding_expires_at = None
-        self.state.node_id = None
-        self.state.paired_core_id = None
-        self.state.trust_state = "untrusted"
-        self.state.trust_token_present = False
-        self.state.mqtt_credentials_present = False
-        self.state.operational_mqtt_host = None
-        self.state.operational_mqtt_port = None
-        self.state.last_finalize_status = None
-        self.state.last_error = None
-        self.state.trusted_at = None
-        self.state.last_poll_at = None
-        self.state_store.save(self.state)
+        self.onboarding.reset_onboarding_state()
 
     def _clear_trust_and_onboarding_state(self) -> None:
-        self._reset_onboarding_state()
-        self.trust_store.clear()
-        self.trust_material = None
-        self.mqtt_manager.disconnect()
+        self.onboarding.clear_trust_and_onboarding_state()
 
     def _normalize_core_base_url(self, value: str | None) -> str | None:
-        if not value:
-            return None
-        parsed = urlparse(value)
-        if not parsed.scheme:
-            return f"http://{value}"
-        return value.rstrip("/")
+        return self.onboarding.normalize_core_base_url(value)
 
     def _normalize_selected_task_capabilities(self, values: list[str] | None) -> list[str]:
-        available = set(AVAILABLE_TASK_CAPABILITIES)
-        normalized: list[str] = []
-        for value in values or []:
-            candidate = str(value or "").strip()
-            if candidate and candidate in available and candidate not in normalized:
-                normalized.append(candidate)
-        return normalized
+        return self.onboarding.normalize_selected_task_capabilities(values)
 
     def _capability_setup_summary(self, provider_overview: dict[str, object]) -> dict[str, object]:
-        provider_summaries = provider_overview.get("providers") if isinstance(provider_overview, dict) else {}
-        connected_providers = [
-            provider_id
-            for provider_id, summary in (provider_summaries.items() if isinstance(provider_summaries, dict) else [])
-            if isinstance(summary, dict) and summary.get("provider_state") == "connected"
-        ]
-        selected_capabilities = self.selected_task_capabilities()
-        trust_valid = self.state.trust_state == "trusted"
-        node_identity_valid = bool(self.effective_node_name())
-        provider_selection_valid = bool(connected_providers)
-        task_capability_selection_valid = bool(selected_capabilities)
-        core_runtime_context_valid = bool(self.effective_core_base_url() and self.state.node_id)
-        blocking_reasons: list[str] = []
-        if not trust_valid:
-            blocking_reasons.append("trust not active")
-        if not node_identity_valid:
-            blocking_reasons.append("node identity is incomplete")
-        if not provider_selection_valid:
-            blocking_reasons.append("connect Gmail before declaring capabilities")
-        if not task_capability_selection_valid:
-            blocking_reasons.append("select at least one task capability")
-        if not core_runtime_context_valid:
-            blocking_reasons.append("core runtime context is not ready")
-
-        return {
-            "readiness_flags": {
-                "trust_state_valid": trust_valid,
-                "node_identity_valid": node_identity_valid,
-                "provider_selection_valid": provider_selection_valid,
-                "task_capability_selection_valid": task_capability_selection_valid,
-                "core_runtime_context_valid": core_runtime_context_valid,
-            },
-            "provider_selection": {
-                "configured": provider_selection_valid,
-                "enabled_count": len(connected_providers),
-                "enabled": connected_providers,
-                "supported": {
-                    "cloud": list(provider_overview.get("supported_providers") or []),
-                    "local": [],
-                    "future": [],
-                },
-            },
-            "task_capability_selection": {
-                "configured": task_capability_selection_valid,
-                "selected_count": len(selected_capabilities),
-                "selected": selected_capabilities,
-                "available": list(AVAILABLE_TASK_CAPABILITIES),
-            },
-            "blocking_reasons": blocking_reasons,
-            "declaration_allowed": not blocking_reasons,
-        }
+        return self.governance.capability_setup_summary(provider_overview)
 
     def _resolve_advertised_host(self) -> str:
-        targets: list[tuple[str, int]] = []
-        core_host = urlparse(self.effective_core_base_url() or "").hostname
-        if core_host:
-            targets.append((core_host, 80))
-        targets.append(("8.8.8.8", 80))
-
-        for host, port in targets:
-            with contextlib.suppress(OSError):
-                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-                    sock.connect((host, port))
-                    address = sock.getsockname()[0]
-                    if address and not address.startswith("127."):
-                        return address
-
-        with contextlib.suppress(OSError):
-            address = socket.gethostbyname(socket.gethostname())
-            if address and not address.startswith("127."):
-                return address
-
-        return socket.gethostname()
+        return self.onboarding.resolve_advertised_host()
 
     def _advertised_api_base_url(self) -> str:
-        host = self._resolve_advertised_host()
-        return f"http://{host}:{self.config.api_port}/api"
+        return self.onboarding.advertised_api_base_url()
 
     def _advertised_ui_endpoint(self) -> str:
-        host = self._resolve_advertised_host()
-        return f"http://{host}:{self.config.ui_port}"
+        return self.onboarding.advertised_ui_endpoint()
 
     async def _resolve_gmail_oauth_core_id(self, oauth_config: GmailOAuthConfig) -> str:
         for candidate in (
@@ -1566,60 +1131,19 @@ class NodeService:
         raise ValueError("unable to resolve Core UUID for Gmail OAuth state")
 
     def _normalize_platform_core_id(self, value: str | None) -> str | None:
-        candidate = str(value or "").strip().lower()
-        if CORE_ID_PATTERN.fullmatch(candidate):
-            return candidate
-        return None
+        return self.onboarding.normalize_platform_core_id(value)
 
     def _extract_hexe_core_uuid(self, value: str | None) -> str | None:
-        if not value:
-            return None
-        host = urlparse(value).hostname or ""
-        if host.endswith(".hexe-ai.com"):
-            candidate = host.removesuffix(".hexe-ai.com")
-            if candidate and candidate != "hexe-ai":
-                return candidate
-        return None
+        return self.onboarding.extract_hexe_core_uuid(value)
 
     def _format_core_error(self, exc: httpx.HTTPError) -> str:
-        base_url = self.effective_core_base_url() or "configured Core URL"
-        if isinstance(exc, httpx.ConnectError):
-            return f"Unable to reach Core at {base_url}. Check the host, port, and network."
-        if isinstance(exc, httpx.TimeoutException):
-            return f"Timed out while contacting Core at {base_url}."
-        if isinstance(exc, httpx.HTTPStatusError):
-            detail_message = self._extract_core_error_message(exc.response)
-            if detail_message:
-                return detail_message
-            return f"Core returned {exc.response.status_code} during onboarding start."
-        if isinstance(exc, httpx.UnsupportedProtocol):
-            return f"Core URL must include a valid host. Current value: {base_url}"
-        return f"Failed to contact Core at {base_url}: {exc.__class__.__name__}"
+        return self.onboarding.format_core_error(exc)
 
     def _extract_core_error_message(self, response: httpx.Response) -> str | None:
-        try:
-            body = response.json()
-        except ValueError:
-            return None
-
-        if not isinstance(body, dict):
-            return None
-
-        detail = body.get("detail")
-        if isinstance(detail, str):
-            return detail
-        if isinstance(detail, dict):
-            message = detail.get("message")
-            error = detail.get("error")
-            if error == "duplicate_active_session":
-                return "Core already has an active onboarding session for this node. Resume the existing session or clear it in Core before starting again."
-            if isinstance(message, str) and message:
-                return message
-        return None
+        return self.onboarding.extract_core_error_message(response)
 
     def _ensure_polling(self) -> None:
-        if self.polling_task is None or self.polling_task.done():
-            self.polling_task = asyncio.create_task(self._poll_finalize_loop())
+        self.background_tasks.ensure_finalize_polling()
 
     async def _poll_finalize_loop(self) -> None:
         while self.state.onboarding_session_id:
@@ -1685,48 +1209,16 @@ class NodeService:
         self.state_store.save(self.state)
 
     def _connect_mqtt_if_possible(self) -> None:
-        if self.trust_material is None:
-            return
-        self.mqtt_manager.connect(self.trust_material)
+        self.notifications.connect_mqtt_if_possible()
 
     def _record_heartbeat(self) -> None:
-        self.state.last_heartbeat_at = datetime.now(UTC).replace(tzinfo=None)
-        self.state_store.save(self.state)
+        self.notifications.record_heartbeat()
 
     def _handle_notification_result(self, result: NodeNotificationResult) -> None:
-        if result.accepted:
-            return
-        LOGGER.warning(
-            "Core rejected user notification request",
-            extra={
-                "event_data": {
-                    "request_id": result.request_id,
-                    "node_id": result.node_id,
-                    "error": result.error,
-                }
-            },
-        )
+        self.notifications.handle_notification_result(result)
 
     def _handle_mqtt_connected(self) -> None:
-        self._mqtt_connect_notification_count += 1
-        generation = self._mqtt_connect_notification_count
-        label = "Hexe Email online" if generation == 1 else "Hexe Email back online"
-        message = (
-            "The email node finished startup and is connected to Core."
-            if generation == 1
-            else "The email node reconnected to Core and is back online."
-        )
-        self.send_user_notification(
-            title=label,
-            message=message,
-            severity="success",
-            urgency="notification",
-            dedupe_key=f"node-online-{generation}",
-            event_type="node_online" if generation == 1 else "node_reconnected",
-            summary="Email node connected to Core",
-            source_component="mqtt_runtime",
-            data={"connection_generation": generation, "connection_state": "connected"},
-        )
+        self.notifications.handle_mqtt_connected()
 
     def _invalidate_capability_state(self) -> None:
         self.state.capability_declaration_status = "pending"
@@ -1747,97 +1239,20 @@ class NodeService:
         source_component: str,
         data: dict[str, object] | None = None,
     ) -> bool:
-        if self.state.trust_state != "trusted" or not self.state.node_id:
-            return False
-        if self.mqtt_manager.status.state != "connected":
-            LOGGER.info(
-                "Skipping user notification because MQTT is not connected",
-                extra={"event_data": {"dedupe_key": dedupe_key, "connection_state": self.mqtt_manager.status.state}},
-            )
-            return False
-
-        request = NodeNotificationRequest(
-            request_id=str(uuid.uuid4()),
-            created_at=datetime.now(UTC),
-            node_id=self.state.node_id,
-            kind="event",
-            targets=NotificationTargets(
-                broadcast=True,
-                external=["ha"],
-            ),
-            delivery=NotificationDelivery(
-                severity=severity,
-                priority="high" if severity in {"warning", "error", "critical"} else "normal",
-                urgency=urgency,
-                dedupe_key=dedupe_key,
-                channels=["event", "external"],
-                ttl_seconds=3600,
-            ),
-            source=NotificationSourceHint(
-                component=source_component,
-                label=self.effective_node_name() or self.config.node_type,
-                metadata={"node_type": self.config.node_type},
-            ),
-            content=NotificationContent(
-                title=title,
-                message=message,
-            ),
-            event=NotificationEvent(
-                event_type=event_type,
-                summary=summary,
-                attributes={"component": source_component},
-            ),
-            data=data or {},
+        return self.notifications.send_user_notification(
+            title=title,
+            message=message,
+            severity=severity,
+            urgency=urgency,
+            dedupe_key=dedupe_key,
+            event_type=event_type,
+            summary=summary,
+            source_component=source_component,
+            data=data,
         )
-        return self.mqtt_manager.publish_notification_request(request)
 
     def _set_gmail_fetch_notification_state(self, next_state: str, detail: str) -> None:
-        previous = self._gmail_fetch_notification_state
-        self._gmail_fetch_notification_state = next_state
-
-        if next_state == previous:
-            return
-
-        if next_state == "warning":
-            self.send_user_notification(
-                title="Hexe Email warning",
-                message=detail,
-                severity="warning",
-                urgency="actions_needed",
-                dedupe_key="gmail-fetch-warning",
-                event_type="gmail_fetch_warning",
-                summary="Gmail fetch scheduler needs attention",
-                source_component="gmail_fetch_scheduler",
-                data={"status": "warning"},
-            )
-            return
-
-        if next_state == "error":
-            self.send_user_notification(
-                title="Hexe Email error",
-                message=detail,
-                severity="error",
-                urgency="urgent",
-                dedupe_key="gmail-fetch-error",
-                event_type="gmail_fetch_error",
-                summary="Gmail fetch scheduler hit an error",
-                source_component="gmail_fetch_scheduler",
-                data={"status": "error"},
-            )
-            return
-
-        if next_state == "healthy" and previous in {"warning", "error"}:
-            self.send_user_notification(
-                title="Hexe Email back online",
-                message="Gmail fetch scheduling recovered and is running again.",
-                severity="success",
-                urgency="notification",
-                dedupe_key="gmail-fetch-recovered",
-                event_type="gmail_fetch_recovered",
-                summary="Gmail fetch scheduler recovered",
-                source_component="gmail_fetch_scheduler",
-                data={"status": "healthy", "recovered_from": previous},
-            )
+        self.notifications.set_gmail_fetch_notification_state(next_state, detail)
 
     def send_email_classification_notification(
         self,
@@ -2503,44 +1918,21 @@ class NodeService:
         }
 
     def _prompt_definition_dir(self) -> Path:
-        directory = self.config.prompt_definition_dir
-        return directory if directory.is_absolute() else Path.cwd() / directory
+        return self.runtime.prompt_definition_dir()
 
     def _load_runtime_prompt_definitions(self) -> list[dict[str, object]]:
-        directory = self._prompt_definition_dir()
-        if not directory.exists():
-            raise ValueError(f"Prompt definition directory does not exist: {directory}")
-        prompt_definitions: list[dict[str, object]] = []
-        for path in sorted(directory.glob("*.json")):
-            with path.open("r", encoding="utf-8") as handle:
-                payload = json.load(handle)
-            if not isinstance(payload, dict):
-                raise ValueError(f"Prompt definition must be an object: {path}")
-            if not payload.get("prompt_id"):
-                raise ValueError(f"Prompt definition is missing prompt_id: {path}")
-            if not payload.get("version"):
-                raise ValueError(f"Prompt definition is missing version: {path}")
-            prompt_definitions.append(payload)
-        if not prompt_definitions:
-            raise ValueError(f"No prompt definition JSON files found in {directory}")
-        return prompt_definitions
+        return self.runtime.load_runtime_prompt_definitions()
 
     def _load_runtime_prompt_definition(self, prompt_id: str) -> dict[str, object]:
-        for prompt_definition in self._load_runtime_prompt_definitions():
-            if prompt_definition.get("prompt_id") == prompt_id:
-                return prompt_definition
-        raise ValueError(f"Prompt definition not found for {prompt_id}")
+        return self.runtime.load_runtime_prompt_definition(prompt_id)
 
     @staticmethod
     def _prompt_registration_payload(prompt_definition: dict[str, object]) -> dict[str, object]:
-        payload = dict(prompt_definition)
-        payload.pop("node_runtime", None)
-        return payload
+        return RuntimeManager.prompt_registration_payload(prompt_definition)
 
     @staticmethod
     def _normalize_target_api_base_url(target_api_base_url: str | None) -> str:
-        target_base_url = str(target_api_base_url or "http://127.0.0.1:9002").strip().rstrip("/")
-        return target_base_url[:-4] if target_base_url.endswith("/api") else target_base_url
+        return RuntimeManager.normalize_target_api_base_url(target_api_base_url)
 
     async def _list_remote_prompt_services(self, target_api_base_url: str) -> list[dict[str, object]]:
         async with httpx.AsyncClient(
@@ -2754,15 +2146,11 @@ class NodeService:
 
     @staticmethod
     def _prompt_sync_weekly_slot_key(now: datetime) -> str:
-        iso_year, iso_week, _ = now.isocalendar()
-        return f"{iso_year}-W{iso_week:02d}"
+        return RuntimeManager.prompt_sync_weekly_slot_key(now)
 
     @staticmethod
     def _runtime_monthly_authorize_slot_key(now: datetime) -> str | None:
-        local_now = now.astimezone()
-        if local_now.day != 1 or local_now.hour != 0 or local_now.minute >= 5:
-            return None
-        return f"{local_now.year:04d}-{local_now.month:02d}"
+        return RuntimeManager.runtime_monthly_authorize_slot_key(now)
 
     async def _run_weekly_prompt_sync_if_due(self) -> None:
         target_api_base_url = self.state.runtime_prompt_sync_target_api_base_url
@@ -3786,73 +3174,13 @@ class NodeService:
         }
 
     async def gmail_accounts_status(self) -> list[dict[str, object]]:
-        adapter = self.provider_registry.get_provider("gmail")
-        accounts = await adapter.list_accounts()
-        return [account.model_dump(mode="json") for account in accounts]
+        return await self.providers.gmail_accounts_status()
 
     async def gmail_account_status(self, account_id: str) -> dict[str, object]:
-        adapter = self.provider_registry.get_provider("gmail")
-        account = next((account for account in await adapter.list_accounts() if account.account_id == account_id), None)
-        health = await adapter.get_account_health(account_id)
-        mailbox_status = (
-            await adapter.refresh_mailbox_status(account_id, store_unread_messages=False)
-            if hasattr(adapter, "refresh_mailbox_status")
-            else await adapter.get_mailbox_status(account_id) if hasattr(adapter, "get_mailbox_status") else None
-        )
-        return {
-            "account": account.model_dump(mode="json") if account is not None else None,
-            "health": health.model_dump(mode="json"),
-            "mailbox_status": mailbox_status.model_dump(mode="json") if mailbox_status is not None else None,
-        }
+        return await self.providers.gmail_account_status(account_id)
 
     async def gmail_status(self) -> dict[str, object]:
-        adapter = self.provider_registry.get_provider("gmail")
-        accounts = await adapter.list_accounts()
-        fetch_schedule = await adapter.fetch_schedule_state() if hasattr(adapter, "fetch_schedule_state") else None
-        statuses: list[dict[str, object]] = []
-        for account in accounts:
-            mailbox_status = (
-                await adapter.refresh_mailbox_status(account.account_id, store_unread_messages=False)
-                if hasattr(adapter, "refresh_mailbox_status")
-                else await adapter.get_mailbox_status(account.account_id) if hasattr(adapter, "get_mailbox_status") else None
-            )
-            labels = await adapter.available_labels(account.account_id) if hasattr(adapter, "available_labels") else None
-            message_summary = await adapter.message_store_summary(account.account_id) if hasattr(adapter, "message_store_summary") else None
-            classification_summary = (
-                await adapter.local_classification_summary(account.account_id)
-                if hasattr(adapter, "local_classification_summary")
-                else None
-            )
-            sender_reputation = (
-                await adapter.sender_reputation_summary(account.account_id)
-                if hasattr(adapter, "sender_reputation_summary")
-                else None
-            )
-            model_status = await adapter.training_model_status() if hasattr(adapter, "training_model_status") else None
-            spamhaus_summary = await adapter.spamhaus_summary(account.account_id) if hasattr(adapter, "spamhaus_summary") else None
-            quota_usage = await adapter.quota_usage_summary(account.account_id) if hasattr(adapter, "quota_usage_summary") else None
-            statuses.append(
-                {
-                    "account": account.model_dump(mode="json"),
-                    "mailbox_status": mailbox_status.model_dump(mode="json") if mailbox_status is not None else None,
-                    "labels": labels,
-                    "message_store": message_summary,
-                    "classification_summary": classification_summary,
-                    "sender_reputation": sender_reputation,
-                    "model_status": model_status,
-                    "spamhaus": spamhaus_summary.model_dump(mode="json") if spamhaus_summary is not None else None,
-                    "quota_usage": quota_usage.model_dump(mode="json") if quota_usage is not None else None,
-                }
-            )
-        return {
-            "provider_id": "gmail",
-            "provider_state": await adapter.get_provider_state(),
-            "enabled": adapter.get_enabled_status(),
-            "fetch_schedule": fetch_schedule.model_dump(mode="json") if fetch_schedule is not None else None,
-            "fetch_scheduler": self._gmail_fetch_scheduler_state(),
-            "last_hour_pipeline": self._gmail_last_hour_pipeline_state(),
-            "accounts": statuses,
-        }
+        return await self.providers.gmail_status()
 
     async def gmail_fetch_messages(
         self,
@@ -3863,33 +3191,13 @@ class NodeService:
         slot_key: str | None = None,
         correlation_id: str | None = None,
     ) -> dict[str, object]:
-        adapter = self.provider_registry.get_provider("gmail")
-        if not hasattr(adapter, "fetch_messages_for_window"):
-            raise ValueError("gmail fetch actions are not available")
-        try:
-            result = await adapter.fetch_messages_for_window(
-                account_id,
-                window=window,
-                reason=reason,
-                slot_key=slot_key,
-                correlation_id=correlation_id,
-            )
-            if hasattr(adapter, "refresh_mailbox_status"):
-                await adapter.refresh_mailbox_status(
-                    account_id,
-                    store_unread_messages=False,
-                    correlation_id=correlation_id,
-                )
-            if window == "last_hour":
-                result["pipeline"] = await self._run_last_hour_pipeline(
-                    account_id=account_id,
-                    mode=reason,
-                    fetched_count=int(result.get("fetched_count") or 0),
-                    correlation_id=correlation_id,
-                )
-        except Exception as exc:
-            raise ValueError(str(exc)) from exc
-        return result
+        return await self.providers.gmail_fetch_messages(
+            window,
+            account_id=account_id,
+            reason=reason,
+            slot_key=slot_key,
+            correlation_id=correlation_id,
+        )
 
     async def _run_last_hour_pipeline(
         self,
@@ -3899,113 +3207,12 @@ class NodeService:
         fetched_count: int,
         correlation_id: str | None,
     ) -> dict[str, object]:
-        started_at = datetime.now(UTC).isoformat()
-        state = self._save_gmail_last_hour_pipeline_state(
+        return await self.providers.run_last_hour_pipeline(
+            account_id=account_id,
             mode=mode,
-            status="running",
-            detail="Running last-hour Gmail pipeline...",
-            started_at=started_at,
-            updated_at=started_at,
-            stages={
-                "fetch": {
-                    "status": "completed",
-                    "detail": f"Fetched {fetched_count} last-hour emails.",
-                    "count": fetched_count,
-                },
-                "spamhaus": {"status": "running", "detail": "Checking pending Spamhaus items...", "count": 0},
-                "local_classification": {"status": "idle", "detail": "Waiting", "count": 0},
-                "ai_classification": {"status": "idle", "detail": "Waiting", "count": 0},
-            },
+            fetched_count=fetched_count,
+            correlation_id=correlation_id,
         )
-        adapter = self.provider_registry.get_provider("gmail")
-        try:
-            spamhaus_summary = await adapter.spamhaus_summary(account_id)
-            spamhaus_count = 0
-            spamhaus_detail = "No pending Spamhaus items."
-            spamhaus_status = "idle"
-            if spamhaus_summary.pending_count > 0:
-                spamhaus_result = await adapter.check_spamhaus_for_stored_messages(account_id)
-                spamhaus_count = int(spamhaus_result.get("checked_count") or 0)
-                spamhaus_detail = f"Checked {spamhaus_count} pending Spamhaus items."
-                spamhaus_status = "completed"
-            state["stages"]["spamhaus"] = {
-                "status": spamhaus_status,
-                "detail": spamhaus_detail,
-                "count": spamhaus_count,
-            }
-            self._save_gmail_last_hour_pipeline_state(stages=state["stages"], updated_at=datetime.now(UTC).isoformat())
-
-            last_hour_start = datetime.now().astimezone() - timedelta(hours=1)
-            recent_messages = adapter.message_store.list_messages_received_since(account_id, since=last_hour_start)
-            checked_ids = adapter.message_store.list_spamhaus_checked_message_ids(account_id)
-            local_candidates = [
-                message
-                for message in recent_messages
-                if message.message_id in checked_ids and (message.local_label is None or message.local_label == GmailTrainingLabel.UNKNOWN.value)
-            ]
-            local_stage_status = "idle"
-            local_detail = "No last-hour unknown emails needed local classification."
-            local_count, ai_candidates = self._classify_candidates_locally(account_id=account_id, candidates=local_candidates)
-            if local_count > 0 and hasattr(adapter, "refresh_sender_reputations"):
-                await adapter.refresh_sender_reputations(account_id)
-            if local_candidates and local_count > 0:
-                local_stage_status = "completed"
-                local_detail = f"Locally classified {local_count} last-hour emails."
-            elif local_candidates:
-                local_stage_status = "idle"
-                local_detail = "Skipped local classification because no trained local model is available."
-            state["stages"]["local_classification"] = {
-                "status": local_stage_status,
-                "detail": local_detail,
-                "count": local_count,
-            }
-            self._save_gmail_last_hour_pipeline_state(stages=state["stages"], updated_at=datetime.now(UTC).isoformat())
-
-            if not self._runtime_ai_calls_enabled():
-                skipped_count = len(ai_candidates)
-                state["stages"]["ai_classification"] = {
-                    "status": "idle",
-                    "detail": (
-                        f"Skipped {skipped_count} last-hour AI candidates because AI calls are disabled."
-                        if skipped_count > 0
-                        else "AI calls are disabled and no last-hour unknown emails needed AI classification."
-                    ),
-                    "count": 0,
-                }
-            else:
-                ai_results, _ = await self._execute_email_classifier_for_messages(
-                    account_id=account_id,
-                    messages=ai_candidates,
-                    target_api_base_url="http://127.0.0.1:9002",
-                    correlation_id=correlation_id,
-                )
-                ai_count = len(ai_results)
-                state["stages"]["ai_classification"] = {
-                    "status": "completed" if ai_count > 0 else "idle",
-                    "detail": (
-                        f"Sent {ai_count} last-hour unknown emails to the AI node."
-                        if ai_count > 0
-                        else "No last-hour unknown emails needed AI classification."
-                    ),
-                    "count": ai_count,
-                }
-            completed_at = datetime.now(UTC).isoformat()
-            return self._save_gmail_last_hour_pipeline_state(
-                status="completed",
-                detail="Last-hour Gmail pipeline completed.",
-                stages=state["stages"],
-                updated_at=completed_at,
-                last_completed_at=completed_at,
-            )
-        except Exception as exc:
-            failed_at = datetime.now(UTC).isoformat()
-            return self._save_gmail_last_hour_pipeline_state(
-                mode=mode,
-                status="failed",
-                detail=str(exc),
-                stages=state["stages"],
-                updated_at=failed_at,
-            )
 
     async def gmail_config_validation(self) -> dict[str, object]:
         adapter = self.provider_registry.get_provider("gmail")
@@ -4244,424 +3451,58 @@ class NodeService:
             raise ValueError(str(exc)) from exc
 
     async def _provider_status_snapshot_async(self) -> dict[str, object]:
-        supported = self.provider_registry.list_supported_providers()
-        configured: list[str] = []
-        enabled: list[str] = []
-        summaries: dict[str, object] = {}
-
-        for provider_id in supported:
-            adapter = self.provider_registry.get_provider(provider_id)
-            validation = await adapter.validate_static_config()
-            if validation.ok:
-                configured.append(provider_id)
-            if adapter.get_enabled_status():
-                enabled.append(provider_id)
-            accounts = await adapter.list_accounts()
-            health = None
-            if accounts:
-                health = (await adapter.get_account_health(accounts[0].account_id)).model_dump(mode="json")
-            summaries[provider_id] = {
-                "provider_id": provider_id,
-                "provider_state": await adapter.get_provider_state(),
-                "enabled": adapter.get_enabled_status(),
-                "configured": validation.ok,
-                "account_count": len(accounts),
-                "accounts": [account.model_dump(mode="json") for account in accounts],
-                "health": health,
-            }
-
-        return {
-            "supported_providers": supported,
-            "configured_providers": configured,
-            "enabled_providers": enabled,
-            "providers": summaries,
-        }
+        return await self.providers.provider_status_snapshot_async()
 
     async def _refresh_post_trust_state(self) -> None:
-        if self.state.trust_state != "trusted" or not self.state.node_id or not self.effective_core_base_url():
-            return
-        provider_overview = await self._provider_status_snapshot_async()
-        capability_setup = self._capability_setup_summary(provider_overview)
-        connected_providers = capability_setup.get("provider_selection", {}).get("enabled", [])
-        self.state.enabled_providers = list(connected_providers) if isinstance(connected_providers, list) else []
-        self.state_store.save(self.state)
-        await self._update_operational_readiness()
+        await self.governance.refresh_post_trust_state()
 
     def _ensure_gmail_status_polling(self) -> None:
-        if self.gmail_status_task is None or self.gmail_status_task.done():
-            GMAIL_POLL_LOGGER.info(
-                "Gmail status polling loop starting",
-                extra={"event_data": {"interval_seconds": self.config.gmail_status_poll_interval_seconds}},
-            )
-            self.gmail_status_task = asyncio.create_task(self._gmail_status_loop())
+        self.background_tasks.ensure_gmail_status_polling()
 
     def _ensure_gmail_fetch_polling(self) -> None:
-        if self.gmail_fetch_task is None or self.gmail_fetch_task.done():
-            self._save_gmail_fetch_scheduler_state(
-                loop_enabled=True,
-                loop_active=True,
-                status="running",
-                detail="Gmail fetch scheduler loop is running.",
-                last_error=None,
-                last_error_at=None,
-            )
-            self._gmail_fetch_notification_state = "healthy"
-            self.gmail_fetch_task = asyncio.create_task(self._gmail_fetch_loop())
+        self.background_tasks.ensure_gmail_fetch_polling()
 
     async def _gmail_status_loop(self) -> None:
-        while True:
-            try:
-                await self._refresh_gmail_status()
-            except Exception as exc:
-                GMAIL_POLL_LOGGER.error(
-                    "Gmail status polling loop failed",
-                    extra={"event_data": {"detail": str(exc)}},
-                )
-            await asyncio.sleep(self.config.gmail_status_poll_interval_seconds)
+        await self.background_tasks.gmail_status_loop()
 
     async def _refresh_gmail_status(self) -> None:
-        gmail_adapter = self.provider_registry.get_provider("gmail")
-        accounts = await gmail_adapter.list_accounts()
-        eligible_accounts = [account for account in accounts if account.status in {"connected", "token_exchanged", "degraded"}]
-        GMAIL_POLL_LOGGER.info(
-            "Gmail status polling pass started",
-            extra={
-                "event_data": {
-                    "account_count": len(accounts),
-                    "eligible_account_count": len(eligible_accounts),
-                }
-            },
-        )
-        for account in accounts:
-            if account.status in {"connected", "token_exchanged", "degraded"}:
-                mailbox_status = await gmail_adapter.refresh_mailbox_status(account.account_id)
-                GMAIL_POLL_LOGGER.info(
-                    "Gmail status polling pass refreshed account",
-                    extra={
-                        "event_data": {
-                            "account_id": account.account_id,
-                            "checked_at": mailbox_status.checked_at.isoformat(),
-                            "unread_inbox_count": mailbox_status.unread_inbox_count,
-                            "unread_today_count": mailbox_status.unread_today_count,
-                            "unread_last_hour_count": mailbox_status.unread_last_hour_count,
-                        }
-                    },
-                )
+        await self.background_tasks.refresh_gmail_status()
 
     async def _gmail_fetch_loop(self) -> None:
-        while True:
-            try:
-                await self._run_due_gmail_fetches()
-            except Exception as exc:
-                failed_at = datetime.now(UTC).isoformat()
-                self._save_gmail_fetch_scheduler_state(
-                    loop_enabled=True,
-                    loop_active=True,
-                    status="error",
-                    detail="Gmail fetch scheduler loop hit an error.",
-                    last_error=str(exc),
-                    last_error_at=failed_at,
-                    last_checked_at=failed_at,
-                )
-                self._set_gmail_fetch_notification_state("error", f"Gmail fetch scheduler failed: {exc}")
-                LOGGER.error(
-                    "Scheduled Gmail fetch loop failed",
-                    extra={"event_data": {"detail": str(exc)}},
-                )
-            try:
-                await self._run_weekly_prompt_sync_if_due()
-            except Exception as exc:
-                AI_LOGGER.error(
-                    "Weekly prompt sync failed",
-                    extra={"event_data": {"detail": str(exc)}},
-                )
-            try:
-                await self._run_due_monthly_runtime_authorize(datetime.now().astimezone())
-            except Exception as exc:
-                AI_LOGGER.error(
-                    "Monthly Core resolve and authorize failed",
-                    extra={"event_data": {"detail": str(exc)}},
-                )
-            await asyncio.sleep(self._seconds_until_next_minute())
+        await self.background_tasks.gmail_fetch_loop()
 
     async def _run_due_gmail_fetches(self) -> None:
-        gmail_adapter = self.provider_registry.get_provider("gmail")
-        if not gmail_adapter.get_enabled_status():
-            self._set_gmail_fetch_notification_state(
-                "warning",
-                "Gmail fetch scheduling is paused because the Gmail provider is disabled.",
-            )
-            self._save_gmail_fetch_scheduler_state(
-                status="idle",
-                detail="Gmail fetch scheduler is idle because Gmail is disabled.",
-                last_checked_at=datetime.now(UTC).isoformat(),
-                last_due_windows=[],
-            )
-            return
-        accounts = await gmail_adapter.list_accounts()
-        eligible_accounts = [account for account in accounts if account.status in {"connected", "token_exchanged", "degraded"}]
-        if not eligible_accounts:
-            self._set_gmail_fetch_notification_state(
-                "warning",
-                "Gmail fetch scheduling is paused because no eligible Gmail account is connected.",
-            )
-            self._save_gmail_fetch_scheduler_state(
-                status="idle",
-                detail="Gmail fetch scheduler is idle because no eligible Gmail account is connected.",
-                last_checked_at=datetime.now(UTC).isoformat(),
-                last_due_windows=[],
-            )
-            return
-
-        schedule_state = await gmail_adapter.fetch_schedule_state() if hasattr(gmail_adapter, "fetch_schedule_state") else None
-        now = datetime.now().astimezone()
-        due_windows = self._due_gmail_fetch_windows(now, schedule_state)
-        checked_at = datetime.now(UTC).isoformat()
-        self._save_gmail_fetch_scheduler_state(
-            status="running" if due_windows else "idle",
-            detail=(
-                f"Scheduled Gmail fetch due for {', '.join(window for window, _ in due_windows)}."
-                if due_windows
-                else "No scheduled Gmail fetch windows are due right now."
-            ),
-            last_checked_at=checked_at,
-            last_due_windows=[{"window": window, "slot_key": slot_key} for window, slot_key in due_windows],
-        )
-        self._set_gmail_fetch_notification_state("healthy", "Gmail fetch scheduling is running normally.")
-        for account in eligible_accounts:
-            for window, slot_key in due_windows:
-                attempt_at = datetime.now(UTC).isoformat()
-                LOGGER.info(
-                    "Scheduled Gmail fetch attempt",
-                    extra={
-                        "event_data": {
-                            "account_id": account.account_id,
-                            "window": window,
-                            "slot_key": slot_key,
-                        }
-                    },
-                )
-                await self.gmail_fetch_messages(
-                    window,
-                    account_id=account.account_id,
-                    reason="scheduled",
-                    slot_key=slot_key,
-                )
-                success_at = datetime.now(UTC).isoformat()
-                self._save_gmail_fetch_scheduler_state(
-                    status="completed",
-                    detail=f"Scheduled Gmail fetch completed for {window}.",
-                    last_attempt_at=attempt_at,
-                    last_success_at=success_at,
-                    last_error=None,
-                    last_error_at=None,
-                )
-                LOGGER.info(
-                    "Scheduled Gmail fetch completed",
-                    extra={
-                        "event_data": {
-                            "account_id": account.account_id,
-                            "window": window,
-                            "slot_key": slot_key,
-                        }
-                    },
-                )
-        await self._run_due_hourly_batch_classification(now)
+        await self.background_tasks.run_due_gmail_fetches()
 
     def _due_gmail_fetch_windows(self, now: datetime, schedule_state) -> list[tuple[str, str]]:
-        due: list[tuple[str, str]] = []
-        schedule_map = {
-            "yesterday": self._gmail_fetch_slot_key("yesterday", now),
-            "today": self._gmail_fetch_slot_key("today", now),
-            "last_hour": self._gmail_fetch_slot_key("last_hour", now),
-        }
-        if schedule_state is None:
-            return []
-
-        yesterday_state = getattr(schedule_state, "yesterday", None)
-        if (
-            schedule_map["yesterday"]
-            and (now.hour > 0 or (now.hour == 0 and now.minute >= 1))
-            and getattr(yesterday_state, "last_slot_key", None) != schedule_map["yesterday"]
-        ):
-            due.append(("yesterday", schedule_map["yesterday"]))
-
-        today_state = getattr(schedule_state, "today", None)
-        if (
-            schedule_map["today"]
-            and getattr(today_state, "last_slot_key", None) != schedule_map["today"]
-            and now.hour // 6 == int(schedule_map["today"].rsplit(":", 1)[-1])
-        ):
-            due.append(("today", schedule_map["today"]))
-
-        last_hour_state = getattr(schedule_state, "last_hour", None)
-        if schedule_map["last_hour"] and getattr(last_hour_state, "last_slot_key", None) != schedule_map["last_hour"]:
-            due.append(("last_hour", schedule_map["last_hour"]))
-
-        return due
+        return self.background_tasks.due_gmail_fetch_windows(now, schedule_state)
 
     async def _run_due_hourly_batch_classification(self, now: datetime) -> None:
-        slot_key = self._gmail_hourly_batch_slot_key(now)
-        if slot_key is None or self.state.gmail_hourly_batch_classification_slot_key == slot_key:
-            return
-        try:
-            LOGGER.info(
-                "Scheduled hourly Gmail batch classification starting",
-                extra={"event_data": {"slot_key": slot_key}},
-            )
-            await self.runtime_execute_email_classifier_batch(
-                RuntimePromptExecutionRequestInput(target_api_base_url="http://127.0.0.1:9002")
-            )
-            self.state.gmail_hourly_batch_classification_slot_key = slot_key
-            self.state.gmail_hourly_batch_classification_last_run_at = datetime.now().astimezone()
-            self.state_store.save(self.state)
-            LOGGER.info(
-                "Scheduled hourly Gmail batch classification completed",
-                extra={"event_data": {"slot_key": slot_key}},
-            )
-        except Exception as exc:
-            LOGGER.error(
-                "Scheduled hourly Gmail batch classification failed",
-                extra={"event_data": {"slot_key": slot_key, "detail": str(exc)}},
-            )
+        await self.background_tasks.run_due_hourly_batch_classification(now)
 
     def _gmail_hourly_batch_slot_key(self, now: datetime) -> str | None:
-        local_now = now.astimezone()
-        if local_now.minute >= 5:
-            return None
-        return local_now.replace(minute=0, second=0, microsecond=0).isoformat()
+        return BackgroundTaskManager.gmail_hourly_batch_slot_key(now)
 
     def _gmail_fetch_slot_key(self, window: str, now: datetime) -> str | None:
-        local_now = now.astimezone()
-        if window == "yesterday":
-            return (local_now - timedelta(days=1)).date().isoformat()
-        if window == "today":
-            return f"{local_now.date().isoformat()}:{local_now.hour // 6}"
-        if window == "last_hour":
-            slot_time = local_now.replace(minute=(local_now.minute // 5) * 5, second=0, microsecond=0)
-            return slot_time.isoformat()
-        return None
+        return BackgroundTaskManager.gmail_fetch_slot_key(window, now)
 
     def _seconds_until_next_minute(self) -> float:
-        now = datetime.now().astimezone()
-        next_minute = (now + timedelta(minutes=1)).replace(second=0, microsecond=0)
-        return max((next_minute - now).total_seconds(), 1.0)
+        return BackgroundTaskManager.seconds_until_next_minute()
 
     async def declare_selected_capabilities(self) -> StatusResponse:
-        if self.state.trust_state != "trusted" or not self.state.node_id or not self.effective_core_base_url():
-            raise ValueError("trusted node context is required before declaring capabilities")
-        provider_overview = await self._provider_status_snapshot_async()
-        capability_setup = self._capability_setup_summary(provider_overview)
-        connected_providers = capability_setup.get("provider_selection", {}).get("enabled", [])
-        self.state.enabled_providers = list(connected_providers) if isinstance(connected_providers, list) else []
-        if not capability_setup.get("declaration_allowed"):
-            self.state.capability_declaration_status = "pending"
-            self.state.governance_sync_status = "pending"
-            self.state.active_governance_version = None
-            self.state_store.save(self.state)
-            await self._update_operational_readiness()
-            raise ValueError("capability declaration is not ready yet")
-        await self._declare_capabilities(provider_overview)
-        await self._sync_governance()
-        await self._update_operational_readiness()
-        return await self.status()
+        return await self.governance.declare_selected_capabilities()
 
     async def redeclare_capabilities(self, *, force: bool = False) -> StatusResponse:
-        if force:
-            self.state.capability_declaration_status = "pending"
-            self.state_store.save(self.state)
-        return await self.declare_selected_capabilities()
+        return await self.governance.redeclare_capabilities(force=force)
 
     async def rebuild_capabilities(self, *, force: bool = False) -> dict[str, object]:
-        if force:
-            self.state.capability_declaration_status = "pending"
-            self.state.governance_sync_status = "pending"
-            self.state.active_governance_version = None
-            self.state_store.save(self.state)
-        await self._refresh_post_trust_state()
-        resolved = await self.resolved_node_capabilities()
-        return {
-            "status": "rebuilt",
-            "force_refresh": force,
-            "resolved": resolved,
-        }
+        return await self.governance.rebuild_capabilities(force=force)
 
     async def _declare_capabilities(self, overview: dict[str, object] | None = None) -> CapabilityDeclarationResult:
-        overview = overview or await self._provider_status_snapshot_async()
-        enabled_providers: list[str] = []
-        for provider_id, provider_summary in overview["providers"].items():
-            if isinstance(provider_summary, dict) and provider_summary.get("provider_state") == "connected":
-                enabled_providers.append(provider_id)
-        manifest = self.capability_manifest_builder.build(
-            node_id=self.state.node_id or "",
-            node_type=self.config.node_type,
-            node_name=self.effective_node_name() or "",
-            node_software_version=self.config.node_software_version,
-            declared_task_families=self.selected_task_capabilities(),
-            supported_providers=list(overview["supported_providers"]),
-            enabled_providers=enabled_providers,
-        )
-        result = await self.capability_client.declare(
-            self.effective_core_base_url() or "",
-            manifest,
-            trust_token=(self.trust_material.node_trust_token if self.trust_material is not None else ""),
-        )
-        self.state.capability_declaration_status = "accepted" if result.accepted else "rejected"
-        self.state.capability_declared_at = result.submitted_at
-        self.state.enabled_providers = enabled_providers
-        self.state_store.save(self.state)
-        LOGGER.info(
-            "Capability declaration submitted",
-            extra={
-                "event_data": {
-                    "accepted": result.accepted,
-                    "supported_providers": manifest.supported_providers,
-                    "enabled_providers": manifest.enabled_providers,
-                }
-            },
-        )
-        return result
+        return await self.governance.declare_capabilities(overview)
 
     async def _sync_governance(self) -> GovernanceSnapshot:
-        if self.trust_material is None:
-            snapshot = GovernanceSnapshot(
-                node_id=self.state.node_id or "",
-                present=False,
-                last_sync_result="trust_material_missing",
-            )
-            self.state.governance_sync_status = snapshot.last_sync_result
-            self.state.governance_synced_at = snapshot.synced_at
-            self.state.active_governance_version = None
-            self.state_store.save(self.state)
-            return snapshot
-        snapshot = await self.governance_client.fetch(
-            self.effective_core_base_url() or "",
-            self.state.node_id or "",
-            trust_token=self.trust_material.node_trust_token,
-            current_governance_version=self.state.active_governance_version,
-        )
-        self.state.governance_sync_status = snapshot.last_sync_result
-        self.state.governance_synced_at = snapshot.synced_at
-        self.state.active_governance_version = snapshot.governance_version
-        self.state_store.save(self.state)
-        LOGGER.info(
-            "Governance sync result",
-            extra={
-                "event_data": {
-                    "present": snapshot.present,
-                    "last_sync_result": snapshot.last_sync_result,
-                    "governance_version": snapshot.governance_version,
-                }
-            },
-        )
-        return snapshot
+        return await self.governance.sync_governance()
 
     async def _update_operational_readiness(self) -> None:
-        gmail_state = await self.provider_registry.get_provider("gmail").get_provider_state()
-        self.state.operational_readiness = self.readiness_evaluator.evaluate(
-            trust_state=self.state.trust_state,
-            capability_declaration_status=self.state.capability_declaration_status,
-            governance_sync_status=self.state.governance_sync_status,
-            gmail_provider_state=gmail_state,
-        )
-        self.state_store.save(self.state)
+        await self.governance.update_operational_readiness()

@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Schema for Gmail order extraction templates stored under runtime/order_templates/. This matches the contract validated by src/providers/gmail/order_template_registry.py.",
+  "properties": {
+    "confidence_rules": {
+      "additionalProperties": true,
+      "type": "object"
+    },
+    "enabled": {
+      "type": "boolean"
+    },
+    "extract": {
+      "additionalProperties": {
+        "additionalProperties": true,
+        "properties": {
+          "end_marker": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "marker": {
+            "type": "string"
+          },
+          "method": {
+            "enum": [
+              "regex",
+              "line_contains",
+              "line_after",
+              "between_markers",
+              "all_matches",
+              "first_match",
+              "link_by_label",
+              "link_by_type"
+            ],
+            "type": "string"
+          },
+          "pattern": {
+            "type": "string"
+          },
+          "start_marker": {
+            "type": "string"
+          },
+          "transforms": {
+            "items": {
+              "enum": [
+                "trim",
+                "collapse_spaces",
+                "normalize_currency",
+                "normalize_order_number",
+                "normalize_phone_number",
+                "normalize_url"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "method"
+        ],
+        "type": "object"
+      },
+      "type": "object"
+    },
+    "match": {
+      "additionalProperties": true,
+      "properties": {
+        "vendor_identity": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "post_process": {
+      "additionalProperties": true,
+      "type": "object"
+    },
+    "profile_id": {
+      "type": "string"
+    },
+    "required_fields": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "order-phase4-template.v1"
+    },
+    "template_id": {
+      "type": "string"
+    },
+    "template_version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "template_id",
+    "profile_id",
+    "template_version",
+    "enabled",
+    "match",
+    "extract",
+    "required_fields",
+    "confidence_rules",
+    "post_process"
+  ],
+  "title": "Hexe Email Gmail Order Template",
+  "type": "object"
+}

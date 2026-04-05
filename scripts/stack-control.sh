@@ -5,7 +5,7 @@ ACTION="${1:-}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="$ROOT_DIR/scripts/stack.env"
 RUN_DIR="$ROOT_DIR/.run"
-LOG_DIR="$ROOT_DIR/logs"
+LOG_DIR="$ROOT_DIR/runtime/logs"
 BACKEND_PID_FILE="$RUN_DIR/backend.pid"
 FRONTEND_PID_FILE="$RUN_DIR/frontend.pid"
 
@@ -124,6 +124,20 @@ main() {
     status)
       status_component "backend" "$BACKEND_PID_FILE"
       status_component "frontend" "$FRONTEND_PID_FILE"
+      if command -v curl >/dev/null 2>&1; then
+        local api_port="${API_PORT:-9003}"
+        local ui_port="${UI_PORT:-8083}"
+        if curl -fsS "http://127.0.0.1:${api_port}/health/live" >/dev/null 2>&1; then
+          echo "backend_http: healthy (http://127.0.0.1:${api_port}/health/live)"
+        else
+          echo "backend_http: unavailable (http://127.0.0.1:${api_port}/health/live)"
+        fi
+        if curl -fsS "http://127.0.0.1:${ui_port}" >/dev/null 2>&1; then
+          echo "frontend_http: reachable (http://127.0.0.1:${ui_port})"
+        else
+          echo "frontend_http: unavailable (http://127.0.0.1:${ui_port})"
+        fi
+      fi
       ;;
     *)
       echo "Unknown action: $ACTION"

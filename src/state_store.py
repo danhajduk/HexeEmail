@@ -8,7 +8,9 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from models import OperatorConfig, RuntimeState, TrustMaterial
+from node_models.config import OperatorConfig
+from node_models.node import TrustMaterial
+from node_models.runtime import RuntimeState
 
 
 class StateCorruptionError(RuntimeError):

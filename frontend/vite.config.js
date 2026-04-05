@@ -5,6 +5,9 @@ const apiTarget = process.env.API_PROXY_TARGET || "http://127.0.0.1:9003";
 
 export default defineConfig({
   plugins: [react()],
+  test: {
+    environment: "node",
+  },
   server: {
     port: 8083,
     proxy: {

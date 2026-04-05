@@ -38,7 +38,7 @@ async def test_gmail_connect_start_returns_connect_url_for_trusted_node(config, 
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.post(
-            "/providers/gmail/accounts/primary/connect/start",
+            "/api/providers/gmail/accounts/primary/connect/start",
             headers={"X-Correlation-Id": "corr-123"},
         )
 
@@ -70,7 +70,7 @@ async def test_gmail_connect_start_requires_trusted_node(config, core_client_fac
     app = create_app(config=isolated_config, service=service)
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.post("/providers/gmail/accounts/primary/connect/start")
+        response = await client.post("/api/providers/gmail/accounts/primary/connect/start")
 
     await service.stop()
 
@@ -92,7 +92,7 @@ async def test_gmail_connect_start_validates_gmail_config(config, core_client_fa
     app = create_app(config=config_with_blank_runtime, service=service)
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.post("/providers/gmail/accounts/primary/connect/start")
+        response = await client.post("/api/providers/gmail/accounts/primary/connect/start")
 
     await service.stop()
 

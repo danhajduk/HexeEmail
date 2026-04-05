@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PORT="${API_PORT:-9003}"
-curl -fsS "http://127.0.0.1:${PORT}/status"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+exec "${ROOT_DIR}/scripts/stack-control.sh" status

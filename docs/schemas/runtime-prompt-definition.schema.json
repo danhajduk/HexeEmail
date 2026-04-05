@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Schema for node-owned runtime prompt definition files stored under src/runtime_prompts/.",
+  "properties": {
+    "constraints": {
+      "additionalProperties": true,
+      "properties": {
+        "max_timeout_s": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "structured_output_required": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "definition": {
+      "additionalProperties": false,
+      "properties": {
+        "default_inputs": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "prompt_template": {
+          "type": "string"
+        },
+        "system_prompt": {
+          "type": "string"
+        },
+        "template_variables": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "system_prompt",
+        "template_variables",
+        "default_inputs"
+      ],
+      "type": "object"
+    },
+    "execution_policy": {
+      "additionalProperties": false,
+      "properties": {
+        "allow_direct_execution": {
+          "type": "boolean"
+        },
+        "allow_version_pinning": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "allow_direct_execution",
+        "allow_version_pinning"
+      ],
+      "type": "object"
+    },
+    "metadata": {
+      "additionalProperties": true,
+      "type": "object"
+    },
+    "node_runtime": {
+      "additionalProperties": false,
+      "properties": {
+        "json_schema": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "timeout_s": {
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "timeout_s",
+        "json_schema"
+      ],
+      "type": "object"
+    },
+    "owner_service": {
+      "type": "string"
+    },
+    "privacy_class": {
+      "type": "string"
+    },
+    "prompt_id": {
+      "type": "string"
+    },
+    "prompt_name": {
+      "type": "string"
+    },
+    "provider_preferences": {
+      "additionalProperties": true,
+      "properties": {
+        "default_model": {
+          "type": "string"
+        },
+        "default_provider": {
+          "type": "string"
+        },
+        "preferred_models": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "preferred_providers": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "service_id": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "task_family": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "prompt_id",
+    "service_id",
+    "task_family",
+    "prompt_name",
+    "owner_service",
+    "privacy_class",
+    "execution_policy",
+    "constraints",
+    "definition",
+    "version",
+    "status",
+    "node_runtime"
+  ],
+  "title": "Hexe Email Runtime Prompt Definition",
+  "type": "object"
+}

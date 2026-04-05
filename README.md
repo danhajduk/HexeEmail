@@ -6,8 +6,18 @@ Current phases:
 
 - Phase 1: Core trust onboarding, trust persistence, operational MQTT, local status/UI
 - Phase 2: Gmail provider activation, capability declaration, governance sync, readiness evaluation
+- ORDER flow: staged Gmail order extraction and normalization pipeline
 
-Architecture and runbooks:
+Primary repo docs:
+
+- [docs/index.md](docs/index.md)
+- [docs/operations.md](docs/operations.md)
+- [docs/configuration.md](docs/configuration.md)
+- [docs/runtime.md](docs/runtime.md)
+- [docs/api-map.md](docs/api-map.md)
+- [docs/email-node-standards-alignment.md](docs/email-node-standards-alignment.md)
+
+Detailed implementation and runbook references:
 
 - [docs/email-node-architecture.md](docs/email-node-architecture.md)
 - [docs/email-node-phase2-provider-activation.md](docs/email-node-phase2-provider-activation.md)

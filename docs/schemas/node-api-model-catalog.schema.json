@@ -1,0 +1,2945 @@
+{
+  "$defs": {
+    "CoreServiceAuthorizeRequestInput": {
+      "additionalProperties": false,
+      "properties": {
+        "model_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Id"
+        },
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "service_id": {
+          "title": "Service Id",
+          "type": "string"
+        },
+        "task_context": {
+          "additionalProperties": true,
+          "title": "Task Context",
+          "type": "object"
+        },
+        "task_family": {
+          "title": "Task Family",
+          "type": "string"
+        },
+        "type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "ai",
+          "title": "Type"
+        }
+      },
+      "required": [
+        "task_family",
+        "service_id",
+        "provider"
+      ],
+      "title": "CoreServiceAuthorizeRequestInput",
+      "type": "object"
+    },
+    "CoreServiceResolveRequestInput": {
+      "additionalProperties": false,
+      "properties": {
+        "preferred_provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Preferred Provider"
+        },
+        "task_context": {
+          "additionalProperties": true,
+          "title": "Task Context",
+          "type": "object"
+        },
+        "task_family": {
+          "title": "Task Family",
+          "type": "string"
+        },
+        "type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "ai",
+          "title": "Type"
+        }
+      },
+      "required": [
+        "task_family"
+      ],
+      "title": "CoreServiceResolveRequestInput",
+      "type": "object"
+    },
+    "GmailConnectStartResponse": {
+      "properties": {
+        "account_id": {
+          "title": "Account Id",
+          "type": "string"
+        },
+        "connect_url": {
+          "title": "Connect Url",
+          "type": "string"
+        },
+        "expires_at": {
+          "format": "date-time",
+          "title": "Expires At",
+          "type": "string"
+        },
+        "provider_id": {
+          "title": "Provider Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider_id",
+        "account_id",
+        "connect_url",
+        "expires_at"
+      ],
+      "title": "GmailConnectStartResponse",
+      "type": "object"
+    },
+    "GmailOAuthCallbackResponse": {
+      "properties": {
+        "account_id": {
+          "title": "Account Id",
+          "type": "string"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expires At"
+        },
+        "granted_scopes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Granted Scopes",
+          "type": "array"
+        },
+        "provider_id": {
+          "title": "Provider Id",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider_id",
+        "account_id",
+        "status"
+      ],
+      "title": "GmailOAuthCallbackResponse",
+      "type": "object"
+    },
+    "MqttHealthResponse": {
+      "properties": {
+        "health_status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Health Status"
+        },
+        "last_status_report_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Status Report At"
+        },
+        "status_age_s": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Status Age S"
+        },
+        "status_freshness_state": {
+          "default": "unknown",
+          "title": "Status Freshness State",
+          "type": "string"
+        },
+        "status_inactive": {
+          "default": false,
+          "title": "Status Inactive",
+          "type": "boolean"
+        },
+        "status_inactive_after_s": {
+          "title": "Status Inactive After S",
+          "type": "integer"
+        },
+        "status_stale": {
+          "default": false,
+          "title": "Status Stale",
+          "type": "boolean"
+        },
+        "status_stale_after_s": {
+          "title": "Status Stale After S",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "status_stale_after_s",
+        "status_inactive_after_s"
+      ],
+      "title": "MqttHealthResponse",
+      "type": "object"
+    },
+    "NodeNotificationRequest": {
+      "$defs": {
+        "NotificationContent": {
+          "additionalProperties": false,
+          "properties": {
+            "body": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Body"
+            },
+            "message": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Message"
+            },
+            "subtitle": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Subtitle"
+            },
+            "title": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Title"
+            }
+          },
+          "title": "NotificationContent",
+          "type": "object"
+        },
+        "NotificationDelivery": {
+          "additionalProperties": false,
+          "properties": {
+            "channels": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Channels",
+              "type": "array"
+            },
+            "dedupe_key": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Dedupe Key"
+            },
+            "priority": {
+              "default": "normal",
+              "enum": [
+                "low",
+                "normal",
+                "high",
+                "urgent"
+              ],
+              "title": "Priority",
+              "type": "string"
+            },
+            "severity": {
+              "default": "info",
+              "enum": [
+                "info",
+                "success",
+                "warning",
+                "error",
+                "critical"
+              ],
+              "title": "Severity",
+              "type": "string"
+            },
+            "ttl_seconds": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Ttl Seconds"
+            },
+            "urgency": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "info",
+                    "error",
+                    "notification",
+                    "urgent",
+                    "actions_needed"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Urgency"
+            }
+          },
+          "title": "NotificationDelivery",
+          "type": "object"
+        },
+        "NotificationEvent": {
+          "additionalProperties": false,
+          "properties": {
+            "action": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Action"
+            },
+            "attributes": {
+              "additionalProperties": true,
+              "title": "Attributes",
+              "type": "object"
+            },
+            "event_type": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Event Type"
+            },
+            "summary": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Summary"
+            }
+          },
+          "title": "NotificationEvent",
+          "type": "object"
+        },
+        "NotificationSourceHint": {
+          "additionalProperties": false,
+          "properties": {
+            "component": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Component"
+            },
+            "label": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Label"
+            },
+            "metadata": {
+              "additionalProperties": true,
+              "title": "Metadata",
+              "type": "object"
+            }
+          },
+          "title": "NotificationSourceHint",
+          "type": "object"
+        },
+        "NotificationStatePayload": {
+          "additionalProperties": false,
+          "properties": {
+            "attributes": {
+              "additionalProperties": true,
+              "title": "Attributes",
+              "type": "object"
+            },
+            "reason": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Reason"
+            },
+            "status": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Status"
+            }
+          },
+          "title": "NotificationStatePayload",
+          "type": "object"
+        },
+        "NotificationTargets": {
+          "additionalProperties": false,
+          "properties": {
+            "broadcast": {
+              "default": false,
+              "title": "Broadcast",
+              "type": "boolean"
+            },
+            "external": {
+              "items": {
+                "type": "string"
+              },
+              "title": "External",
+              "type": "array"
+            },
+            "hosts": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Hosts",
+              "type": "array"
+            },
+            "sessions": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Sessions",
+              "type": "array"
+            },
+            "users": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Users",
+              "type": "array"
+            }
+          },
+          "title": "NotificationTargets",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "content": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NotificationContent"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data"
+        },
+        "delivery": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NotificationDelivery"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "event": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NotificationEvent"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "kind": {
+          "enum": [
+            "popup",
+            "event",
+            "state"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "node_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Node Id"
+        },
+        "request_id": {
+          "title": "Request Id",
+          "type": "string"
+        },
+        "retain": {
+          "default": false,
+          "title": "Retain",
+          "type": "boolean"
+        },
+        "schema_version": {
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NotificationSourceHint"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "state": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NotificationStatePayload"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "targets": {
+          "$ref": "#/$defs/NotificationTargets"
+        }
+      },
+      "required": [
+        "request_id",
+        "created_at",
+        "kind",
+        "targets"
+      ],
+      "title": "NodeNotificationRequest",
+      "type": "object"
+    },
+    "NodeNotificationResult": {
+      "additionalProperties": false,
+      "properties": {
+        "accepted": {
+          "title": "Accepted",
+          "type": "boolean"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        },
+        "internal_topic": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Internal Topic"
+        },
+        "node_id": {
+          "title": "Node Id",
+          "type": "string"
+        },
+        "notification_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notification Id"
+        },
+        "request_id": {
+          "title": "Request Id",
+          "type": "string"
+        },
+        "requested_external_targets": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Requested External Targets",
+          "type": "array"
+        },
+        "schema_version": {
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "status": {
+          "enum": [
+            "accepted",
+            "rejected"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "request_id",
+        "node_id",
+        "status",
+        "accepted",
+        "created_at"
+      ],
+      "title": "NodeNotificationResult",
+      "type": "object"
+    },
+    "NotificationContent": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body"
+        },
+        "message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Message"
+        },
+        "subtitle": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subtitle"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        }
+      },
+      "title": "NotificationContent",
+      "type": "object"
+    },
+    "NotificationDelivery": {
+      "additionalProperties": false,
+      "properties": {
+        "channels": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Channels",
+          "type": "array"
+        },
+        "dedupe_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dedupe Key"
+        },
+        "priority": {
+          "default": "normal",
+          "enum": [
+            "low",
+            "normal",
+            "high",
+            "urgent"
+          ],
+          "title": "Priority",
+          "type": "string"
+        },
+        "severity": {
+          "default": "info",
+          "enum": [
+            "info",
+            "success",
+            "warning",
+            "error",
+            "critical"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "ttl_seconds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ttl Seconds"
+        },
+        "urgency": {
+          "anyOf": [
+            {
+              "enum": [
+                "info",
+                "error",
+                "notification",
+                "urgent",
+                "actions_needed"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Urgency"
+        }
+      },
+      "title": "NotificationDelivery",
+      "type": "object"
+    },
+    "NotificationEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Action"
+        },
+        "attributes": {
+          "additionalProperties": true,
+          "title": "Attributes",
+          "type": "object"
+        },
+        "event_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Event Type"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Summary"
+        }
+      },
+      "title": "NotificationEvent",
+      "type": "object"
+    },
+    "NotificationSourceHint": {
+      "additionalProperties": false,
+      "properties": {
+        "component": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Component"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "metadata": {
+          "additionalProperties": true,
+          "title": "Metadata",
+          "type": "object"
+        }
+      },
+      "title": "NotificationSourceHint",
+      "type": "object"
+    },
+    "NotificationStatePayload": {
+      "additionalProperties": false,
+      "properties": {
+        "attributes": {
+          "additionalProperties": true,
+          "title": "Attributes",
+          "type": "object"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Status"
+        }
+      },
+      "title": "NotificationStatePayload",
+      "type": "object"
+    },
+    "NotificationTargets": {
+      "additionalProperties": false,
+      "properties": {
+        "broadcast": {
+          "default": false,
+          "title": "Broadcast",
+          "type": "boolean"
+        },
+        "external": {
+          "items": {
+            "type": "string"
+          },
+          "title": "External",
+          "type": "array"
+        },
+        "hosts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Hosts",
+          "type": "array"
+        },
+        "sessions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Sessions",
+          "type": "array"
+        },
+        "users": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Users",
+          "type": "array"
+        }
+      },
+      "title": "NotificationTargets",
+      "type": "object"
+    },
+    "OnboardingStatusResponse": {
+      "properties": {
+        "approval_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Approval Url"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Expires At"
+        },
+        "last_error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Error"
+        },
+        "node_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Node Id"
+        },
+        "node_name": {
+          "title": "Node Name",
+          "type": "string"
+        },
+        "node_software_version": {
+          "title": "Node Software Version",
+          "type": "string"
+        },
+        "node_type": {
+          "title": "Node Type",
+          "type": "string"
+        },
+        "onboarding_status": {
+          "enum": [
+            "not_started",
+            "pending",
+            "approved",
+            "rejected",
+            "expired",
+            "consumed",
+            "invalid"
+          ],
+          "title": "Onboarding Status",
+          "type": "string"
+        },
+        "required_inputs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Required Inputs",
+          "type": "array"
+        },
+        "session_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Session Id"
+        },
+        "trust_state": {
+          "enum": [
+            "untrusted",
+            "pending",
+            "trusted",
+            "rejected",
+            "expired",
+            "consumed",
+            "invalid"
+          ],
+          "title": "Trust State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "node_name",
+        "node_type",
+        "node_software_version",
+        "session_id",
+        "approval_url",
+        "onboarding_status",
+        "trust_state",
+        "node_id",
+        "expires_at",
+        "last_error"
+      ],
+      "title": "OnboardingStatusResponse",
+      "type": "object"
+    },
+    "OperatorConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "core_base_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Core Base Url"
+        },
+        "node_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Node Name"
+        },
+        "selected_task_capabilities": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Selected Task Capabilities",
+          "type": "array"
+        }
+      },
+      "title": "OperatorConfig",
+      "type": "object"
+    },
+    "OperatorConfigInput": {
+      "additionalProperties": false,
+      "properties": {
+        "core_base_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Core Base Url"
+        },
+        "node_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Node Name"
+        },
+        "selected_task_capabilities": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Selected Task Capabilities",
+          "type": "array"
+        }
+      },
+      "title": "OperatorConfigInput",
+      "type": "object"
+    },
+    "OperatorConfigResponse": {
+      "properties": {
+        "api_port": {
+          "title": "Api Port",
+          "type": "integer"
+        },
+        "core_base_url": {
+          "title": "Core Base Url",
+          "type": "string"
+        },
+        "node_name": {
+          "title": "Node Name",
+          "type": "string"
+        },
+        "node_software_version": {
+          "title": "Node Software Version",
+          "type": "string"
+        },
+        "node_type": {
+          "title": "Node Type",
+          "type": "string"
+        },
+        "selected_task_capabilities": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Selected Task Capabilities",
+          "type": "array"
+        },
+        "ui_port": {
+          "title": "Ui Port",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "core_base_url",
+        "node_name",
+        "node_type",
+        "node_software_version",
+        "api_port",
+        "ui_port"
+      ],
+      "title": "OperatorConfigResponse",
+      "type": "object"
+    },
+    "ReadinessStatus": {
+      "properties": {
+        "live": {
+          "default": true,
+          "title": "Live",
+          "type": "boolean"
+        },
+        "ready": {
+          "title": "Ready",
+          "type": "boolean"
+        },
+        "startup_error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Startup Error"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ready",
+        "version"
+      ],
+      "title": "ReadinessStatus",
+      "type": "object"
+    },
+    "RefreshTriggerRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "force_refresh": {
+          "default": false,
+          "title": "Force Refresh",
+          "type": "boolean"
+        }
+      },
+      "title": "RefreshTriggerRequest",
+      "type": "object"
+    },
+    "RuntimeDirectExecutionRequestInput": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body"
+        },
+        "content_type": {
+          "default": "email",
+          "title": "Content Type",
+          "type": "string"
+        },
+        "grant_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Grant Id"
+        },
+        "model_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Id"
+        },
+        "provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider"
+        },
+        "service_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Service Id"
+        },
+        "service_token": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Service Token"
+        },
+        "subject": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subject"
+        },
+        "target_api_base_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Api Base Url"
+        },
+        "task_family": {
+          "title": "Task Family",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_family"
+      ],
+      "title": "RuntimeDirectExecutionRequestInput",
+      "type": "object"
+    },
+    "RuntimePromptExecutionRequestInput": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body"
+        },
+        "message_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Message Id"
+        },
+        "subject": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subject"
+        },
+        "target_api_base_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Api Base Url"
+        }
+      },
+      "title": "RuntimePromptExecutionRequestInput",
+      "type": "object"
+    },
+    "RuntimePromptSyncRequestInput": {
+      "additionalProperties": false,
+      "properties": {
+        "target_api_base_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Api Base Url"
+        }
+      },
+      "title": "RuntimePromptSyncRequestInput",
+      "type": "object"
+    },
+    "RuntimeState": {
+      "additionalProperties": false,
+      "properties": {
+        "active_governance_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Active Governance Version"
+        },
+        "approval_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Approval Url"
+        },
+        "capability_declaration_status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Capability Declaration Status"
+        },
+        "capability_declared_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Capability Declared At"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "enabled_providers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Enabled Providers",
+          "type": "array"
+        },
+        "gmail_fetch_scheduler_state": {
+          "additionalProperties": true,
+          "title": "Gmail Fetch Scheduler State",
+          "type": "object"
+        },
+        "gmail_hourly_batch_classification_last_run_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gmail Hourly Batch Classification Last Run At"
+        },
+        "gmail_hourly_batch_classification_slot_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gmail Hourly Batch Classification Slot Key"
+        },
+        "gmail_last_hour_pipeline_state": {
+          "additionalProperties": true,
+          "title": "Gmail Last Hour Pipeline State",
+          "type": "object"
+        },
+        "governance_sync_status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Governance Sync Status"
+        },
+        "governance_synced_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Governance Synced At"
+        },
+        "last_error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Error"
+        },
+        "last_finalize_status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Finalize Status"
+        },
+        "last_heartbeat_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Heartbeat At"
+        },
+        "last_poll_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Poll At"
+        },
+        "mqtt_credentials_present": {
+          "default": false,
+          "title": "Mqtt Credentials Present",
+          "type": "boolean"
+        },
+        "node_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Node Id"
+        },
+        "onboarding_expires_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Onboarding Expires At"
+        },
+        "onboarding_session_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Onboarding Session Id"
+        },
+        "onboarding_status": {
+          "default": "not_started",
+          "enum": [
+            "not_started",
+            "pending",
+            "approved",
+            "rejected",
+            "expired",
+            "consumed",
+            "invalid"
+          ],
+          "title": "Onboarding Status",
+          "type": "string"
+        },
+        "operational_mqtt_host": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operational Mqtt Host"
+        },
+        "operational_mqtt_port": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operational Mqtt Port"
+        },
+        "operational_readiness": {
+          "default": false,
+          "title": "Operational Readiness",
+          "type": "boolean"
+        },
+        "paired_core_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Paired Core Id"
+        },
+        "runtime_email_classify_counter": {
+          "default": 0,
+          "title": "Runtime Email Classify Counter",
+          "type": "integer"
+        },
+        "runtime_monthly_authorize_last_run_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Runtime Monthly Authorize Last Run At"
+        },
+        "runtime_monthly_authorize_slot_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Runtime Monthly Authorize Slot Key"
+        },
+        "runtime_prompt_sync_last_scheduled_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Runtime Prompt Sync Last Scheduled At"
+        },
+        "runtime_prompt_sync_target_api_base_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Runtime Prompt Sync Target Api Base Url"
+        },
+        "runtime_prompt_sync_weekly_slot_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Runtime Prompt Sync Weekly Slot Key"
+        },
+        "runtime_task_state": {
+          "additionalProperties": true,
+          "title": "Runtime Task State",
+          "type": "object"
+        },
+        "trust_state": {
+          "default": "untrusted",
+          "enum": [
+            "untrusted",
+            "pending",
+            "trusted",
+            "rejected",
+            "expired",
+            "consumed",
+            "invalid"
+          ],
+          "title": "Trust State",
+          "type": "string"
+        },
+        "trust_token_present": {
+          "default": false,
+          "title": "Trust Token Present",
+          "type": "boolean"
+        },
+        "trusted_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trusted At"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "title": "RuntimeState",
+      "type": "object"
+    },
+    "RuntimeTaskSettingsInput": {
+      "additionalProperties": false,
+      "properties": {
+        "ai_calls_enabled": {
+          "title": "Ai Calls Enabled",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "ai_calls_enabled"
+      ],
+      "title": "RuntimeTaskSettingsInput",
+      "type": "object"
+    },
+    "ServiceRestartRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "title": "Target",
+          "type": "string"
+        }
+      },
+      "required": [
+        "target"
+      ],
+      "title": "ServiceRestartRequest",
+      "type": "object"
+    },
+    "StatusResponse": {
+      "$defs": {
+        "MqttHealthResponse": {
+          "properties": {
+            "health_status": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Health Status"
+            },
+            "last_status_report_at": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Last Status Report At"
+            },
+            "status_age_s": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Status Age S"
+            },
+            "status_freshness_state": {
+              "default": "unknown",
+              "title": "Status Freshness State",
+              "type": "string"
+            },
+            "status_inactive": {
+              "default": false,
+              "title": "Status Inactive",
+              "type": "boolean"
+            },
+            "status_inactive_after_s": {
+              "title": "Status Inactive After S",
+              "type": "integer"
+            },
+            "status_stale": {
+              "default": false,
+              "title": "Status Stale",
+              "type": "boolean"
+            },
+            "status_stale_after_s": {
+              "title": "Status Stale After S",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "status_stale_after_s",
+            "status_inactive_after_s"
+          ],
+          "title": "MqttHealthResponse",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "active_governance_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Active Governance Version"
+        },
+        "capability_declaration_status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Capability Declaration Status"
+        },
+        "capability_setup": {
+          "additionalProperties": true,
+          "title": "Capability Setup",
+          "type": "object"
+        },
+        "enabled_providers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Enabled Providers",
+          "type": "array"
+        },
+        "governance_sync_status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Governance Sync Status"
+        },
+        "last_heartbeat_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Heartbeat At"
+        },
+        "mqtt_connection_status": {
+          "title": "Mqtt Connection Status",
+          "type": "string"
+        },
+        "mqtt_health": {
+          "$ref": "#/$defs/MqttHealthResponse"
+        },
+        "node_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Node Id"
+        },
+        "node_name": {
+          "title": "Node Name",
+          "type": "string"
+        },
+        "node_software_version": {
+          "title": "Node Software Version",
+          "type": "string"
+        },
+        "node_type": {
+          "title": "Node Type",
+          "type": "string"
+        },
+        "onboarding_status": {
+          "enum": [
+            "not_started",
+            "pending",
+            "approved",
+            "rejected",
+            "expired",
+            "consumed",
+            "invalid"
+          ],
+          "title": "Onboarding Status",
+          "type": "string"
+        },
+        "operational_mqtt_host": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operational Mqtt Host"
+        },
+        "operational_mqtt_port": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operational Mqtt Port"
+        },
+        "operational_readiness": {
+          "default": false,
+          "title": "Operational Readiness",
+          "type": "boolean"
+        },
+        "paired_core_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Paired Core Id"
+        },
+        "provider_account_summaries": {
+          "additionalProperties": true,
+          "title": "Provider Account Summaries",
+          "type": "object"
+        },
+        "providers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Providers",
+          "type": "array"
+        },
+        "required_inputs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Required Inputs",
+          "type": "array"
+        },
+        "supported_providers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Supported Providers",
+          "type": "array"
+        },
+        "trust_state": {
+          "enum": [
+            "untrusted",
+            "pending",
+            "trusted",
+            "rejected",
+            "expired",
+            "consumed",
+            "invalid"
+          ],
+          "title": "Trust State",
+          "type": "string"
+        },
+        "trusted_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trusted At"
+        }
+      },
+      "required": [
+        "node_name",
+        "node_type",
+        "node_software_version",
+        "trust_state",
+        "node_id",
+        "mqtt_connection_status",
+        "mqtt_health",
+        "onboarding_status",
+        "providers"
+      ],
+      "title": "StatusResponse",
+      "type": "object"
+    },
+    "TaskCapabilitySelectionInput": {
+      "additionalProperties": false,
+      "properties": {
+        "selected_task_capabilities": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Selected Task Capabilities",
+          "type": "array"
+        }
+      },
+      "title": "TaskCapabilitySelectionInput",
+      "type": "object"
+    },
+    "TaskRoutingPreviewResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "capability_declared": {
+          "default": false,
+          "title": "Capability Declared",
+          "type": "boolean"
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        },
+        "local_node_can_execute": {
+          "default": false,
+          "title": "Local Node Can Execute",
+          "type": "boolean"
+        },
+        "local_node_type": {
+          "title": "Local Node Type",
+          "type": "string"
+        },
+        "local_selected_task_capabilities": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Local Selected Task Capabilities",
+          "type": "array"
+        },
+        "requested_node_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Requested Node Type"
+        },
+        "requested_provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Requested Provider"
+        },
+        "should_delegate_to_core": {
+          "default": false,
+          "title": "Should Delegate To Core",
+          "type": "boolean"
+        },
+        "task_family": {
+          "title": "Task Family",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_family",
+        "local_node_type",
+        "detail"
+      ],
+      "title": "TaskRoutingPreviewResponse",
+      "type": "object"
+    },
+    "TaskRoutingRequestInput": {
+      "additionalProperties": false,
+      "properties": {
+        "constraints": {
+          "additionalProperties": true,
+          "title": "Constraints",
+          "type": "object"
+        },
+        "inputs": {
+          "additionalProperties": true,
+          "title": "Inputs",
+          "type": "object"
+        },
+        "requested_node_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Requested Node Type"
+        },
+        "requested_provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Requested Provider"
+        },
+        "task_family": {
+          "title": "Task Family",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_family"
+      ],
+      "title": "TaskRoutingRequestInput",
+      "type": "object"
+    },
+    "TrustMaterial": {
+      "properties": {
+        "issued_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Issued At"
+        },
+        "node_id": {
+          "title": "Node Id",
+          "type": "string"
+        },
+        "node_trust_token": {
+          "title": "Node Trust Token",
+          "type": "string"
+        },
+        "node_type": {
+          "title": "Node Type",
+          "type": "string"
+        },
+        "operational_mqtt_host": {
+          "title": "Operational Mqtt Host",
+          "type": "string"
+        },
+        "operational_mqtt_identity": {
+          "title": "Operational Mqtt Identity",
+          "type": "string"
+        },
+        "operational_mqtt_port": {
+          "title": "Operational Mqtt Port",
+          "type": "integer"
+        },
+        "operational_mqtt_token": {
+          "title": "Operational Mqtt Token",
+          "type": "string"
+        },
+        "paired_core_id": {
+          "title": "Paired Core Id",
+          "type": "string"
+        },
+        "source_session_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Session Id"
+        },
+        "trust_status": {
+          "default": "trusted",
+          "title": "Trust Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "node_id",
+        "node_type",
+        "paired_core_id",
+        "node_trust_token",
+        "operational_mqtt_identity",
+        "operational_mqtt_token",
+        "operational_mqtt_host",
+        "operational_mqtt_port"
+      ],
+      "title": "TrustMaterial",
+      "type": "object"
+    },
+    "UiBootstrapResponse": {
+      "$defs": {
+        "MqttHealthResponse": {
+          "properties": {
+            "health_status": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Health Status"
+            },
+            "last_status_report_at": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Last Status Report At"
+            },
+            "status_age_s": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Status Age S"
+            },
+            "status_freshness_state": {
+              "default": "unknown",
+              "title": "Status Freshness State",
+              "type": "string"
+            },
+            "status_inactive": {
+              "default": false,
+              "title": "Status Inactive",
+              "type": "boolean"
+            },
+            "status_inactive_after_s": {
+              "title": "Status Inactive After S",
+              "type": "integer"
+            },
+            "status_stale": {
+              "default": false,
+              "title": "Status Stale",
+              "type": "boolean"
+            },
+            "status_stale_after_s": {
+              "title": "Status Stale After S",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "status_stale_after_s",
+            "status_inactive_after_s"
+          ],
+          "title": "MqttHealthResponse",
+          "type": "object"
+        },
+        "OnboardingStatusResponse": {
+          "properties": {
+            "approval_url": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Approval Url"
+            },
+            "expires_at": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Expires At"
+            },
+            "last_error": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Last Error"
+            },
+            "node_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Node Id"
+            },
+            "node_name": {
+              "title": "Node Name",
+              "type": "string"
+            },
+            "node_software_version": {
+              "title": "Node Software Version",
+              "type": "string"
+            },
+            "node_type": {
+              "title": "Node Type",
+              "type": "string"
+            },
+            "onboarding_status": {
+              "enum": [
+                "not_started",
+                "pending",
+                "approved",
+                "rejected",
+                "expired",
+                "consumed",
+                "invalid"
+              ],
+              "title": "Onboarding Status",
+              "type": "string"
+            },
+            "required_inputs": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Required Inputs",
+              "type": "array"
+            },
+            "session_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
+            },
+            "trust_state": {
+              "enum": [
+                "untrusted",
+                "pending",
+                "trusted",
+                "rejected",
+                "expired",
+                "consumed",
+                "invalid"
+              ],
+              "title": "Trust State",
+              "type": "string"
+            }
+          },
+          "required": [
+            "node_name",
+            "node_type",
+            "node_software_version",
+            "session_id",
+            "approval_url",
+            "onboarding_status",
+            "trust_state",
+            "node_id",
+            "expires_at",
+            "last_error"
+          ],
+          "title": "OnboardingStatusResponse",
+          "type": "object"
+        },
+        "OperatorConfigResponse": {
+          "properties": {
+            "api_port": {
+              "title": "Api Port",
+              "type": "integer"
+            },
+            "core_base_url": {
+              "title": "Core Base Url",
+              "type": "string"
+            },
+            "node_name": {
+              "title": "Node Name",
+              "type": "string"
+            },
+            "node_software_version": {
+              "title": "Node Software Version",
+              "type": "string"
+            },
+            "node_type": {
+              "title": "Node Type",
+              "type": "string"
+            },
+            "selected_task_capabilities": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Selected Task Capabilities",
+              "type": "array"
+            },
+            "ui_port": {
+              "title": "Ui Port",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "core_base_url",
+            "node_name",
+            "node_type",
+            "node_software_version",
+            "api_port",
+            "ui_port"
+          ],
+          "title": "OperatorConfigResponse",
+          "type": "object"
+        },
+        "StatusResponse": {
+          "properties": {
+            "active_governance_version": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Active Governance Version"
+            },
+            "capability_declaration_status": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Capability Declaration Status"
+            },
+            "capability_setup": {
+              "additionalProperties": true,
+              "title": "Capability Setup",
+              "type": "object"
+            },
+            "enabled_providers": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Enabled Providers",
+              "type": "array"
+            },
+            "governance_sync_status": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Governance Sync Status"
+            },
+            "last_heartbeat_at": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Last Heartbeat At"
+            },
+            "mqtt_connection_status": {
+              "title": "Mqtt Connection Status",
+              "type": "string"
+            },
+            "mqtt_health": {
+              "$ref": "#/$defs/MqttHealthResponse"
+            },
+            "node_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Node Id"
+            },
+            "node_name": {
+              "title": "Node Name",
+              "type": "string"
+            },
+            "node_software_version": {
+              "title": "Node Software Version",
+              "type": "string"
+            },
+            "node_type": {
+              "title": "Node Type",
+              "type": "string"
+            },
+            "onboarding_status": {
+              "enum": [
+                "not_started",
+                "pending",
+                "approved",
+                "rejected",
+                "expired",
+                "consumed",
+                "invalid"
+              ],
+              "title": "Onboarding Status",
+              "type": "string"
+            },
+            "operational_mqtt_host": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Operational Mqtt Host"
+            },
+            "operational_mqtt_port": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Operational Mqtt Port"
+            },
+            "operational_readiness": {
+              "default": false,
+              "title": "Operational Readiness",
+              "type": "boolean"
+            },
+            "paired_core_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Paired Core Id"
+            },
+            "provider_account_summaries": {
+              "additionalProperties": true,
+              "title": "Provider Account Summaries",
+              "type": "object"
+            },
+            "providers": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Providers",
+              "type": "array"
+            },
+            "required_inputs": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Required Inputs",
+              "type": "array"
+            },
+            "supported_providers": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Supported Providers",
+              "type": "array"
+            },
+            "trust_state": {
+              "enum": [
+                "untrusted",
+                "pending",
+                "trusted",
+                "rejected",
+                "expired",
+                "consumed",
+                "invalid"
+              ],
+              "title": "Trust State",
+              "type": "string"
+            },
+            "trusted_at": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Trusted At"
+            }
+          },
+          "required": [
+            "node_name",
+            "node_type",
+            "node_software_version",
+            "trust_state",
+            "node_id",
+            "mqtt_connection_status",
+            "mqtt_health",
+            "onboarding_status",
+            "providers"
+          ],
+          "title": "StatusResponse",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "can_start_onboarding": {
+          "title": "Can Start Onboarding",
+          "type": "boolean"
+        },
+        "config": {
+          "$ref": "#/$defs/OperatorConfigResponse"
+        },
+        "onboarding": {
+          "$ref": "#/$defs/OnboardingStatusResponse"
+        },
+        "required_inputs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Required Inputs",
+          "type": "array"
+        },
+        "runtime_task_state": {
+          "additionalProperties": true,
+          "title": "Runtime Task State",
+          "type": "object"
+        },
+        "scheduled_task_legend": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Scheduled Task Legend",
+          "type": "array"
+        },
+        "scheduled_tasks": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Scheduled Tasks",
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/$defs/StatusResponse"
+        },
+        "tracked_orders": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Tracked Orders",
+          "type": "array"
+        }
+      },
+      "required": [
+        "config",
+        "onboarding",
+        "status",
+        "required_inputs",
+        "can_start_onboarding"
+      ],
+      "title": "UiBootstrapResponse",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Catalog of node-owned core/request/state schemas derived from src/models.py. Reference individual models from $defs.",
+  "title": "Hexe Email Node Core Model Catalog",
+  "type": "object"
+}

@@ -199,3 +199,22 @@ Task 191: Create initial JSON templates for current known profiles - Completed o
 Task 192: Add fallback behavior when no template exists - Completed on 04/04/2026 14:38
 Task 193: Run Phase 4 extraction on current known sample set and store outputs - Completed on 04/04/2026 14:38
 Task 194: Prepare AI-assisted template generation hook for unknown profiles - Completed on 04/04/2026 14:38
+Task 195: Create docs/email-node-standards-alignment.md and map repo to Hexe Node Standard - Completed on 04/04/2026 15:39
+Task 196: Create repo-level operational source-of-truth docs and update README entrypoints - Completed on 04/04/2026 15:39
+Task 197: Create docs/api-map.md and classify canonical versus compatibility routes - Completed on 04/04/2026 15:39
+Task 198: Refactor src/main.py into modular route registration by domain - Completed on 04/04/2026 15:39
+Task 199: Normalize provider API ownership around canonical /api/providers routes - Completed on 04/04/2026 15:39
+Task 200: Split src/models.py into modular model files by responsibility - Completed on 04/04/2026 15:39
+Task 201: Refactor src/service.py into modular backend services/managers - Completed on 04/04/2026 16:04
+Task 202: Extract scheduler and recurring-work ownership from NodeService into a dedicated internal scheduler/background-task module - Completed on 04/04/2026 16:04
+Task 203: Create docs/scheduler-and-background-tasks.md and document recurring task ownership - Completed on 04/04/2026 16:04
+Task 204: Create docs/provider-boundary.md and make provider ownership explicit in code - Completed on 04/04/2026 16:04
+Task 205: Create docs/runtime-path-ownership.md and align repo documentation with actual runtime storage - Completed on 04/04/2026 16:06
+Task 206: Create docs/security-and-sensitive-state.md covering OAuth secrets, trust material, runtime tokens, Gmail data stores, safe logging, and debug-data boundaries - Completed on 04/04/2026 16:06
+Task 207: Normalize scripts and operations to the standard with stack-control.sh status as the canonical local status path - Completed on 04/04/2026 16:09
+Task 208: Create docs/frontend-modularity-audit.md and document current frontend drift against the modular frontend standard - Completed on 04/04/2026 16:09
+Task 209: Refactor the frontend so App.jsx becomes a composition shell with extracted routing, API, setup, provider, dashboard, runtime, scheduled-task, order, and training modules - Completed on 04/04/2026 16:46
+Task 210: Add focused frontend tests for extracted helpers and feature modules introduced by the App refactor - Completed on 04/04/2026 16:46
+Task 211: Create the email-node standard compliance summary - Completed on 04/04/2026 16:46
+Task 212: Create the email-node standards compliance appendix - Completed on 04/04/2026 16:46
+Task 213: Run the final standards verification pass and reconcile the task tracker - Completed on 04/04/2026 16:46
