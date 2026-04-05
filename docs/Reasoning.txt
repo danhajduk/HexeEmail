@@ -151,3 +151,9 @@ Chosen fix: Update the runtime doc to name `AiNodeGateway` and `EmailProviderGat
 What changed: Updated `docs/runtime.md` with an outbound-boundaries section and expanded `tests/test_gateway_boundaries.py` with a success-path `AiNodeGateway.execute_direct` contract test.
 Verification: `python -m py_compile tests/test_gateway_boundaries.py` passed.
 ###########
+Task #105
+Step objective: Add provider-gateway success-path passthrough coverage.
+Chosen fix: Add one direct `EmailProviderGateway` test that verifies the enabled path forwards the fetch call to the adapter and returns the provider payload unchanged.
+What changed: Expanded `tests/test_gateway_boundaries.py` with an enabled-mode `gmail_fetch_full_message_payload` passthrough test.
+Verification: `python -m py_compile tests/test_gateway_boundaries.py` passed.
+###########

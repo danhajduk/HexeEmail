@@ -98,3 +98,28 @@ async def test_email_provider_gateway_blocks_remote_fetch_when_disabled():
         await gateway.gmail_fetch_full_message_payload("primary", "msg-1")
 
     assert state["called"] is False
+
+
+@pytest.mark.asyncio
+async def test_email_provider_gateway_forwards_fetch_when_enabled():
+    state: dict[str, object] = {}
+
+    class FakeAdapter:
+        async def fetch_full_message_payload(self, account_id: str, message_id: str) -> dict[str, object]:
+            state["account_id"] = account_id
+            state["message_id"] = message_id
+            return {"message_id": message_id, "fetch_status": "success"}
+
+    service = SimpleNamespace(
+        runtime=SimpleNamespace(
+            runtime_provider_calls_enabled=lambda: True,
+            runtime_provider_disabled_message=lambda: "Provider calls are disabled in Runtime Settings.",
+        ),
+        provider_registry=SimpleNamespace(get_provider=lambda provider_id: FakeAdapter()),
+    )
+    gateway = EmailProviderGateway(service)
+
+    payload = await gateway.gmail_fetch_full_message_payload("primary", "msg-1")
+
+    assert state == {"account_id": "primary", "message_id": "msg-1"}
+    assert payload == {"message_id": "msg-1", "fetch_status": "success"}
