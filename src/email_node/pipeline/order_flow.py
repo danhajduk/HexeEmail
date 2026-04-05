@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Awaitable, Callable
 
 from email_node.patterns import PatternGenerationRequest
+from email_node.patterns.probation_evaluator import ProbationEvaluator
+from email_node.patterns.probation_metrics import ProbationMetrics
 from email_node.patterns.probation_state import ProbationTemplateState
 from email_node.patterns.probation_store import ProbationStore
 from providers.gmail.order_phase2 import GmailOrderPhase2Scrubber
@@ -21,6 +22,7 @@ class OrderFlowPipeline:
         phase3_detector: GmailOrderPhase3ProfileDetector | None = None,
         phase4_extractor: GmailOrderPhase4Extractor | None = None,
         probation_store: ProbationStore | None = None,
+        probation_evaluator: ProbationEvaluator | None = None,
         generate_probation_template: Callable[[PatternGenerationRequest], Awaitable[dict[str, object]]] | None = None,
         ai_calls_enabled: Callable[[], bool] | None = None,
     ) -> None:
@@ -28,6 +30,7 @@ class OrderFlowPipeline:
         self.phase3_detector = phase3_detector or GmailOrderPhase3ProfileDetector()
         self.phase4_extractor = phase4_extractor or GmailOrderPhase4Extractor()
         self.probation_store = probation_store or ProbationStore()
+        self.probation_evaluator = probation_evaluator or ProbationEvaluator(probation_store=self.probation_store)
         self.generate_probation_template = generate_probation_template
         self.ai_calls_enabled = ai_calls_enabled or (lambda: True)
 
@@ -73,10 +76,16 @@ class OrderFlowPipeline:
             status="probation",
         )
         if existing_state is not None:
+            evaluation = self.probation_evaluator.evaluate(phase4.phase3_reference, template_id=existing_state.template_id)
+            updated_state = ProbationMetrics.update_state(existing_state, evaluation)
+            self.probation_store.save_state(updated_state)
             return phase4.model_copy(
                 update={
                     "template_diagnostics": list(phase4.template_diagnostics)
-                    + [f"probation_template:existing:{existing_state.template_id}"]
+                    + [
+                        f"probation_template:existing:{existing_state.template_id}",
+                        f"probation_template:evaluated:{existing_state.template_id}:{'hard_failure' if evaluation.hard_failure else 'ok'}",
+                    ]
                 }
             )
 

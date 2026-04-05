@@ -6,6 +6,9 @@ from email_node.patterns.pattern_generation_request import PatternGenerationRequ
 from email_node.patterns.pattern_generation_response import PatternGenerationResponse
 from email_node.patterns.pattern_generation_service import PatternGenerationService, PatternGenerationServiceError
 from email_node.patterns.pattern_generation_writer import PatternGenerationWriter, PatternGenerationWriterError
+from email_node.patterns.probation_evaluation_result import ProbationEvaluationResult
+from email_node.patterns.probation_evaluator import ProbationEvaluator
+from email_node.patterns.probation_metrics import ProbationMetrics
 from email_node.patterns.probation_state import ProbationTemplateState
 from email_node.patterns.probation_store import ProbationStore
 
@@ -19,6 +22,9 @@ __all__ = [
     "PatternGenerationServiceError",
     "PatternGenerationWriter",
     "PatternGenerationWriterError",
+    "ProbationEvaluationResult",
+    "ProbationEvaluator",
+    "ProbationMetrics",
     "ProbationTemplateState",
     "ProbationStore",
 ]

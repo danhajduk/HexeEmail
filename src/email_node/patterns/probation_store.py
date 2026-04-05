@@ -12,18 +12,24 @@ class ProbationStore:
         *,
         templates_dir: Path | None = None,
         state_dir: Path | None = None,
+        evaluations_dir: Path | None = None,
     ) -> None:
         base_dir = Path(__file__).resolve().parent
         self.templates_dir = templates_dir or (base_dir / "probation")
         self.state_dir = state_dir or (base_dir / "probation_state")
+        self.evaluations_dir = evaluations_dir or (base_dir / "probation_evaluations")
         self.templates_dir.mkdir(parents=True, exist_ok=True)
         self.state_dir.mkdir(parents=True, exist_ok=True)
+        self.evaluations_dir.mkdir(parents=True, exist_ok=True)
 
     def build_template_path(self, template_id: str) -> Path:
         return self.templates_dir / f"{template_id}.json"
 
     def build_state_path(self, template_id: str) -> Path:
         return self.state_dir / f"{template_id}.json"
+
+    def build_evaluation_path(self, template_id: str, message_id: str) -> Path:
+        return self.evaluations_dir / template_id / f"{message_id}.json"
 
     def save_template_payload(self, template_id: str, payload: dict[str, object]) -> Path:
         path = self.build_template_path(template_id)
@@ -49,6 +55,26 @@ class ProbationStore:
         if not path.exists():
             return None
         return ProbationTemplateState.model_validate_json(path.read_text(encoding="utf-8"))
+
+    def save_evaluation(self, evaluation) -> Path:
+        path = self.build_evaluation_path(evaluation.template_id, evaluation.message_id)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if hasattr(evaluation, "model_dump_json"):
+            path.write_text(evaluation.model_dump_json(indent=2), encoding="utf-8")
+        else:
+            path.write_text(json.dumps(evaluation, indent=2) + "\n", encoding="utf-8")
+        return path
+
+    def list_evaluations(self, template_id: str) -> list[dict[str, object]]:
+        root = self.evaluations_dir / template_id
+        if not root.exists():
+            return []
+        evaluations: list[dict[str, object]] = []
+        for path in sorted(root.glob("*.json")):
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(payload, dict):
+                evaluations.append(payload)
+        return evaluations
 
     def list_states(self) -> list[ProbationTemplateState]:
         states: list[ProbationTemplateState] = []

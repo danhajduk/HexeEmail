@@ -170,3 +170,7 @@ async def test_order_pipeline_reuses_existing_probation_template_without_regener
 
     assert generate_calls == 0
     assert f"probation_template:existing:{template_id}" in result.template_diagnostics
+    assert any(item.startswith(f"probation_template:evaluated:{template_id}:") for item in result.template_diagnostics)
+    updated_state = store.load_state(template_id)
+    assert updated_state is not None
+    assert updated_state.sample_count == 2
