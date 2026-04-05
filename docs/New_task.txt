@@ -49,42 +49,7 @@ Do not edit above this line:
 #######################################################################
 
 
-[WIP] Task 227: Define pattern generation response contract
-
-- Create strict response schema for Phase 4 template
-- File: src/email_node/patterns/pattern_generation_response.py
-
-Requirements:
-- Schema must EXACTLY match:
-  - schema_version
-  - template_id
-  - profile_id
-  - template_version
-  - enabled
-  - match
-  - extract
-  - required_fields
-  - confidence_rules
-  - post_process
-
-- Validate:
-  - schema_version == "order-phase4-template.v1"
-  - template_version == "v1"
-  - match.vendor_identity exists
-  - extract is object with field rules
-  - required_fields is array
-  - confidence_rules.high_requires exists
-  - post_process exists
-
-- Reject:
-  - extra top-level keys
-  - missing required keys
-
-Acceptance:
-- Strict schema validation passes for valid template
-- Invalid shape is rejected with clear error
-
-[TODO] Task 228: Implement prompt service client for pattern creation
+[WIP] Task 228: Implement prompt service client for pattern creation
 
 - Extend prompt client to support pattern generation
 - File: src/email_node/patterns/pattern_generation_client.py

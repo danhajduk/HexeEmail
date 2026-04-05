@@ -169,3 +169,9 @@ Chosen fix: Add a strict Pydantic Phase 4 template model with forbidden extra to
 What changed: Added `src/email_node/patterns/pattern_generation_response.py`, exported it from `src/email_node/patterns/__init__.py`, and added `tests/test_pattern_generation_response.py` covering valid templates, extra top-level keys, missing `vendor_identity`, and malformed extract rules.
 Verification: `python -m py_compile src/email_node/patterns/__init__.py src/email_node/patterns/pattern_generation_response.py tests/test_pattern_generation_response.py` passed.
 ###########
+Task #228
+Step objective: Implement the prompt service client for pattern creation.
+Chosen fix: Add a standalone async client that loads the local prompt definition, builds the same `/api/execution/direct` request shape used elsewhere in the repo, enforces JSON-only output, and retries exactly once on JSON parse failures.
+What changed: Added `src/email_node/patterns/pattern_generation_client.py`, exported the client from `src/email_node/patterns/__init__.py`, and added `tests/test_pattern_generation_client.py` covering success, one retry after markdown-wrapped output, and failure after retry exhaustion.
+Verification: `python -m py_compile src/email_node/patterns/__init__.py src/email_node/patterns/pattern_generation_client.py tests/test_pattern_generation_client.py` passed.
+###########
