@@ -30,7 +30,9 @@ class ProviderManager:
             accounts = await adapter.list_accounts()
             health = None
             if accounts:
-                health = (await adapter.get_account_health(accounts[0].account_id)).model_dump(mode="json")
+                health = (await self.service.email_provider_gateway.gmail_get_account_health(accounts[0].account_id)).model_dump(
+                    mode="json"
+                )
             summaries[provider_id] = {
                 "provider_id": provider_id,
                 "provider_state": await adapter.get_provider_state(),
@@ -56,9 +58,9 @@ class ProviderManager:
     async def gmail_account_status(self, account_id: str) -> dict[str, object]:
         adapter = self.service.provider_registry.get_provider("gmail")
         account = next((account for account in await adapter.list_accounts() if account.account_id == account_id), None)
-        health = await adapter.get_account_health(account_id)
+        health = await self.service.email_provider_gateway.gmail_get_account_health(account_id)
         mailbox_status = (
-            await adapter.refresh_mailbox_status(account_id, store_unread_messages=False)
+            await self.service.email_provider_gateway.gmail_refresh_mailbox_status(account_id, store_unread_messages=False)
             if hasattr(adapter, "refresh_mailbox_status")
             else await adapter.get_mailbox_status(account_id) if hasattr(adapter, "get_mailbox_status") else None
         )
@@ -75,11 +77,18 @@ class ProviderManager:
         statuses: list[dict[str, object]] = []
         for account in accounts:
             mailbox_status = (
-                await adapter.refresh_mailbox_status(account.account_id, store_unread_messages=False)
+                await self.service.email_provider_gateway.gmail_refresh_mailbox_status(
+                    account.account_id,
+                    store_unread_messages=False,
+                )
                 if hasattr(adapter, "refresh_mailbox_status")
                 else await adapter.get_mailbox_status(account.account_id) if hasattr(adapter, "get_mailbox_status") else None
             )
-            labels = await adapter.available_labels(account.account_id) if hasattr(adapter, "available_labels") else None
+            labels = (
+                await self.service.email_provider_gateway.gmail_available_labels(account.account_id)
+                if hasattr(adapter, "available_labels")
+                else None
+            )
             message_summary = await adapter.message_store_summary(account.account_id) if hasattr(adapter, "message_store_summary") else None
             classification_summary = (
                 await adapter.local_classification_summary(account.account_id)
@@ -130,7 +139,7 @@ class ProviderManager:
         if not hasattr(adapter, "fetch_messages_for_window"):
             raise ValueError("gmail fetch actions are not available")
         try:
-            result = await adapter.fetch_messages_for_window(
+            result = await self.service.email_provider_gateway.gmail_fetch_messages_for_window(
                 account_id,
                 window=window,
                 reason=reason,
@@ -138,7 +147,7 @@ class ProviderManager:
                 correlation_id=correlation_id,
             )
             if hasattr(adapter, "refresh_mailbox_status"):
-                await adapter.refresh_mailbox_status(
+                await self.service.email_provider_gateway.gmail_refresh_mailbox_status(
                     account_id,
                     store_unread_messages=False,
                     correlation_id=correlation_id,

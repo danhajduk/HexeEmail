@@ -13,6 +13,18 @@ Verification: `python -m py_compile src/*.py src/core/*.py src/providers/*.py sr
 #############
 All Tasks completed 04/03/2026 15:41:43
 #############
+Task #105
+Step objective: Start gateway extraction work by defining the active task, current prompt location, and direct AI/provider integration paths.
+Chosen fix: Use the task workflow queue, preserve the detailed plan in `docs/task-details.md`, and begin implementation by extracting shared gateway boundaries from the existing service-layer HTTP logic instead of adding more ad hoc guards.
+What changed: Marked Task 105 as `[WIP]`, confirmed runtime prompt JSON files currently live under `src/runtime_prompts/`, and mapped the current AI-node and Gmail/provider call surfaces that need to move behind modular gateways.
+Verification: `rg` inventory completed for runtime prompts, AI-node prompt/execution routes, and Gmail/provider transport call sites. MQTT starting publish failed with `Connection Refused: not authorised`, so execution continued locally.
+###########
+Task #105
+Step objective: Extract the first backend gateway unit and move prompt definitions into a runtime-owned folder.
+Chosen fix: Add dedicated `AiNodeGateway` and `EmailProviderGateway` modules, route the existing service/provider manager remote calls through them, and relocate prompt JSON loading to `runtime/prompts` while preserving prompt contents exactly.
+What changed: Added gateway modules under `src/node_backend/`, wired `NodeService`, `ProviderManager`, and the Gmail status scheduler to use the new gateways for AI-node prompt/execution calls and Gmail remote mailbox/token flows, changed the default prompt-definition directory to `runtime/prompts`, copied the existing prompt JSON definitions into `runtime/prompts/`, deleted the old `src/runtime_prompts/` copies, and updated prompt-location docs/schema references.
+Verification: `python -m py_compile src/config.py src/node_backend/__init__.py src/node_backend/runtime.py src/node_backend/ai_gateway.py src/node_backend/email_provider_gateway.py src/node_backend/providers.py src/node_backend/scheduler.py src/service.py` passed.
+###########
 Task #086
 Step objective: Add sender reputation storage based on DB ratings/signals.
 Chosen fix: Add sender reputation records to the local Gmail storage layer so later aggregation and API tasks can reuse one persisted shape instead of duplicating sender/domain score data.

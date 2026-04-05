@@ -221,6 +221,112 @@ Original task details:
 
 ## Task 105
 Original task details:
+- define modular gateway architecture for outbound integrations
+- introduce an `AiNodeGateway` as the single boundary for all outbound AI-node communication
+- introduce an `EmailProviderGateway` as the single boundary for all outbound email-provider communication
+- document the intended ownership split between orchestration code and gateway transport code before large refactors begin
+- inventory every existing outbound AI-node and email-provider call path
+- trace all current AI-node calls in `src/service.py`, `src/node_backend/providers.py`, and `src/node_backend/scheduler.py`
+- trace all current Gmail or provider API calls under `src/providers/gmail/` and any related orchestration code
+- produce a concrete migration map so no direct remote call path is left behind after the refactor
+- implement `AiNodeGateway`
+- move all AI-node HTTP concerns into the gateway, including target URL normalization, prompt sync, prompt review, review-due migration, and direct execution calls
+- remove duplicated low-level AI-node HTTP logic from service orchestration code
+- centralize AI kill-switch enforcement in `AiNodeGateway`
+- the runtime AI switch must be checked inside the gateway before any outbound AI-node request is made
+- if disabled, the gateway must exit early and guarantee that no AI-node request is sent
+- update current callers to rely on gateway-enforced behavior rather than scattered direct checks where appropriate
+- implement `EmailProviderGateway`
+- move outbound provider-facing operations into the gateway, including fetches, full-message reads, OAuth/provider API calls, and related transport behavior
+- keep provider orchestration outside the gateway, but make the gateway the only place where remote provider requests are executed
+- add provider gateway disable support
+- define and implement a provider-call gating mechanism in `EmailProviderGateway`
+- ensure disabled provider calls exit cleanly before any network request is made
+- keep the design extensible for future provider-specific switches or policy rules
+- refactor orchestration layers to use gateways only
+- update runtime handlers, background tasks, schedulers, and provider workflows to call `AiNodeGateway` and `EmailProviderGateway` instead of making direct remote calls
+- remove or isolate any remaining direct HTTP usage that bypasses the new gateways
+- add dependency-injected gateway wiring
+- instantiate gateways in a clear composition point and inject them into the service/managers that need them
+- avoid hidden global coupling so future AI or email providers can be added without rewriting core orchestration
+- design gateway interfaces for future providers
+- make the AI gateway extensible for additional AI backends or nodes
+- make the email-provider gateway extensible for additional providers beyond Gmail
+- keep provider-specific details behind gateway or adapter boundaries instead of leaking them across the service layer
+- add regression tests for zero-contact disabled behavior
+- verify that disabling AI calls results in zero outbound AI-node requests across runtime actions, background tasks, and scheduled flows
+- verify that disabling provider calls results in zero outbound provider requests across fetch, read, and scheduled flows
+- add tests that prove helper paths cannot bypass the gateways
+- add gateway contract and integration-focused tests
+- cover request construction, URL normalization, error mapping, and successful response handling for each gateway
+- confirm orchestration code still behaves correctly when gateways return disabled/skip responses or remote failures
+- update operator-facing UI and wording
+- ensure runtime and provider controls reflect the gateway-based architecture clearly
+- use labels and notices that make it obvious when AI-node calls or provider calls are disabled and being skipped
+- update runtime and architecture documentation
+- document `AiNodeGateway` and `EmailProviderGateway` as the canonical outbound integration boundaries
+- update runtime docs to explain switch enforcement, extension patterns, and future-provider expectations
+- remove old bypass paths and cleanup dead code
+- delete obsolete direct-call helpers and duplicated guard logic once gateway migration is complete
+- confirm there is a single supported outbound path for AI-node calls and a single supported outbound path for email-provider calls
+
+Implementation sub-phases:
+- Phase 1: integration inventory and boundary definition
+  - inventory every current outbound AI-node call path in `src/service.py`, `src/node_backend/providers.py`, and `src/node_backend/scheduler.py`
+  - inventory every current outbound provider/Gmail call path under `src/providers/gmail/` and related orchestration code
+  - define which methods belong in `AiNodeGateway` and which belong in `EmailProviderGateway`
+  - identify all existing bypass paths that must be removed or redirected
+- Phase 2: prompt JSON location migration
+  - move prompt JSON files out of `src/runtime_prompts/` into a runtime-owned prompt folder under the runtime area
+  - update prompt-loading code so runtime prompt definitions are read from the new runtime folder location
+  - add migration or bootstrap behavior so existing repos/nodes still get the prompt files in the new location without manual breakage
+  - update any tests, docs, and configuration that still assume `src/runtime_prompts/`
+  - keep prompt JSON handling consistent with the new gateway-based AI runtime ownership
+- Phase 3: `AiNodeGateway` extraction
+  - implement a dedicated `AiNodeGateway` module as the only supported boundary for outbound AI-node requests
+  - move target URL normalization, prompt sync, prompt review, review-due migration, and direct execution calls into the gateway
+  - remove duplicated low-level AI-node HTTP logic from service orchestration code
+- Phase 4: centralized AI disable behavior
+  - move the runtime AI disable enforcement into `AiNodeGateway`
+  - guarantee that when AI calls are disabled, no AI-node HTTP request is sent from runtime actions, background tasks, helper paths, or scheduled flows
+  - update callers to depend on gateway-enforced skip/deny behavior instead of scattered direct guards where appropriate
+- Phase 5: `EmailProviderGateway` extraction
+  - implement a dedicated `EmailProviderGateway` module as the only supported boundary for outbound provider requests
+  - move provider-facing fetches, full-message reads, OAuth/provider API calls, and related network behavior into the gateway
+  - keep provider orchestration outside the gateway while making the gateway the only place that performs remote provider requests
+- Phase 6: provider disable behavior
+  - add a provider-call gating mechanism in `EmailProviderGateway`
+  - guarantee that when provider calls are disabled, no remote provider request is sent from fetch flows, full-message reads, polling, or scheduled flows
+  - keep the design extensible for future provider-specific switches or policy rules
+- Phase 7: orchestration migration
+  - refactor runtime handlers, background tasks, schedulers, and provider workflows to use the two gateways only
+  - add dependency-injected gateway wiring at a clear composition point
+  - remove or isolate any remaining direct HTTP usage that bypasses the new gateways
+- Phase 8: future-provider extensibility
+  - shape the AI gateway so additional AI backends or nodes can be added later without rewriting orchestration
+  - shape the provider gateway so additional email providers beyond Gmail can be added later without leaking provider-specific transport logic into the service layer
+- Phase 9: verification and regression coverage
+  - add regression tests proving disabled AI mode results in zero outbound AI-node requests across runtime actions, background tasks, helper paths, and scheduled flows
+  - add regression tests proving disabled provider mode results in zero outbound provider requests across fetch, read, and scheduled flows
+  - add gateway-level tests for request construction, URL normalization, error mapping, and successful response handling
+  - verify prompt JSON loading works from the new runtime-owned prompt folder
+- Phase 10: UI, docs, and cleanup
+  - update operator-facing UI wording so AI-node and provider disable states are explicit and consistent with gateway behavior
+  - update runtime and architecture documentation so `AiNodeGateway` and `EmailProviderGateway` are the canonical outbound boundaries
+  - delete obsolete direct-call helpers and duplicated guard logic
+  - confirm there is a single supported outbound path for AI-node calls and a single supported outbound path for email-provider calls
+
+Acceptance criteria:
+- all outbound AI-node requests flow through `AiNodeGateway`
+- all outbound provider requests flow through `EmailProviderGateway`
+- disabling AI calls guarantees zero outbound AI-node requests
+- disabling provider calls guarantees zero outbound provider requests
+- runtime prompt JSON files no longer live under `src/runtime_prompts/`
+- prompt JSON loading, sync, and review behavior works from the new runtime-owned prompt location
+- no direct orchestration-layer bypass remains for AI-node or provider transport calls
+
+## Task 105
+Original task details:
 - update backend status/training reads and writes to use the DB-backed local model metadata
 - keep the UI behavior unchanged except that `trained_at` and related model status come from SQLite-backed state
 - make sure the main header model pill and training page both read the same persisted source of truth

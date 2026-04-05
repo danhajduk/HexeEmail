@@ -27,7 +27,9 @@ from core_client import (
 )
 from logging_utils import get_logger
 from node_backend import (
+    AiNodeGateway,
     BackgroundTaskManager,
+    EmailProviderGateway,
     GovernanceManager,
     NotificationManager,
     OnboardingManager,
@@ -135,12 +137,14 @@ class NodeService:
         self.startup_error: str | None = None
         self.gmail_order_flow = GmailOrderPhase1Processor()
         self.runtime = RuntimeManager(self)
+        self.ai_gateway = AiNodeGateway(self)
         self.onboarding = OnboardingManager(self)
         self.notifications = NotificationManager(self)
         self.providers = ProviderManager(self)
         self.governance = GovernanceManager(self)
         self.background_tasks = BackgroundTaskManager(self)
         self.provider_registry = self.providers.build_provider_registry()
+        self.email_provider_gateway = EmailProviderGateway(self)
 
     @staticmethod
     def _default_runtime_task_state() -> dict[str, object]:
@@ -760,6 +764,12 @@ class NodeService:
     ) -> dict[str, object] | None:
         if classification_label not in {GmailTrainingLabel.ACTION_REQUIRED, GmailTrainingLabel.ORDER}:
             return None
+        if not self._runtime_ai_calls_enabled():
+            AI_LOGGER.info(
+                "Skipping AI action decision because AI calls are disabled",
+                extra={"event_data": {"message_id": message.message_id}},
+            )
+            return None
         prompt_definition = self._load_runtime_prompt_definition("prompt.email.action_decision")
         prompt_runtime = prompt_definition.get("node_runtime")
         if not isinstance(prompt_runtime, dict) or not isinstance(prompt_runtime.get("json_schema"), dict):
@@ -772,33 +782,32 @@ class NodeService:
         ):
             return message.action_decision_payload
 
-        normalized_target_base_url = self._normalize_target_api_base_url(
-            target_api_base_url or self._default_ai_runtime_target_api_base_url()
-        )
         adapter = self.provider_registry.get_provider("gmail")
         full_message_text = None
         full_message_html = None
         full_message_payload = None
-        if hasattr(adapter, "fetch_full_message_text"):
-            try:
-                full_message = await adapter.fetch_full_message_text(account_id, message.message_id)
-            except Exception as exc:
-                AI_LOGGER.warning(
-                    "Full Gmail message fetch for action decision failed; using stored message fallback",
-                    extra={
-                        "event_data": {
-                            "message_id": message.message_id,
-                            "detail": str(exc),
-                        }
-                    },
-                )
-            else:
-                if isinstance(full_message, dict):
-                    full_message_text = str(full_message.get("text_body") or "").strip() or None
-                    full_message_html = str(full_message.get("html_body") or "").strip() or None
-                    raw_payload = full_message.get("raw_payload")
-                    if isinstance(raw_payload, dict):
-                        full_message_payload = raw_payload
+        try:
+            full_message = await self.email_provider_gateway.gmail_fetch_full_message_text(account_id, message.message_id)
+        except Exception as exc:
+            AI_LOGGER.warning(
+                "Full Gmail message fetch for action decision failed; using stored message fallback",
+                extra={
+                    "event_data": {
+                        "message_id": message.message_id,
+                        "detail": str(exc),
+                    }
+                },
+            )
+        else:
+            if isinstance(full_message, dict):
+                full_message_text = str(full_message.get("text_body") or "").strip() or None
+                full_message_html = str(full_message.get("html_body") or "").strip() or None
+                raw_payload = full_message.get("raw_payload")
+                if isinstance(raw_payload, dict):
+                    full_message_payload = raw_payload
+        normalized_target_base_url = self._normalize_target_api_base_url(
+            target_api_base_url or self._default_ai_runtime_target_api_base_url()
+        )
         request_body = {
             "task_id": f"email-action-{uuid.uuid4().hex}",
             "prompt_id": str(prompt_definition["prompt_id"]),
@@ -821,14 +830,10 @@ class NodeService:
             "timeout_s": int(prompt_runtime.get("timeout_s", 45)),
         }
         try:
-            async with httpx.AsyncClient(
-                base_url=normalized_target_base_url,
-                timeout=self.core_client.timeout,
-                transport=self.core_client.transport,
-            ) as client:
-                execution_response = await client.post("/api/execution/direct", json=request_body)
-                execution_response.raise_for_status()
-                execution_payload = execution_response.json()
+            normalized_target_base_url, execution_payload = await self.ai_gateway.execute_direct(
+                normalized_target_base_url,
+                request_body=request_body,
+            )
         except Exception as exc:
             error_message = self._runtime_execution_error_message(exc)
             AI_LOGGER.error(
@@ -1905,6 +1910,26 @@ class NodeService:
         *,
         correlation_id: str | None = None,
     ) -> dict[str, object]:
+        if not self._runtime_ai_calls_enabled():
+            now = datetime.now(UTC).isoformat()
+            current = self._runtime_task_state()
+            self._save_runtime_task_state(
+                request_status="failed",
+                last_step="register",
+                detail=self._runtime_ai_disabled_message(),
+                preview_response=current.get("preview_response"),
+                resolve_response=current.get("resolve_response"),
+                authorize_response=current.get("authorize_response"),
+                registration_request_payload={
+                    "target_api_base_url": self._normalize_target_api_base_url(payload.target_api_base_url),
+                    "review_due_migration": bool(payload.review_due_migration),
+                },
+                execution_response=None,
+                usage_summary_response=current.get("usage_summary_response"),
+                started_at=current.get("started_at") or now,
+                updated_at=now,
+            )
+            raise ValueError(self._runtime_ai_disabled_message())
         return await self._sync_runtime_prompts(
             target_api_base_url=payload.target_api_base_url,
             review_due_migration=payload.review_due_migration,
@@ -1919,6 +1944,27 @@ class NodeService:
         *,
         correlation_id: str | None = None,
     ) -> dict[str, object]:
+        if not self._runtime_ai_calls_enabled():
+            now = datetime.now(UTC).isoformat()
+            current = self._runtime_task_state()
+            self._save_runtime_task_state(
+                request_status="failed",
+                last_step="review",
+                detail=self._runtime_ai_disabled_message(),
+                preview_response=current.get("preview_response"),
+                resolve_response=current.get("resolve_response"),
+                authorize_response=current.get("authorize_response"),
+                registration_request_payload={
+                    "target_api_base_url": self._normalize_target_api_base_url(payload.target_api_base_url),
+                    "prompt_id": payload.prompt_id,
+                    "review_status": payload.review_status,
+                },
+                execution_response=None,
+                usage_summary_response=current.get("usage_summary_response"),
+                started_at=current.get("started_at") or now,
+                updated_at=now,
+            )
+            raise ValueError(self._runtime_ai_disabled_message())
         normalized_target_base_url = self._normalize_target_api_base_url(payload.target_api_base_url)
         result = await self._review_remote_prompt_service(
             normalized_target_base_url,
@@ -1959,17 +2005,7 @@ class NodeService:
         return RuntimeManager.normalize_target_api_base_url(target_api_base_url)
 
     async def _list_remote_prompt_services(self, target_api_base_url: str) -> list[dict[str, object]]:
-        async with httpx.AsyncClient(
-            base_url=target_api_base_url,
-            timeout=self.core_client.timeout,
-            transport=self.core_client.transport,
-        ) as client:
-            response = await client.get("/api/prompts/services")
-            response.raise_for_status()
-            payload = response.json()
-        state = payload.get("state") if isinstance(payload, dict) else None
-        prompt_services = state.get("prompt_services") if isinstance(state, dict) else None
-        return prompt_services if isinstance(prompt_services, list) else []
+        return await self.ai_gateway.list_prompt_services(target_api_base_url)
 
     async def _get_remote_prompt_service(
         self,
@@ -1977,26 +2013,7 @@ class NodeService:
         *,
         prompt_id: str,
     ) -> dict[str, object] | None:
-        async with httpx.AsyncClient(
-            base_url=target_api_base_url,
-            timeout=self.core_client.timeout,
-            transport=self.core_client.transport,
-        ) as client:
-            response = await client.get(f"/api/prompts/services/{prompt_id}")
-            if response.status_code == 400:
-                try:
-                    payload = response.json()
-                except Exception:
-                    payload = None
-                detail = payload.get("detail") if isinstance(payload, dict) else None
-                if detail == "prompt_id is not registered":
-                    return None
-            response.raise_for_status()
-            payload = response.json()
-        if not isinstance(payload, dict) or not payload.get("configured"):
-            return None
-        prompt = payload.get("prompt")
-        return prompt if isinstance(prompt, dict) else None
+        return await self.ai_gateway.get_prompt_service(target_api_base_url, prompt_id=prompt_id)
 
     async def _register_prompt_service(
         self,
@@ -2004,14 +2021,7 @@ class NodeService:
         prompt_definition: dict[str, object],
     ) -> dict[str, object]:
         request_body = self._prompt_registration_payload(prompt_definition)
-        async with httpx.AsyncClient(
-            base_url=target_api_base_url,
-            timeout=self.core_client.timeout,
-            transport=self.core_client.transport,
-        ) as client:
-            registration_response = await client.post("/api/prompts/services", json=request_body)
-            registration_response.raise_for_status()
-            return registration_response.json()
+        return await self.ai_gateway.register_prompt_service(target_api_base_url, request_body)
 
     async def _update_prompt_service(
         self,
@@ -2021,14 +2031,11 @@ class NodeService:
         prompt_definition: dict[str, object],
     ) -> dict[str, object]:
         request_body = self.runtime.prompt_update_payload(prompt_definition)
-        async with httpx.AsyncClient(
-            base_url=target_api_base_url,
-            timeout=self.core_client.timeout,
-            transport=self.core_client.transport,
-        ) as client:
-            update_response = await client.put(f"/api/prompts/services/{prompt_id}", json=request_body)
-            update_response.raise_for_status()
-            return update_response.json()
+        return await self.ai_gateway.update_prompt_service(
+            target_api_base_url,
+            prompt_id=prompt_id,
+            request_body=request_body,
+        )
 
     async def _retire_prompt_service(
         self,
@@ -2037,15 +2044,11 @@ class NodeService:
         prompt_id: str,
         reason: str,
     ) -> dict[str, object]:
-        payload = {"state": "retired", "reason": reason}
-        async with httpx.AsyncClient(
-            base_url=target_api_base_url,
-            timeout=self.core_client.timeout,
-            transport=self.core_client.transport,
-        ) as client:
-            lifecycle_response = await client.post(f"/api/prompts/services/{prompt_id}/lifecycle", json=payload)
-            lifecycle_response.raise_for_status()
-            return lifecycle_response.json()
+        return await self.ai_gateway.retire_prompt_service(
+            target_api_base_url,
+            prompt_id=prompt_id,
+            reason=reason,
+        )
 
     async def _review_remote_prompt_service(
         self,
@@ -2055,25 +2058,15 @@ class NodeService:
         review_status: str,
         reason: str | None,
     ) -> dict[str, object]:
-        payload = {"review_status": review_status, "reason": reason}
-        async with httpx.AsyncClient(
-            base_url=target_api_base_url,
-            timeout=self.core_client.timeout,
-            transport=self.core_client.transport,
-        ) as client:
-            review_response = await client.post(f"/api/prompts/services/{prompt_id}/review", json=payload)
-            review_response.raise_for_status()
-            return review_response.json()
+        return await self.ai_gateway.review_prompt_service(
+            target_api_base_url,
+            prompt_id=prompt_id,
+            review_status=review_status,
+            reason=reason,
+        )
 
     async def _migrate_remote_prompts_to_review_due(self, target_api_base_url: str) -> dict[str, object]:
-        async with httpx.AsyncClient(
-            base_url=target_api_base_url,
-            timeout=self.core_client.timeout,
-            transport=self.core_client.transport,
-        ) as client:
-            migration_response = await client.post("/api/prompts/services/migrations/review-due")
-            migration_response.raise_for_status()
-            return migration_response.json()
+        return await self.ai_gateway.migrate_prompts_to_review_due(target_api_base_url)
 
     @staticmethod
     def _runtime_prompt_remote_status(remote_record: dict[str, object] | None) -> str | None:
@@ -2312,6 +2305,9 @@ class NodeService:
     async def _run_weekly_prompt_sync_if_due(self) -> None:
         target_api_base_url = self.state.runtime_prompt_sync_target_api_base_url
         if not target_api_base_url:
+            return
+        if not self._runtime_ai_calls_enabled():
+            LOGGER.info("Scheduled weekly prompt sync skipped because AI calls are disabled")
             return
         now = datetime.now().astimezone()
         slot_key = self._prompt_sync_weekly_slot_key(now)
@@ -2838,8 +2834,9 @@ class NodeService:
         correlation_id: str | None,
         persist_runtime_state: bool,
     ) -> dict[str, object]:
-        target_base_url = str(target_api_base_url or "http://127.0.0.1:9002").strip().rstrip("/")
-        normalized_target_base_url = target_base_url[:-4] if target_base_url.endswith("/api") else target_base_url
+        if not self._runtime_ai_calls_enabled():
+            raise ValueError(self._runtime_ai_disabled_message())
+        normalized_target_base_url = self._normalize_target_api_base_url(target_api_base_url)
         adapter = self.provider_registry.get_provider("gmail")
         account_record = adapter.account_store.load_account(account_id)
         my_addresses = [account_record.email_address] if account_record is not None and account_record.email_address else []
@@ -2883,14 +2880,10 @@ class NodeService:
                     }
                 },
             )
-            async with httpx.AsyncClient(
-                base_url=normalized_target_base_url,
-                timeout=self.core_client.timeout,
-                transport=self.core_client.transport,
-            ) as client:
-                execution_response = await client.post("/api/execution/direct", json=request_body)
-                execution_response.raise_for_status()
-                execution_payload = execution_response.json()
+            normalized_target_base_url, execution_payload = await self.ai_gateway.execute_direct(
+                normalized_target_base_url,
+                request_body=request_body,
+            )
         except Exception as exc:
             error_message = self._runtime_execution_error_message(exc)
             AI_LOGGER.error(
@@ -3245,10 +3238,7 @@ class NodeService:
                 raise ValueError(f"missing required query parameters: {', '.join(missing)}")
 
             session = self.gmail_oauth_manager.validate_callback_state(state or "")
-            gmail_adapter = self.provider_registry.get_provider("gmail")
-            if not hasattr(gmail_adapter, "complete_oauth_callback"):
-                raise ValueError("gmail provider adapter does not support oauth completion")
-            account_record = await gmail_adapter.complete_oauth_callback(
+            account_record = await self.email_provider_gateway.gmail_complete_oauth_callback(
                 session.account_id,
                 code or "",
                 redirect_uri=session.redirect_uri,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -52,7 +53,26 @@ class RuntimeManager:
 
     def prompt_definition_dir(self) -> Path:
         directory = self.service.config.prompt_definition_dir
-        return directory if directory.is_absolute() else Path.cwd() / directory
+        resolved = directory if directory.is_absolute() else Path.cwd() / directory
+        self.ensure_runtime_prompt_definitions(resolved)
+        return resolved
+
+    @staticmethod
+    def _legacy_prompt_definition_dir() -> Path:
+        return Path.cwd() / "src" / "runtime_prompts"
+
+    def ensure_runtime_prompt_definitions(self, directory: Path) -> None:
+        if directory.exists() and any(directory.glob("*.json")):
+            return
+        legacy_directory = self._legacy_prompt_definition_dir()
+        if not legacy_directory.exists():
+            return
+        directory.mkdir(parents=True, exist_ok=True)
+        for path in legacy_directory.glob("*.json"):
+            target = directory / path.name
+            if target.exists():
+                continue
+            shutil.copy2(path, target)
 
     def load_runtime_prompt_definitions(self) -> list[dict[str, object]]:
         directory = self.prompt_definition_dir()

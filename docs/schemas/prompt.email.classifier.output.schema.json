@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Structured output schema embedded in src/runtime_prompts/prompt.email.classifier.json.",
+  "description": "Structured output schema embedded in runtime/prompts/prompt.email.classifier.json.",
   "properties": {
     "confidence": {
       "maximum": 1,

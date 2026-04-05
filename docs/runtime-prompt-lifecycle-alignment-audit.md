@@ -13,7 +13,7 @@ Date reviewed: 2026-04-04
 
 Current local prompt/runtime behavior in this repo:
 
-- local prompt definitions are stored under [src/runtime_prompts](/home/dan/Projects/HexeEmail/src/runtime_prompts)
+- local prompt definitions are stored under [runtime/prompts](/home/dan/Projects/HexeEmail/runtime/prompts)
 - prompt sync uses:
   - `GET /api/prompts/services`
   - `GET /api/prompts/services/{prompt_id}`

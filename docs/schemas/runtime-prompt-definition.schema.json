@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Schema for node-owned runtime prompt definition files stored under src/runtime_prompts/.",
+  "description": "Schema for node-owned runtime prompt definition files stored under runtime/prompts/.",
   "properties": {
     "constraints": {
       "additionalProperties": true,

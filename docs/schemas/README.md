@@ -10,7 +10,7 @@ The current schema set covers:
 
 - core node request, response, notification, and persisted-state models from `src/models.py`
 - Gmail provider request, response, persisted-state, training, and pipeline models from `src/providers/gmail/models.py`
-- runtime prompt definition files under `src/runtime_prompts/`
+- runtime prompt definition files under `runtime/prompts/`
 - structured output schemas embedded in the runtime prompt definitions
 - Gmail order-template JSON files validated by `src/providers/gmail/order_template_registry.py`
 
@@ -23,7 +23,7 @@ The current schema set covers:
   Gmail provider model catalog generated from `src/providers/gmail/models.py`. Individual schemas live under `$defs`.
 
 - [runtime-prompt-definition.schema.json](/home/dan/Projects/HexeEmail/docs/schemas/runtime-prompt-definition.schema.json)
-  Generic schema for the node-owned prompt definition files in `src/runtime_prompts/`.
+  Generic schema for the node-owned prompt definition files in `runtime/prompts/`.
   This now includes AI-node-facing lifecycle/access metadata such as `execution_policy.access_scope`, optional `execution_policy.allowed_callers`, and `review_policy` placeholders used during prompt-service alignment.
 
 - [prompt.email.classifier.output.schema.json](/home/dan/Projects/HexeEmail/docs/schemas/prompt.email.classifier.output.schema.json)

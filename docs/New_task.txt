@@ -41,13 +41,10 @@ if there is missing data for the task check in the @Core-Documents folder.for co
 if it is not present and should be core-owned create a ticket for the req. data in the core dodc
 if it is not present and should be node-owned create a file with the new data in the core docs
 
-Do not edit above this line:
-#######################################################################
-
 Standards reference:
 - Main standard entrypoint: `/home/dan/Projects/Hexe/docs/standards/Node/README.md`
 - Detailed standards folder: `/home/dan/Projects/Hexe/docs/standards/Node/`
 
-## Continue at Task 226
-
-[STOP HERE]
+Do not edit above this line:
+#######################################################################
+[WIP] Task 105: Extract AI node and email provider calls into modular gateway services and move prompt JSON files into runtime storage

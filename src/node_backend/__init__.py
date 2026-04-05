@@ -1,3 +1,5 @@
+from node_backend.ai_gateway import AiNodeGateway
+from node_backend.email_provider_gateway import EmailProviderGateway
 from node_backend.governance import GovernanceManager
 from node_backend.notifications import NotificationManager
 from node_backend.onboarding import OnboardingManager
@@ -6,7 +8,9 @@ from node_backend.runtime import RuntimeManager
 from node_backend.scheduler import BackgroundTaskManager, ScheduleTemplate
 
 __all__ = [
+    "AiNodeGateway",
     "BackgroundTaskManager",
+    "EmailProviderGateway",
     "GovernanceManager",
     "NotificationManager",
     "OnboardingManager",

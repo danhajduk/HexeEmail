@@ -485,7 +485,7 @@ class BackgroundTaskManager:
         )
         for account in accounts:
             if account.status in {"connected", "token_exchanged", "degraded"}:
-                mailbox_status = await gmail_adapter.refresh_mailbox_status(account.account_id)
+                mailbox_status = await self.service.email_provider_gateway.gmail_refresh_mailbox_status(account.account_id)
                 GMAIL_POLL_LOGGER.info(
                     "Gmail status polling pass refreshed account",
                     extra={
