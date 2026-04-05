@@ -12,9 +12,13 @@ from email_node.patterns.probation_promotion import ProbationPromotionManager
 from email_node.patterns.probation_state import ProbationTemplateState
 from email_node.patterns.probation_store import ProbationStore
 from email_node.patterns.template_promotion_service import TemplatePromotionService
+from logging_utils import get_logger
 from providers.gmail.order_phase2 import GmailOrderPhase2Scrubber
 from providers.gmail.order_phase3 import GmailOrderPhase3ProfileDetector
 from providers.gmail.order_phase4 import GmailOrderPhase4Extractor
+
+
+LOGGER = get_logger(__name__)
 
 
 class OrderFlowPipeline:
@@ -58,6 +62,10 @@ class OrderFlowPipeline:
         if not self._should_attempt_probation(phase4):
             return phase4
         if not self.ai_calls_enabled():
+            LOGGER.info(
+                "Probation template generation skipped because AI calls are disabled",
+                extra={"event_data": {"message_id": phase4.message_id, "profile_id": phase4.profile_id}},
+            )
             return phase4.model_copy(
                 update={
                     "template_diagnostics": list(phase4.template_diagnostics) + ["probation_template:skipped_ai_disabled"]
@@ -89,6 +97,18 @@ class OrderFlowPipeline:
             updated_state = ProbationMetrics.update_state(existing_state, evaluation)
             updated_state = self.probation_promotion.evaluate_and_apply(updated_state)
             self.probation_store.save_state(updated_state)
+            LOGGER.info(
+                "Probation template evaluated",
+                extra={
+                    "event_data": {
+                        "template_id": existing_state.template_id,
+                        "message_id": phase4.message_id,
+                        "hard_failure": evaluation.hard_failure,
+                        "sample_count": updated_state.sample_count,
+                        "status": updated_state.status,
+                    }
+                },
+            )
             promotion_suffix = updated_state.status
             return phase4.model_copy(
                 update={
@@ -129,6 +149,17 @@ class OrderFlowPipeline:
             promotion_reason="Awaiting probation evaluation.",
         )
         self.probation_store.save_state(state)
+        LOGGER.info(
+            "Probation template created",
+            extra={
+                "event_data": {
+                    "template_id": template_id,
+                    "message_id": phase4.message_id,
+                    "profile_id": request.profile_id,
+                    "vendor_identity": request.vendor_identity,
+                }
+            },
+        )
         return phase4.model_copy(
             update={
                 "template_diagnostics": list(phase4.template_diagnostics) + [f"probation_template:created:{template_id}"]
@@ -151,6 +182,17 @@ class OrderFlowPipeline:
         self.probation_store.save_state(updated_state)
         comparison = self._build_shadow_comparison(phase4, evaluation)
         self.probation_store.save_shadow_comparison(probation_state.template_id, phase4.message_id, comparison)
+        LOGGER.info(
+            "Probation template shadow evaluation completed",
+            extra={
+                "event_data": {
+                    "template_id": probation_state.template_id,
+                    "message_id": phase4.message_id,
+                    "active_template_id": phase4.template_id,
+                    "status": updated_state.status,
+                }
+            },
+        )
         return phase4.model_copy(
             update={
                 "template_diagnostics": list(phase4.template_diagnostics)

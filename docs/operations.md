@@ -54,6 +54,10 @@ Compatibility wrappers:
 - prompt sync: `POST /api/runtime/prompts/sync`
 - prompt review: `POST /api/runtime/prompts/review`
 - pattern generation: `POST /api/patterns/generate`
+- probation inspection:
+  - `GET /api/patterns/probation`
+  - `GET /api/patterns/probation/{template_id}`
+  - `GET /api/patterns/probation/{template_id}/evaluations`
 - runtime settings: `POST /api/runtime/settings`
 - classifier execution routes under `/api/runtime/*`
 - task preview/resolve/authorize routes under:

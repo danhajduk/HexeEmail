@@ -4,10 +4,14 @@ import shutil
 from pathlib import Path
 
 from email_node.patterns.probation_store import ProbationStore
+from logging_utils import get_logger
 
 
 class TemplatePromotionServiceError(RuntimeError):
     pass
+
+
+LOGGER = get_logger(__name__)
 
 
 class TemplatePromotionService:
@@ -29,4 +33,8 @@ class TemplatePromotionService:
         if target_path.exists():
             raise TemplatePromotionServiceError(f"Active template already exists: {target_path}")
         shutil.copy2(source_path, target_path)
+        LOGGER.info(
+            "Probation template promoted to active",
+            extra={"event_data": {"template_id": template_id, "target_path": str(target_path)}},
+        )
         return target_path

@@ -211,6 +211,37 @@ class NodeService:
         except PatternGenerationServiceError as exc:
             raise ValueError(str(exc)) from exc
 
+    def list_probation_templates(self) -> dict[str, object]:
+        records: list[dict[str, object]] = []
+        for state in self.probation_store.list_states():
+            template = self.probation_store.load_template_payload(state.template_id)
+            evaluations = self.probation_store.list_evaluations(state.template_id)
+            records.append(
+                {
+                    "state": state.model_dump(mode="json"),
+                    "template": template,
+                    "evaluation_count": len(evaluations),
+                }
+            )
+        return {"items": records}
+
+    def get_probation_template(self, template_id: str) -> dict[str, object]:
+        state = self.probation_store.load_state(template_id)
+        template = self.probation_store.load_template_payload(template_id)
+        shadow = self.probation_store.list_shadow_comparisons(template_id)
+        return {
+            "state": state.model_dump(mode="json") if state is not None else None,
+            "template": template,
+            "evaluation_count": len(self.probation_store.list_evaluations(template_id)),
+            "shadow_count": len(shadow),
+        }
+
+    def list_probation_evaluations(self, template_id: str) -> dict[str, object]:
+        return {
+            "items": self.probation_store.list_evaluations(template_id),
+            "shadow": self.probation_store.list_shadow_comparisons(template_id),
+        }
+
     @staticmethod
     def _default_gmail_last_hour_pipeline_state() -> dict[str, object]:
         return BackgroundTaskManager.default_gmail_last_hour_pipeline_state()
