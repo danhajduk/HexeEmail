@@ -60,6 +60,7 @@ The runtime prompt integration is aligned to the Hexe AI Node prompt lifecycle/a
 Current behavior:
 
 - local prompt definitions under [runtime/prompts](/home/dan/Projects/HexeEmail/runtime/prompts) carry access-scope, allowed-caller, and review metadata placeholders
+- the runtime loads prompt JSON definitions from `PROMPT_DEFINITION_DIR`, which defaults to [runtime/prompts](/home/dan/Projects/HexeEmail/runtime/prompts)
 - prompt sync uses `POST /api/prompts/services` only for missing prompts
 - existing remote prompt IDs are updated with `PUT /api/prompts/services/{prompt_id}`
 - sync reports remote lifecycle state such as `active`, `review_due`, `restricted`, or `probation` instead of collapsing everything into active-versus-retired

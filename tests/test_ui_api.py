@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import logging
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 import pytest
 from fastapi import Header
 from fastapi.responses import JSONResponse
@@ -164,6 +166,62 @@ def test_logging_rotation_aligns_to_six_hour_boundaries():
     assert datetime.fromtimestamp(
         _next_six_hour_boundary_epoch(datetime(2024, 5, 1, 19, 15, 0).astimezone().timestamp())
     ).strftime("%Y-%m-%d %H:%M:%S") == "2024-05-02 00:00:00"
+
+
+def test_runtime_prompt_loader_reads_from_runtime_prompt_directory(runtime_dir, core_client_factory, monkeypatch):
+    prompt_dir = runtime_dir / "prompts"
+    prompt_dir.mkdir(parents=True, exist_ok=True)
+    prompt_path = prompt_dir / "prompt.email.classifier.json"
+    prompt_payload = {
+        "prompt_id": "prompt.email.classifier",
+        "version": "test-runtime-v1",
+        "service_id": "node-email",
+        "task_family": "task.classification",
+        "prompt_name": "Email Classifier",
+        "definition": {
+            "template": "Classify this email: {{ normalized_text }}",
+            "template_variables": ["normalized_text"],
+        },
+        "provider_preferences": {
+            "default_provider": "openai",
+            "default_model": "gpt-5.4-nano",
+            "preferred_models": ["gpt-5.4-nano"],
+        },
+        "constraints": {
+            "max_timeout_s": 60,
+            "structured_output_required": True,
+        },
+        "node_runtime": {
+            "timeout_s": 30,
+            "json_schema": {
+                "type": "object",
+                "properties": {
+                    "label": {"type": "string"},
+                },
+                "required": ["label"],
+                "additionalProperties": False,
+            },
+        },
+    }
+    prompt_path.write_text(json.dumps(prompt_payload), encoding="utf-8")
+    config = AppConfig(
+        CORE_BASE_URL="http://core.test",
+        NODE_NAME="email-node-test",
+        NODE_TYPE="email-node",
+        NODE_SOFTWARE_VERSION="0.1.0",
+        NODE_NONCE="nonce-test",
+        RUNTIME_DIR=runtime_dir,
+        PROMPT_DEFINITION_DIR=prompt_dir,
+        API_PORT=9003,
+        UI_PORT=8083,
+        ONBOARDING_POLL_INTERVAL_SECONDS=0.01,
+        MQTT_HEARTBEAT_SECONDS=0.01,
+    )
+    monkeypatch.setattr("node_backend.runtime.RuntimeManager._legacy_prompt_definition_dir", staticmethod(lambda: Path("/tmp/does-not-exist")))
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+
+    assert service._prompt_definition_dir() == prompt_dir
+    assert service._load_runtime_prompt_definition("prompt.email.classifier")["version"] == "test-runtime-v1"
 
 
 @pytest.mark.asyncio

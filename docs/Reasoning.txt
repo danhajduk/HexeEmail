@@ -127,3 +127,9 @@ Chosen fix: Expose a backend `scheduled_tasks` summary from `ui_bootstrap` so th
 What changed: Added scheduled-task summary generation in `NodeService` for Gmail fetch windows, hourly batch classification, and weekly prompt sync; persisted last scheduled timestamps for the batch classifier and weekly prompt sync; exposed the summary on the bootstrap payload; and added a new `Scheduled Tasks` dashboard section with a single full-width table card showing schedule, status, last execution, next execution, reason, slot key, and detail.
 Verification: `python -m py_compile src/models.py src/service.py tests/test_ui_api.py` passed. `npm run build` passed in `frontend/`.
 ###########
+Task #105
+Step objective: Verify runtime prompt loading uses the new runtime-owned prompt directory.
+Chosen fix: Add a targeted regression test that points `PROMPT_DEFINITION_DIR` at a runtime folder, disables the legacy fallback path, and verifies `NodeService` loads the prompt JSON from that configured runtime location.
+What changed: Added a prompt-loader regression test in `tests/test_ui_api.py` and updated `docs/runtime.md` to note that runtime prompt loading follows `PROMPT_DEFINITION_DIR`, which defaults to `runtime/prompts`.
+Verification: `python -m py_compile tests/test_ui_api.py src/node_backend/runtime.py src/service.py src/config.py` passed. `python -m pytest tests/test_ui_api.py -k runtime_prompt_loader_reads_from_runtime_prompt_directory` could not run because `pytest` is not installed in this environment.
+###########
