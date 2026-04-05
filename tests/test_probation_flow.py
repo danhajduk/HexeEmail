@@ -111,6 +111,7 @@ async def test_probation_flow_creates_evaluates_and_promotes_template(tmp_path):
         ),
         generate_probation_template=fake_generate,
         ai_calls_enabled=lambda: True,
+        unresolved_generation_enabled=lambda: True,
     )
 
     phase4 = build_unresolved_phase4()
@@ -162,6 +163,7 @@ async def test_probation_flow_keeps_failed_template_on_probation(tmp_path):
         ),
         generate_probation_template=fake_generate,
         ai_calls_enabled=lambda: True,
+        unresolved_generation_enabled=lambda: True,
     )
 
     phase4 = build_unresolved_phase4()

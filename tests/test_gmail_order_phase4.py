@@ -128,6 +128,9 @@ def test_phase4_returns_unresolved_when_no_template_exists():
     assert result.extraction_status == "unresolved"
     assert result.template_id is None
     assert result.ai_template_hook is not None
+    assert result.ai_template_hook["profile_id"] == "reservation_confirmation"
+    assert result.ai_template_hook["vendor_identity"] == "recreation_gov"
+    assert result.ai_template_hook["scrubbed_text"]
     assert any("no_template" in item for item in result.template_diagnostics)
 
 

@@ -6,11 +6,13 @@ from pathlib import Path
 import httpx
 import pytest
 
+from email_node.patterns import build_order_ai_template_request
 from email_node.patterns.pattern_generation_client import PatternGenerationClient
 from email_node.patterns.pattern_generation_pipeline import PatternGenerationPipeline, PatternGenerationPipelineError
 from email_node.patterns.pattern_generation_request import PatternGenerationRequest
 from email_node.patterns.pattern_generation_service import PatternGenerationService
 from email_node.patterns.pattern_generation_writer import PatternGenerationWriter
+from tests.test_order_probation_pipeline import build_unresolved_phase4
 
 
 def build_request() -> PatternGenerationRequest:
@@ -162,3 +164,16 @@ async def test_pattern_generation_file_write_success(tmp_path):
     assert output_path.exists()
     payload = json.loads(output_path.read_text(encoding="utf-8"))
     assert payload["template_id"] == "amazon_order_confirmation.v1"
+
+
+def test_order_ai_template_request_mapper_builds_request_from_unresolved_phase4():
+    phase4 = build_unresolved_phase4()
+
+    request = build_order_ai_template_request(phase4)
+
+    assert request.template_id == "recreation_gov_reservation_confirmation.v1"
+    assert request.profile_id == "reservation_confirmation"
+    assert request.vendor_identity == "recreation_gov"
+    assert request.expected_label == "ORDER"
+    assert request.body_text
+    assert isinstance(request.links_json, list)

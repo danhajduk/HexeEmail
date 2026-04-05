@@ -24,6 +24,8 @@ class ProbationTemplateState(BaseModel):
     hard_failure_count: int = 0
     required_field_success_rate: float = 0.0
     high_requires_success_rate: float = 0.0
+    last_generation_attempt_at: datetime | None = None
+    last_generation_result: str | None = None
     last_evaluated_at: datetime | None = None
     promotion_eligible: bool = False
     promotion_reason: str | None = None

@@ -160,6 +160,7 @@ class NodeService:
             probation_store=self.probation_store,
             generate_probation_template=self._generate_probation_template,
             ai_calls_enabled=self._runtime_ai_calls_enabled,
+            unresolved_generation_enabled=self._runtime_unresolved_order_template_generation_enabled,
         )
 
     @staticmethod
@@ -183,6 +184,9 @@ class NodeService:
 
     def _runtime_provider_disabled_message(self) -> str:
         return self.runtime.runtime_provider_disabled_message()
+
+    def _runtime_unresolved_order_template_generation_enabled(self) -> bool:
+        return self.runtime.runtime_unresolved_order_template_generation_enabled()
 
     async def generate_pattern_template(self, payload: PatternGenerationRequest) -> dict[str, object]:
         return await self._generate_pattern_template(payload, writer_base_dir=None)
@@ -2077,17 +2081,23 @@ class NodeService:
 
     async def update_runtime_task_settings(self, payload: RuntimeTaskSettingsInput) -> dict[str, object]:
         current = self._runtime_task_state()
+        ai_calls_enabled = current.get("ai_calls_enabled") if payload.ai_calls_enabled is None else bool(payload.ai_calls_enabled)
+        provider_calls_enabled = (
+            current.get("provider_calls_enabled")
+            if payload.provider_calls_enabled is None
+            else bool(payload.provider_calls_enabled)
+        )
+        unresolved_generation_enabled = (
+            current.get("unresolved_order_template_generation_enabled")
+            if payload.unresolved_order_template_generation_enabled is None
+            else bool(payload.unresolved_order_template_generation_enabled)
+        )
+        if not ai_calls_enabled:
+            unresolved_generation_enabled = False
         state = self._save_runtime_task_state(
-            ai_calls_enabled=(
-                current.get("ai_calls_enabled")
-                if payload.ai_calls_enabled is None
-                else bool(payload.ai_calls_enabled)
-            ),
-            provider_calls_enabled=(
-                current.get("provider_calls_enabled")
-                if payload.provider_calls_enabled is None
-                else bool(payload.provider_calls_enabled)
-            ),
+            ai_calls_enabled=ai_calls_enabled,
+            provider_calls_enabled=provider_calls_enabled,
+            unresolved_order_template_generation_enabled=unresolved_generation_enabled,
         )
         return {
             "ok": True,

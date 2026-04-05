@@ -10,6 +10,8 @@ Pattern generation code lives under:
 
 Key modules:
 
+- [order_ai_template_request_mapper.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/order_ai_template_request_mapper.py)
+  Deterministic mapper from unresolved Phase 4 `ai_template_hook` payloads into `PatternGenerationRequest`.
 - [pattern_generation_request.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/pattern_generation_request.py)
   Strict request contract for the AI prompt input.
 - [pattern_generation_response.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/pattern_generation_response.py)
@@ -51,6 +53,8 @@ The pattern generation request includes:
 - `body_text`
 - `body_html`
 - `links_json`
+
+For unresolved ORDER probation generation, these inputs are derived from the Phase 4 `ai_template_hook` plus sender metadata. The mapper keeps `template_id` deterministic for the same profile and vendor shape.
 
 Important validation behavior:
 
@@ -102,6 +106,22 @@ Success response:
 Failure behavior:
 
 - validation or generation failures are returned as HTTP 400 with a deterministic error string
+
+## ORDER unresolved handoff
+
+Known-profile ORDER emails that reach Phase 4 with `extraction_status = unresolved` and `template_lookup:no_template_for_profile:*` can enter the probation-generation path.
+
+The handoff rules are:
+
+- the unresolved result must expose `ai_template_hook`
+- global runtime `AI Calls` must be enabled
+- runtime `Unresolved ORDER AI` must be enabled
+- if a probation template already exists for the same profile and vendor, the node evaluates it instead of regenerating
+- if an active template already exists, the probation template only runs in shadow mode
+
+This path writes probation templates to:
+
+- [src/email_node/patterns/probation](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation)
 
 ## CLI
 

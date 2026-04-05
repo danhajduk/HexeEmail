@@ -1201,6 +1201,55 @@ async def test_runtime_settings_can_disable_ai_calls(config, core_client_factory
 
 
 @pytest.mark.asyncio
+async def test_runtime_settings_can_enable_unresolved_order_template_generation(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/runtime/settings",
+            json={
+                "ai_calls_enabled": True,
+                "unresolved_order_template_generation_enabled": True,
+            },
+        )
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["runtime_task_state"]["unresolved_order_template_generation_enabled"] is True
+    assert service.state.runtime_task_state["unresolved_order_template_generation_enabled"] is True
+
+
+@pytest.mark.asyncio
+async def test_runtime_settings_force_unresolved_order_template_generation_off_when_ai_is_disabled(
+    config,
+    core_client_factory,
+):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/runtime/settings",
+            json={
+                "ai_calls_enabled": False,
+                "unresolved_order_template_generation_enabled": True,
+            },
+        )
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["runtime_task_state"]["ai_calls_enabled"] is False
+    assert body["runtime_task_state"]["unresolved_order_template_generation_enabled"] is False
+
+
+@pytest.mark.asyncio
 async def test_runtime_sync_prompts_rejects_when_ai_calls_disabled(config, core_client_factory):
     core_app = build_core_app()
     service = NodeService(config, core_client=core_client_factory(core_app), mqtt_manager=FakeMQTTManager())

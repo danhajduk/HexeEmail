@@ -35,6 +35,7 @@ const EMPTY_PROVIDER_FORM = {
 const EMPTY_RUNTIME_TASK_FORM = {
   ai_calls_enabled: true,
   provider_calls_enabled: true,
+  unresolved_order_template_generation_enabled: false,
   requested_node_type: "ai",
   task_family: "task.classification",
   content_type: "email",
@@ -49,6 +50,7 @@ const EMPTY_RUNTIME_TASK_FORM = {
 const EMPTY_RUNTIME_TASK_STATUS = {
   ai_calls_enabled: true,
   provider_calls_enabled: true,
+  unresolved_order_template_generation_enabled: false,
   request_status: "idle",
   last_step: "none",
   detail: "No runtime task request has been started yet.",
@@ -888,12 +890,16 @@ export function App() {
                 ...current,
                 ai_calls_enabled: payload.runtime_task_state?.ai_calls_enabled ?? true,
                 provider_calls_enabled: payload.runtime_task_state?.provider_calls_enabled ?? true,
+                unresolved_order_template_generation_enabled:
+                  payload.runtime_task_state?.unresolved_order_template_generation_enabled ?? false,
               },
         );
         setRuntimeTaskForm((current) => ({
           ...current,
           ai_calls_enabled: payload.runtime_task_state?.ai_calls_enabled ?? true,
           provider_calls_enabled: payload.runtime_task_state?.provider_calls_enabled ?? true,
+          unresolved_order_template_generation_enabled:
+            payload.runtime_task_state?.unresolved_order_template_generation_enabled ?? false,
         }));
         setUiUpdatedAt(new Date().toISOString());
         setBackendReachable(true);
@@ -1207,6 +1213,12 @@ export function App() {
         ...current,
         ...(payload.runtime_task_state || {}),
       }));
+      if (!enabled) {
+        setRuntimeTaskForm((current) => ({
+          ...current,
+          unresolved_order_template_generation_enabled: false,
+        }));
+      }
       setRuntimeTaskNotice(enabled ? "AI node calls enabled for runtime actions." : "AI node calls disabled for runtime actions.");
     } catch (taskError) {
       setRuntimeTaskForm((current) => ({
@@ -1245,6 +1257,41 @@ export function App() {
       setRuntimeTaskForm((current) => ({
         ...current,
         provider_calls_enabled: !enabled,
+      }));
+      setRuntimeTaskError(taskError.message);
+    } finally {
+      setRuntimeTaskPending("");
+    }
+  }
+
+  async function updateRuntimeUnresolvedOrderTemplateGenerationEnabled(enabled) {
+    setRuntimeTaskPending("settings");
+    setRuntimeTaskError("");
+    setRuntimeTaskNotice("");
+    setRuntimeTaskForm((current) => ({
+      ...current,
+      unresolved_order_template_generation_enabled: enabled,
+    }));
+    try {
+      const payload = await fetchJson("/api/runtime/settings", {
+        method: "POST",
+        body: JSON.stringify({
+          unresolved_order_template_generation_enabled: enabled,
+        }),
+      });
+      setRuntimeTaskStatus((current) => ({
+        ...current,
+        ...(payload.runtime_task_state || {}),
+      }));
+      setRuntimeTaskNotice(
+        enabled
+          ? "Unresolved ORDER AI template generation enabled."
+          : "Unresolved ORDER AI template generation disabled.",
+      );
+    } catch (taskError) {
+      setRuntimeTaskForm((current) => ({
+        ...current,
+        unresolved_order_template_generation_enabled: !enabled,
       }));
       setRuntimeTaskError(taskError.message);
     } finally {
@@ -2717,6 +2764,7 @@ export function App() {
                   handleRuntimeTaskFormChange={handleRuntimeTaskFormChange}
                   updateRuntimeAiCallsEnabled={updateRuntimeAiCallsEnabled}
                   updateRuntimeProviderCallsEnabled={updateRuntimeProviderCallsEnabled}
+                  updateRuntimeUnresolvedOrderTemplateGenerationEnabled={updateRuntimeUnresolvedOrderTemplateGenerationEnabled}
                   runRuntimeResolveFlow={runRuntimeResolveFlow}
                   runRuntimeAuthorize={runRuntimeAuthorize}
                   runRuntimeRegisterPrompt={runRuntimeRegisterPrompt}

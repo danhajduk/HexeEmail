@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import re
 from datetime import UTC, datetime
 from typing import Awaitable, Callable
 
-from email_node.patterns import PatternGenerationRequest
+from email_node.patterns import PatternGenerationRequest, build_order_ai_template_request
 from email_node.patterns.probation_evaluator import ProbationEvaluator
 from email_node.patterns.probation_metrics import ProbationMetrics
 from email_node.patterns.probation_policy import ProbationPromotionPolicy
@@ -33,6 +32,7 @@ class OrderFlowPipeline:
         probation_promotion: ProbationPromotionManager | None = None,
         generate_probation_template: Callable[[PatternGenerationRequest], Awaitable[dict[str, object]]] | None = None,
         ai_calls_enabled: Callable[[], bool] | None = None,
+        unresolved_generation_enabled: Callable[[], bool] | None = None,
     ) -> None:
         self.phase2_scrubber = phase2_scrubber or GmailOrderPhase2Scrubber()
         self.phase3_detector = phase3_detector or GmailOrderPhase3ProfileDetector()
@@ -45,6 +45,7 @@ class OrderFlowPipeline:
         )
         self.generate_probation_template = generate_probation_template
         self.ai_calls_enabled = ai_calls_enabled or (lambda: True)
+        self.unresolved_generation_enabled = unresolved_generation_enabled or (lambda: False)
 
     async def process_normalized_email(self, normalized) -> dict[str, object]:
         phase2 = self.phase2_scrubber.scrub(normalized)
@@ -61,6 +62,13 @@ class OrderFlowPipeline:
     async def attach_probation_template(self, phase4):
         if not self._should_attempt_probation(phase4):
             return phase4
+        if not self.unresolved_generation_enabled():
+            return phase4.model_copy(
+                update={
+                    "template_diagnostics": list(phase4.template_diagnostics)
+                    + ["probation_template:skipped_runtime_disabled"]
+                }
+            )
         if not self.ai_calls_enabled():
             LOGGER.info(
                 "Probation template generation skipped because AI calls are disabled",
@@ -78,7 +86,7 @@ class OrderFlowPipeline:
                 }
             )
         try:
-            request = self._build_pattern_generation_request(phase4)
+            request = build_order_ai_template_request(phase4)
         except ValueError as exc:
             return phase4.model_copy(
                 update={
@@ -95,6 +103,12 @@ class OrderFlowPipeline:
         if existing_state is not None:
             evaluation = self.probation_evaluator.evaluate(phase4.phase3_reference, template_id=existing_state.template_id)
             updated_state = ProbationMetrics.update_state(existing_state, evaluation)
+            updated_state = updated_state.model_copy(
+                update={
+                    "last_generation_attempt_at": datetime.now(UTC),
+                    "last_generation_result": "skipped_existing_probation",
+                }
+            )
             updated_state = self.probation_promotion.evaluate_and_apply(updated_state)
             self.probation_store.save_state(updated_state)
             LOGGER.info(
@@ -145,6 +159,8 @@ class OrderFlowPipeline:
             hard_failure_count=0,
             required_field_success_rate=0.0,
             high_requires_success_rate=0.0,
+            last_generation_attempt_at=now,
+            last_generation_result="created",
             promotion_eligible=False,
             promotion_reason="Awaiting probation evaluation.",
         )
@@ -213,45 +229,6 @@ class OrderFlowPipeline:
             return False
         diagnostics = list(getattr(phase4, "template_diagnostics", []) or [])
         return any(str(item).startswith("template_lookup:no_template_for_profile:") for item in diagnostics)
-
-    @staticmethod
-    def _sanitize_identifier(value: str, *, fallback: str) -> str:
-        normalized = re.sub(r"[^a-z0-9]+", "_", value.strip().lower()).strip("_")
-        return normalized or fallback
-
-    def _build_pattern_generation_request(self, phase4) -> PatternGenerationRequest:
-        hook = phase4.ai_template_hook
-        if not isinstance(hook, dict):
-            raise ValueError("missing ai_template_hook")
-        profile_id = str(hook.get("profile_id") or phase4.profile_id or "").strip()
-        if not profile_id:
-            raise ValueError("missing profile_id")
-        vendor_identity = str(hook.get("vendor_identity") or phase4.vendor_identity or phase4.sender_domain or "").strip()
-        if not vendor_identity:
-            raise ValueError("missing vendor_identity")
-        body_text = str(hook.get("scrubbed_text") or "").strip()
-        if not body_text:
-            raise ValueError("missing scrubbed_text")
-        template_root = self._sanitize_identifier(profile_id, fallback="order_template")
-        vendor_root = self._sanitize_identifier(vendor_identity, fallback="generic")
-        if not template_root.startswith(vendor_root):
-            template_root = f"{vendor_root}_{template_root}"
-        links = hook.get("extracted_links")
-        links_json = links if isinstance(links, list) else []
-        return PatternGenerationRequest(
-            template_id=f"{template_root}.v1",
-            profile_id=profile_id,
-            template_version="v1",
-            vendor_identity=vendor_identity,
-            expected_label="ORDER",
-            from_name=str(phase4.sender_name or vendor_identity).strip() or vendor_identity,
-            from_email=str(phase4.sender_email or f"unknown@{vendor_root}.local").strip(),
-            subject=str(phase4.subject or "").strip() or profile_id,
-            received_at=datetime.now(UTC).isoformat(),
-            body_text=body_text,
-            body_html="",
-            links_json=[item for item in links_json if isinstance(item, dict)],
-        )
 
     @staticmethod
     def _build_shadow_comparison(phase4, evaluation) -> dict[str, object]:

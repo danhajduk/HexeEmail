@@ -35,7 +35,7 @@ describe("dashboard feature sections", () => {
         openTraining={() => {}}
         runtimeTaskPending=""
         runRuntimeExecuteEmailClassifierBatch={() => {}}
-        runtimeTaskForm={{ ai_calls_enabled: true, provider_calls_enabled: true }}
+        runtimeTaskForm={{ ai_calls_enabled: true, provider_calls_enabled: true, unresolved_order_template_generation_enabled: false }}
         runtimeBatchExecution={null}
         runtimeBatchProgressPercent={0}
         gmailLastHourPipelinePills={[{ key: "fetch", label: "fetch", value: "done" }]}
@@ -96,10 +96,18 @@ describe("dashboard feature sections", () => {
       <RuntimeDashboardSection
         runtimeTaskError=""
         runtimeTaskNotice=""
-        runtimeTaskStatus={{ ai_calls_enabled: true, provider_calls_enabled: true, request_status: "idle", last_step: "none", detail: "ready" }}
+        runtimeTaskStatus={{
+          ai_calls_enabled: true,
+          provider_calls_enabled: true,
+          unresolved_order_template_generation_enabled: false,
+          request_status: "idle",
+          last_step: "none",
+          detail: "ready",
+        }}
         runtimeTaskForm={{
           ai_calls_enabled: true,
           provider_calls_enabled: true,
+          unresolved_order_template_generation_enabled: false,
           requested_node_type: "ai",
           task_family: "task.classification",
           content_type: "email",
@@ -119,6 +127,7 @@ describe("dashboard feature sections", () => {
         handleRuntimeTaskFormChange={() => {}}
         updateRuntimeAiCallsEnabled={() => {}}
         updateRuntimeProviderCallsEnabled={() => {}}
+        updateRuntimeUnresolvedOrderTemplateGenerationEnabled={() => {}}
         runRuntimeResolveFlow={() => {}}
         runRuntimeAuthorize={() => {}}
         runRuntimeRegisterPrompt={() => {}}
@@ -149,6 +158,7 @@ describe("dashboard feature sections", () => {
 
     expect(runtimeHtml).toContain("Runtime Status");
     expect(runtimeHtml).toContain("Runtime Actions");
+    expect(runtimeHtml).toContain("Unresolved ORDER AI");
     expect(scheduledHtml).toContain("Scheduled Tasks");
     expect(ordersHtml).toContain("Tracked Orders");
   });

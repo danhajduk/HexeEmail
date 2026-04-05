@@ -16,6 +16,7 @@ class RuntimeManager:
         return {
             "ai_calls_enabled": True,
             "provider_calls_enabled": True,
+            "unresolved_order_template_generation_enabled": False,
             "request_status": "idle",
             "last_step": "none",
             "detail": "No runtime task request has been started yet.",
@@ -52,6 +53,11 @@ class RuntimeManager:
         current = self.runtime_task_state()
         value = current.get("provider_calls_enabled")
         return True if value is None else bool(value)
+
+    def runtime_unresolved_order_template_generation_enabled(self) -> bool:
+        current = self.runtime_task_state()
+        value = current.get("unresolved_order_template_generation_enabled")
+        return False if value is None else bool(value)
 
     @staticmethod
     def runtime_ai_disabled_message() -> str:

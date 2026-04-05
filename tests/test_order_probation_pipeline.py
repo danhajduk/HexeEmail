@@ -105,6 +105,7 @@ async def test_order_pipeline_creates_probation_template_for_unresolved_profile(
         probation_store=store,
         generate_probation_template=fake_generate,
         ai_calls_enabled=lambda: True,
+        unresolved_generation_enabled=lambda: True,
     )
 
     result = await pipeline.attach_probation_template(build_unresolved_phase4())
@@ -164,6 +165,7 @@ async def test_order_pipeline_reuses_existing_probation_template_without_regener
         probation_store=store,
         generate_probation_template=should_not_run,
         ai_calls_enabled=lambda: True,
+        unresolved_generation_enabled=lambda: True,
     )
 
     result = await pipeline.attach_probation_template(build_unresolved_phase4())
@@ -174,3 +176,30 @@ async def test_order_pipeline_reuses_existing_probation_template_without_regener
     updated_state = store.load_state(template_id)
     assert updated_state is not None
     assert updated_state.sample_count == 2
+
+
+@pytest.mark.asyncio
+async def test_order_pipeline_skips_generation_when_unresolved_runtime_toggle_disabled(tmp_path):
+    store = ProbationStore(
+        templates_dir=tmp_path / "probation",
+        state_dir=tmp_path / "probation_state",
+    )
+    generate_calls = 0
+
+    async def should_not_run(request):
+        nonlocal generate_calls
+        generate_calls += 1
+        return {}
+
+    pipeline = OrderFlowPipeline(
+        probation_store=store,
+        generate_probation_template=should_not_run,
+        ai_calls_enabled=lambda: True,
+        unresolved_generation_enabled=lambda: False,
+    )
+
+    result = await pipeline.attach_probation_template(build_unresolved_phase4())
+
+    assert generate_calls == 0
+    assert "probation_template:skipped_runtime_disabled" in result.template_diagnostics
+    assert store.list_states() == []
