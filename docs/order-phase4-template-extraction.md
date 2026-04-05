@@ -12,6 +12,8 @@ Current Phase 4 responsibilities:
 - validate required fields, record field-level diagnostics, and compute extraction confidence
 - emit unresolved results with an `ai_template_hook` package when no template exists
 
+The runtime ORDER orchestration now consumes unresolved known-profile Phase 4 results and can create a probation template artifact through the pattern-generation flow while keeping the extractor itself deterministic and side-effect free.
+
 The initial template set lives in [runtime/order_templates](/home/dan/Projects/HexeEmail/runtime/order_templates) and currently covers:
 
 - `amazon_order_confirmation`

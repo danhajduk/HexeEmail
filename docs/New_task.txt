@@ -48,3 +48,386 @@ Standards reference:
 Do not edit above this line:
 #######################################################################
 
+[WIP] Task 236: Add probation template logic into the ORDER Phase 4 loop
+
+- Extend Phase 4 so unresolved known-profile emails enter probation flow immediately
+- File: src/email_node/pipeline/order_flow.py
+
+Trigger condition:
+- Phase 3 resolved profile_id with usable confidence
+- Phase 4 extraction_status == "unresolved"
+- template_lookup:no_template_for_profile
+
+Behavior:
+- If no active template exists:
+  - call AI generation (Tasks 226–231)
+  - save template as probation
+  - initialize probation state
+- If probation template exists:
+  - run evaluation instead of regenerating
+- If active template exists:
+  - active remains authoritative
+  - probation runs in shadow mode
+
+Safety:
+- Do not auto-promote
+- Do not trigger full downstream actions from probation-only extraction
+
+Acceptance:
+- First qualifying email creates probation template
+- Subsequent emails reuse it for evaluation
+
+[TODO] Task 237: Define probation template state contract
+
+- Create state model for probation templates
+- File: src/email_node/patterns/probation_state.py
+
+Fields:
+- template_id
+- profile_id
+- template_version
+- status (probation|active|rejected|archived)
+- created_at
+- updated_at
+- sample_count
+- success_count
+- failure_count
+- hard_failure_count
+- required_field_success_rate
+- high_requires_success_rate
+- last_evaluated_at
+- promotion_eligible
+- promotion_reason
+
+Defaults:
+- status = probation
+- sample_count = 1
+- success_count = 0
+- failure_count = 0
+- hard_failure_count = 0
+
+Acceptance:
+- State model validates and initializes correctly
+
+[TODO] Task 238: Implement probation template registry and storage
+
+- Create persistence layer for probation templates and state
+- File: src/email_node/patterns/probation_store.py
+
+Storage:
+- patterns/probation/{template_id}.json
+- patterns/probation_state/{template_id}.json
+
+Capabilities:
+- create
+- read
+- update
+- list by profile/vendor/status
+
+Acceptance:
+- Probation templates and state persist across restarts
+- Multiple templates supported safely
+
+[TODO] Task 239: Define probation evaluation result contract
+
+- Create evaluation result model per email
+- File: src/email_node/patterns/probation_evaluation_result.py
+
+Fields:
+- template_id
+- message_id
+- profile_id
+- matched
+- extraction_succeeded
+- required_fields_present
+- missing_required_fields
+- high_requires_present
+- missing_high_requires
+- extracted_fields
+- confidence_score
+- hard_failure
+- failure_reason
+- evaluated_at
+
+Acceptance:
+- Model captures deterministic evaluation outcome
+
+[TODO] Task 240: Implement probation template evaluator
+
+- Run probation template against matching emails
+- File: src/email_node/patterns/probation_evaluator.py
+
+Flow:
+1. run extraction
+2. check match success
+3. validate required_fields
+4. validate high_requires
+5. compute evaluation result
+6. persist result
+
+Rules:
+- No promotion here
+- No downstream side effects
+
+Acceptance:
+- Evaluator produces consistent results per email
+
+
+[TODO] Task 241: Add probation metrics aggregation
+
+- Aggregate evaluation results into template state
+- File: src/email_node/patterns/probation_metrics.py
+
+Update:
+- sample_count
+- success_count
+- failure_count
+- hard_failure_count
+- required_field_success_rate
+- high_requires_success_rate
+
+Definitions:
+- success = required fields present and no hard failure
+- failure = missing required fields or weak extraction
+- hard_failure = extraction error or structural mismatch
+
+Acceptance:
+- Metrics update deterministically per evaluation
+
+[TODO] Task 242: Define probation promotion policy
+
+- Centralize promotion thresholds
+- File: src/email_node/patterns/probation_policy.py
+
+Thresholds:
+- minimum_sample_count = 5
+- required_field_success_rate >= 0.90
+- high_requires_success_rate >= 0.80
+- hard_failure_count <= 1
+
+Functions:
+- is_promotion_eligible()
+- should_remain_on_probation()
+- should_mark_for_refinement()
+- should_reject_template()
+
+Acceptance:
+- Policy is configurable and reusable
+
+[TODO] Task 243: Implement auto-promotion gate
+
+- Evaluate promotion eligibility after each evaluation
+- File: src/email_node/patterns/probation_promotion.py
+
+Behavior:
+- If eligible:
+  - mark promotion_eligible = true
+  - promote template to active
+- If not:
+  - keep in probation
+- If clearly bad:
+  - mark for refinement/rejection
+
+Acceptance:
+- Templates only promote after meeting thresholds
+
+[TODO] Task 244: Implement probation-to-active template promotion
+
+- Move promoted templates to active directory
+- File: src/email_node/patterns/template_promotion_service.py
+
+Behavior:
+- Move/copy:
+  - probation → active
+- Preserve probation history
+- Prevent overwriting unrelated templates
+
+Acceptance:
+- Promoted templates become active safely
+
+[TODO] Task 245: Add shadow-mode comparison with active templates
+
+- Run probation templates alongside active ones for same profile
+- File: src/email_node/pipeline/order_flow.py
+
+Behavior:
+- Active template = authoritative
+- Probation = shadow evaluation only
+
+Store:
+- differences in required fields
+- differences in high_requires
+- extraction variance
+
+Acceptance:
+- Shadow evaluation does not affect production flow
+
+[TODO] Task 246: Add probation diagnostics API
+
+- Add inspection endpoints
+- File: src/email_node/api/patterns.py
+
+Routes:
+- GET /api/patterns/probation
+- GET /api/patterns/probation/{template_id}
+- GET /api/patterns/probation/{template_id}/evaluations
+
+Return:
+- state
+- metrics
+- promotion eligibility
+- evaluation history
+
+Acceptance:
+- Probation state is inspectable
+
+[TODO] Task 247: Add CLI tools for probation testing
+
+- CLI utilities for debugging
+- File: scripts/probation_tools.py
+
+Commands:
+- show template state
+- run evaluation on sample
+- show promotion eligibility
+
+Acceptance:
+- CLI supports local testing workflow
+
+[TODO] Task 248: Add structured logging for probation lifecycle
+
+- Log:
+  - template creation
+  - evaluation results
+  - metrics updates
+  - promotion decisions
+
+Requirements:
+- no sensitive data leakage
+- include template_id, message_id, result, counters
+
+Acceptance:
+- Full lifecycle traceable in logs
+
+[TODO] Task 249: Add end-to-end probation lifecycle tests
+
+- File: tests/test_probation_flow.py
+
+Test:
+- first email creates probation template
+- subsequent emails evaluate
+- metrics update correctly
+- promotion triggers correctly
+- failed templates stay in probation
+
+Acceptance:
+- Full flow covered by tests
+
+[TODO] Task 250: Document probation lifecycle and auto-promotion
+
+- File: docs/order-pattern-probation-lifecycle.md
+
+Include:
+- flow: first email → probation → evaluation → promotion
+- thresholds
+- shadow mode behavior
+- directory structure
+- operator expectations
+
+Acceptance:
+- Documentation matches implementation
+
+[TODO] Task 251: Define ORDER unresolved-template generation request mapper
+
+- Create a mapper from Phase 4 `ai_template_hook` payloads into `PatternGenerationRequest`
+- File: src/email_node/patterns/order_ai_template_request_mapper.py
+
+Inputs:
+- phase4 unresolved result
+- ai_template_hook payload
+- sender / vendor / profile metadata
+
+Behavior:
+- derive stable `template_id`
+- map `profile_id`
+- map `vendor_identity`
+- map `expected_label`
+- map `from_name`
+- map `from_email`
+- map `subject`
+- map `body_text`
+- map `links_json`
+
+Rules:
+- fail fast if the unresolved result does not contain the minimum required AI-template inputs
+- keep mapping deterministic for the same profile/vendor shape
+- do not call AI here
+
+Acceptance:
+- Known unresolved ORDER payloads convert into valid `PatternGenerationRequest` objects
+
+[TODO] Task 252: Add runtime control for unresolved ORDER template generation
+
+- Add runtime setting for whether unresolved known-profile ORDER emails may trigger AI template generation
+- Files: src/node_models/runtime.py, src/service.py, frontend/src/features/dashboard/RuntimeDashboardSection.jsx
+
+Behavior:
+- default disabled
+- operator-visible on Runtime page
+- must respect global AI-calls switch
+
+Safety:
+- if AI calls are disabled, unresolved-template generation must not run
+- if the unresolved-template switch is disabled, only return `ai_template_hook`
+
+Acceptance:
+- Runtime can explicitly enable or disable unresolved-template generation
+
+[TODO] Task 253: Trigger pattern generation from unresolved ORDER Phase 4 results
+
+- Consume `ai_template_hook` after Phase 4 unresolved results for known profiles
+- Files: src/service.py, src/email_node/patterns/pattern_generation_service.py
+
+Trigger condition:
+- Phase 3 resolved a usable profile
+- Phase 4 extraction_status == \"unresolved\"
+- template_lookup:no_template_for_profile
+- runtime unresolved-template generation is enabled
+
+Behavior:
+- build `PatternGenerationRequest` from the unresolved hook
+- call the existing pattern-generation service
+- return/save generation result metadata with the ORDER flow outcome
+
+Safety:
+- no downstream order actions should run from the newly generated template in the same message pass
+- generation failure must not break the parent ORDER flow
+
+Acceptance:
+- First unresolved known-profile email can trigger one AI template-generation attempt
+
+[TODO] Task 254: Add idempotency and duplicate-generation protection for unresolved ORDER profiles
+
+- Prevent repeated AI generation for the same unresolved profile/vendor/template candidate
+- Files: src/email_node/patterns/probation_store.py, src/service.py
+
+Behavior:
+- if a probation or draft template already exists for the same profile/vendor candidate, do not regenerate blindly
+- record last generation attempt time and result
+- allow future regeneration only when explicitly eligible for refinement
+
+Acceptance:
+- Reprocessing the same unresolved email does not create duplicate draft/probation templates
+
+[TODO] Task 255: Add tests and docs for unresolved ORDER auto-generation handoff
+
+- Files: tests/test_pattern_generation.py, tests/test_gmail_order_phase4.py, docs/pattern-generation.md
+
+Cover:
+- unresolved known-profile result returns `ai_template_hook`
+- runtime-disabled path does not call generation
+- enabled path maps unresolved hook into `PatternGenerationRequest`
+- duplicate protection prevents repeated generation
+
+Acceptance:
+- Auto-generation handoff behavior is documented and covered by focused tests

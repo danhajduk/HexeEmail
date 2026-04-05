@@ -33,7 +33,9 @@ from email_node.patterns import (
     PatternGenerationServiceError,
     PatternGenerationPipeline,
     PatternGenerationWriter,
+    ProbationStore,
 )
+from email_node.pipeline import OrderFlowPipeline
 from node_backend import (
     AiNodeGateway,
     BackgroundTaskManager,
@@ -144,6 +146,7 @@ class NodeService:
         self.ready = False
         self.startup_error: str | None = None
         self.gmail_order_flow = GmailOrderPhase1Processor()
+        self.probation_store = ProbationStore()
         self.runtime = RuntimeManager(self)
         self.ai_gateway = AiNodeGateway(self)
         self.onboarding = OnboardingManager(self)
@@ -153,6 +156,11 @@ class NodeService:
         self.background_tasks = BackgroundTaskManager(self)
         self.provider_registry = self.providers.build_provider_registry()
         self.email_provider_gateway = EmailProviderGateway(self)
+        self.order_pipeline = OrderFlowPipeline(
+            probation_store=self.probation_store,
+            generate_probation_template=self._generate_probation_template,
+            ai_calls_enabled=self._runtime_ai_calls_enabled,
+        )
 
     @staticmethod
     def _default_runtime_task_state() -> dict[str, object]:
@@ -177,6 +185,17 @@ class NodeService:
         return self.runtime.runtime_provider_disabled_message()
 
     async def generate_pattern_template(self, payload: PatternGenerationRequest) -> dict[str, object]:
+        return await self._generate_pattern_template(payload, writer_base_dir=None)
+
+    async def _generate_probation_template(self, payload: PatternGenerationRequest) -> dict[str, object]:
+        return await self._generate_pattern_template(payload, writer_base_dir=self.probation_store.templates_dir)
+
+    async def _generate_pattern_template(
+        self,
+        payload: PatternGenerationRequest,
+        *,
+        writer_base_dir: Path | None,
+    ) -> dict[str, object]:
         target_api_base_url = self.runtime.normalize_target_api_base_url(self.state.runtime_prompt_sync_target_api_base_url)
         client = PatternGenerationClient(
             target_api_base_url=target_api_base_url,
@@ -185,7 +204,7 @@ class NodeService:
         )
         service = PatternGenerationService(
             PatternGenerationPipeline(client),
-            PatternGenerationWriter(),
+            PatternGenerationWriter(base_dir=writer_base_dir),
         )
         try:
             return await service.generate(payload)
@@ -1601,6 +1620,22 @@ class NodeService:
                     "fetch_status": normalized.fetch_status,
                     "decode_status": normalized.decode_state.status,
                     "selected_body_type": normalized.selected_body_type,
+                }
+            },
+        )
+        pipeline_result = await self.order_pipeline.process_normalized_email(normalized)
+        phase4 = pipeline_result["phase4"]
+        LOGGER.info(
+            "ORDER Phase 2-4 pipeline completed",
+            extra={
+                "event_data": {
+                    "account_id": account_id,
+                    "message_id": message.message_id,
+                    "phase2_status": pipeline_result["phase2"].scrub_status,
+                    "phase3_profile_id": pipeline_result["phase3"].profile_id,
+                    "phase4_status": phase4.extraction_status,
+                    "phase4_template_id": phase4.template_id,
+                    "phase4_diagnostics": phase4.template_diagnostics,
                 }
             },
         )
