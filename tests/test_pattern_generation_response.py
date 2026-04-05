@@ -56,22 +56,23 @@ def test_pattern_generation_response_rejects_extra_top_level_keys():
         )
 
 
-def test_pattern_generation_response_rejects_missing_vendor_identity():
-    with pytest.raises(ValidationError):
-        PatternGenerationResponse.model_validate(
-            {
-                "schema_version": "order-phase4-template.v1",
-                "template_id": "amazon_order_confirmation.v1",
-                "profile_id": "amazon_order_confirmation",
-                "template_version": "v1",
-                "enabled": True,
-                "match": {},
-                "extract": {},
-                "required_fields": [],
-                "confidence_rules": {"high_requires": []},
-                "post_process": {},
-            }
-        )
+def test_pattern_generation_response_accepts_empty_match_object():
+    payload = PatternGenerationResponse.model_validate(
+        {
+            "schema_version": "order-phase4-template.v1",
+            "template_id": "amazon_order_confirmation.v1",
+            "profile_id": "amazon_order_confirmation",
+            "template_version": "v1",
+            "enabled": True,
+            "match": {},
+            "extract": {},
+            "required_fields": [],
+            "confidence_rules": {"high_requires": []},
+            "post_process": {},
+        }
+    )
+
+    assert payload.match.vendor_identity is None
 
 
 def test_pattern_generation_response_rejects_invalid_extract_rule_shape():

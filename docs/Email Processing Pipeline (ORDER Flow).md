@@ -113,22 +113,28 @@ Status: `[DONE]`
 
 Status: `[PARTIAL]`
 
-14. Send cleaned_text + metadata to AI. `[TODO]`
-15. Request: `[TODO]`
+14. Build an AI pattern-generation request from cleaned_text + metadata. `[DONE]`
+15. Request probation pattern generation from AI when enabled and no active template exists. `[DONE]`
 
-* profile classification
-* candidate JSON pattern
+* candidate JSON pattern `[DONE]`
+* probation template id/profile binding `[DONE]`
 
 16. Validate JSON schema. `[DONE]`
 
-17. Run pattern on same email. `[TODO]`
+17. Run the generated or existing probation pattern on the same email. `[DONE]`
 
-18. Compute confidence score. `[TODO]`
+18. Compute confidence score. `[DONE]`
 
-19. Store pattern as: `[TODO]`
+19. Store pattern as: `[DONE]`
 
-* `patterns/draft/`
-* or `patterns/probation/`
+* `patterns/probation/` `[DONE]`
+* `patterns/draft/` `[TODO]`
+
+Current implementation note:
+
+* if no active Phase 4 template exists, the pipeline can create or reuse a probation template
+* existing probation templates are now applied as a low-confidence `partial` extraction result instead of leaving the message fully `unresolved`
+* probation templates remain separate from active templates until they satisfy promotion rules
 
 ---
 
@@ -150,17 +156,17 @@ Status: `[PARTIAL]`
 
 ### Phase 6 — Decision
 
-Status: `[TODO]`
+Status: `[PARTIAL]`
 
-22. If confidence HIGH: `[TODO]`
+22. If confidence HIGH: `[PARTIAL]`
 
 * persist structured data
 * trigger downstream actions
 
-23. If confidence MEDIUM: `[TODO]`
+23. If confidence MEDIUM: `[PARTIAL]`
 
-* optional AI fallback extraction
-* mark as probation
+* optional AI fallback extraction `[PARTIAL]`
+* mark as probation `[DONE]`
 
 24. If confidence LOW: `[TODO]`
 
@@ -232,8 +238,8 @@ Status: `[PARTIAL]`
 AI responsibilities:
 
 * classify email `[TODO]`
-* generate JSON pattern `[PARTIAL]`
-* fallback extraction `[TODO]`
+* generate JSON pattern `[DONE]`
+* fallback extraction through probation templates `[PARTIAL]`
 
 AI must NOT:
 
@@ -307,7 +313,7 @@ email_node/
 
 * Vendor-specific optimizations (Amazon, FedEx, UPS) `[PARTIAL]`
 * Multi-email pattern validation `[TODO]`
-* Pattern auto-promotion from probation → active `[TODO]`
+* Pattern auto-promotion from probation → active `[PARTIAL]`
 * Cost-aware AI fallback thresholds `[TODO]`
 * Event-driven notifications `[TODO]`
 

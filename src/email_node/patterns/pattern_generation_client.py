@@ -86,6 +86,9 @@ class PatternGenerationClient:
     @staticmethod
     def _parse_json_only_output(raw_output: object) -> dict[str, object]:
         if isinstance(raw_output, dict):
+            text_payload = raw_output.get("text")
+            if isinstance(text_payload, str):
+                return PatternGenerationClient._parse_json_only_output(text_payload)
             return raw_output
         if not isinstance(raw_output, str):
             raise PatternGenerationParseError("AI response output must be a JSON object or JSON string")

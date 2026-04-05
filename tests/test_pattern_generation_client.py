@@ -72,6 +72,32 @@ async def test_pattern_generation_client_calls_ai_node_and_returns_parsed_json(t
 
 
 @pytest.mark.asyncio
+async def test_pattern_generation_client_unwraps_text_wrapped_json_object(tmp_path):
+    prompt_path = tmp_path / "prompt.json"
+    prompt_path.write_text(json.dumps(build_prompt_definition()), encoding="utf-8")
+
+    client = PatternGenerationClient(
+        target_api_base_url="http://127.0.0.1:9002",
+        prompt_definition_path=prompt_path,
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                200,
+                json={
+                    "status": "completed",
+                    "output": {
+                        "text": "{\"template_id\":\"wrapped-success\"}",
+                    },
+                },
+            )
+        ),
+    )
+
+    result = await client.generate_pattern(build_request())
+
+    assert result == {"template_id": "wrapped-success"}
+
+
+@pytest.mark.asyncio
 async def test_pattern_generation_client_retries_once_when_json_parse_fails(tmp_path):
     prompt_path = tmp_path / "prompt.json"
     prompt_path.write_text(json.dumps(build_prompt_definition()), encoding="utf-8")

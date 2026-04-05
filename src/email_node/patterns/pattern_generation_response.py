@@ -79,14 +79,16 @@ ExtractRule = Annotated[
 class PatternGenerationMatch(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    vendor_identity: str
+    vendor_identity: str | None = None
 
     @field_validator("vendor_identity")
     @classmethod
-    def validate_vendor_identity(cls, value: str) -> str:
+    def validate_vendor_identity(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
         stripped = value.strip()
         if not stripped:
-            raise ValueError("vendor_identity must not be empty")
+            return None
         return stripped
 
 

@@ -91,6 +91,34 @@ async def test_pattern_generation_pipeline_normalizes_null_arrays_and_post_proce
 
 
 @pytest.mark.asyncio
+async def test_pattern_generation_pipeline_drops_unsupported_match_keys():
+    pipeline = PatternGenerationPipeline(
+        FakeClient(
+            {
+                "schema_version": "order-phase4-template.v1",
+                "template_id": "amazon_order_confirmation.v1",
+                "profile_id": "amazon_order_confirmation",
+                "template_version": "v1",
+                "enabled": True,
+                "match": {
+                    "vendor_identity": "amazon",
+                    "from_email": "auto-confirm@amazon.com",
+                    "subject_contains": "Your Amazon order",
+                },
+                "extract": {},
+                "required_fields": [],
+                "confidence_rules": {"high_requires": []},
+                "post_process": {},
+            }
+        )
+    )
+
+    result = await pipeline.generate_template(build_request())
+
+    assert result.match.vendor_identity == "amazon"
+
+
+@pytest.mark.asyncio
 async def test_pattern_generation_pipeline_fails_on_schema_mismatch():
     pipeline = PatternGenerationPipeline(
         FakeClient(

@@ -62,6 +62,48 @@ class OrderFlowPipeline:
     async def attach_probation_template(self, phase4):
         if not self._should_attempt_probation(phase4):
             return phase4
+        existing_state = self.probation_store.find_state(
+            profile_id=getattr(phase4, "profile_id", None),
+            vendor_identity=getattr(phase4, "vendor_identity", None),
+            status="probation",
+        )
+        if existing_state is not None:
+            evaluation = self.probation_evaluator.evaluate(phase4.phase3_reference, template_id=existing_state.template_id)
+            updated_state = ProbationMetrics.update_state(existing_state, evaluation)
+            updated_state = updated_state.model_copy(
+                update={
+                    "last_generation_attempt_at": datetime.now(UTC),
+                    "last_generation_result": "skipped_existing_probation",
+                }
+            )
+            updated_state = self.probation_promotion.evaluate_and_apply(updated_state)
+            self.probation_store.save_state(updated_state)
+            LOGGER.info(
+                "Probation template evaluated",
+                extra={
+                    "event_data": {
+                        "template_id": existing_state.template_id,
+                        "message_id": phase4.message_id,
+                        "hard_failure": evaluation.hard_failure,
+                        "sample_count": updated_state.sample_count,
+                        "status": updated_state.status,
+                    }
+                },
+            )
+            promotion_suffix = updated_state.status
+            updated_phase4 = phase4.model_copy(
+                update={
+                    "template_diagnostics": list(phase4.template_diagnostics)
+                    + [
+                        f"probation_template:existing:{existing_state.template_id}",
+                        f"probation_template:evaluated:{existing_state.template_id}:{'hard_failure' if evaluation.hard_failure else 'ok'}",
+                        f"probation_template:state:{existing_state.template_id}:{promotion_suffix}",
+                    ]
+                }
+            )
+            if evaluation.extraction_succeeded and evaluation.extracted_fields:
+                updated_phase4 = self._apply_probation_template(updated_phase4, template_id=existing_state.template_id)
+            return updated_phase4
         if not self.unresolved_generation_enabled():
             return phase4.model_copy(
                 update={
@@ -92,46 +134,6 @@ class OrderFlowPipeline:
                 update={
                     "template_diagnostics": list(phase4.template_diagnostics)
                     + [f"probation_template:request_build_failed:{exc}"]
-                }
-            )
-
-        existing_state = self.probation_store.find_state(
-            profile_id=request.profile_id,
-            vendor_identity=request.vendor_identity,
-            status="probation",
-        )
-        if existing_state is not None:
-            evaluation = self.probation_evaluator.evaluate(phase4.phase3_reference, template_id=existing_state.template_id)
-            updated_state = ProbationMetrics.update_state(existing_state, evaluation)
-            updated_state = updated_state.model_copy(
-                update={
-                    "last_generation_attempt_at": datetime.now(UTC),
-                    "last_generation_result": "skipped_existing_probation",
-                }
-            )
-            updated_state = self.probation_promotion.evaluate_and_apply(updated_state)
-            self.probation_store.save_state(updated_state)
-            LOGGER.info(
-                "Probation template evaluated",
-                extra={
-                    "event_data": {
-                        "template_id": existing_state.template_id,
-                        "message_id": phase4.message_id,
-                        "hard_failure": evaluation.hard_failure,
-                        "sample_count": updated_state.sample_count,
-                        "status": updated_state.status,
-                    }
-                },
-            )
-            promotion_suffix = updated_state.status
-            return phase4.model_copy(
-                update={
-                    "template_diagnostics": list(phase4.template_diagnostics)
-                    + [
-                        f"probation_template:existing:{existing_state.template_id}",
-                        f"probation_template:evaluated:{existing_state.template_id}:{'hard_failure' if evaluation.hard_failure else 'ok'}",
-                        f"probation_template:state:{existing_state.template_id}:{promotion_suffix}",
-                    ]
                 }
             )
 
@@ -179,6 +181,83 @@ class OrderFlowPipeline:
         return phase4.model_copy(
             update={
                 "template_diagnostics": list(phase4.template_diagnostics) + [f"probation_template:created:{template_id}"]
+            }
+        )
+
+    def _apply_probation_template(self, phase4, *, template_id: str):
+        template = self.probation_store.load_template_payload(template_id)
+        if not isinstance(template, dict):
+            return phase4.model_copy(
+                update={
+                    "template_diagnostics": list(phase4.template_diagnostics)
+                    + [f"probation_template:apply_skipped_missing_template:{template_id}"]
+                }
+            )
+        working, intake_error = self.phase4_extractor.build_working_object(phase4.phase3_reference)
+        if working is None:
+            return phase4.model_copy(
+                update={
+                    "template_diagnostics": list(phase4.template_diagnostics)
+                    + [f"probation_template:apply_failed:{template_id}:{intake_error or 'phase3_not_ready'}"]
+                }
+            )
+
+        extracted_fields, field_diagnostics, template_execution_diagnostics = self.phase4_extractor.run_template(working, template)
+        required_fields = template.get("required_fields", [])
+        extracted_fields, validation_diagnostics = self.phase4_extractor.validate_fields(
+            extracted_fields,
+            required_fields=required_fields,
+        )
+        confidence, _, confidence_diagnostics, extraction_status = self.phase4_extractor.score_extraction_confidence(
+            extracted_fields,
+            required_fields=required_fields,
+        )
+        if extraction_status not in {"success", "partial"} or not extracted_fields:
+            return phase4.model_copy(
+                update={
+                    "template_diagnostics": list(phase4.template_diagnostics)
+                    + [f"probation_template:apply_skipped_unusable:{template_id}"]
+                }
+            )
+
+        probation_confidence = round(min(max(confidence, 0.0), 0.49), 2)
+        template_diagnostics = [
+            item
+            for item in list(phase4.template_diagnostics)
+            if item != "template_execution:skipped_no_template" and item != "confidence:unresolved_no_template"
+        ]
+        template_diagnostics.extend(
+            template_execution_diagnostics
+            + validation_diagnostics
+            + confidence_diagnostics
+            + [f"probation_template:applied:{template_id}"]
+        )
+        stage_statuses = {
+            **dict(phase4.stage_statuses),
+            "template_execution": "partial",
+            "field_validation": "partial",
+            "confidence_scoring": "partial",
+        }
+        stage_diagnostics = {
+            **dict(phase4.stage_diagnostics),
+            "template_execution": self.phase4_extractor._diagnostics(template_execution_diagnostics),
+            "field_validation": self.phase4_extractor._diagnostics(validation_diagnostics),
+            "confidence_scoring": self.phase4_extractor._diagnostics(
+                confidence_diagnostics + [f"confidence_downgrade:probation_template:{template_id}"]
+            ),
+        }
+        return phase4.model_copy(
+            update={
+                "template_id": template_id,
+                "template_version": str(template.get("template_version") or phase4.template_version or "v1"),
+                "extraction_status": "partial",
+                "extraction_confidence": probation_confidence,
+                "extraction_confidence_level": "low",
+                "extracted_fields": extracted_fields,
+                "field_diagnostics": field_diagnostics + validation_diagnostics,
+                "template_diagnostics": template_diagnostics,
+                "stage_statuses": stage_statuses,
+                "stage_diagnostics": stage_diagnostics,
             }
         )
 

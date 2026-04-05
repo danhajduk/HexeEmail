@@ -24,6 +24,16 @@ class PatternGenerationPipeline:
     @staticmethod
     def normalize_payload(raw_payload: dict[str, object]) -> dict[str, object]:
         payload = deepcopy(raw_payload)
+        match = payload.get("match")
+        if match is None:
+            payload["match"] = {}
+        elif isinstance(match, dict):
+            vendor_identity = match.get("vendor_identity")
+            payload["match"] = (
+                {"vendor_identity": vendor_identity}
+                if isinstance(vendor_identity, str) and vendor_identity.strip()
+                else {}
+            )
         if payload.get("post_process") is None:
             payload["post_process"] = {}
         if payload.get("required_fields") is None:
