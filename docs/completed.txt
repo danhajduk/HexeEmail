@@ -218,3 +218,15 @@ Task 210: Add focused frontend tests for extracted helpers and feature modules i
 Task 211: Create the email-node standard compliance summary - Completed on 04/04/2026 16:46
 Task 212: Create the email-node standards compliance appendix - Completed on 04/04/2026 16:46
 Task 213: Run the final standards verification pass and reconcile the task tracker - Completed on 04/04/2026 16:46
+Task 214: Audit the current email-node runtime prompt sync and authorization flow against the updated Hexe AI Node prompt lifecycle/access policy and canonical prompt route family - Completed on 04/04/2026 19:45
+Task 215: Extend the local runtime prompt definition contract with lifecycle/access metadata placeholders - Completed on 04/04/2026 19:45
+Task 216: Update prompt sync so PUT is the canonical path for existing remote prompt updates - Completed on 04/04/2026 19:45
+Task 217: Preserve lifecycle-aware prompt sync behavior for review_due, restricted, and probation states - Completed on 04/04/2026 19:45
+Task 218: Add local support for prompt review and review-due migration routes - Completed on 04/04/2026 19:45
+Task 219: Add operator-triggered review-due migration support and persist migration result in runtime state - Completed on 04/04/2026 19:45
+Task 220: Extend runtime prompt sync/report output with lifecycle-aware action reporting - Completed on 04/04/2026 19:45
+Task 221: Recheck caller-aware authorize/direct execution payload fields for prompt access - Completed on 04/04/2026 19:45
+Task 222: Treat review_due as operator-visible but execution-capable and improve denial error surfacing - Completed on 04/04/2026 19:45
+Task 223: Recheck lifecycle/status surfaces against updated AI-node startup-resume and capability-setup notes - Completed on 04/04/2026 19:45
+Task 224: Add focused tests for prompt sync, update, review, migration, and lifecycle-aware reporting - Completed on 04/04/2026 19:45
+Task 225: Update repo docs for the prompt lifecycle/access contract alignment - Completed on 04/04/2026 19:45

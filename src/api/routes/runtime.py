@@ -7,6 +7,7 @@ from node_models.runtime import (
     CoreServiceResolveRequestInput,
     RuntimePromptExecutionRequestInput,
     RuntimeDirectExecutionRequestInput,
+    RuntimePromptReviewRequestInput,
     RuntimeTaskSettingsInput,
     RuntimePromptSyncRequestInput,
     TaskRoutingRequestInput,
@@ -58,6 +59,16 @@ def build_runtime_router(node_service: NodeService) -> APIRouter:
     async def runtime_sync_prompts(payload: RuntimePromptSyncRequestInput, request: Request):
         try:
             return await node_service.runtime_sync_prompts(
+                payload,
+                correlation_id=request.headers.get("X-Correlation-Id"),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=getattr(exc, "detail", str(exc))) from exc
+
+    @router.post("/api/runtime/prompts/review")
+    async def runtime_review_prompt(payload: RuntimePromptReviewRequestInput, request: Request):
+        try:
+            return await node_service.runtime_review_prompt(
                 payload,
                 correlation_id=request.headers.get("X-Correlation-Id"),
             )

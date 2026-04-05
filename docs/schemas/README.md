@@ -24,6 +24,7 @@ The current schema set covers:
 
 - [runtime-prompt-definition.schema.json](/home/dan/Projects/HexeEmail/docs/schemas/runtime-prompt-definition.schema.json)
   Generic schema for the node-owned prompt definition files in `src/runtime_prompts/`.
+  This now includes AI-node-facing lifecycle/access metadata such as `execution_policy.access_scope`, optional `execution_policy.allowed_callers`, and `review_policy` placeholders used during prompt-service alignment.
 
 - [prompt.email.classifier.output.schema.json](/home/dan/Projects/HexeEmail/docs/schemas/prompt.email.classifier.output.schema.json)
   Structured output schema for `prompt.email.classifier`.
@@ -42,3 +43,4 @@ The current schema set covers:
 - The two catalog files are valid JSON Schema documents that use `$defs` to hold the individual model schemas.
 - Runtime artifacts such as local OAuth session files, token records, mailbox state files, and stored-message records are covered through the generated model catalogs.
 - This folder now covers the node-owned schema surfaces I could verify from the current repository state. It does not attempt to mirror Core-owned schemas.
+- The runtime prompt definition schema is intentionally node-owned even though it carries AI-node-facing metadata, because the JSON prompt definition files live in this repository and are the local source of truth for prompt registration.

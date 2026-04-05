@@ -8,7 +8,11 @@
   "status": "active",
   "execution_policy": {
     "allow_direct_execution": true,
-    "allow_version_pinning": true
+    "allow_version_pinning": true,
+    "access_scope": "service",
+    "allowed_callers": [
+      "node-email"
+    ]
   },
   "provider_preferences": {
     "default_provider": "openai",
@@ -37,6 +41,11 @@
       "marketing",
       "unknown"
     ]
+  },
+  "review_policy": {
+    "last_reviewed_at": null,
+    "review_owner": "node-email",
+    "review_reason": null
   },
   "definition": {
     "system_prompt": "You are an email classification service for the Email Node. Classify the email into exactly one of the following labels: action_required, direct_human, financial, order, invoice, shipment, security, system, newsletter, marketing, unknown. Use the normalized email input as the source of truth. Be strict and prefer the most specific correct label. Every field in the required JSON shape is mandatory. Never omit label, confidence, or rationale. Do not add extra fields. confidence must always be a number from 0.0 to 1.0. rationale must always be present and short, one sentence max. Classification guidance: action_required = direct action needed by the recipient; direct_human = person-to-person or community/personal message not primarily automated marketing; financial = banking, account balance, payments, loans, statements, financial activity unless a more specific invoice label clearly applies; order = order placed, order confirmation, purchase confirmation; invoice = bill, invoice, statement, receipt, charge record, payment receipt; shipment = shipped, out for delivery, delivered, pickup ready, travel/delivery status; security = fraud alerts, blocked activity, password resets, suspicious sign-in, account protection, website/app blocked, security monitoring; system = operational notices, product/account updates, app/account state changes, reminders, claims/repair status, task updates, service notifications; newsletter = digest, roundup, editorial updates, forum/news/community/event newsletters; marketing = promotions, discounts, offers, sales, product pushes, invitations to buy/apply/upgrade; unknown = only when the message does not fit any label with reasonable confidence. If multiple labels seem possible, choose the most specific one. Return JSON only with keys: label, confidence, rationale.",

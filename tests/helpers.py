@@ -38,6 +38,9 @@ def build_core_app():
     app.state.execution_direct_requests = []
     app.state.prompt_service_lifecycle_requests = []
     app.state.prompt_service_registration_requests = []
+    app.state.prompt_service_update_requests = []
+    app.state.prompt_service_review_requests = []
+    app.state.prompt_service_review_due_migration_requests = []
     app.state.prompt_services = {}
     app.state.prompt_read_missing_returns_400 = False
     app.state.action_decision_output_override = None
@@ -318,6 +321,65 @@ def build_core_app():
             "reason": payload.get("reason"),
         }
 
+    @app.put("/api/prompts/services/{prompt_id}")
+    async def update_prompt_service(prompt_id: str, payload: dict):
+        app.state.prompt_service_update_requests.append({"prompt_id": prompt_id, **payload})
+        record = app.state.prompt_services.get(prompt_id) or {}
+        current_version = payload.get("version") or record.get("current_version")
+        versions = list(record.get("versions") or [])
+        if current_version and current_version not in versions:
+            versions.append(current_version)
+        app.state.prompt_services[prompt_id] = {
+            **record,
+            "prompt_id": prompt_id,
+            "prompt_name": payload.get("prompt_name") or record.get("prompt_name"),
+            "status": payload.get("status") or record.get("status") or "active",
+            "current_version": current_version,
+            "versions": versions,
+            "review_status": payload.get("review_status") or record.get("review_status"),
+        }
+        return {
+            "ok": True,
+            "prompt_id": prompt_id,
+            "status": app.state.prompt_services[prompt_id]["status"],
+            "version": current_version,
+            "updated_at": "2026-04-04T22:05:00+00:00",
+        }
+
+    @app.post("/api/prompts/services/{prompt_id}/review")
+    async def review_prompt_service(prompt_id: str, payload: dict):
+        app.state.prompt_service_review_requests.append({"prompt_id": prompt_id, **payload})
+        record = app.state.prompt_services.get(prompt_id) or {"prompt_id": prompt_id}
+        record["review_status"] = payload.get("review_status") or record.get("review_status")
+        record["status"] = "active" if record.get("review_status") == "approved" else record.get("status", "review_due")
+        app.state.prompt_services[prompt_id] = record
+        return {
+            "ok": True,
+            "prompt_id": prompt_id,
+            "review_status": record.get("review_status"),
+            "reason": payload.get("reason"),
+            "reviewed_at": "2026-04-04T22:05:00+00:00",
+        }
+
+    @app.post("/api/prompts/services/migrations/review-due")
+    async def migrate_prompt_services_review_due():
+        app.state.prompt_service_review_due_migration_requests.append({"requested": True})
+        migrated_ids = []
+        for prompt_id, record in app.state.prompt_services.items():
+            if not isinstance(record, dict):
+                continue
+            status = record.get("status")
+            if status in {None, "", "draft"}:
+                continue
+            if status != "review_due":
+                record["status"] = "review_due"
+                migrated_ids.append(prompt_id)
+        return {
+            "ok": True,
+            "migrated_count": len(migrated_ids),
+            "migrated_prompt_ids": migrated_ids,
+        }
+
     @app.post("/api/prompts/services")
     async def register_prompt_service(payload: dict):
         app.state.prompt_service_registration_requests.append(payload)
@@ -329,6 +391,7 @@ def build_core_app():
             "status": payload.get("status") or "active",
             "current_version": payload.get("version"),
             "versions": [payload.get("version")] if payload.get("version") else [],
+            "review_status": payload.get("review_status"),
         }
         return {
             "ok": True,

@@ -60,6 +60,7 @@ from node_models.runtime import (
     CoreServiceResolveRequestInput,
     RuntimeDirectExecutionRequestInput,
     RuntimePromptExecutionRequestInput,
+    RuntimePromptReviewRequestInput,
     RuntimePromptSyncRequestInput,
     RuntimeState,
     RuntimeTaskSettingsInput,
@@ -829,13 +830,14 @@ class NodeService:
                 execution_response.raise_for_status()
                 execution_payload = execution_response.json()
         except Exception as exc:
+            error_message = self._runtime_execution_error_message(exc)
             AI_LOGGER.error(
                 "AI action decision execution failed",
                 extra={
                     "event_data": {
                         "target_api_base_url": normalized_target_base_url,
                         "message_id": message.message_id,
-                        "detail": str(exc),
+                        "detail": error_message,
                     }
                 },
             )
@@ -1905,10 +1907,32 @@ class NodeService:
     ) -> dict[str, object]:
         return await self._sync_runtime_prompts(
             target_api_base_url=payload.target_api_base_url,
+            review_due_migration=payload.review_due_migration,
             correlation_id=correlation_id,
             persist_runtime_state=True,
             sync_reason="manual",
         )
+
+    async def runtime_review_prompt(
+        self,
+        payload: RuntimePromptReviewRequestInput,
+        *,
+        correlation_id: str | None = None,
+    ) -> dict[str, object]:
+        normalized_target_base_url = self._normalize_target_api_base_url(payload.target_api_base_url)
+        result = await self._review_remote_prompt_service(
+            normalized_target_base_url,
+            prompt_id=payload.prompt_id,
+            review_status=payload.review_status,
+            reason=payload.reason,
+        )
+        return {
+            "ok": True,
+            "task_id": f"runtime-{uuid.uuid4().hex}",
+            "trace_id": correlation_id or f"runtime-{uuid.uuid4().hex}",
+            "target_api_base_url": normalized_target_base_url,
+            "review_result": result,
+        }
 
     async def update_runtime_task_settings(self, payload: RuntimeTaskSettingsInput) -> dict[str, object]:
         state = self._save_runtime_task_state(ai_calls_enabled=bool(payload.ai_calls_enabled))
@@ -1989,6 +2013,23 @@ class NodeService:
             registration_response.raise_for_status()
             return registration_response.json()
 
+    async def _update_prompt_service(
+        self,
+        target_api_base_url: str,
+        *,
+        prompt_id: str,
+        prompt_definition: dict[str, object],
+    ) -> dict[str, object]:
+        request_body = self.runtime.prompt_update_payload(prompt_definition)
+        async with httpx.AsyncClient(
+            base_url=target_api_base_url,
+            timeout=self.core_client.timeout,
+            transport=self.core_client.transport,
+        ) as client:
+            update_response = await client.put(f"/api/prompts/services/{prompt_id}", json=request_body)
+            update_response.raise_for_status()
+            return update_response.json()
+
     async def _retire_prompt_service(
         self,
         target_api_base_url: str,
@@ -2006,10 +2047,98 @@ class NodeService:
             lifecycle_response.raise_for_status()
             return lifecycle_response.json()
 
+    async def _review_remote_prompt_service(
+        self,
+        target_api_base_url: str,
+        *,
+        prompt_id: str,
+        review_status: str,
+        reason: str | None,
+    ) -> dict[str, object]:
+        payload = {"review_status": review_status, "reason": reason}
+        async with httpx.AsyncClient(
+            base_url=target_api_base_url,
+            timeout=self.core_client.timeout,
+            transport=self.core_client.transport,
+        ) as client:
+            review_response = await client.post(f"/api/prompts/services/{prompt_id}/review", json=payload)
+            review_response.raise_for_status()
+            return review_response.json()
+
+    async def _migrate_remote_prompts_to_review_due(self, target_api_base_url: str) -> dict[str, object]:
+        async with httpx.AsyncClient(
+            base_url=target_api_base_url,
+            timeout=self.core_client.timeout,
+            transport=self.core_client.transport,
+        ) as client:
+            migration_response = await client.post("/api/prompts/services/migrations/review-due")
+            migration_response.raise_for_status()
+            return migration_response.json()
+
+    @staticmethod
+    def _runtime_prompt_remote_status(remote_record: dict[str, object] | None) -> str | None:
+        if not isinstance(remote_record, dict):
+            return None
+        status = remote_record.get("status")
+        return str(status).strip() or None if status is not None else None
+
+    @staticmethod
+    def _runtime_prompt_remote_version(remote_record: dict[str, object] | None) -> str | None:
+        if not isinstance(remote_record, dict):
+            return None
+        version = remote_record.get("current_version")
+        return str(version).strip() or None if version is not None else None
+
+    @classmethod
+    def _prompt_update_required(
+        cls,
+        *,
+        local_version: str,
+        remote_version: str | None,
+        remote_status: str | None,
+    ) -> bool:
+        if remote_version != local_version:
+            return True
+        if remote_status in {None, "", "retired"}:
+            return True
+        return False
+
+    @staticmethod
+    def _runtime_execution_error_message(exc: Exception) -> str:
+        message = str(exc)
+        if not isinstance(exc, httpx.HTTPStatusError) or exc.response is None:
+            return message
+        try:
+            payload = exc.response.json()
+        except Exception:
+            return message
+        if not isinstance(payload, dict):
+            return message
+        detail = payload.get("detail")
+        if isinstance(detail, dict):
+            lifecycle_state = detail.get("lifecycle_state") or detail.get("status")
+            denial_reason = detail.get("reason") or detail.get("message") or detail.get("detail")
+            if lifecycle_state:
+                if lifecycle_state == "review_due":
+                    return (
+                        "Remote prompt is in review_due state but should remain executable; "
+                        f"remote node denied execution: {denial_reason or 'no reason provided'}"
+                    )
+                return f"Remote prompt execution denied by lifecycle state {lifecycle_state}: {denial_reason or 'no reason provided'}"
+            if denial_reason:
+                return str(denial_reason)
+        if isinstance(detail, str) and detail.strip():
+            return detail.strip()
+        message_text = payload.get("message")
+        if isinstance(message_text, str) and message_text.strip():
+            return message_text.strip()
+        return message
+
     async def _sync_runtime_prompts(
         self,
         *,
         target_api_base_url: str | None,
+        review_due_migration: bool,
         correlation_id: str | None,
         persist_runtime_state: bool,
         sync_reason: str,
@@ -2019,11 +2148,15 @@ class NodeService:
         prompt_definitions = self._load_runtime_prompt_definitions()
         remote_prompt_services: list[dict[str, object]] = []
         registrations: list[dict[str, object]] = []
+        updates: list[dict[str, object]] = []
         retirements: list[dict[str, object]] = []
         sync_actions: list[dict[str, object]] = []
+        review_due_migration_result: dict[str, object] | None = None
         registration_payloads = [self._prompt_registration_payload(item) for item in prompt_definitions]
 
         try:
+            if review_due_migration:
+                review_due_migration_result = await self._migrate_remote_prompts_to_review_due(normalized_target_base_url)
             remote_prompt_services = await self._list_remote_prompt_services(normalized_target_base_url)
             for prompt_definition in prompt_definitions:
                 prompt_id = str(prompt_definition["prompt_id"])
@@ -2032,38 +2165,49 @@ class NodeService:
                     normalized_target_base_url,
                     prompt_id=prompt_id,
                 )
-                remote_version = None
-                remote_status = None
-                if isinstance(remote_record, dict):
-                    remote_version = str(remote_record.get("current_version") or "") or None
-                    remote_status = str(remote_record.get("status") or "") or None
+                remote_version = self._runtime_prompt_remote_version(remote_record)
+                remote_status = self._runtime_prompt_remote_status(remote_record)
                 if remote_record is None:
                     registration = await self._register_prompt_service(normalized_target_base_url, prompt_definition)
                     registrations.append(registration)
                     sync_actions.append(
-                        {"prompt_id": prompt_id, "action": "registered", "version": local_version, "remote_version": None}
+                        {
+                            "prompt_id": prompt_id,
+                            "action": "registered",
+                            "version": local_version,
+                            "remote_version": None,
+                            "remote_status": None,
+                        }
                     )
                     continue
-                if remote_version == local_version and remote_status == "active":
+                if not self._prompt_update_required(
+                    local_version=local_version,
+                    remote_version=remote_version,
+                    remote_status=remote_status,
+                ):
                     sync_actions.append(
-                        {"prompt_id": prompt_id, "action": "unchanged", "version": local_version, "remote_version": remote_version}
+                        {
+                            "prompt_id": prompt_id,
+                            "action": "unchanged",
+                            "version": local_version,
+                            "remote_version": remote_version,
+                            "remote_status": remote_status,
+                        }
                     )
                     continue
-                if remote_status != "retired":
-                    retirement = await self._retire_prompt_service(
-                        normalized_target_base_url,
-                        prompt_id=prompt_id,
-                        reason=f"Replacing {remote_version or 'unknown'} with {local_version} from node prompt JSON.",
-                    )
-                    retirements.append(retirement)
-                registration = await self._register_prompt_service(normalized_target_base_url, prompt_definition)
-                registrations.append(registration)
+                update_result = await self._update_prompt_service(
+                    normalized_target_base_url,
+                    prompt_id=prompt_id,
+                    prompt_definition=prompt_definition,
+                )
+                updates.append(update_result)
                 sync_actions.append(
                     {
                         "prompt_id": prompt_id,
-                        "action": "replaced",
+                        "action": "updated",
                         "version": local_version,
                         "remote_version": remote_version,
+                        "remote_status": remote_status,
                     }
                 )
         except Exception as exc:
@@ -2092,6 +2236,11 @@ class NodeService:
                     started_at=current.get("started_at") or now,
                     updated_at=now,
                 )
+                if review_due_migration:
+                    self.state.runtime_prompt_review_due_migration_last_run_at = datetime.now().astimezone()
+                    self.state.runtime_prompt_review_due_migration_target_api_base_url = normalized_target_base_url
+                    self.state.runtime_prompt_review_due_migration_result = response_payload or {"message": message}
+                    self.state_store.save(self.state)
             error = ValueError(message)
             error.detail = {
                 "message": message,
@@ -2103,6 +2252,10 @@ class NodeService:
         if sync_reason == "manual":
             self.state.runtime_prompt_sync_target_api_base_url = normalized_target_base_url
             self.state.runtime_prompt_sync_weekly_slot_key = self._prompt_sync_weekly_slot_key(datetime.now().astimezone())
+            if review_due_migration:
+                self.state.runtime_prompt_review_due_migration_last_run_at = datetime.now().astimezone()
+                self.state.runtime_prompt_review_due_migration_target_api_base_url = normalized_target_base_url
+                self.state.runtime_prompt_review_due_migration_result = review_due_migration_result or {}
             self.state_store.save(self.state)
         result = {
             "ok": True,
@@ -2112,22 +2265,24 @@ class NodeService:
             "request_payload": {"prompts": registration_payloads},
             "remote_prompt_services": remote_prompt_services,
             "registrations": registrations,
+            "updates": updates,
             "retirements": retirements,
             "sync_actions": sync_actions,
+            "review_due_migration_result": review_due_migration_result,
             "usage_summary": None,
         }
         if persist_runtime_state:
             now = datetime.now(UTC).isoformat()
             current = self._runtime_task_state()
             registered_count = sum(1 for item in sync_actions if item.get("action") == "registered")
-            replaced_count = sum(1 for item in sync_actions if item.get("action") == "replaced")
+            updated_count = sum(1 for item in sync_actions if item.get("action") == "updated")
             unchanged_count = sum(1 for item in sync_actions if item.get("action") == "unchanged")
             self._save_runtime_task_state(
                 request_status="registered",
                 last_step="register",
                 detail=(
                     f"Prompt sync completed: {registered_count} registered, "
-                    f"{replaced_count} replaced, {unchanged_count} unchanged."
+                    f"{updated_count} updated, {unchanged_count} unchanged."
                 ),
                 preview_response=current.get("preview_response"),
                 resolve_response=current.get("resolve_response"),
@@ -2135,8 +2290,10 @@ class NodeService:
                 registration_request_payload=result["request_payload"],
                 execution_response={
                     "registrations": registrations,
+                    "updates": updates,
                     "retirements": retirements,
                     "sync_actions": sync_actions,
+                    "review_due_migration_result": review_due_migration_result,
                 },
                 usage_summary_response=None,
                 started_at=current.get("started_at") or now,
@@ -2162,6 +2319,7 @@ class NodeService:
             return
         await self._sync_runtime_prompts(
             target_api_base_url=target_api_base_url,
+            review_due_migration=False,
             correlation_id=None,
             persist_runtime_state=False,
             sync_reason="weekly",
@@ -2734,6 +2892,7 @@ class NodeService:
                 execution_response.raise_for_status()
                 execution_payload = execution_response.json()
         except Exception as exc:
+            error_message = self._runtime_execution_error_message(exc)
             AI_LOGGER.error(
                 "AI classifier execution failed",
                 extra={
@@ -2741,11 +2900,11 @@ class NodeService:
                         "target_api_base_url": normalized_target_base_url,
                         "message_id": message.message_id,
                         "task_id": task_id,
-                        "detail": str(exc),
+                        "detail": error_message,
                     }
                 },
             )
-            raise ValueError(str(exc)) from exc
+            raise ValueError(error_message) from exc
 
         classifier_output = self._parse_classifier_output(
             execution_payload.get("output") if isinstance(execution_payload, dict) else None

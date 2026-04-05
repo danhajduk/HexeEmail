@@ -79,6 +79,16 @@ class RuntimePromptSyncRequestInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     target_api_base_url: str | None = None
+    review_due_migration: bool = False
+
+
+class RuntimePromptReviewRequestInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    target_api_base_url: str | None = None
+    prompt_id: str
+    review_status: str = "approved"
+    reason: str | None = None
 
 
 class RuntimeTaskSettingsInput(BaseModel):
@@ -131,6 +141,9 @@ class RuntimeState(BaseModel):
     runtime_prompt_sync_target_api_base_url: str | None = None
     runtime_prompt_sync_weekly_slot_key: str | None = None
     runtime_prompt_sync_last_scheduled_at: datetime | None = None
+    runtime_prompt_review_due_migration_last_run_at: datetime | None = None
+    runtime_prompt_review_due_migration_target_api_base_url: str | None = None
+    runtime_prompt_review_due_migration_result: dict[str, object] = Field(default_factory=dict)
     runtime_monthly_authorize_slot_key: str | None = None
     runtime_monthly_authorize_last_run_at: datetime | None = None
     gmail_hourly_batch_classification_slot_key: str | None = None

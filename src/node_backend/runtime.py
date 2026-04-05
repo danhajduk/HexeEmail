@@ -86,6 +86,14 @@ class RuntimeManager:
         return payload
 
     @staticmethod
+    def prompt_update_payload(prompt_definition: dict[str, object]) -> dict[str, object]:
+        payload = RuntimeManager.prompt_registration_payload(prompt_definition)
+        payload.pop("prompt_id", None)
+        payload.pop("service_id", None)
+        payload.pop("task_family", None)
+        return payload
+
+    @staticmethod
     def normalize_target_api_base_url(target_api_base_url: str | None) -> str:
         target_base_url = str(target_api_base_url or "http://127.0.0.1:9002").strip().rstrip("/")
         return target_base_url[:-4] if target_base_url.endswith("/api") else target_base_url

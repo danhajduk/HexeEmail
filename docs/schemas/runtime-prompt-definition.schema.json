@@ -46,8 +46,23 @@
     "execution_policy": {
       "additionalProperties": false,
       "properties": {
+        "access_scope": {
+          "enum": [
+            "private",
+            "service",
+            "shared",
+            "public"
+          ],
+          "type": "string"
+        },
         "allow_direct_execution": {
           "type": "boolean"
+        },
+        "allowed_callers": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         "allow_version_pinning": {
           "type": "boolean"
@@ -61,6 +76,30 @@
     },
     "metadata": {
       "additionalProperties": true,
+      "type": "object"
+    },
+    "review_policy": {
+      "additionalProperties": false,
+      "properties": {
+        "last_reviewed_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "review_owner": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "review_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
       "type": "object"
     },
     "node_runtime": {

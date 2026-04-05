@@ -48,6 +48,6 @@ Standards reference:
 - Main standard entrypoint: `/home/dan/Projects/Hexe/docs/standards/Node/README.md`
 - Detailed standards folder: `/home/dan/Projects/Hexe/docs/standards/Node/`
 
-## Continue at Task 214
+## Continue at Task 226
 
 [STOP HERE]

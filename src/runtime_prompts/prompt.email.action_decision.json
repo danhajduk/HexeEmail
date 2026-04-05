@@ -7,7 +7,11 @@
   "privacy_class": "restricted",
   "execution_policy": {
     "allow_direct_execution": true,
-    "allow_version_pinning": true
+    "allow_version_pinning": true,
+    "access_scope": "service",
+    "allowed_callers": [
+      "node-email"
+    ]
   },
   "provider_preferences": {
     "default_provider": "openai",
@@ -56,6 +60,11 @@
     "delegated_by": "node-email",
     "intended_executor": "node-ai",
     "canonical_label_source": "GmailTrainingLabel"
+  },
+  "review_policy": {
+    "last_reviewed_at": null,
+    "review_owner": "node-email",
+    "review_reason": null
   },
   "node_runtime": {
     "timeout_s": 45,

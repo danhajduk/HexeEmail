@@ -52,12 +52,20 @@ Compatibility wrappers:
 ## Runtime operations currently exposed
 
 - prompt sync: `POST /api/runtime/prompts/sync`
+- prompt review: `POST /api/runtime/prompts/review`
 - runtime settings: `POST /api/runtime/settings`
 - classifier execution routes under `/api/runtime/*`
 - task preview/resolve/authorize routes under:
   - `/api/tasks/routing/preview`
   - `/api/core/services/resolve`
   - `/api/core/services/authorize`
+
+Prompt admin notes:
+
+- use `POST /api/runtime/prompts/sync` for normal runtime prompt reconciliation with the AI node
+- set `review_due_migration=true` on the sync request when you want the remote AI node to migrate legacy prompt records into the `review_due` lifecycle before reconciliation
+- use `POST /api/runtime/prompts/review` when an operator wants to approve or otherwise review a specific remote prompt lifecycle record
+- the last review-due migration target and result are persisted in runtime state for operator visibility
 
 ## Existing detailed runbooks
 

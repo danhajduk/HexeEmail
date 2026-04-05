@@ -82,6 +82,7 @@ Canonical:
 - `POST /api/tasks/routing/preview`
 - `POST /api/runtime/execute-authorized-task`
 - `POST /api/runtime/prompts/sync`
+- `POST /api/runtime/prompts/review`
 - `POST /api/runtime/settings`
 - `POST /api/runtime/execute-email-classifier`
 - `POST /api/runtime/execute-email-classifier-batch`
@@ -95,6 +96,7 @@ Compatibility or transitional:
 Notes:
 
 - these two routes are still API-facing and useful, but they are Core-routing compatibility/domain-crossing routes rather than clean node-runtime ownership paths
+- prompt sync now maps to the AI-node prompt-service contract where missing prompts use `POST /api/prompts/services`, existing prompt IDs use `PUT /api/prompts/services/{prompt_id}`, and prompt review/migration flows use the newer review endpoints on the AI node side
 
 ## Services
 
