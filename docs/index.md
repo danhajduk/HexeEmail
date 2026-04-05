@@ -27,3 +27,4 @@ ORDER pipeline references:
 - [order-phase2-scrubber.md](/home/dan/Projects/HexeEmail/docs/order-phase2-scrubber.md)
 - [order-phase3-profile-detection.md](/home/dan/Projects/HexeEmail/docs/order-phase3-profile-detection.md)
 - [order-phase4-template-extraction.md](/home/dan/Projects/HexeEmail/docs/order-phase4-template-extraction.md)
+- [pattern-generation.md](/home/dan/Projects/HexeEmail/docs/pattern-generation.md)

@@ -53,6 +53,7 @@ Compatibility wrappers:
 
 - prompt sync: `POST /api/runtime/prompts/sync`
 - prompt review: `POST /api/runtime/prompts/review`
+- pattern generation: `POST /api/patterns/generate`
 - runtime settings: `POST /api/runtime/settings`
 - classifier execution routes under `/api/runtime/*`
 - task preview/resolve/authorize routes under:
@@ -72,6 +73,7 @@ Prompt admin notes:
 - [phase1-runbook.md](/home/dan/Projects/HexeEmail/docs/phase1-runbook.md)
 - [phase2-gmail-provider-runbook.md](/home/dan/Projects/HexeEmail/docs/phase2-gmail-provider-runbook.md)
 - [gmail-oauth-setup-guide.md](/home/dan/Projects/HexeEmail/docs/gmail-oauth-setup-guide.md)
+- [pattern-generation.md](/home/dan/Projects/HexeEmail/docs/pattern-generation.md)
 
 These remain useful implementation references, but this file is now the repo-level starting point.
 
