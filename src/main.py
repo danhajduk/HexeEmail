@@ -10,6 +10,7 @@ from api.routes.node import build_node_router
 from api.routes.providers_gmail import build_providers_gmail_router
 from api.routes.runtime import build_runtime_router
 from config import AppConfig
+from email_node.api.patterns import build_pattern_router
 from logging_utils import correlation_id_middleware, setup_logging
 from service import NodeService
 
@@ -39,5 +40,6 @@ def create_app(
     app.include_router(build_runtime_router(node_service))
     app.include_router(build_governance_router(node_service))
     app.include_router(build_providers_gmail_router(node_service))
+    app.include_router(build_pattern_router(node_service))
 
     return app

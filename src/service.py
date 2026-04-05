@@ -26,6 +26,14 @@ from core_client import (
     ServiceResolveRequest,
 )
 from logging_utils import get_logger
+from email_node.patterns import (
+    PatternGenerationClient,
+    PatternGenerationRequest,
+    PatternGenerationService,
+    PatternGenerationServiceError,
+    PatternGenerationPipeline,
+    PatternGenerationWriter,
+)
 from node_backend import (
     AiNodeGateway,
     BackgroundTaskManager,
@@ -167,6 +175,22 @@ class NodeService:
 
     def _runtime_provider_disabled_message(self) -> str:
         return self.runtime.runtime_provider_disabled_message()
+
+    async def generate_pattern_template(self, payload: PatternGenerationRequest) -> dict[str, object]:
+        target_api_base_url = self.runtime.normalize_target_api_base_url(self.state.runtime_prompt_sync_target_api_base_url)
+        client = PatternGenerationClient(
+            target_api_base_url=target_api_base_url,
+            transport=self.core_client.transport,
+            timeout=self.core_client.timeout,
+        )
+        service = PatternGenerationService(
+            PatternGenerationPipeline(client),
+            PatternGenerationWriter(),
+        )
+        try:
+            return await service.generate(payload)
+        except PatternGenerationServiceError as exc:
+            raise ValueError(str(exc)) from exc
 
     @staticmethod
     def _default_gmail_last_hour_pipeline_state() -> dict[str, object]:

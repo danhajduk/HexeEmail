@@ -193,3 +193,9 @@ Chosen fix: Add a thin service layer that composes the pipeline and writer, retu
 What changed: Added `src/email_node/patterns/pattern_generation_service.py`, exported it from `src/email_node/patterns/__init__.py`, and added `tests/test_pattern_generation_service.py` covering end-to-end success and structured failure propagation.
 Verification: `python -m py_compile src/email_node/patterns/__init__.py src/email_node/patterns/pattern_generation_service.py tests/test_pattern_generation_service.py` passed.
 ###########
+Task #232
+Step objective: Add the pattern generation API endpoint.
+Chosen fix: Expose a small router in `src/email_node/api/patterns.py` that accepts the request contract, delegates to a new `NodeService.generate_pattern_template()` entrypoint, and maps generation failures to a deterministic 400 response.
+What changed: Added `src/email_node/api/patterns.py` and `src/email_node/api/__init__.py`, wired the route into `src/main.py`, added `NodeService.generate_pattern_template()` in `src/service.py`, and added `tests/test_pattern_generation_api.py` covering success and failure responses.
+Verification: `python -m py_compile src/main.py src/service.py src/email_node/api/__init__.py src/email_node/api/patterns.py tests/test_pattern_generation_api.py` passed.
+###########

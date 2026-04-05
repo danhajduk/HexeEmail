@@ -49,25 +49,7 @@ Do not edit above this line:
 #######################################################################
 
 
-[WIP] Task 231: Implement pattern generation service
-
-- Create orchestration service
-- File: src/email_node/patterns/pattern_generation_service.py
-
-Flow:
-1. Build request model
-2. Call AI client
-3. Validate response
-4. Save template
-
-Return:
-- success: template_id, file_path
-- failure: structured error
-
-Acceptance:
-- End-to-end flow works from input → file
-
-[TODO] Task 232: Add API endpoint for pattern generation
+[WIP] Task 232: Add API endpoint for pattern generation
 
 - Add internal endpoint for triggering pattern creation
 - File: src/email_node/api/patterns.py
