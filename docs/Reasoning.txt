@@ -157,3 +157,9 @@ Chosen fix: Add one direct `EmailProviderGateway` test that verifies the enabled
 What changed: Expanded `tests/test_gateway_boundaries.py` with an enabled-mode `gmail_fetch_full_message_payload` passthrough test.
 Verification: `python -m py_compile tests/test_gateway_boundaries.py` passed.
 ###########
+Task #226
+Step objective: Define the pattern generation request contract.
+Chosen fix: Add a new `src/email_node/patterns/` package with a strict Pydantic request model that forbids extra keys, validates required text fields, normalizes `expected_label`, and applies the requested defaults for `template_version`, `body_html`, and `links_json`.
+What changed: Added `src/email_node/__init__.py`, `src/email_node/patterns/__init__.py`, `src/email_node/patterns/pattern_generation_request.py`, and `tests/test_pattern_generation_request.py` covering valid input, missing required fields, empty `body_text`, and empty template/profile IDs.
+Verification: `python -m py_compile src/email_node/__init__.py src/email_node/patterns/__init__.py src/email_node/patterns/pattern_generation_request.py tests/test_pattern_generation_request.py` passed. A direct runtime import check could not complete in this shell because `pydantic` is not installed in the default interpreter environment.
+###########

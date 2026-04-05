@@ -47,3 +47,227 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
+
+
+[WIP] Task 226: Define pattern generation request contract
+
+- Create request model for AI-driven pattern creation
+- File: src/email_node/patterns/pattern_generation_request.py
+
+Requirements:
+- Define a strict request schema with fields:
+  - template_id (string)
+  - profile_id (string)
+  - template_version (string, default "v1")
+  - vendor_identity (string)
+  - expected_label (string: ORDER|SHIPMENT)
+  - from_name (string)
+  - from_email (string)
+  - subject (string)
+  - received_at (string)
+  - body_text (string)
+  - body_html (string, optional)
+  - links_json (array, default [])
+
+- Add validation:
+  - required fields must be present
+  - body_text must not be empty
+  - template_id/profile_id must be non-empty strings
+
+- Add default handling:
+  - body_html -> ""
+  - links_json -> []
+
+Acceptance:
+- Model validates valid input
+- Rejects missing required fields
+- Defaults applied correctly
+[TODO] Task 227: Define pattern generation response contract
+
+- Create strict response schema for Phase 4 template
+- File: src/email_node/patterns/pattern_generation_response.py
+
+Requirements:
+- Schema must EXACTLY match:
+  - schema_version
+  - template_id
+  - profile_id
+  - template_version
+  - enabled
+  - match
+  - extract
+  - required_fields
+  - confidence_rules
+  - post_process
+
+- Validate:
+  - schema_version == "order-phase4-template.v1"
+  - template_version == "v1"
+  - match.vendor_identity exists
+  - extract is object with field rules
+  - required_fields is array
+  - confidence_rules.high_requires exists
+  - post_process exists
+
+- Reject:
+  - extra top-level keys
+  - missing required keys
+
+Acceptance:
+- Strict schema validation passes for valid template
+- Invalid shape is rejected with clear error
+
+[TODO] Task 228: Implement prompt service client for pattern creation
+
+- Extend prompt client to support pattern generation
+- File: src/email_node/patterns/pattern_generation_client.py
+
+Requirements:
+- Call prompt:
+  - prompt_id = "prompt.email.order_pattern_template_creation"
+- Send request using Task 226 model
+- Receive response as raw JSON string
+
+- Enforce:
+  - JSON-only response
+  - no markdown or text wrapping
+
+- Add retry logic:
+  - retry once if JSON parsing fails
+
+Acceptance:
+- Successfully calls AI node
+- Returns parsed JSON object or raises error
+
+[TODO] Task 229: Implement JSON parsing and validation pipeline
+
+- Create parser + validator pipeline
+- File: src/email_node/patterns/pattern_generation_pipeline.py
+
+Flow:
+1. Call AI client
+2. Parse JSON
+3. Validate against response schema
+4. Normalize structure
+
+Requirements:
+- Fail if:
+  - invalid JSON
+  - schema mismatch
+- Normalize:
+  - ensure post_process exists
+  - ensure arrays are arrays (not null)
+- Return validated template object
+
+Acceptance:
+- Valid AI output passes
+- Invalid output fails deterministically
+
+[TODO] Task 230: Implement template file writer (draft)
+
+- Save generated templates to disk
+- Directory: email_node/patterns/draft/
+
+Requirements:
+- File name format:
+  - {template_id}.json
+- Write pretty JSON (indent=2)
+- Overwrite behavior:
+  - allow overwrite only if explicitly enabled
+
+- Add metadata:
+  - add generated_at timestamp (optional if schema allows)
+  - DO NOT modify schema fields
+
+Acceptance:
+- Template saved correctly
+- File readable and valid JSON
+
+[TODO] Task 231: Implement pattern generation service
+
+- Create orchestration service
+- File: src/email_node/patterns/pattern_generation_service.py
+
+Flow:
+1. Build request model
+2. Call AI client
+3. Validate response
+4. Save template
+
+Return:
+- success: template_id, file_path
+- failure: structured error
+
+Acceptance:
+- End-to-end flow works from input → file
+
+[TODO] Task 232: Add API endpoint for pattern generation
+
+- Add internal endpoint for triggering pattern creation
+- File: src/email_node/api/patterns.py
+
+Route:
+POST /api/patterns/generate
+
+Input:
+- request model from Task 226
+
+Output:
+- success:
+  - template_id
+  - file_path
+- error:
+  - validation or generation error
+
+Acceptance:
+- Endpoint triggers full flow
+- Returns deterministic result
+
+[TODO] Task 233: Add CLI tool for pattern generation
+
+- Add CLI entry point
+- File: scripts/generate_pattern.py
+
+Usage:
+python generate_pattern.py --input sample.json
+
+Requirements:
+- Load sample email JSON
+- Call pattern generation service
+- Print:
+  - success + file path
+  - or error
+
+Acceptance:
+- CLI works end-to-end
+- Useful for batch testing
+
+[TODO] Task 234: Add logging and diagnostics
+
+- Add structured logs for:
+  - request payload (safe fields only)
+  - raw AI response (truncated)
+  - validation errors
+  - saved file path
+
+Requirements:
+- No sensitive data leakage
+- Add debug mode for full response capture
+
+Acceptance:
+- Logs allow debugging failed generations
+
+[TODO] Task 235: Add initial test coverage
+
+- Create tests for:
+  - valid generation flow
+  - invalid JSON response
+  - schema validation failure
+  - file write success
+
+Files:
+tests/test_pattern_generation.py
+
+Acceptance:
+- Tests cover success + failure paths
+- No silent failures
