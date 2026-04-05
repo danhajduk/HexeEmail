@@ -1563,9 +1563,8 @@ class NodeService:
         }
 
     async def _run_order_phase1_flow(self, *, account_id: str, message) -> None:
-        adapter = self.provider_registry.get_provider("gmail")
         normalized = await self.gmail_order_flow.fetch_and_normalize_message(
-            adapter=adapter,
+            fetch_full_message_payload=self.email_provider_gateway.gmail_fetch_full_message_payload,
             account_id=account_id,
             message_id=message.message_id,
         )

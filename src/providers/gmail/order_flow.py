@@ -31,9 +31,9 @@ class GmailOrderPhase1Error(RuntimeError):
 
 
 class GmailOrderPhase1Processor:
-    async def fetch_message(self, *, adapter, account_id: str, message_id: str) -> GmailPhase1FetchedEmail:
+    async def fetch_message(self, *, fetch_full_message_payload, account_id: str, message_id: str) -> GmailPhase1FetchedEmail:
         try:
-            payload = await adapter.fetch_full_message_payload(account_id, message_id)
+            payload = await fetch_full_message_payload(account_id, message_id)
         except Exception as exc:
             LOGGER.warning(
                 "ORDER Phase 1 full-message fetch failed",
@@ -236,8 +236,12 @@ class GmailOrderPhase1Processor:
             }
         )
 
-    async def fetch_and_normalize_message(self, *, adapter, account_id: str, message_id: str) -> GmailPhase1NormalizedEmail:
-        fetched = await self.fetch_message(adapter=adapter, account_id=account_id, message_id=message_id)
+    async def fetch_and_normalize_message(self, *, fetch_full_message_payload, account_id: str, message_id: str) -> GmailPhase1NormalizedEmail:
+        fetched = await self.fetch_message(
+            fetch_full_message_payload=fetch_full_message_payload,
+            account_id=account_id,
+            message_id=message_id,
+        )
         normalized = self.normalize_fetched_email(fetched)
         LOGGER.info(
             "ORDER Phase 1 normalization stage completed",

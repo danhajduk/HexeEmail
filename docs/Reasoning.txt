@@ -133,3 +133,9 @@ Chosen fix: Add a targeted regression test that points `PROMPT_DEFINITION_DIR` a
 What changed: Added a prompt-loader regression test in `tests/test_ui_api.py` and updated `docs/runtime.md` to note that runtime prompt loading follows `PROMPT_DEFINITION_DIR`, which defaults to `runtime/prompts`.
 Verification: `python -m py_compile tests/test_ui_api.py src/node_backend/runtime.py src/service.py src/config.py` passed. `python -m pytest tests/test_ui_api.py -k runtime_prompt_loader_reads_from_runtime_prompt_directory` could not run because `pytest` is not installed in this environment.
 ###########
+Task #105
+Step objective: Route the ORDER Phase 1 full-message fetch through `EmailProviderGateway`.
+Chosen fix: Change the Phase 1 processor to accept a fetch callback instead of a Gmail adapter, then pass `EmailProviderGateway.gmail_fetch_full_message_payload` from `NodeService` so provider-disable enforcement applies to the ORDER normalization flow too.
+What changed: Updated `src/providers/gmail/order_flow.py` and `src/service.py` so ORDER Phase 1 uses the provider gateway for remote full-message payload fetches, aligned the `tests/test_gmail_order_flow.py` test double with the new callback signature, and added a regression test in `tests/test_ui_api.py` that confirms provider-disabled mode blocks the remote fetch attempt.
+Verification: `python -m py_compile src/providers/gmail/order_flow.py src/service.py tests/test_ui_api.py tests/test_gmail_order_flow.py` passed.
+###########

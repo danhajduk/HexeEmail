@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import json
 import logging
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
+import json
 import pytest
 from fastapi import Header
 from fastapi.responses import JSONResponse
@@ -1224,6 +1225,31 @@ async def test_runtime_execute_email_classifier_rejects_when_ai_calls_disabled(c
     assert len(core_app.state.execution_direct_requests) == 0
     assert service.state.runtime_task_state["request_status"] == "failed"
     assert service.state.runtime_task_state["ai_calls_enabled"] is False
+
+
+@pytest.mark.asyncio
+async def test_order_phase1_flow_skips_remote_fetch_when_provider_calls_disabled(config, core_client_factory, monkeypatch):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    service._save_runtime_task_state(provider_calls_enabled=False)
+    remote_fetch_attempted = False
+    adapter = service.provider_registry.get_provider("gmail")
+
+    async def should_not_run(account_id: str, message_id: str) -> dict[str, object]:
+        nonlocal remote_fetch_attempted
+        remote_fetch_attempted = True
+        return {}
+
+    monkeypatch.setattr(adapter, "fetch_full_message_payload", should_not_run)
+
+    await service._run_order_phase1_flow(
+        account_id="primary",
+        message=SimpleNamespace(message_id="msg-order-1"),
+    )
+
+    await service.stop()
+
+    assert remote_fetch_attempted is False
 
 
 @pytest.mark.asyncio

@@ -445,8 +445,8 @@ async def test_order_flow_runs_from_order_classification_hook(config, core_clien
     )
     calls: list[tuple[str, str]] = []
 
-    async def fake_fetch_and_normalize_message(*, adapter, account_id: str, message_id: str):
-        del adapter
+    async def fake_fetch_and_normalize_message(*, fetch_full_message_payload, account_id: str, message_id: str):
+        del fetch_full_message_payload
         calls.append((account_id, message_id))
         return processor.normalize_fetched_email(
             processor.package_fetched_email(
