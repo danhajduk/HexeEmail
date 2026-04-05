@@ -139,3 +139,9 @@ Chosen fix: Change the Phase 1 processor to accept a fetch callback instead of a
 What changed: Updated `src/providers/gmail/order_flow.py` and `src/service.py` so ORDER Phase 1 uses the provider gateway for remote full-message payload fetches, aligned the `tests/test_gmail_order_flow.py` test double with the new callback signature, and added a regression test in `tests/test_ui_api.py` that confirms provider-disabled mode blocks the remote fetch attempt.
 Verification: `python -m py_compile src/providers/gmail/order_flow.py src/service.py tests/test_ui_api.py tests/test_gmail_order_flow.py` passed.
 ###########
+Task #105
+Step objective: Add gateway-level regression coverage for the new outbound boundaries.
+Chosen fix: Add a dedicated test file that exercises the most important gateway contracts directly: AI prompt-read 400 handling, AI disabled-mode rejection, and provider disabled-mode rejection before any adapter fetch runs.
+What changed: Added `tests/test_gateway_boundaries.py` covering `AiNodeGateway.get_prompt_service`, `AiNodeGateway.execute_direct`, and `EmailProviderGateway.gmail_fetch_full_message_payload`.
+Verification: `python -m py_compile tests/test_gateway_boundaries.py src/node_backend/ai_gateway.py src/node_backend/email_provider_gateway.py` passed.
+###########
