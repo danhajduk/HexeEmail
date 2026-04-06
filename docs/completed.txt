@@ -284,3 +284,4 @@ Task 275: Move probation lifecycle into shared subsystem - Completed on 04/06/20
 Task 276: Extract Phase 5 validation into shared validation framework - Completed on 04/06/2026 00:43
 Task 277: Create family-specific validation policies - Completed on 04/06/2026 00:50
 Task 278: Extract Phase 6 decisioning into shared decision framework - Completed on 04/06/2026 00:56
+Task 279: Create family-specific decision policy packs - Completed on 04/06/2026 01:02

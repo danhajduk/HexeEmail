@@ -47,24 +47,6 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[TODO] Task 279: Create family-specific decision policy packs
-
-- Externalize trust/action thresholds by flow family
-
-ORDER examples:
-- high/medium/low thresholds
-- probation restrictions
-- downstream action eligibility
-
-ACTION_NEEDED examples:
-- standard accept/probation/reject policy
-- optional sensitive-action handling flags
-- persistence and reminder restrictions
-
-Acceptance:
-- Decision framework loads family policy packs successfully
-- ORDER policy remains equivalent to current behavior
-
 [TODO] Task 280: Extract Phase 7 persistence and action gating into shared framework
 
 - Generalize persistence gate, action gate, and action routing interfaces

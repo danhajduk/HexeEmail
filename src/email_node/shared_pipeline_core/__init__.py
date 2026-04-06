@@ -2,6 +2,7 @@ from email_node.shared_pipeline_core.families import FlowFamilyConfig, get_flow_
 from email_node.shared_pipeline_core.phase1 import SharedEmailPhase1Interface, SharedPhase1NormalizeRequest
 from email_node.shared_pipeline_core.pipeline import SharedEmailPipelineCore
 from email_node.shared_pipeline_core.decision import SharedDecisionEngine, SharedDecisionPolicy, SharedDecisionResult
+from email_node.shared_pipeline_core.decision_packs import load_decision_policy
 from email_node.shared_pipeline_core.probation import (
     SharedProbationEvaluator,
     SharedProbationMetrics,
@@ -27,6 +28,7 @@ __all__ = [
     "SharedDecisionEngine",
     "SharedDecisionPolicy",
     "SharedDecisionResult",
+    "load_decision_policy",
     "SharedProfileDefinitionPack",
     "SharedProbationEvaluator",
     "SharedProbationEvaluationResult",

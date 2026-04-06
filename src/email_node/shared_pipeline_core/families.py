@@ -33,7 +33,7 @@ def get_flow_family_config(flow_family: FlowFamily, *, runtime_dir: Path | None 
             probation_template_dir=base_runtime_dir / "flow_families" / "order" / "probation" / "templates",
             probation_state_dir=base_runtime_dir / "flow_families" / "order" / "probation" / "state",
             validation_policy="email_node.flow_families.order.validation",
-            decision_policy="email_node.pipeline.order_decision_engine",
+            decision_policy="email_node.flow_families.order.decision",
             action_router_policy="email_node.pipeline.order_action_router",
             output_schema_family="order",
         )
@@ -46,7 +46,7 @@ def get_flow_family_config(flow_family: FlowFamily, *, runtime_dir: Path | None 
             probation_template_dir=base_runtime_dir / "flow_families" / "action_needed" / "probation_templates",
             probation_state_dir=base_runtime_dir / "flow_families" / "action_needed" / "probation_state",
             validation_policy="email_node.flow_families.action_needed.validation",
-            decision_policy="runtime/flow_families/action_needed/decision_policy.json",
+            decision_policy="email_node.flow_families.action_needed.decision",
             action_router_policy="runtime/flow_families/action_needed/action_router_policy.json",
             output_schema_family="action_needed",
         )
