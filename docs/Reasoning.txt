@@ -313,3 +313,9 @@ Chosen fix: Keep the API metadata on `kind`, but switch the Scheduled Tasks dash
 What changed: Updated `frontend/src/features/dashboard/ScheduledTasksSection.jsx`, `frontend/src/features/dashboard/dashboard.test.jsx`, and `docs/scheduler-and-background-tasks.md`, removed Task 331 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
 Verification: `npm --prefix frontend test -- --run src/features/dashboard/dashboard.test.jsx` passed. `python -m py_compile src/node_backend/scheduler.py src/service.py tests/test_ui_api.py` passed.
 ###########
+Task #332
+Step objective: Align scheduler startup, readiness gating, and shutdown handling with the standard, including restored state, trust prerequisites, and explicit stop/finalization rules.
+Chosen fix: Gate provider-affecting recurring tasks behind trusted operational readiness, re-run that gate whenever operational readiness changes, and record explicit stopped state for long-lived loop-backed tasks during scheduler shutdown.
+What changed: Updated `src/node_backend/scheduler.py`, `src/node_backend/governance.py`, `tests/test_ui_api.py`, and `docs/scheduler-and-background-tasks.md`, removed Task 332 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: `python -m py_compile src/node_backend/scheduler.py src/node_backend/governance.py tests/test_ui_api.py` passed. `PYTHONPATH=src ./.venv/bin/python -m pytest tests/test_ui_api.py -k 'scheduled_tasks or task_registry or defers_provider_loops' -q` passed.
+###########

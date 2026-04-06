@@ -19,6 +19,16 @@ The scheduled-task snapshot is now built from that registry metadata as well, so
 - `GovernanceManager`: owns post-trust readiness refresh after provider state changes.
 - `NotificationManager`: owns scheduler health notifications for Gmail fetch warning, error, and recovery transitions.
 
+## Startup And Shutdown Gating
+
+- Baseline runtime tasks (`heartbeat`, `telemetry`, `operational_mqtt_health`) start during scheduler startup.
+- Provider-affecting recurring work does not start just because the process booted.
+- Gmail status polling, Gmail fetch windows, and hourly batch classification now wait for:
+  - `trust_state == trusted`
+  - `operational_readiness == true`
+- `GovernanceManager.update_operational_readiness()` now re-syncs scheduler gating so provider loops start only after readiness becomes true and are pushed back to idle when readiness drops.
+- Scheduler shutdown now records explicit `stopped` task state for the long-lived loop-backed tasks instead of simply disappearing from memory.
+
 ## Recurring Tasks
 
 ### Baseline Runtime Tasks

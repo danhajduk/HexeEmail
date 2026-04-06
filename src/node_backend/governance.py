@@ -199,3 +199,4 @@ class GovernanceManager:
             gmail_provider_state=gmail_state,
         )
         self.service.state_store.save(self.service.state)
+        self.service.background_tasks.sync_runtime_task_gating()

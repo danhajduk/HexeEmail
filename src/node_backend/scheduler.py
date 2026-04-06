@@ -147,6 +147,9 @@ class BackgroundTaskManager:
         current["next_run_at"] = current.get("next_run_at") or self.task_next_run_at(task_id, now)
         return self.save_scheduler_task_state(task_id, **current)
 
+    def provider_work_allowed(self) -> bool:
+        return bool(self.service.state.trust_state == "trusted" and self.service.state.operational_readiness)
+
     def mark_task_running(self, task_id: str, *, detail: str, next_run_at: str | None = None) -> dict[str, object]:
         definition = self.task_definition(task_id)
         enabled = bool(definition.enabled_resolver(self)) if definition is not None else True
@@ -798,10 +801,7 @@ class BackgroundTaskManager:
             self.ensure_registry_task_state(definition.task_id)
         self.ensure_telemetry_polling()
         self.ensure_mqtt_health_polling()
-        if self.service.config.gmail_status_poll_on_startup:
-            self.ensure_gmail_status_polling()
-        if self.service.config.gmail_fetch_poll_on_startup:
-            self.ensure_gmail_fetch_polling()
+        self.sync_runtime_task_gating()
 
     async def shutdown(self) -> None:
         await self._cancel_task(self.finalize_polling_task)
@@ -809,6 +809,16 @@ class BackgroundTaskManager:
         await self._cancel_task(self.mqtt_health_task)
         await self._cancel_task(self.gmail_status_task)
         await self._cancel_task(self.gmail_fetch_task)
+        for task_id in (
+            "telemetry",
+            "operational_mqtt_health",
+            "gmail_status_polling",
+            "gmail_fetch_yesterday",
+            "gmail_fetch_today",
+            "gmail_fetch_last_hour",
+            "gmail_hourly_batch_classification",
+        ):
+            self.save_scheduler_task_state(task_id, status="stopped", detail="Task stopped during scheduler shutdown.", next_run_at=None)
 
     async def _cancel_task(self, task: asyncio.Task | None) -> None:
         if task is None:
@@ -825,6 +835,25 @@ class BackgroundTaskManager:
         if self.finalize_polling_task is None or self.finalize_polling_task.done():
             self.mark_task_running("onboarding_finalize_polling", detail="Onboarding finalize polling loop is running.")
             self.finalize_polling_task = asyncio.create_task(self.poll_finalize_loop())
+
+    def sync_runtime_task_gating(self) -> None:
+        if self.provider_work_allowed():
+            if self.service.config.gmail_status_poll_on_startup:
+                self.ensure_gmail_status_polling()
+            if self.service.config.gmail_fetch_poll_on_startup:
+                self.ensure_gmail_fetch_polling()
+            return
+
+        if self.gmail_status_task is not None and not self.gmail_status_task.done():
+            self.gmail_status_task.cancel()
+        if self.gmail_fetch_task is not None and not self.gmail_fetch_task.done():
+            self.gmail_fetch_task.cancel()
+        blocked_detail = "Provider recurring work is waiting for trusted operational readiness."
+        self.mark_task_idle("gmail_status_polling", detail=blocked_detail)
+        self.mark_task_idle("gmail_fetch_yesterday", detail=blocked_detail)
+        self.mark_task_idle("gmail_fetch_today", detail=blocked_detail)
+        self.mark_task_idle("gmail_fetch_last_hour", detail=blocked_detail)
+        self.mark_task_idle("gmail_hourly_batch_classification", detail=blocked_detail)
 
     def ensure_telemetry_polling(self) -> None:
         if self.telemetry_task is None or self.telemetry_task.done():

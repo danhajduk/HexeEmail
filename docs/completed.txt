@@ -336,3 +336,4 @@ Task 328: Add mandatory baseline recurring tasks for heartbeat, telemetry, and o
 Task 329: Persist structured scheduler task state per recurring task including current status, enabled state, last start, last completion, last success, last failure, next run, and last error - Completed on 04/06/2026 03:33
 Task 330: Refactor existing recurring loops into registry-backed scheduled tasks, including finalize polling, Gmail status polling, Gmail fetch scheduler, hourly batch classification, weekly prompt sync, and monthly authorize - Completed on 04/06/2026 03:35
 Task 331: Distinguish node-local recurring work, provider-recurring work, and any Core-leased work in scheduler task metadata and operator-facing labels - Completed on 04/06/2026 03:36
+Task 332: Align scheduler startup, readiness gating, and shutdown handling with the standard, including restored state, trust prerequisites, and explicit stop/finalization rules - Completed on 04/06/2026 03:39

@@ -98,6 +98,25 @@ async def test_service_start_can_skip_gmail_background_loops(runtime_dir, core_c
 
 
 @pytest.mark.asyncio
+async def test_service_start_defers_provider_loops_until_trusted_and_ready(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+
+    await service.start()
+
+    assert service.background_tasks.gmail_status_task is None
+    assert service.background_tasks.gmail_fetch_task is None
+
+    service.state.trust_state = "trusted"
+    service.state.operational_readiness = True
+    service.background_tasks.sync_runtime_task_gating()
+
+    assert service.background_tasks.gmail_status_task is not None
+    assert service.background_tasks.gmail_fetch_task is not None
+
+    await service.stop()
+
+
+@pytest.mark.asyncio
 async def test_ui_bootstrap_reports_mqtt_health_from_telemetry(config, core_client_factory):
     service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
     await service.start()

@@ -47,7 +47,6 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[TODO] Task 332: Align scheduler startup, readiness gating, and shutdown handling with the standard, including restored state, trust prerequisites, and explicit stop/finalization rules
 [TODO] Task 333: Update the scheduled task API/bootstrap payloads to expose the standard task fields and friendly schedule labels needed by the operator UI
 [TODO] Task 334: Update the Scheduled Tasks dashboard card to match the standard column model: Task, Kind, Schedule, Status, Last Success, Last Failure, Next Run, and Last Error
 [TODO] Task 335: Add the schedule catalog or legend sorted from shortest to longest duration, with interval_seconds sorted last when present
