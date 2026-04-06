@@ -47,7 +47,6 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[TODO] Task 317: Sample 20-30 FINANCIAL emails from the Gmail DB and derive taxonomy inputs from scrubbed content
 [TODO] Task 318: Sample 20-30 INVOICE emails from the Gmail DB and derive taxonomy inputs from scrubbed content
 [TODO] Task 319: Sample 20-30 SECURITY emails from the Gmail DB and derive taxonomy inputs from scrubbed content
 [TODO] Task 320: Sample 20-30 SHIPMENT emails from the Gmail DB and derive taxonomy inputs from scrubbed content

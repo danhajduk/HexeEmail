@@ -223,3 +223,9 @@ Chosen fix: Add one rollout-focused doc that captures family maturity, readiness
 What changed: Added `docs/multi-family-rollout-plan.md`, linked it from `docs/shared-flow-family-architecture.md`, removed Task 316 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
 Verification: `python -m py_compile src/email_node/shared_pipeline_core/families.py` passed.
 ###########
+Task #317
+Step objective: Sample 20-30 FINANCIAL emails from the Gmail DB and derive taxonomy inputs from scrubbed content.
+Chosen fix: Add one reusable mailbox-sampling script that reuses the real Phase 1, Phase 2, and Phase 3 family logic against stored Gmail payloads, including a snippet-backed fallback for list-style DB payloads, and write per-family JSON and Markdown artifacts under the family runtime directory.
+What changed: Added `scripts/sample_flow_family_mailbox.py`, generated `runtime/flow_families/financial/analysis/financial_mailbox_sample.json`, generated `runtime/flow_families/financial/analysis/financial_mailbox_sample.md`, removed Task 317 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: `python -m py_compile scripts/sample_flow_family_mailbox.py` passed. `PYTHONPATH=src ./.venv/bin/python scripts/sample_flow_family_mailbox.py financial --limit 30` passed.
+###########

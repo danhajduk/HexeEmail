@@ -1,0 +1,2084 @@
+{
+  "schema_version": "flow-family-mailbox-sample.v1",
+  "flow_family": "financial",
+  "generated_at": "2026-04-06T03:08:42.067260-07:00",
+  "sample_limit": 30,
+  "sample_size": 30,
+  "total_labelled_messages": 1193,
+  "aggregate": {
+    "phase1_validation_status_counts": {
+      "success": 30
+    },
+    "phase2_scrub_status_counts": {
+      "partial": 30
+    },
+    "phase3_profile_counts": {
+      "statement_ready": 1
+    },
+    "top_sender_domains": [
+      {
+        "value": "ealerts.bankofamerica.com",
+        "count": 15
+      },
+      {
+        "value": "betterment.com",
+        "count": 3
+      },
+      {
+        "value": "notification.capitalone.com",
+        "count": 3
+      },
+      {
+        "value": "mail.creditkarma.com",
+        "count": 1
+      },
+      {
+        "value": "e.northernbrewer.com",
+        "count": 1
+      },
+      {
+        "value": "e.dcsg.com",
+        "count": 1
+      },
+      {
+        "value": "emcom.bankofamerica.com",
+        "count": 1
+      },
+      {
+        "value": "rentcafe.com",
+        "count": 1
+      },
+      {
+        "value": "account.xfinity.com",
+        "count": 1
+      },
+      {
+        "value": "notify.thinkific.com",
+        "count": 1
+      },
+      {
+        "value": "e.upgrade.com",
+        "count": 1
+      },
+      {
+        "value": "bestegg.com",
+        "count": 1
+      }
+    ],
+    "top_subject_ngrams": [
+      {
+        "value": "limit set",
+        "count": 6
+      },
+      {
+        "value": "card was",
+        "count": 4
+      },
+      {
+        "value": "debit card was used",
+        "count": 4
+      },
+      {
+        "value": "debit card was",
+        "count": 4
+      },
+      {
+        "value": "debit card",
+        "count": 4
+      },
+      {
+        "value": "card was used",
+        "count": 4
+      },
+      {
+        "value": "was used",
+        "count": 4
+      },
+      {
+        "value": "credit card",
+        "count": 3
+      },
+      {
+        "value": "occurred limit set",
+        "count": 3
+      },
+      {
+        "value": "occurred limit",
+        "count": 3
+      },
+      {
+        "value": "automatic deposit",
+        "count": 2
+      },
+      {
+        "value": "alert limit",
+        "count": 2
+      },
+      {
+        "value": "card transaction exceeds alert",
+        "count": 2
+      },
+      {
+        "value": "exceeds alert",
+        "count": 2
+      },
+      {
+        "value": "transaction exceeds",
+        "count": 2
+      },
+      {
+        "value": "credit card transaction",
+        "count": 2
+      },
+      {
+        "value": "transaction exceeds alert limit",
+        "count": 2
+      },
+      {
+        "value": "exceeds alert limit set",
+        "count": 2
+      },
+      {
+        "value": "card transaction exceeds",
+        "count": 2
+      },
+      {
+        "value": "alert limit set",
+        "count": 2
+      },
+      {
+        "value": "credit card transaction exceeds",
+        "count": 2
+      },
+      {
+        "value": "transaction exceeds alert",
+        "count": 2
+      },
+      {
+        "value": "card transaction",
+        "count": 2
+      },
+      {
+        "value": "exceeds alert limit",
+        "count": 2
+      },
+      {
+        "value": "transaction occurred limit",
+        "count": 2
+      }
+    ],
+    "top_scrubbed_ngrams": [
+      {
+        "value": "april 2026",
+        "count": 10
+      },
+      {
+        "value": "date april",
+        "count": 9
+      },
+      {
+        "value": "date april 2026",
+        "count": 9
+      },
+      {
+        "value": "card ending",
+        "count": 6
+      },
+      {
+        "value": "limit set",
+        "count": 6
+      },
+      {
+        "value": "card ending 5511",
+        "count": 5
+      },
+      {
+        "value": "ending 5511",
+        "count": 5
+      },
+      {
+        "value": "debit card ending 5511",
+        "count": 4
+      },
+      {
+        "value": "debit card was used",
+        "count": 4
+      },
+      {
+        "value": "where merchant keyed card",
+        "count": 4
+      },
+      {
+        "value": "debit card was",
+        "count": 4
+      },
+      {
+        "value": "used debit",
+        "count": 4
+      },
+      {
+        "value": "used online phone mail",
+        "count": 4
+      },
+      {
+        "value": "online phone",
+        "count": 4
+      },
+      {
+        "value": "phone mail location",
+        "count": 4
+      },
+      {
+        "value": "merchant keyed card",
+        "count": 4
+      },
+      {
+        "value": "card number",
+        "count": 4
+      },
+      {
+        "value": "purchase made",
+        "count": 4
+      },
+      {
+        "value": "number debit card",
+        "count": 4
+      },
+      {
+        "value": "was used online",
+        "count": 4
+      },
+      {
+        "value": "used online",
+        "count": 4
+      },
+      {
+        "value": "debit card",
+        "count": 4
+      },
+      {
+        "value": "mail location where",
+        "count": 4
+      },
+      {
+        "value": "merchant keyed",
+        "count": 4
+      },
+      {
+        "value": "used online phone",
+        "count": 4
+      }
+    ],
+    "top_leading_lines": [
+      {
+        "value": "Review the details.",
+        "count": 2
+      }
+    ],
+    "unresolved_sender_domains": [
+      {
+        "value": "ealerts.bankofamerica.com",
+        "count": 15
+      },
+      {
+        "value": "betterment.com",
+        "count": 3
+      },
+      {
+        "value": "notification.capitalone.com",
+        "count": 3
+      },
+      {
+        "value": "mail.creditkarma.com",
+        "count": 1
+      },
+      {
+        "value": "e.northernbrewer.com",
+        "count": 1
+      },
+      {
+        "value": "e.dcsg.com",
+        "count": 1
+      },
+      {
+        "value": "emcom.bankofamerica.com",
+        "count": 1
+      },
+      {
+        "value": "rentcafe.com",
+        "count": 1
+      },
+      {
+        "value": "notify.thinkific.com",
+        "count": 1
+      },
+      {
+        "value": "e.upgrade.com",
+        "count": 1
+      },
+      {
+        "value": "bestegg.com",
+        "count": 1
+      }
+    ],
+    "unresolved_leading_lines": [
+      {
+        "value": "Review the details.",
+        "count": 2
+      },
+      {
+        "value": "Take a deep dive into your finances over the last quarter.",
+        "count": 1
+      },
+      {
+        "value": "Enhance your brews with the exceptional balance of Golden Promise.",
+        "count": 1
+      },
+      {
+        "value": "The automatic deposit into Retirement - Tax-Coordinated Portfolio - Individual Taxable is happening soon Log in Betterment The automatic deposit into your Tax-Coordinated Portfolio is happening soon",
+        "count": 1
+      },
+      {
+        "value": "The automatic deposit into Automated Investing is happening soon Log in Betterment The automatic deposit into Automated Investing is happening soon Dear Slobodan, On April 6th, 2026, $100.00 will be",
+        "count": 1
+      },
+      {
+        "value": "Dick&#39;s Sporting Goods Dan | 19 Points ScoreCard Member View Account GTGT Up to 70% off. Limited Time Up to 70% Off Select Clearance Valid online only through 4/6/26 11:59PM PT. Exclusions apply.",
+        "count": 1
+      },
+      {
+        "value": "Your debit card was used Your debit card was used online, by phone, by mail or at a location where a merchant keyed in your card number. Your debit card ending in 5511 Amount $9.99 Purchase made at",
+        "count": 1
+      },
+      {
+        "value": "Credit card transaction exceeds alert limit you set Unlimited Cash Rewards Visa Signature ending in 3757 Amount: $92.85 Date: April 4, 2026 Where: OR LIQUOR STORE 181 View details If you made this",
+        "count": 1
+      },
+      {
+        "value": "Credit card transaction exceeds alert limit you set Unlimited Cash Rewards Visa Signature ending in 3757 Amount: $167.96 Date: April 4, 2026 Where: VISIONWORKS 251 View details If you made this",
+        "count": 1
+      },
+      {
+        "value": "Your March 2026 statement is now available on the Documents tab of your account. Log in Betterment Your March 2026 statement is now available on the Documents tab of your account. Dear Slobodan, Your",
+        "count": 1
+      },
+      {
+        "value": "Your debit card was used Your debit card was used online, by phone, by mail or at a location where a merchant keyed in your card number. Your debit card ending in 5511 Amount $9.39 Purchase made at",
+        "count": 1
+      },
+      {
+        "value": "Your debit card was used Your debit card was used online, by phone, by mail or at a location where a merchant keyed in your card number. Your debit card ending in 5511 Amount $20.00 Purchase made at",
+        "count": 1
+      },
+      {
+        "value": "Your eligible Bank of America\u00ae Visa\u00ae credit card could take you to the FIFA World Cup 2026, courtesy of Visa. No purchase or obligation necessary to enter or win. Open to 50 US/DC &amp; PR, 18+ or age",
+        "count": 1
+      },
+      {
+        "value": "An online transfer occurred over the limit you set A recent transfer from your account went over the limit you set. Account ending in 6914 Amount $900.00 Transaction date April 03, 2026 If you don&#39;",
+        "count": 1
+      },
+      {
+        "value": "A debit/ATM card transaction occurred over the limit you set Amount $376.18 Debit/ATM card ending in 8712 Merchant COSTCO WHSE #0692 -HILLSBORO,OR Transaction type PURCH WITH PIN Date April 03, 2026",
+        "count": 1
+      },
+      {
+        "value": "Sequoia Dear Dan, This email confirms we have received your one-time online payment. Please review the payment information below and keep this email for your personal records. PAYMENT INFORMATION",
+        "count": 1
+      },
+      {
+        "value": "Your account may have insufficient funds On April 02, 2026, you didn&#39;t have enough money in your ADV PLUS BANKING account ending in 6914 to cover your transaction(s). Balance after transaction(s)",
+        "count": 1
+      },
+      {
+        "value": "Make a payment.",
+        "count": 1
+      },
+      {
+        "value": "A withdrawal was made over the limit you set Amount $116.11 Type ELEC DRAFT (ACH) Account PERSONAL CHECKING/SAVINGS ACCOUNT - 6914 Merchant Best Egg PAYMENT Transaction date April 03, 2026 VIEW DETAILS",
+        "count": 1
+      },
+      {
+        "value": "Dan, friendly reminder that in 24 hours the cost of enrollment in our Shibari Certificate will go up from $199 to $399 for the one-time payment option. Our payment plan will go up from 12 payments of",
+        "count": 1
+      }
+    ],
+    "taxonomy_inputs": {
+      "candidate_vendor_domains": [
+        {
+          "value": "ealerts.bankofamerica.com",
+          "count": 15
+        },
+        {
+          "value": "betterment.com",
+          "count": 3
+        },
+        {
+          "value": "notification.capitalone.com",
+          "count": 3
+        },
+        {
+          "value": "mail.creditkarma.com",
+          "count": 1
+        },
+        {
+          "value": "e.northernbrewer.com",
+          "count": 1
+        },
+        {
+          "value": "e.dcsg.com",
+          "count": 1
+        },
+        {
+          "value": "emcom.bankofamerica.com",
+          "count": 1
+        },
+        {
+          "value": "rentcafe.com",
+          "count": 1
+        },
+        {
+          "value": "account.xfinity.com",
+          "count": 1
+        },
+        {
+          "value": "notify.thinkific.com",
+          "count": 1
+        },
+        {
+          "value": "e.upgrade.com",
+          "count": 1
+        },
+        {
+          "value": "bestegg.com",
+          "count": 1
+        }
+      ],
+      "candidate_subject_phrases": [
+        {
+          "value": "limit set",
+          "count": 6
+        },
+        {
+          "value": "card was",
+          "count": 4
+        },
+        {
+          "value": "debit card was used",
+          "count": 4
+        },
+        {
+          "value": "debit card was",
+          "count": 4
+        },
+        {
+          "value": "debit card",
+          "count": 4
+        },
+        {
+          "value": "card was used",
+          "count": 4
+        },
+        {
+          "value": "was used",
+          "count": 4
+        },
+        {
+          "value": "credit card",
+          "count": 3
+        },
+        {
+          "value": "occurred limit set",
+          "count": 3
+        },
+        {
+          "value": "occurred limit",
+          "count": 3
+        },
+        {
+          "value": "automatic deposit",
+          "count": 2
+        },
+        {
+          "value": "alert limit",
+          "count": 2
+        },
+        {
+          "value": "card transaction exceeds alert",
+          "count": 2
+        },
+        {
+          "value": "exceeds alert",
+          "count": 2
+        },
+        {
+          "value": "transaction exceeds",
+          "count": 2
+        }
+      ],
+      "candidate_scrubbed_phrases": [
+        {
+          "value": "april 2026",
+          "count": 10
+        },
+        {
+          "value": "date april",
+          "count": 9
+        },
+        {
+          "value": "date april 2026",
+          "count": 9
+        },
+        {
+          "value": "card ending",
+          "count": 6
+        },
+        {
+          "value": "limit set",
+          "count": 6
+        },
+        {
+          "value": "card ending 5511",
+          "count": 5
+        },
+        {
+          "value": "ending 5511",
+          "count": 5
+        },
+        {
+          "value": "debit card ending 5511",
+          "count": 4
+        },
+        {
+          "value": "debit card was used",
+          "count": 4
+        },
+        {
+          "value": "where merchant keyed card",
+          "count": 4
+        },
+        {
+          "value": "debit card was",
+          "count": 4
+        },
+        {
+          "value": "used debit",
+          "count": 4
+        },
+        {
+          "value": "used online phone mail",
+          "count": 4
+        },
+        {
+          "value": "online phone",
+          "count": 4
+        },
+        {
+          "value": "phone mail location",
+          "count": 4
+        }
+      ],
+      "unresolved_vendor_domains": [
+        {
+          "value": "ealerts.bankofamerica.com",
+          "count": 15
+        },
+        {
+          "value": "betterment.com",
+          "count": 3
+        },
+        {
+          "value": "notification.capitalone.com",
+          "count": 3
+        },
+        {
+          "value": "mail.creditkarma.com",
+          "count": 1
+        },
+        {
+          "value": "e.northernbrewer.com",
+          "count": 1
+        },
+        {
+          "value": "e.dcsg.com",
+          "count": 1
+        },
+        {
+          "value": "emcom.bankofamerica.com",
+          "count": 1
+        },
+        {
+          "value": "rentcafe.com",
+          "count": 1
+        },
+        {
+          "value": "notify.thinkific.com",
+          "count": 1
+        },
+        {
+          "value": "e.upgrade.com",
+          "count": 1
+        },
+        {
+          "value": "bestegg.com",
+          "count": 1
+        }
+      ],
+      "unresolved_leading_lines": [
+        {
+          "value": "Review the details.",
+          "count": 2
+        },
+        {
+          "value": "Take a deep dive into your finances over the last quarter.",
+          "count": 1
+        },
+        {
+          "value": "Enhance your brews with the exceptional balance of Golden Promise.",
+          "count": 1
+        },
+        {
+          "value": "The automatic deposit into Retirement - Tax-Coordinated Portfolio - Individual Taxable is happening soon Log in Betterment The automatic deposit into your Tax-Coordinated Portfolio is happening soon",
+          "count": 1
+        },
+        {
+          "value": "The automatic deposit into Automated Investing is happening soon Log in Betterment The automatic deposit into Automated Investing is happening soon Dear Slobodan, On April 6th, 2026, $100.00 will be",
+          "count": 1
+        },
+        {
+          "value": "Dick&#39;s Sporting Goods Dan | 19 Points ScoreCard Member View Account GTGT Up to 70% off. Limited Time Up to 70% Off Select Clearance Valid online only through 4/6/26 11:59PM PT. Exclusions apply.",
+          "count": 1
+        },
+        {
+          "value": "Your debit card was used Your debit card was used online, by phone, by mail or at a location where a merchant keyed in your card number. Your debit card ending in 5511 Amount $9.99 Purchase made at",
+          "count": 1
+        },
+        {
+          "value": "Credit card transaction exceeds alert limit you set Unlimited Cash Rewards Visa Signature ending in 3757 Amount: $92.85 Date: April 4, 2026 Where: OR LIQUOR STORE 181 View details If you made this",
+          "count": 1
+        },
+        {
+          "value": "Credit card transaction exceeds alert limit you set Unlimited Cash Rewards Visa Signature ending in 3757 Amount: $167.96 Date: April 4, 2026 Where: VISIONWORKS 251 View details If you made this",
+          "count": 1
+        },
+        {
+          "value": "Your March 2026 statement is now available on the Documents tab of your account. Log in Betterment Your March 2026 statement is now available on the Documents tab of your account. Dear Slobodan, Your",
+          "count": 1
+        },
+        {
+          "value": "Your debit card was used Your debit card was used online, by phone, by mail or at a location where a merchant keyed in your card number. Your debit card ending in 5511 Amount $9.39 Purchase made at",
+          "count": 1
+        },
+        {
+          "value": "Your debit card was used Your debit card was used online, by phone, by mail or at a location where a merchant keyed in your card number. Your debit card ending in 5511 Amount $20.00 Purchase made at",
+          "count": 1
+        },
+        {
+          "value": "Your eligible Bank of America\u00ae Visa\u00ae credit card could take you to the FIFA World Cup 2026, courtesy of Visa. No purchase or obligation necessary to enter or win. Open to 50 US/DC &amp; PR, 18+ or age",
+          "count": 1
+        },
+        {
+          "value": "An online transfer occurred over the limit you set A recent transfer from your account went over the limit you set. Account ending in 6914 Amount $900.00 Transaction date April 03, 2026 If you don&#39;",
+          "count": 1
+        },
+        {
+          "value": "A debit/ATM card transaction occurred over the limit you set Amount $376.18 Debit/ATM card ending in 8712 Merchant COSTCO WHSE #0692 -HILLSBORO,OR Transaction type PURCH WITH PIN Date April 03, 2026",
+          "count": 1
+        }
+      ]
+    }
+  },
+  "messages": [
+    {
+      "message_id": "19d60683643c0942",
+      "received_at": "2026-04-05T06:59:21-07:00",
+      "subject": "Congrats on your loan progress in the last few months, Dan!",
+      "sender": "Credit Karma <notifications@mail.creditkarma.com>",
+      "sender_domain": "mail.creditkarma.com",
+      "local_label_confidence": 0.78,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Take a deep dive into your finances over the last quarter.",
+        "leading_lines": [
+          "Take a deep dive into your finances over the last quarter."
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d5dda2f048dcdf",
+      "received_at": "2026-04-05T06:31:33-07:00",
+      "subject": "Unlock Brewing Perfection with up to 33% Off Golden Promise",
+      "sender": "Northern Brewer <northernbrewer@e.northernbrewer.com>",
+      "sender_domain": "e.northernbrewer.com",
+      "local_label_confidence": 0.855,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Enhance your brews with the exceptional balance of Golden Promise.",
+        "leading_lines": [
+          "Enhance your brews with the exceptional balance of Golden Promise."
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d5dd3a1b54ca84",
+      "received_at": "2026-04-05T06:27:23-07:00",
+      "subject": "The automatic deposit into your Tax-Coordinated Portfolio is happening soon",
+      "sender": "Betterment <support@betterment.com>",
+      "sender_domain": "betterment.com",
+      "local_label_confidence": 0.88,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "The automatic deposit into Retirement - Tax-Coordinated Portfolio - Individual Taxable is happening soon Log in Betterment The automatic deposit into your Tax-Coordinated Portfolio is happening soon",
+        "leading_lines": [
+          "The automatic deposit into Retirement - Tax-Coordinated Portfolio - Individual Taxable is happening soon Log in Betterment The automatic deposit into your Tax-Coordinated Portfolio is happening soon"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d5dc3f5defb08d",
+      "received_at": "2026-04-05T06:10:15-07:00",
+      "subject": "The automatic deposit into Automated Investing is happening soon",
+      "sender": "Betterment <support@betterment.com>",
+      "sender_domain": "betterment.com",
+      "local_label_confidence": 0.88,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "The automatic deposit into Automated Investing is happening soon Log in Betterment The automatic deposit into Automated Investing is happening soon Dear Slobodan, On April 6th, 2026, $100.00 will be",
+        "leading_lines": [
+          "The automatic deposit into Automated Investing is happening soon Log in Betterment The automatic deposit into Automated Investing is happening soon Dear Slobodan, On April 6th, 2026, $100.00 will be"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=-2 (seed=-2, merged=-2)",
+          "penalty:price_without_order_identifier",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d5d457337a6573",
+      "received_at": "2026-04-05T03:52:02-07:00",
+      "subject": " Wow! Up to 70% OFF select clearance is something you'll want to see. \ud83d\udc49",
+      "sender": "\"DICK'S | Clearance\" <DSG@e.dcsg.com>",
+      "sender_domain": "e.dcsg.com",
+      "local_label_confidence": 0.855,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Dick&#39;s Sporting Goods Dan | 19 Points ScoreCard Member View Account GTGT Up to 70% off. Limited Time Up to 70% Off Select Clearance Valid online only through 4/6/26 11:59PM PT. Exclusions apply.",
+        "leading_lines": [
+          "Dick&#39;s Sporting Goods Dan | 19 Points ScoreCard Member View Account GTGT Up to 70% off. Limited Time Up to 70% Off Select Clearance Valid online only through 4/6/26 11:59PM PT. Exclusions apply."
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=-3 (seed=-3, merged=-3)",
+          "promo_marker:% off",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d5b50ccbedbb63",
+      "received_at": "2026-04-04T18:41:39-07:00",
+      "subject": "Your debit card was used",
+      "sender": "Bank of America <onlinebanking@ealerts.bankofamerica.com>",
+      "sender_domain": "ealerts.bankofamerica.com",
+      "local_label_confidence": 0.855,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Your debit card was used Your debit card was used online, by phone, by mail or at a location where a merchant keyed in your card number. Your debit card ending in 5511 Amount $9.99 Purchase made at",
+        "leading_lines": [
+          "Your debit card was used Your debit card was used online, by phone, by mail or at a location where a merchant keyed in your card number. Your debit card ending in 5511 Amount $9.99 Purchase made at"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=-2 (seed=-2, merged=-2)",
+          "penalty:price_without_order_identifier",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d59c86a4f0335d",
+      "received_at": "2026-04-04T11:36:39-07:00",
+      "subject": "Credit card transaction exceeds alert limit you set",
+      "sender": "Bank of America <onlinebanking@ealerts.bankofamerica.com>",
+      "sender_domain": "ealerts.bankofamerica.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Credit card transaction exceeds alert limit you set Unlimited Cash Rewards Visa Signature ending in 3757 Amount: $92.85 Date: April 4, 2026 Where: OR LIQUOR STORE 181 View details If you made this",
+        "leading_lines": [
+          "Credit card transaction exceeds alert limit you set Unlimited Cash Rewards Visa Signature ending in 3757 Amount: $92.85 Date: April 4, 2026 Where: OR LIQUOR STORE 181 View details If you made this"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=-2 (seed=-2, merged=-2)",
+          "penalty:price_without_order_identifier",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d59b60f5c19b27",
+      "received_at": "2026-04-04T11:16:35-07:00",
+      "subject": "Credit card transaction exceeds alert limit you set",
+      "sender": "Bank of America <onlinebanking@ealerts.bankofamerica.com>",
+      "sender_domain": "ealerts.bankofamerica.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Credit card transaction exceeds alert limit you set Unlimited Cash Rewards Visa Signature ending in 3757 Amount: $167.96 Date: April 4, 2026 Where: VISIONWORKS 251 View details If you made this",
+        "leading_lines": [
+          "Credit card transaction exceeds alert limit you set Unlimited Cash Rewards Visa Signature ending in 3757 Amount: $167.96 Date: April 4, 2026 Where: VISIONWORKS 251 View details If you made this"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=-2 (seed=-2, merged=-2)",
+          "penalty:price_without_order_identifier",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d58b133ff41151",
+      "received_at": "2026-04-04T06:31:40-07:00",
+      "subject": "Your March statement and information about your account",
+      "sender": "Betterment Statements <support@betterment.com>",
+      "sender_domain": "betterment.com",
+      "local_label_confidence": 0.784,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Your March 2026 statement is now available on the Documents tab of your account. Log in Betterment Your March 2026 statement is now available on the Documents tab of your account. Dear Slobodan, Your",
+        "leading_lines": [
+          "Your March 2026 statement is now available on the Documents tab of your account. Log in Betterment Your March 2026 statement is now available on the Documents tab of your account. Dear Slobodan, Your"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d570950503c29a",
+      "received_at": "2026-04-03T22:48:40-07:00",
+      "subject": "Your debit card was used",
+      "sender": "Bank of America <onlinebanking@ealerts.bankofamerica.com>",
+      "sender_domain": "ealerts.bankofamerica.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Your debit card was used Your debit card was used online, by phone, by mail or at a location where a merchant keyed in your card number. Your debit card ending in 5511 Amount $9.39 Purchase made at",
+        "leading_lines": [
+          "Your debit card was used Your debit card was used online, by phone, by mail or at a location where a merchant keyed in your card number. Your debit card ending in 5511 Amount $9.39 Purchase made at"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=-2 (seed=-2, merged=-2)",
+          "penalty:price_without_order_identifier",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d5634e7d56d839",
+      "received_at": "2026-04-03T18:56:38-07:00",
+      "subject": "Your debit card was used",
+      "sender": "Bank of America <onlinebanking@ealerts.bankofamerica.com>",
+      "sender_domain": "ealerts.bankofamerica.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Your debit card was used Your debit card was used online, by phone, by mail or at a location where a merchant keyed in your card number. Your debit card ending in 5511 Amount $20.00 Purchase made at",
+        "leading_lines": [
+          "Your debit card was used Your debit card was used online, by phone, by mail or at a location where a merchant keyed in your card number. Your debit card ending in 5511 Amount $20.00 Purchase made at"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=-2 (seed=-2, merged=-2)",
+          "penalty:price_without_order_identifier",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d562e1655ed069",
+      "received_at": "2026-04-03T18:49:12-07:00",
+      "subject": "You could win a trip to the FIFA World Cup 2026 Final, courtesy of Visa.",
+      "sender": "Bank of America <bankofamerica@emcom.bankofamerica.com>",
+      "sender_domain": "emcom.bankofamerica.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Your eligible Bank of America\u00ae Visa\u00ae credit card could take you to the FIFA World Cup 2026, courtesy of Visa. No purchase or obligation necessary to enter or win. Open to 50 US/DC &amp; PR, 18+ or age",
+        "leading_lines": [
+          "Your eligible Bank of America\u00ae Visa\u00ae credit card could take you to the FIFA World Cup 2026, courtesy of Visa. No purchase or obligation necessary to enter or win. Open to 50 US/DC &amp; PR, 18+ or age"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d55c84176b3951",
+      "received_at": "2026-04-03T16:57:58-07:00",
+      "subject": "Online transfer occurred over the limit you set",
+      "sender": "Bank of America <onlinebanking@ealerts.bankofamerica.com>",
+      "sender_domain": "ealerts.bankofamerica.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "An online transfer occurred over the limit you set A recent transfer from your account went over the limit you set. Account ending in 6914 Amount $900.00 Transaction date April 03, 2026 If you don&#39;",
+        "leading_lines": [
+          "An online transfer occurred over the limit you set A recent transfer from your account went over the limit you set. Account ending in 6914 Amount $900.00 Transaction date April 03, 2026 If you don&#39;"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=-2 (seed=-2, merged=-2)",
+          "penalty:price_without_order_identifier",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d555a2d9e2ffb4",
+      "received_at": "2026-04-03T14:57:45-07:00",
+      "subject": "A transaction occurred over the limit you set",
+      "sender": "Bank of America <onlinebanking@ealerts.bankofamerica.com>",
+      "sender_domain": "ealerts.bankofamerica.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "A debit/ATM card transaction occurred over the limit you set Amount $376.18 Debit/ATM card ending in 8712 Merchant COSTCO WHSE #0692 -HILLSBORO,OR Transaction type PURCH WITH PIN Date April 03, 2026",
+        "leading_lines": [
+          "A debit/ATM card transaction occurred over the limit you set Amount $376.18 Debit/ATM card ending in 8712 Merchant COSTCO WHSE #0692 -HILLSBORO,OR Transaction type PURCH WITH PIN Date April 03, 2026"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=-2 (seed=-2, merged=-2)",
+          "penalty:price_without_order_identifier",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d5538a694fda8e",
+      "received_at": "2026-04-03T14:21:09-07:00",
+      "subject": "Payment Confirmation",
+      "sender": "Cortland Village Apartment Homes <no-reply@rentcafe.com>",
+      "sender_domain": "rentcafe.com",
+      "local_label_confidence": 0.86,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Sequoia Dear Dan, This email confirms we have received your one-time online payment. Please review the payment information below and keep this email for your personal records. PAYMENT INFORMATION",
+        "leading_lines": [
+          "Sequoia Dear Dan, This email confirms we have received your one-time online payment. Please review the payment information below and keep this email for your personal records. PAYMENT INFORMATION"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d5504963e6a431",
+      "received_at": "2026-04-03T13:24:12-07:00",
+      "subject": "Your account may have insufficient funds",
+      "sender": "Bank of America <onlinebanking@ealerts.bankofamerica.com>",
+      "sender_domain": "ealerts.bankofamerica.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Your account may have insufficient funds On April 02, 2026, you didn&#39;t have enough money in your ADV PLUS BANKING account ending in 6914 to cover your transaction(s). Balance after transaction(s)",
+        "leading_lines": [
+          "Your account may have insufficient funds On April 02, 2026, you didn&#39;t have enough money in your ADV PLUS BANKING account ending in 6914 to cover your transaction(s). Balance after transaction(s)"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d54d4ac03f6dc3",
+      "received_at": "2026-04-03T12:31:49-07:00",
+      "subject": "Your bill statement is ready",
+      "sender": "Xfinity <xfinity@account.xfinity.com>",
+      "sender_domain": "account.xfinity.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Here are your automatic payment details Xfinity Logo Your bill Your bill is available to view online Your automatic payment details Payment amount: $60.00 Payment date: 04/21/2026 Xfinity account",
+        "leading_lines": [
+          "Here are your automatic payment details Xfinity Logo Your bill Your bill is available to view online Your automatic payment details Payment amount: $60.00 Payment date: 04/21/2026 Xfinity account"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=-2 (seed=-2, merged=-2)",
+          "penalty:price_without_order_identifier",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": "statement_ready",
+        "profile_confidence": 0.65,
+        "profile_confidence_level": "medium",
+        "profile_status": "partial",
+        "top_candidates": [
+          {
+            "profile_id": "statement_ready",
+            "score": 13,
+            "confidence_level": "medium",
+            "reasons": [
+              "statement_ready_language",
+              "score:sender_match",
+              "score:statement_ready_language"
+            ]
+          }
+        ],
+        "profile_diagnostics": [
+          "candidate:statement_ready reasons=statement_ready_language",
+          "scored:statement_ready score=13 reasons=statement_ready_language,score:sender_match,score:statement_ready_language",
+          "resolved_profile:statement_ready score=13"
+        ]
+      }
+    },
+    {
+      "message_id": "19d54954d229861b",
+      "received_at": "2026-04-03T11:22:43-07:00",
+      "subject": "Your AutoPay payment is scheduled for April 7, 2026",
+      "sender": "Capital One <capitalone@notification.capitalone.com>",
+      "sender_domain": "notification.capitalone.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=fallback_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Review the details.",
+        "leading_lines": [
+          "Review the details."
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d53f592f91c30b",
+      "received_at": "2026-04-03T08:28:15-07:00",
+      "subject": "Your AutoPay payment is scheduled for April 6, 2026",
+      "sender": "\"Capital One | Quicksilver\" <capitalone@notification.capitalone.com>",
+      "sender_domain": "notification.capitalone.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=fallback_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Review the details.",
+        "leading_lines": [
+          "Review the details."
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d53956cb0c5204",
+      "received_at": "2026-04-03T06:43:13-07:00",
+      "subject": "Your credit card payment is due",
+      "sender": "Capital One <capitalone@notification.capitalone.com>",
+      "sender_domain": "notification.capitalone.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=fallback_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Make a payment.",
+        "leading_lines": [
+          "Make a payment."
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d52fb8d4493310",
+      "received_at": "2026-04-03T03:55:08-07:00",
+      "subject": "A withdrawal was made over the limit you set",
+      "sender": "Bank of America <onlinebanking@ealerts.bankofamerica.com>",
+      "sender_domain": "ealerts.bankofamerica.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "A withdrawal was made over the limit you set Amount $116.11 Type ELEC DRAFT (ACH) Account PERSONAL CHECKING/SAVINGS ACCOUNT - 6914 Merchant Best Egg PAYMENT Transaction date April 03, 2026 VIEW DETAILS",
+        "leading_lines": [
+          "A withdrawal was made over the limit you set Amount $116.11 Type ELEC DRAFT (ACH) Account PERSONAL CHECKING/SAVINGS ACCOUNT - 6914 Merchant Best Egg PAYMENT Transaction date April 03, 2026 VIEW DETAILS"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=-2 (seed=-2, merged=-2)",
+          "penalty:price_without_order_identifier",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d52f8f3d43f3d2",
+      "received_at": "2026-04-03T03:52:16-07:00",
+      "subject": "It ends midnight tomorrow \ud83d\ude08",
+      "sender": "Shibari Academy <noreply@notify.thinkific.com>",
+      "sender_domain": "notify.thinkific.com",
+      "local_label_confidence": 0.914,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Dan, friendly reminder that in 24 hours the cost of enrollment in our Shibari Certificate will go up from $199 to $399 for the one-time payment option. Our payment plan will go up from 12 payments of",
+        "leading_lines": [
+          "Dan, friendly reminder that in 24 hours the cost of enrollment in our Shibari Certificate will go up from $199 to $399 for the one-time payment option. Our payment plan will go up from 12 payments of"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=-2 (seed=-2, merged=-2)",
+          "penalty:price_without_order_identifier",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d52dd2cab070de",
+      "received_at": "2026-04-03T03:21:49-07:00",
+      "subject": "Your Available Balance",
+      "sender": "Bank of America <onlinebanking@ealerts.bankofamerica.com>",
+      "sender_domain": "ealerts.bankofamerica.com",
+      "local_label_confidence": 0.6668423606737363,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Your available balance Balance $2462.71 Account PERSONAL CHECKING/SAVINGS ACCOUNT - 6914 Date April 03, 2026 VIEW ACCOUNT This balance may be different from what displays in Online Banking if you&#39;",
+        "leading_lines": [
+          "Your available balance Balance $2462.71 Account PERSONAL CHECKING/SAVINGS ACCOUNT - 6914 Date April 03, 2026 VIEW ACCOUNT This balance may be different from what displays in Online Banking if you&#39;"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=-2 (seed=-2, merged=-2)",
+          "penalty:price_without_order_identifier",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d52d41c755fdd9",
+      "received_at": "2026-04-03T03:11:55-07:00",
+      "subject": "Your Available Balance",
+      "sender": "Bank of America <onlinebanking@ealerts.bankofamerica.com>",
+      "sender_domain": "ealerts.bankofamerica.com",
+      "local_label_confidence": 0.6668423606737363,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Your available balance Balance $1657.30 Account PERSONAL CHECKING/SAVINGS ACCOUNT - 3970 Date April 03, 2026 VIEW ACCOUNT This balance may be different from what displays in Online Banking if you&#39;",
+        "leading_lines": [
+          "Your available balance Balance $1657.30 Account PERSONAL CHECKING/SAVINGS ACCOUNT - 3970 Date April 03, 2026 VIEW ACCOUNT This balance may be different from what displays in Online Banking if you&#39;"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=-2 (seed=-2, merged=-2)",
+          "penalty:price_without_order_identifier",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d52a4c4c44cd83",
+      "received_at": "2026-04-03T02:20:21-07:00",
+      "subject": "A direct deposit was credited to your account",
+      "sender": "Bank of America <onlinebanking@ealerts.bankofamerica.com>",
+      "sender_domain": "ealerts.bankofamerica.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "A direct deposit was credited to your account Amount $260.95 Account PERSONAL CHECKING/SAVINGS ACCOUNT - 6914 Date April 03, 2026 From HOMEGOODS LLC PAYROLL Transaction number 1 Amount $2736.98 Account",
+        "leading_lines": [
+          "A direct deposit was credited to your account Amount $260.95 Account PERSONAL CHECKING/SAVINGS ACCOUNT - 6914 Date April 03, 2026 From HOMEGOODS LLC PAYROLL Transaction number 1 Amount $2736.98 Account"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=-2 (seed=-2, merged=-2)",
+          "penalty:price_without_order_identifier",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d4f9c51d00d6fc",
+      "received_at": "2026-04-02T12:12:16-07:00",
+      "subject": "What are you waiting for? Check your rate today",
+      "sender": "Upgrade <email@e.upgrade.com>",
+      "sender_domain": "e.upgrade.com",
+      "local_label_confidence": 0.964,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Wipe out your credit card debt in as few as 36 months with a personal loan through Upgrade.",
+        "leading_lines": [
+          "Wipe out your credit card debt in as few as 36 months with a personal loan through Upgrade."
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d4ec21dee84dc7",
+      "received_at": "2026-04-02T08:13:57-07:00",
+      "subject": "Your payment has posted to your account",
+      "sender": "loan_assistance@bestegg.com",
+      "sender_domain": "bestegg.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Account Number: 45490684 Thank you! Your payment of $116.11 has been received and posted. Please keep in mind, it may take a few days to see this payment reflected in your bank account. Payment amount:",
+        "leading_lines": [
+          "Account Number: 45490684 Thank you! Your payment of $116.11 has been received and posted. Please keep in mind, it may take a few days to see this payment reflected in your bank account. Payment amount:"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=-2 (seed=-2, merged=-2)",
+          "penalty:price_without_order_identifier",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d4b32f1baaca48",
+      "received_at": "2026-04-01T15:33:43-07:00",
+      "subject": "Your Account Notices Are Now Available in Mobile and Online Banking",
+      "sender": "Bank of America <onlinebanking@ealerts.bankofamerica.com>",
+      "sender_domain": "ealerts.bankofamerica.com",
+      "local_label_confidence": 0.784,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Hi, SLOBODAN, we&#39;re letting you know your account notice(s) are now available in Mobile and Online Banking Account: ADV PLUS BANKING ending in - 6914 Wire transfer advice Did you know? You can",
+        "leading_lines": [
+          "Hi, SLOBODAN, we&#39;re letting you know your account notice(s) are now available in Mobile and Online Banking Account: ADV PLUS BANKING ending in - 6914 Wire transfer advice Did you know? You can"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d4aa1c8eae825d",
+      "received_at": "2026-04-01T12:56:32-07:00",
+      "subject": "Your debit card was used",
+      "sender": "Bank of America <onlinebanking@ealerts.bankofamerica.com>",
+      "sender_domain": "ealerts.bankofamerica.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Your debit card was used Your debit card was used online, by phone, by mail or at a location where a merchant keyed in your card number. Your debit card ending in 5511 Amount $130.06 Purchase made at",
+        "leading_lines": [
+          "Your debit card was used Your debit card was used online, by phone, by mail or at a location where a merchant keyed in your card number. Your debit card ending in 5511 Amount $130.06 Purchase made at"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=-2 (seed=-2, merged=-2)",
+          "penalty:price_without_order_identifier",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d4a9dd8825849e",
+      "received_at": "2026-04-01T12:55:49-07:00",
+      "subject": "A transaction occurred over the limit you set",
+      "sender": "Bank of America <onlinebanking@ealerts.bankofamerica.com>",
+      "sender_domain": "ealerts.bankofamerica.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "A debit/ATM card transaction occurred over the limit you set Amount $130.06 Debit/ATM card ending in 5511 Merchant IC* INSTACART -+18882467822,CA Transaction type PURCH W/O PIN Date April 01, 2026",
+        "leading_lines": [
+          "A debit/ATM card transaction occurred over the limit you set Amount $130.06 Debit/ATM card ending in 5511 Merchant IC* INSTACART -+18882467822,CA Transaction type PURCH W/O PIN Date April 01, 2026"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=-2 (seed=-2, merged=-2)",
+          "penalty:price_without_order_identifier",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    }
+  ]
+}
