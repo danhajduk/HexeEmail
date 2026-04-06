@@ -47,26 +47,6 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[TODO] Task 268: Extract Phase 1 normalization into shared core interface
-
-- Move the current fetch/normalize entry into shared pipeline core without changing behavior
-
-Requirements:
-- Keep current normalized payload contract unchanged
-- Make Phase 1 callable by any flow family
-- Do not introduce ORDER-specific assumptions into the shared interface
-- Preserve:
-  - headers
-  - raw_html
-  - raw_text
-  - sender normalization
-  - mime diagnostics
-  - link-ready content
-
-Acceptance:
-- ORDER uses shared Phase 1 interface
-- No behavior regression in existing ORDER reports
-
 [TODO] Task 269: Extract Phase 2 scrubber into shared engine with heuristic pack loading
 
 - Refactor the current scrub logic into one engine that loads heuristics by flow family

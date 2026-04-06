@@ -16,6 +16,7 @@ from email_node.patterns.pattern_generation_service import PatternGenerationServ
 from email_node.patterns.pattern_generation_writer import PatternGenerationWriter
 from email_node.patterns.probation_store import ProbationStore
 from email_node.pipeline.order_flow import OrderFlowPipeline
+from email_node.shared_pipeline_core import SharedEmailPhase1Interface, SharedPhase1NormalizeRequest
 from node_backend.runtime import RuntimeManager
 from providers.gmail.adapter import GmailProviderAdapter
 from providers.gmail.order_flow import GmailOrderPhase1Processor
@@ -104,7 +105,7 @@ async def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     adapter = GmailProviderAdapter(runtime_dir=runtime_dir)
-    phase1 = GmailOrderPhase1Processor()
+    phase1 = SharedEmailPhase1Interface(GmailOrderPhase1Processor())
     probation_store = ProbationStore()
     generate_probation_template = await build_generator(config, probation_store) if args.enable_ai_generation else None
     pipeline = OrderFlowPipeline(
@@ -119,10 +120,12 @@ async def main() -> None:
     index: list[dict[str, object]] = []
 
     for label, message_id in cases:
-        normalized = await phase1.fetch_and_normalize_message(
-            fetch_full_message_payload=adapter.fetch_full_message_payload,
-            account_id=args.account_id,
-            message_id=message_id,
+        normalized = await phase1.normalize(
+            SharedPhase1NormalizeRequest(
+                fetch_full_message_payload=adapter.fetch_full_message_payload,
+                account_id=args.account_id,
+                message_id=message_id,
+            )
         )
         result = await pipeline.process_normalized_email(normalized)
         payload = {

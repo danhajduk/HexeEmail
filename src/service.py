@@ -36,6 +36,7 @@ from email_node.patterns import (
     ProbationStore,
 )
 from email_node.pipeline import OrderFlowPipeline
+from email_node.shared_pipeline_core import SharedEmailPhase1Interface, SharedPhase1NormalizeRequest
 from node_backend import (
     AiNodeGateway,
     BackgroundTaskManager,
@@ -146,6 +147,7 @@ class NodeService:
         self.ready = False
         self.startup_error: str | None = None
         self.gmail_order_flow = GmailOrderPhase1Processor()
+        self.email_phase1 = SharedEmailPhase1Interface(self.gmail_order_flow)
         self.probation_store = ProbationStore()
         self.runtime = RuntimeManager(self)
         self.ai_gateway = AiNodeGateway(self)
@@ -1662,10 +1664,12 @@ class NodeService:
                 extra={"event_data": {"account_id": account_id, "message_id": message.message_id}},
             )
             return
-        normalized = await self.gmail_order_flow.fetch_and_normalize_message(
-            fetch_full_message_payload=self.email_provider_gateway.gmail_fetch_full_message_payload,
-            account_id=account_id,
-            message_id=message.message_id,
+        normalized = await self.email_phase1.normalize(
+            SharedPhase1NormalizeRequest(
+                fetch_full_message_payload=self.email_provider_gateway.gmail_fetch_full_message_payload,
+                account_id=account_id,
+                message_id=message.message_id,
+            )
         )
         LOGGER.info(
             "ORDER Phase 1 normalization completed",
