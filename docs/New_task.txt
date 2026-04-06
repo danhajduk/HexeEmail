@@ -47,29 +47,6 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[TODO] Task 267: Define flow family abstraction for pipeline execution
-
-- Add a formal flow family model so ORDER and ACTION_NEEDED can run through the same pipeline core with different loaded configs
-
-Requirements:
-- Define flow families:
-  - order
-  - action_needed
-- Each flow family must resolve:
-  - scrub heuristic pack
-  - profile detector pack
-  - template directory
-  - validation policy
-  - decision policy
-  - action router policy
-  - output schema family
-- Add helper:
-  - get_flow_family_config(flow_family)
-
-Acceptance:
-- Pipeline can load family-specific config from one shared entry point
-- ORDER and ACTION_NEEDED can be represented as first-class flow families
-
 [TODO] Task 268: Extract Phase 1 normalization into shared core interface
 
 - Move the current fetch/normalize entry into shared pipeline core without changing behavior

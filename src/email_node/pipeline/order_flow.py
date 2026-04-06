@@ -18,7 +18,7 @@ from email_node.patterns.probation_policy import ProbationPromotionPolicy
 from email_node.patterns.probation_promotion import ProbationPromotionManager
 from email_node.patterns.probation_state import ProbationTemplateState
 from email_node.patterns.probation_store import ProbationStore
-from email_node.shared_pipeline_core import SharedEmailPipelineCore
+from email_node.shared_pipeline_core import SharedEmailPipelineCore, get_flow_family_config
 from email_node.shared_pipeline_core.pipeline import SharedEmailPipelineHooks
 from email_node.patterns.template_promotion_service import TemplatePromotionService
 from logging_utils import get_logger
@@ -71,8 +71,9 @@ class OrderFlowPipeline:
         self.order_record_service = order_record_service or OrderRecordService(runtime_dir)
         self.user_notification_handler = user_notification_handler or UserNotificationHandler()
         self.tracking_monitor_handler = tracking_monitor_handler or TrackingMonitorHandler()
+        self.flow_config = get_flow_family_config("order", runtime_dir=runtime_dir)
         self.shared_core = SharedEmailPipelineCore(
-            flow_family="order",
+            flow_config=self.flow_config,
             hooks=SharedEmailPipelineHooks(
                 scrub=self.phase2_scrubber.scrub,
                 detect_profile=self.phase3_detector.detect,

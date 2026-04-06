@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Awaitable, Callable
 
+from email_node.shared_pipeline_core.families import FlowFamilyConfig
+
 
 @dataclass(slots=True)
 class SharedEmailPipelineHooks:
@@ -21,8 +23,8 @@ class SharedEmailPipelineHooks:
 
 
 class SharedEmailPipelineCore:
-    def __init__(self, *, flow_family: str, hooks: SharedEmailPipelineHooks) -> None:
-        self.flow_family = flow_family
+    def __init__(self, *, flow_config: FlowFamilyConfig, hooks: SharedEmailPipelineHooks) -> None:
+        self.flow_config = flow_config
         self.hooks = hooks
 
     async def process_normalized_email(self, normalized: object) -> dict[str, object]:
@@ -39,7 +41,8 @@ class SharedEmailPipelineCore:
         user_notification = self.hooks.build_user_notification(phase6, action_router, phase4)
         tracking_monitor = self.hooks.build_tracking_monitor(phase6, action_router, phase4)
         phase7_result = {
-            "flow_family": self.flow_family,
+            "flow_family": self.flow_config.flow_family,
+            "output_schema_family": self.flow_config.output_schema_family,
             "persisted_result": phase7.persisted,
             "persistence_reason": phase7.blocked_reason or phase7.trust_level,
             "actions_allowed": action_gate.actions_allowed,
@@ -51,7 +54,8 @@ class SharedEmailPipelineCore:
             },
         }
         return {
-            "flow_family": self.flow_family,
+            "flow_family": self.flow_config.flow_family,
+            "flow_config": self.flow_config,
             "phase2": phase2,
             "phase3": phase3,
             "phase4": phase4,
