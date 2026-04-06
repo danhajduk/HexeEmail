@@ -11,6 +11,7 @@ Current scope:
 - shared Phase 4 template registry and execution engine
 - shared probation lifecycle core for evaluation, metrics, promotion, and shadow comparison
 - shared Phase 5 validation and confidence policy framework
+- shared Phase 6 decision framework
 - flow-family identity carried with the pipeline result
 - family config loaded from one shared entry point
 - flow-specific logic remains injected as hooks
@@ -61,6 +62,7 @@ Current ORDER integration:
 - [src/providers/gmail/order_template_registry.py](/home/dan/Projects/HexeEmail/src/providers/gmail/order_template_registry.py) now delegates template loading, lookup, and schema validation to [src/email_node/shared_pipeline_core/template_engine.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/template_engine.py)
 - [src/providers/gmail/order_phase4.py](/home/dan/Projects/HexeEmail/src/providers/gmail/order_phase4.py) now delegates template execution, field validation, and confidence scoring to [src/email_node/shared_pipeline_core/template_engine.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/template_engine.py) while keeping ORDER-specific AI fallback hook behavior
 - [src/email_node/shared_pipeline_core/template_engine.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/template_engine.py) now delegates required-field checks, field-format validation, and confidence scoring to [src/email_node/shared_pipeline_core/validation.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/validation.py)
+- [src/email_node/pipeline/order_decision_engine.py](/home/dan/Projects/HexeEmail/src/email_node/pipeline/order_decision_engine.py) now thinly wraps the shared decision framework in [src/email_node/shared_pipeline_core/decision.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/decision.py)
 - [src/email_node/patterns/probation_evaluator.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation_evaluator.py), [src/email_node/patterns/probation_metrics.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation_metrics.py), [src/email_node/patterns/probation_policy.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation_policy.py), and [src/email_node/patterns/probation_promotion.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation_promotion.py) now thinly wrap the shared probation subsystem in [src/email_node/shared_pipeline_core/probation.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/probation.py)
 - ORDER still owns its current decisioning, persistence, and action handlers
 

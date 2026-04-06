@@ -47,23 +47,6 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[TODO] Task 278: Extract Phase 6 decisioning into shared decision framework
-
-- Refactor the new decision engine so it becomes family-driven instead of ORDER-specific
-
-Requirements:
-- Shared decision framework must support:
-  - accept
-  - probation
-  - reject
-- Optional family-specific extensions allowed later
-- Decision policy loaded by family
-- Preserve existing ORDER trust boundary behavior
-
-Acceptance:
-- ORDER Phase 6 runs through shared decision framework
-- Framework is ready for ACTION_NEEDED-specific policy differences
-
 [TODO] Task 279: Create family-specific decision policy packs
 
 - Externalize trust/action thresholds by flow family
