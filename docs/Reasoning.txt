@@ -229,3 +229,9 @@ Chosen fix: Add one reusable mailbox-sampling script that reuses the real Phase 
 What changed: Added `scripts/sample_flow_family_mailbox.py`, generated `runtime/flow_families/financial/analysis/financial_mailbox_sample.json`, generated `runtime/flow_families/financial/analysis/financial_mailbox_sample.md`, removed Task 317 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
 Verification: `python -m py_compile scripts/sample_flow_family_mailbox.py` passed. `PYTHONPATH=src ./.venv/bin/python scripts/sample_flow_family_mailbox.py financial --limit 30` passed.
 ###########
+Task #318
+Step objective: Sample 20-30 INVOICE emails from the Gmail DB and derive taxonomy inputs from scrubbed content.
+Chosen fix: Reuse the new mailbox-sampling script and persist the INVOICE sample under the family runtime analysis directory so the later taxonomy and prompt tasks can work from the same artifact format as FINANCIAL.
+What changed: Generated `runtime/flow_families/invoice/analysis/invoice_mailbox_sample.json`, generated `runtime/flow_families/invoice/analysis/invoice_mailbox_sample.md`, removed Task 318 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: `PYTHONPATH=src ./.venv/bin/python scripts/sample_flow_family_mailbox.py invoice --limit 30` passed.
+###########

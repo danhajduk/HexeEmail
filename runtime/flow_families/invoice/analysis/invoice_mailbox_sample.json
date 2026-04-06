@@ -1,0 +1,2187 @@
+{
+  "schema_version": "flow-family-mailbox-sample.v1",
+  "flow_family": "invoice",
+  "generated_at": "2026-04-06T03:09:28.251620-07:00",
+  "sample_limit": 30,
+  "sample_size": 30,
+  "total_labelled_messages": 146,
+  "aggregate": {
+    "phase1_validation_status_counts": {
+      "success": 30
+    },
+    "phase2_scrub_status_counts": {
+      "partial": 25,
+      "failed": 5
+    },
+    "phase3_profile_counts": {
+      "generic_invoice_update": 2,
+      "invoice_ready": 2,
+      "receipt_issued": 1
+    },
+    "top_sender_domains": [
+      {
+        "value": "robinhood.com",
+        "count": 5
+      },
+      {
+        "value": "uber.com",
+        "count": 4
+      },
+      {
+        "value": "statefarmservice.com",
+        "count": 3
+      },
+      {
+        "value": "post.applecard.apple",
+        "count": 2
+      },
+      {
+        "value": "sequoiaequities.com",
+        "count": 2
+      },
+      {
+        "value": "google.com",
+        "count": 2
+      },
+      {
+        "value": "service.paypal.com",
+        "count": 2
+      },
+      {
+        "value": "mygoodtogo.com",
+        "count": 1
+      },
+      {
+        "value": "notify.cloudflare.com",
+        "count": 1
+      },
+      {
+        "value": "tm1.openai.com",
+        "count": 1
+      },
+      {
+        "value": "notification.capitalone.com",
+        "count": 1
+      },
+      {
+        "value": "pgn.com",
+        "count": 1
+      },
+      {
+        "value": "mail.santanderconsumerusa.com",
+        "count": 1
+      },
+      {
+        "value": "mail.bestegg.com",
+        "count": 1
+      },
+      {
+        "value": "tmw.com",
+        "count": 1
+      },
+      {
+        "value": "nabucasa.com",
+        "count": 1
+      },
+      {
+        "value": "rentalcover.com",
+        "count": 1
+      }
+    ],
+    "top_subject_ngrams": [
+      {
+        "value": "statement ready",
+        "count": 5
+      },
+      {
+        "value": "account statement",
+        "count": 5
+      },
+      {
+        "value": "monthly statement",
+        "count": 4
+      },
+      {
+        "value": "statement available",
+        "count": 4
+      },
+      {
+        "value": "card statement",
+        "count": 3
+      },
+      {
+        "value": "card statement ready",
+        "count": 3
+      },
+      {
+        "value": "reservation confirmed",
+        "count": 3
+      },
+      {
+        "value": "account statement available",
+        "count": 3
+      },
+      {
+        "value": "statement changes form",
+        "count": 2
+      },
+      {
+        "value": "account statement changes",
+        "count": 2
+      },
+      {
+        "value": "statement changes form crs",
+        "count": 2
+      },
+      {
+        "value": "changes form crs",
+        "count": 2
+      },
+      {
+        "value": "statement changes",
+        "count": 2
+      },
+      {
+        "value": "account statement changes form",
+        "count": 2
+      },
+      {
+        "value": "individual account statement",
+        "count": 2
+      },
+      {
+        "value": "form crs",
+        "count": 2
+      },
+      {
+        "value": "individual account",
+        "count": 2
+      },
+      {
+        "value": "individual account statement changes",
+        "count": 2
+      },
+      {
+        "value": "changes form",
+        "count": 2
+      },
+      {
+        "value": "apple card",
+        "count": 2
+      },
+      {
+        "value": "apple card statement ready",
+        "count": 2
+      },
+      {
+        "value": "apple card statement",
+        "count": 2
+      },
+      {
+        "value": "bill available",
+        "count": 2
+      },
+      {
+        "value": "available cortland",
+        "count": 2
+      },
+      {
+        "value": "cortland village apartments",
+        "count": 2
+      }
+    ],
+    "top_scrubbed_ngrams": [
+      {
+        "value": "account statement",
+        "count": 6
+      },
+      {
+        "value": "slobodan hajduk",
+        "count": 5
+      },
+      {
+        "value": "monthly statement",
+        "count": 4
+      },
+      {
+        "value": "dan latest",
+        "count": 4
+      },
+      {
+        "value": "available dan latest",
+        "count": 4
+      },
+      {
+        "value": "available dan",
+        "count": 4
+      },
+      {
+        "value": "account statement available",
+        "count": 4
+      },
+      {
+        "value": "statement available",
+        "count": 4
+      },
+      {
+        "value": "insurance financial",
+        "count": 3
+      },
+      {
+        "value": "financial services state",
+        "count": 3
+      },
+      {
+        "value": "services state farm",
+        "count": 3
+      },
+      {
+        "value": "state farm insurance financial",
+        "count": 3
+      },
+      {
+        "value": "services state farm insurance",
+        "count": 3
+      },
+      {
+        "value": "farm insurance financial services",
+        "count": 3
+      },
+      {
+        "value": "financial services state farm",
+        "count": 3
+      },
+      {
+        "value": "state farm",
+        "count": 3
+      },
+      {
+        "value": "services state",
+        "count": 3
+      },
+      {
+        "value": "farm insurance financial",
+        "count": 3
+      },
+      {
+        "value": "farm insurance",
+        "count": 3
+      },
+      {
+        "value": "financial services",
+        "count": 3
+      },
+      {
+        "value": "insurance financial services state",
+        "count": 3
+      },
+      {
+        "value": "automated payment",
+        "count": 3
+      },
+      {
+        "value": "insurance financial services",
+        "count": 3
+      },
+      {
+        "value": "state farm insurance",
+        "count": 3
+      },
+      {
+        "value": "6937 ronler",
+        "count": 3
+      }
+    ],
+    "top_leading_lines": [
+      {
+        "value": "View your individual account statement and additional account notices Your account statement and additional account notices are available Hi Dan, your latest individual account statement is now",
+        "count": 2
+      },
+      {
+        "value": "Apple Card Customer: Slobodan Hajduk dan.hajduk@gmail.com You can view your balance or pay your bill by tapping Apple Card in the Wallet app. To view a PDF of the statement, tap Apple Card in the",
+        "count": 2
+      },
+      {
+        "value": "View your billing information securely online. State Farm Insurance and Financial Services State Farm Insurance and Financial Services Hello, Dan. Your automated payment is scheduled soon. Your bill",
+        "count": 2
+      },
+      {
+        "value": "Dear Resident, Your current utility billing statement from YES Energy Management is attached as a PDF. Please direct any questions you may have to the Customer Service Number listed on your statement.",
+        "count": 2
+      }
+    ],
+    "unresolved_sender_domains": [
+      {
+        "value": "robinhood.com",
+        "count": 5
+      },
+      {
+        "value": "uber.com",
+        "count": 4
+      },
+      {
+        "value": "statefarmservice.com",
+        "count": 3
+      },
+      {
+        "value": "post.applecard.apple",
+        "count": 2
+      },
+      {
+        "value": "google.com",
+        "count": 2
+      },
+      {
+        "value": "service.paypal.com",
+        "count": 2
+      },
+      {
+        "value": "mygoodtogo.com",
+        "count": 1
+      },
+      {
+        "value": "notification.capitalone.com",
+        "count": 1
+      },
+      {
+        "value": "pgn.com",
+        "count": 1
+      },
+      {
+        "value": "mail.santanderconsumerusa.com",
+        "count": 1
+      },
+      {
+        "value": "mail.bestegg.com",
+        "count": 1
+      },
+      {
+        "value": "nabucasa.com",
+        "count": 1
+      },
+      {
+        "value": "rentalcover.com",
+        "count": 1
+      }
+    ],
+    "unresolved_leading_lines": [
+      {
+        "value": "View your individual account statement and additional account notices Your account statement and additional account notices are available Hi Dan, your latest individual account statement is now",
+        "count": 2
+      },
+      {
+        "value": "Apple Card Customer: Slobodan Hajduk dan.hajduk@gmail.com You can view your balance or pay your bill by tapping Apple Card in the Wallet app. To view a PDF of the statement, tap Apple Card in the",
+        "count": 2
+      },
+      {
+        "value": "View your billing information securely online. State Farm Insurance and Financial Services State Farm Insurance and Financial Services Hello, Dan. Your automated payment is scheduled soon. Your bill",
+        "count": 2
+      },
+      {
+        "value": "Dear SLOBODAN D HAJDUK, Customer ID: 10182641 Your new Good To Go! monthly statement is ready to be downloaded at MyGoodToGo.com. Important: Please review your statement to ensure it is accurate. You",
+        "count": 1
+      },
+      {
+        "value": "Pickup is at 5:20am from 6937 NE Ronler Way",
+        "count": 1
+      },
+      {
+        "value": "Financial Privacy Notice and US User Privacy Statement Updates Hi Dan, we&#39;re writing to let you know that we&#39;ve updated our Financial Privacy Notice as well as our Robinhood US User Privacy",
+        "count": 1
+      },
+      {
+        "value": "Google Fi Your monthly statement Here&#39;s a quick summary of your March 15 statement: Your total is $124.50 Auto-payment is scheduled for March 26, 2026. No need to remember to pay just make sure",
+        "count": 1
+      },
+      {
+        "value": "Slobodan Hajduk - Your February account statement is available. View Online PayPal Your February account statement is available. Hi Slobodan Hajduk, Access your account statements quickly and easily.",
+        "count": 1
+      },
+      {
+        "value": "View your statement now.",
+        "count": 1
+      },
+      {
+        "value": "PGE Your bill is ready Service from: 02/11/2026 - 03/12/2026 Auto Pay amount: $127.10 Will be deducted: 04/06/2026 This bill is set up for Auto Pay Account: 1365113041 Service address: 6937 NE Ronler",
+        "count": 1
+      },
+      {
+        "value": "Your crypto account statement is available Hi Dan, Your latest crypto monthly statement is now available on Robinhood. You can find this document under Menu &gt; Statements &gt; Crypto Account",
+        "count": 1
+      },
+      {
+        "value": "Log in to view statement details",
+        "count": 1
+      },
+      {
+        "value": "Mar 6, 2026 5:10 PM Mar 6, 2026, 5:10 PM Thanks for riding, Dan We hope you enjoyed your ride this morning. Total $37.30 $2.11 Uber One credits earned Trip fare $29.92 Booking Fee $6.91 City of",
+        "count": 1
+      },
+      {
+        "value": "Log in to view your bill or update your payment details. State Farm Insurance and Financial Services State Farm Insurance and Financial Services Payment Plan: 1580-1457-15 Your automated payment is",
+        "count": 1
+      },
+      {
+        "value": "Your monthly futures and event contracts account statement is available Hi Dan. Your latest futures and event contracts statement is now available. View reports and statements We send statements to all",
+        "count": 1
+      },
+      {
+        "value": "Pickup is at 2:00am from Bossanova Ballroom",
+        "count": 1
+      },
+      {
+        "value": "Pickup is at 8:30pm from 6937 NE Ronler Way",
+        "count": 1
+      },
+      {
+        "value": "See your upcoming payment, loan balance and more.",
+        "count": 1
+      },
+      {
+        "value": "RentalCover.com Proud partners of: https://www.priceline.com/ Hi SLOBODAN, Your RentalCover Protection is confirmed. An account has been created for you. Log in to access your protection details,",
+        "count": 1
+      },
+      {
+        "value": "Google Fi Your monthly statement Here&#39;s a quick summary of your February 15 statement: Your total is $124.50 Auto-payment is scheduled for February 26, 2026. No need to remember to pay just make",
+        "count": 1
+      }
+    ],
+    "taxonomy_inputs": {
+      "candidate_vendor_domains": [
+        {
+          "value": "robinhood.com",
+          "count": 5
+        },
+        {
+          "value": "uber.com",
+          "count": 4
+        },
+        {
+          "value": "statefarmservice.com",
+          "count": 3
+        },
+        {
+          "value": "post.applecard.apple",
+          "count": 2
+        },
+        {
+          "value": "sequoiaequities.com",
+          "count": 2
+        },
+        {
+          "value": "google.com",
+          "count": 2
+        },
+        {
+          "value": "service.paypal.com",
+          "count": 2
+        },
+        {
+          "value": "mygoodtogo.com",
+          "count": 1
+        },
+        {
+          "value": "notify.cloudflare.com",
+          "count": 1
+        },
+        {
+          "value": "tm1.openai.com",
+          "count": 1
+        },
+        {
+          "value": "notification.capitalone.com",
+          "count": 1
+        },
+        {
+          "value": "pgn.com",
+          "count": 1
+        },
+        {
+          "value": "mail.santanderconsumerusa.com",
+          "count": 1
+        },
+        {
+          "value": "mail.bestegg.com",
+          "count": 1
+        },
+        {
+          "value": "tmw.com",
+          "count": 1
+        }
+      ],
+      "candidate_subject_phrases": [
+        {
+          "value": "statement ready",
+          "count": 5
+        },
+        {
+          "value": "account statement",
+          "count": 5
+        },
+        {
+          "value": "monthly statement",
+          "count": 4
+        },
+        {
+          "value": "statement available",
+          "count": 4
+        },
+        {
+          "value": "card statement",
+          "count": 3
+        },
+        {
+          "value": "card statement ready",
+          "count": 3
+        },
+        {
+          "value": "reservation confirmed",
+          "count": 3
+        },
+        {
+          "value": "account statement available",
+          "count": 3
+        },
+        {
+          "value": "statement changes form",
+          "count": 2
+        },
+        {
+          "value": "account statement changes",
+          "count": 2
+        },
+        {
+          "value": "statement changes form crs",
+          "count": 2
+        },
+        {
+          "value": "changes form crs",
+          "count": 2
+        },
+        {
+          "value": "statement changes",
+          "count": 2
+        },
+        {
+          "value": "account statement changes form",
+          "count": 2
+        },
+        {
+          "value": "individual account statement",
+          "count": 2
+        }
+      ],
+      "candidate_scrubbed_phrases": [
+        {
+          "value": "account statement",
+          "count": 6
+        },
+        {
+          "value": "slobodan hajduk",
+          "count": 5
+        },
+        {
+          "value": "monthly statement",
+          "count": 4
+        },
+        {
+          "value": "dan latest",
+          "count": 4
+        },
+        {
+          "value": "available dan latest",
+          "count": 4
+        },
+        {
+          "value": "available dan",
+          "count": 4
+        },
+        {
+          "value": "account statement available",
+          "count": 4
+        },
+        {
+          "value": "statement available",
+          "count": 4
+        },
+        {
+          "value": "insurance financial",
+          "count": 3
+        },
+        {
+          "value": "financial services state",
+          "count": 3
+        },
+        {
+          "value": "services state farm",
+          "count": 3
+        },
+        {
+          "value": "state farm insurance financial",
+          "count": 3
+        },
+        {
+          "value": "services state farm insurance",
+          "count": 3
+        },
+        {
+          "value": "farm insurance financial services",
+          "count": 3
+        },
+        {
+          "value": "financial services state farm",
+          "count": 3
+        }
+      ],
+      "unresolved_vendor_domains": [
+        {
+          "value": "robinhood.com",
+          "count": 5
+        },
+        {
+          "value": "uber.com",
+          "count": 4
+        },
+        {
+          "value": "statefarmservice.com",
+          "count": 3
+        },
+        {
+          "value": "post.applecard.apple",
+          "count": 2
+        },
+        {
+          "value": "google.com",
+          "count": 2
+        },
+        {
+          "value": "service.paypal.com",
+          "count": 2
+        },
+        {
+          "value": "mygoodtogo.com",
+          "count": 1
+        },
+        {
+          "value": "notification.capitalone.com",
+          "count": 1
+        },
+        {
+          "value": "pgn.com",
+          "count": 1
+        },
+        {
+          "value": "mail.santanderconsumerusa.com",
+          "count": 1
+        },
+        {
+          "value": "mail.bestegg.com",
+          "count": 1
+        },
+        {
+          "value": "nabucasa.com",
+          "count": 1
+        },
+        {
+          "value": "rentalcover.com",
+          "count": 1
+        }
+      ],
+      "unresolved_leading_lines": [
+        {
+          "value": "View your individual account statement and additional account notices Your account statement and additional account notices are available Hi Dan, your latest individual account statement is now",
+          "count": 2
+        },
+        {
+          "value": "Apple Card Customer: Slobodan Hajduk dan.hajduk@gmail.com You can view your balance or pay your bill by tapping Apple Card in the Wallet app. To view a PDF of the statement, tap Apple Card in the",
+          "count": 2
+        },
+        {
+          "value": "View your billing information securely online. State Farm Insurance and Financial Services State Farm Insurance and Financial Services Hello, Dan. Your automated payment is scheduled soon. Your bill",
+          "count": 2
+        },
+        {
+          "value": "Dear SLOBODAN D HAJDUK, Customer ID: 10182641 Your new Good To Go! monthly statement is ready to be downloaded at MyGoodToGo.com. Important: Please review your statement to ensure it is accurate. You",
+          "count": 1
+        },
+        {
+          "value": "Pickup is at 5:20am from 6937 NE Ronler Way",
+          "count": 1
+        },
+        {
+          "value": "Financial Privacy Notice and US User Privacy Statement Updates Hi Dan, we&#39;re writing to let you know that we&#39;ve updated our Financial Privacy Notice as well as our Robinhood US User Privacy",
+          "count": 1
+        },
+        {
+          "value": "Google Fi Your monthly statement Here&#39;s a quick summary of your March 15 statement: Your total is $124.50 Auto-payment is scheduled for March 26, 2026. No need to remember to pay just make sure",
+          "count": 1
+        },
+        {
+          "value": "Slobodan Hajduk - Your February account statement is available. View Online PayPal Your February account statement is available. Hi Slobodan Hajduk, Access your account statements quickly and easily.",
+          "count": 1
+        },
+        {
+          "value": "View your statement now.",
+          "count": 1
+        },
+        {
+          "value": "PGE Your bill is ready Service from: 02/11/2026 - 03/12/2026 Auto Pay amount: $127.10 Will be deducted: 04/06/2026 This bill is set up for Auto Pay Account: 1365113041 Service address: 6937 NE Ronler",
+          "count": 1
+        },
+        {
+          "value": "Your crypto account statement is available Hi Dan, Your latest crypto monthly statement is now available on Robinhood. You can find this document under Menu &gt; Statements &gt; Crypto Account",
+          "count": 1
+        },
+        {
+          "value": "Log in to view statement details",
+          "count": 1
+        },
+        {
+          "value": "Mar 6, 2026 5:10 PM Mar 6, 2026, 5:10 PM Thanks for riding, Dan We hope you enjoyed your ride this morning. Total $37.30 $2.11 Uber One credits earned Trip fare $29.92 Booking Fee $6.91 City of",
+          "count": 1
+        },
+        {
+          "value": "Log in to view your bill or update your payment details. State Farm Insurance and Financial Services State Farm Insurance and Financial Services Payment Plan: 1580-1457-15 Your automated payment is",
+          "count": 1
+        },
+        {
+          "value": "Your monthly futures and event contracts account statement is available Hi Dan. Your latest futures and event contracts statement is now available. View reports and statements We send statements to all",
+          "count": 1
+        }
+      ]
+    }
+  },
+  "messages": [
+    {
+      "message_id": "19d563a8761029cf",
+      "received_at": "2026-04-03T19:02:49-07:00",
+      "subject": "Your new Good To Go! Statement is ready.",
+      "sender": "noreply@mygoodtogo.com",
+      "sender_domain": "mygoodtogo.com",
+      "local_label_confidence": 0.94,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Dear SLOBODAN D HAJDUK, Customer ID: 10182641 Your new Good To Go! monthly statement is ready to be downloaded at MyGoodToGo.com. Important: Please review your statement to ensure it is accurate. You",
+        "leading_lines": [
+          "Dear SLOBODAN D HAJDUK, Customer ID: 10182641 Your new Good To Go! monthly statement is ready to be downloaded at MyGoodToGo.com. Important: Please review your statement to ensure it is accurate. You"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d503bb43106e5d",
+      "received_at": "2026-04-02T15:06:23-07:00",
+      "subject": "Your individual account statement and changes to our Form CRS are available",
+      "sender": "Robinhood <noreply@robinhood.com>",
+      "sender_domain": "robinhood.com",
+      "local_label_confidence": 0.88,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "View your individual account statement and additional account notices Your account statement and additional account notices are available Hi Dan, your latest individual account statement is now",
+        "leading_lines": [
+          "View your individual account statement and additional account notices Your account statement and additional account notices are available Hi Dan, your latest individual account statement is now"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d4880ddfc4c7f9",
+      "received_at": "2026-04-01T03:04:57-07:00",
+      "subject": "Your Apple Card statement is ready",
+      "sender": "Apple Card Support <no_reply@post.applecard.apple>",
+      "sender_domain": "post.applecard.apple",
+      "local_label_confidence": 0.88,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Apple Card Customer: Slobodan Hajduk dan.hajduk@gmail.com You can view your balance or pay your bill by tapping Apple Card in the Wallet app. To view a PDF of the statement, tap Apple Card in the",
+        "leading_lines": [
+          "Apple Card Customer: Slobodan Hajduk dan.hajduk@gmail.com You can view your balance or pay your bill by tapping Apple Card in the Wallet app. To view a PDF of the statement, tap Apple Card in the"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d1cea3cfc5f121",
+      "received_at": "2026-03-23T15:56:45-07:00",
+      "subject": "Your bill is available.",
+      "sender": "State Farm <statefarmservice@statefarmservice.com>",
+      "sender_domain": "statefarmservice.com",
+      "local_label_confidence": 0.88,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "View your billing information securely online. State Farm Insurance and Financial Services State Farm Insurance and Financial Services Hello, Dan. Your automated payment is scheduled soon. Your bill",
+        "leading_lines": [
+          "View your billing information securely online. State Farm Insurance and Financial Services State Farm Insurance and Financial Services Hello, Dan. Your automated payment is scheduled soon. Your bill"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d0db4e762a0cac",
+      "received_at": "2026-03-20T17:04:12-07:00",
+      "subject": "YES Utility Billing New E-Statement Available for Cortland Village Apartments",
+      "sender": "<communications@sequoiaequities.com>",
+      "sender_domain": "sequoiaequities.com",
+      "local_label_confidence": 0.88,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "failed",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Dear Resident, Your current utility billing statement from YES Energy Management is attached as a PDF. Please direct any questions you may have to the Customer Service Number listed on your statement.",
+        "leading_lines": [
+          "Dear Resident, Your current utility billing statement from YES Energy Management is attached as a PDF. Please direct any questions you may have to the Customer Service Number listed on your statement."
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=2 (seed=2, merged=2)",
+          "transactional_anchor:billing statement",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": "generic_invoice_update",
+        "profile_confidence": 0.55,
+        "profile_confidence_level": "medium",
+        "profile_status": "partial",
+        "top_candidates": [
+          {
+            "profile_id": "generic_invoice_update",
+            "score": 11,
+            "confidence_level": "medium",
+            "reasons": [
+              "generic_invoice_language",
+              "score:sender_match",
+              "score:generic_invoice_language"
+            ]
+          }
+        ],
+        "profile_diagnostics": [
+          "candidate:generic_invoice_update reasons=generic_invoice_language",
+          "scored:generic_invoice_update score=11 reasons=generic_invoice_language,score:sender_match,score:generic_invoice_language",
+          "resolved_profile:generic_invoice_update score=11"
+        ]
+      }
+    },
+    {
+      "message_id": "19d0d549814edcb7",
+      "received_at": "2026-03-20T15:19:00-07:00",
+      "subject": "Your Cloudflare invoice is available",
+      "sender": "Cloudflare <noreply@notify.cloudflare.com>",
+      "sender_domain": "notify.cloudflare.com",
+      "local_label_confidence": 0.94,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "failed",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Invoice ID IN-60317639 is due on March 20, 2026. Thank you for using Cloudflare. Cloudflare logo Your invoice is available. Thank you for using Cloudflare. View invoice Invoice details Invoice ID: IN-",
+        "leading_lines": [
+          "Invoice ID IN-60317639 is due on March 20, 2026. Thank you for using Cloudflare. Cloudflare logo Your invoice is available. Thank you for using Cloudflare. View invoice Invoice details Invoice ID: IN-"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=2 (seed=2, merged=2)",
+          "transactional_anchor:invoice",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": "invoice_ready",
+        "profile_confidence": 0.65,
+        "profile_confidence_level": "medium",
+        "profile_status": "partial",
+        "top_candidates": [
+          {
+            "profile_id": "invoice_ready",
+            "score": 13,
+            "confidence_level": "medium",
+            "reasons": [
+              "invoice_ready_language",
+              "score:sender_match",
+              "score:invoice_ready_language"
+            ]
+          }
+        ],
+        "profile_diagnostics": [
+          "candidate:invoice_ready reasons=invoice_ready_language",
+          "scored:invoice_ready score=13 reasons=invoice_ready_language,score:sender_match,score:invoice_ready_language",
+          "resolved_profile:invoice_ready score=13"
+        ]
+      }
+    },
+    {
+      "message_id": "19d08d332fdcae37",
+      "received_at": "2026-03-19T18:19:11-07:00",
+      "subject": "Reservation confirmed for Tuesday, March 24",
+      "sender": "Uber <no-reply@uber.com>",
+      "sender_domain": "uber.com",
+      "local_label_confidence": 0.6208053603251602,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "partial",
+        "scrubbed_text_preview": "Pickup is at 5:20am from 6937 NE Ronler Way",
+        "leading_lines": [
+          "Pickup is at 5:20am from 6937 NE Ronler Way"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=6 (seed=6, merged=6)",
+          "status_anchor",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_critical_order_anchor"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19cf7b9ab01a2f11",
+      "received_at": "2026-03-16T10:37:44-07:00",
+      "subject": "Changes to our Financial Privacy Notice and US User Privacy Statement",
+      "sender": "Robinhood <noreply@robinhood.com>",
+      "sender_domain": "robinhood.com",
+      "local_label_confidence": 0.88,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Financial Privacy Notice and US User Privacy Statement Updates Hi Dan, we&#39;re writing to let you know that we&#39;ve updated our Financial Privacy Notice as well as our Robinhood US User Privacy",
+        "leading_lines": [
+          "Financial Privacy Notice and US User Privacy Statement Updates Hi Dan, we&#39;re writing to let you know that we&#39;ve updated our Financial Privacy Notice as well as our Robinhood US User Privacy"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19cf71ec929d85ed",
+      "received_at": "2026-03-16T07:48:34-07:00",
+      "subject": "Your Google Fi monthly statement",
+      "sender": "Google Payments <payments-noreply@google.com>",
+      "sender_domain": "google.com",
+      "local_label_confidence": 0.88,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Google Fi Your monthly statement Here&#39;s a quick summary of your March 15 statement: Your total is $124.50 Auto-payment is scheduled for March 26, 2026. No need to remember to pay just make sure",
+        "leading_lines": [
+          "Google Fi Your monthly statement Here&#39;s a quick summary of your March 15 statement: Your total is $124.50 Auto-payment is scheduled for March 26, 2026. No need to remember to pay just make sure"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "total_anchor",
+          "penalty:price_without_order_identifier",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19cf2bbc577875ef",
+      "received_at": "2026-03-15T11:21:56-07:00",
+      "subject": "Slobodan, your February account statement is available.",
+      "sender": "PayPal <noreply@service.paypal.com>",
+      "sender_domain": "service.paypal.com",
+      "local_label_confidence": 0.88,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Slobodan Hajduk - Your February account statement is available. View Online PayPal Your February account statement is available. Hi Slobodan Hajduk, Access your account statements quickly and easily.",
+        "leading_lines": [
+          "Slobodan Hajduk - Your February account statement is available. View Online PayPal Your February account statement is available. Hi Slobodan Hajduk, Access your account statements quickly and easily."
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19cf064056147ab0",
+      "received_at": "2026-03-15T00:26:52-07:00",
+      "subject": "OpenAI API Invoice 1A82942B-0006",
+      "sender": "OpenAI <billing@tm1.openai.com>",
+      "sender_domain": "tm1.openai.com",
+      "local_label_confidence": 0.88,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "failed",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Your invoice 1A82942B-0006 has been fully paid Hi there, Here is your invoice 1A82942B-0006 for $40.00 USD. The invoice has been fully paid with your credit card ending in 5511. View Invoice This link",
+        "leading_lines": [
+          "Your invoice 1A82942B-0006 has been fully paid Hi there, Here is your invoice 1A82942B-0006 for $40.00 USD. The invoice has been fully paid with your credit card ending in 5511. View Invoice This link"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "transactional_anchor:invoice",
+          "penalty:price_without_order_identifier",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": "invoice_ready",
+        "profile_confidence": 0.65,
+        "profile_confidence_level": "medium",
+        "profile_status": "partial",
+        "top_candidates": [
+          {
+            "profile_id": "invoice_ready",
+            "score": 13,
+            "confidence_level": "medium",
+            "reasons": [
+              "invoice_ready_language",
+              "score:sender_match",
+              "score:invoice_ready_language"
+            ]
+          }
+        ],
+        "profile_diagnostics": [
+          "candidate:invoice_ready reasons=invoice_ready_language",
+          "scored:invoice_ready score=13 reasons=invoice_ready_language,score:sender_match,score:invoice_ready_language",
+          "resolved_profile:invoice_ready score=13"
+        ]
+      }
+    },
+    {
+      "message_id": "19cecfc2848aa124",
+      "received_at": "2026-03-14T08:34:34-07:00",
+      "subject": "Your Platinum Card statement is ready",
+      "sender": "Capital One <capitalone@notification.capitalone.com>",
+      "sender_domain": "notification.capitalone.com",
+      "local_label_confidence": 0.98,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=fallback_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "View your statement now.",
+        "leading_lines": [
+          "View your statement now."
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19ce7bca051a3f06",
+      "received_at": "2026-03-13T08:07:04-07:00",
+      "subject": "Your PGE Bill is Ready",
+      "sender": "Customer.Service@pgn.com",
+      "sender_domain": "pgn.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "PGE Your bill is ready Service from: 02/11/2026 - 03/12/2026 Auto Pay amount: $127.10 Will be deducted: 04/06/2026 This bill is set up for Auto Pay Account: 1365113041 Service address: 6937 NE Ronler",
+        "leading_lines": [
+          "PGE Your bill is ready Service from: 02/11/2026 - 03/12/2026 Auto Pay amount: $127.10 Will be deducted: 04/06/2026 This bill is set up for Auto Pay Account: 1365113041 Service address: 6937 NE Ronler"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=-2 (seed=-2, merged=-2)",
+          "penalty:price_without_order_identifier",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19cd5e9f79c5fcb4",
+      "received_at": "2026-03-09T21:03:25-07:00",
+      "subject": "Your crypto monthly statement is available",
+      "sender": "Robinhood <noreply@robinhood.com>",
+      "sender_domain": "robinhood.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Your crypto account statement is available Hi Dan, Your latest crypto monthly statement is now available on Robinhood. You can find this document under Menu &gt; Statements &gt; Crypto Account",
+        "leading_lines": [
+          "Your crypto account statement is available Hi Dan, Your latest crypto monthly statement is now available on Robinhood. You can find this document under Menu &gt; Statements &gt; Crypto Account"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19cd3d4453eadc94",
+      "received_at": "2026-03-09T11:20:22-07:00",
+      "subject": "SLOBODAN, your statement is ready",
+      "sender": "Santander Consumer USA <info@mail.santanderconsumerusa.com>",
+      "sender_domain": "mail.santanderconsumerusa.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=fallback_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Log in to view statement details",
+        "leading_lines": [
+          "Log in to view statement details"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19cca1af34e59df1",
+      "received_at": "2026-03-07T13:01:29-08:00",
+      "subject": "[Personal] Your Saturday morning trip with Uber",
+      "sender": "Uber Receipts <noreply@uber.com>",
+      "sender_domain": "uber.com",
+      "local_label_confidence": 0.6,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Mar 6, 2026 5:10 PM Mar 6, 2026, 5:10 PM Thanks for riding, Dan We hope you enjoyed your ride this morning. Total $37.30 $2.11 Uber One credits earned Trip fare $29.92 Booking Fee $6.91 City of",
+        "leading_lines": [
+          "Mar 6, 2026 5:10 PM Mar 6, 2026, 5:10 PM Thanks for riding, Dan We hope you enjoyed your ride this morning. Total $37.30 $2.11 Uber One credits earned Trip fare $29.92 Booking Fee $6.91 City of"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "total_anchor",
+          "penalty:price_without_order_identifier",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19cc9722433728f5",
+      "received_at": "2026-03-07T09:57:06-08:00",
+      "subject": "Your automated payment is scheduled.",
+      "sender": "State Farm <statefarmservice@statefarmservice.com>",
+      "sender_domain": "statefarmservice.com",
+      "local_label_confidence": 0.88,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Log in to view your bill or update your payment details. State Farm Insurance and Financial Services State Farm Insurance and Financial Services Payment Plan: 1580-1457-15 Your automated payment is",
+        "leading_lines": [
+          "Log in to view your bill or update your payment details. State Farm Insurance and Financial Services State Farm Insurance and Financial Services Payment Plan: 1580-1457-15 Your automated payment is"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19cc647f953bf7a8",
+      "received_at": "2026-03-06T19:12:10-08:00",
+      "subject": "Your monthly futures and event contracts account statement is available",
+      "sender": "Robinhood <noreply@robinhood.com>",
+      "sender_domain": "robinhood.com",
+      "local_label_confidence": 0.855,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Your monthly futures and event contracts account statement is available Hi Dan. Your latest futures and event contracts statement is now available. View reports and statements We send statements to all",
+        "leading_lines": [
+          "Your monthly futures and event contracts account statement is available Hi Dan. Your latest futures and event contracts statement is now available. View reports and statements We send statements to all"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19cc5d872727306c",
+      "received_at": "2026-03-06T17:10:22-08:00",
+      "subject": "Reservation confirmed for Saturday, Mar 7",
+      "sender": "Uber <no-reply@uber.com>",
+      "sender_domain": "uber.com",
+      "local_label_confidence": 0.6252014233037283,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "partial",
+        "scrubbed_text_preview": "Pickup is at 2:00am from Bossanova Ballroom",
+        "leading_lines": [
+          "Pickup is at 2:00am from Bossanova Ballroom"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=6 (seed=6, merged=6)",
+          "status_anchor",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_critical_order_anchor"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19cc5d745bb5fc4c",
+      "received_at": "2026-03-06T17:09:05-08:00",
+      "subject": "Reservation confirmed for Friday, Mar 6",
+      "sender": "Uber <no-reply@uber.com>",
+      "sender_domain": "uber.com",
+      "local_label_confidence": 0.6349263725438362,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "partial",
+        "scrubbed_text_preview": "Pickup is at 8:30pm from 6937 NE Ronler Way",
+        "leading_lines": [
+          "Pickup is at 8:30pm from 6937 NE Ronler Way"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=6 (seed=6, merged=6)",
+          "status_anchor",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_critical_order_anchor"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19cc590f2f5e1b4b",
+      "received_at": "2026-03-06T15:52:15-08:00",
+      "subject": "It's ready, Dan: Check out your monthly statement activity update",
+      "sender": "Best Egg <bestegg@mail.bestegg.com>",
+      "sender_domain": "mail.bestegg.com",
+      "local_label_confidence": 0.88,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "See your upcoming payment, loan balance and more.",
+        "leading_lines": [
+          "See your upcoming payment, loan balance and more."
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19cc48a1010436ea",
+      "received_at": "2026-03-06T11:05:04-08:00",
+      "subject": "Your receipt from Men's Wearhouse",
+      "sender": "\"Men's Wearhouse e-Receipt\" <menswearhouse-receipt@tmw.com>",
+      "sender_domain": "tmw.com",
+      "local_label_confidence": 0.6,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "This email box is not monitored. For customer support, you can reach us on the Contact Us support page of our site: https://www.menswearhouse.com/support THE MENS WEARHOUSE, INC. 18565 NW TANASBOURNE",
+        "leading_lines": [
+          "This email box is not monitored. For customer support, you can reach us on the Contact Us support page of our site: https://www.menswearhouse.com/support THE MENS WEARHOUSE, INC. 18565 NW TANASBOURNE"
+        ],
+        "extracted_link_count": 1,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "extracted 1 links",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": "receipt_issued",
+        "profile_confidence": 0.65,
+        "profile_confidence_level": "medium",
+        "profile_status": "partial",
+        "top_candidates": [
+          {
+            "profile_id": "receipt_issued",
+            "score": 13,
+            "confidence_level": "medium",
+            "reasons": [
+              "receipt_issued_language",
+              "score:sender_match",
+              "score:receipt_issued_language"
+            ]
+          }
+        ],
+        "profile_diagnostics": [
+          "candidate:receipt_issued reasons=receipt_issued_language",
+          "scored:receipt_issued score=13 reasons=receipt_issued_language,score:sender_match,score:receipt_issued_language",
+          "resolved_profile:receipt_issued score=13"
+        ]
+      }
+    },
+    {
+      "message_id": "19cbbc4fb56e686d",
+      "received_at": "2026-03-04T18:12:54-08:00",
+      "subject": "Your individual account statement and changes to our Form CRS and RAM\u2019s brochure are available",
+      "sender": "Robinhood <noreply@robinhood.com>",
+      "sender_domain": "robinhood.com",
+      "local_label_confidence": 0.88,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "View your individual account statement and additional account notices Your account statement and additional account notices are available Hi Dan, your latest individual account statement is now",
+        "leading_lines": [
+          "View your individual account statement and additional account notices Your account statement and additional account notices are available Hi Dan, your latest individual account statement is now"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19ca9475fe630c07",
+      "received_at": "2026-03-01T04:02:31-08:00",
+      "subject": "Your Apple Card statement is ready",
+      "sender": "Apple Card Support <no_reply@post.applecard.apple>",
+      "sender_domain": "post.applecard.apple",
+      "local_label_confidence": 0.88,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Apple Card Customer: Slobodan Hajduk dan.hajduk@gmail.com You can view your balance or pay your bill by tapping Apple Card in the Wallet app. To view a PDF of the statement, tap Apple Card in the",
+        "leading_lines": [
+          "Apple Card Customer: Slobodan Hajduk dan.hajduk@gmail.com You can view your balance or pay your bill by tapping Apple Card in the Wallet app. To view a PDF of the statement, tap Apple Card in the"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19ca33f238da14a0",
+      "received_at": "2026-02-27T23:55:49-08:00",
+      "subject": "Home Assistant Cloud subscription receipt",
+      "sender": "support@nabucasa.com",
+      "sender_domain": "nabucasa.com",
+      "local_label_confidence": 0.88,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "failed",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "",
+        "leading_lines": [],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=2 (seed=2, merged=2)",
+          "transactional_anchor:invoice",
+          "transactional_anchor:receipt",
+          "penalty:price_without_order_identifier",
+          "merged block 0:seed",
+          "cutoff:Home Assistant Cloud Subscription receipt Payment details: February 28th 2026 In",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "phase2 scrubbed_text is empty"
+        ]
+      }
+    },
+    {
+      "message_id": "19c87f677d6bfff5",
+      "received_at": "2026-02-22T16:46:40-08:00",
+      "subject": "SLOBODAN \u2014 Your RentalCover Protection & how to save money on your rental. Reference 48UB-4Y9N-INS",
+      "sender": "\"RentalCover.com\" <sales@rentalcover.com>",
+      "sender_domain": "rentalcover.com",
+      "local_label_confidence": 0.6,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "partial",
+        "scrubbed_text_preview": "RentalCover.com Proud partners of: https://www.priceline.com/ Hi SLOBODAN, Your RentalCover Protection is confirmed. An account has been created for you. Log in to access your protection details,",
+        "leading_lines": [
+          "RentalCover.com Proud partners of: https://www.priceline.com/ Hi SLOBODAN, Your RentalCover Protection is confirmed. An account has been created for you. Log in to access your protection details,"
+        ],
+        "extracted_link_count": 1,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=6 (seed=6, merged=6)",
+          "status_anchor",
+          "merged block 0:seed",
+          "extracted 1 links",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19c7d332a80c279e",
+      "received_at": "2026-02-20T14:37:10-08:00",
+      "subject": "Your bill is available.",
+      "sender": "State Farm <statefarmservice@statefarmservice.com>",
+      "sender_domain": "statefarmservice.com",
+      "local_label_confidence": 0.88,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "View your billing information securely online. State Farm Insurance and Financial Services State Farm Insurance and Financial Services Hello, Dan. Your automated payment is scheduled soon. Your bill",
+        "leading_lines": [
+          "View your billing information securely online. State Farm Insurance and Financial Services State Farm Insurance and Financial Services Hello, Dan. Your automated payment is scheduled soon. Your bill"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19c7b576cb436f61",
+      "received_at": "2026-02-20T05:57:32-08:00",
+      "subject": "YES Utility Billing New E-Statement Available for Cortland Village Apartments",
+      "sender": "<communications@sequoiaequities.com>",
+      "sender_domain": "sequoiaequities.com",
+      "local_label_confidence": 0.88,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "failed",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Dear Resident, Your current utility billing statement from YES Energy Management is attached as a PDF. Please direct any questions you may have to the Customer Service Number listed on your statement.",
+        "leading_lines": [
+          "Dear Resident, Your current utility billing statement from YES Energy Management is attached as a PDF. Please direct any questions you may have to the Customer Service Number listed on your statement."
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=2 (seed=2, merged=2)",
+          "transactional_anchor:billing statement",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": "generic_invoice_update",
+        "profile_confidence": 0.55,
+        "profile_confidence_level": "medium",
+        "profile_status": "partial",
+        "top_candidates": [
+          {
+            "profile_id": "generic_invoice_update",
+            "score": 11,
+            "confidence_level": "medium",
+            "reasons": [
+              "generic_invoice_language",
+              "score:sender_match",
+              "score:generic_invoice_language"
+            ]
+          }
+        ],
+        "profile_diagnostics": [
+          "candidate:generic_invoice_update reasons=generic_invoice_language",
+          "scored:generic_invoice_update score=11 reasons=generic_invoice_language,score:sender_match,score:generic_invoice_language",
+          "resolved_profile:generic_invoice_update score=11"
+        ]
+      }
+    },
+    {
+      "message_id": "19c6716117b1a3c6",
+      "received_at": "2026-02-16T07:33:44-08:00",
+      "subject": "Your Google Fi monthly statement",
+      "sender": "Google Payments <payments-noreply@google.com>",
+      "sender_domain": "google.com",
+      "local_label_confidence": 0.88,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Google Fi Your monthly statement Here&#39;s a quick summary of your February 15 statement: Your total is $124.50 Auto-payment is scheduled for February 26, 2026. No need to remember to pay just make",
+        "leading_lines": [
+          "Google Fi Your monthly statement Here&#39;s a quick summary of your February 15 statement: Your total is $124.50 Auto-payment is scheduled for February 26, 2026. No need to remember to pay just make"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "total_anchor",
+          "penalty:price_without_order_identifier",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19c62b8bdb2d16a5",
+      "received_at": "2026-02-15T11:13:19-08:00",
+      "subject": "Slobodan, your January account statement is available.",
+      "sender": "PayPal <noreply@service.paypal.com>",
+      "sender_domain": "service.paypal.com",
+      "local_label_confidence": 0.88,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Slobodan Hajduk - Your January account statement is available. View Online PayPal Your January account statement is available. Hi Slobodan Hajduk, Access your account statements quickly and easily. Log",
+        "leading_lines": [
+          "Slobodan Hajduk - Your January account statement is available. View Online PayPal Your January account statement is available. Hi Slobodan Hajduk, Access your account statements quickly and easily. Log"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    }
+  ]
+}
