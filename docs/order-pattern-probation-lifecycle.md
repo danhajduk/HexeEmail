@@ -56,4 +56,5 @@ When an active template already resolves the email:
 - repeated matching emails reuse and evaluate that template
 - probation evaluation does not trigger downstream order actions
 - promotion is threshold-based and leaves probation history in place
-- runtime generation is gated by both `AI Calls` and `Unresolved ORDER AI`
+- runtime ORDER checking is gated by `Check Orders`
+- AI-backed probation template generation additionally requires `AI Calls`

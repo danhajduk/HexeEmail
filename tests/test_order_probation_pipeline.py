@@ -105,7 +105,7 @@ async def test_order_pipeline_creates_probation_template_for_unresolved_profile(
         probation_store=store,
         generate_probation_template=fake_generate,
         ai_calls_enabled=lambda: True,
-        unresolved_generation_enabled=lambda: True,
+        order_checks_enabled=lambda: True,
     )
 
     result = await pipeline.attach_probation_template(build_unresolved_phase4())
@@ -165,7 +165,7 @@ async def test_order_pipeline_reuses_existing_probation_template_without_regener
         probation_store=store,
         generate_probation_template=should_not_run,
         ai_calls_enabled=lambda: True,
-        unresolved_generation_enabled=lambda: True,
+        order_checks_enabled=lambda: True,
     )
 
     result = await pipeline.attach_probation_template(build_unresolved_phase4())
@@ -225,7 +225,7 @@ async def test_order_pipeline_applies_existing_probation_template_as_low_confide
         probation_store=store,
         generate_probation_template=None,
         ai_calls_enabled=lambda: True,
-        unresolved_generation_enabled=lambda: True,
+        order_checks_enabled=lambda: True,
     )
 
     result = await pipeline.attach_probation_template(build_unresolved_phase4())
@@ -241,7 +241,7 @@ async def test_order_pipeline_applies_existing_probation_template_as_low_confide
 
 
 @pytest.mark.asyncio
-async def test_order_pipeline_skips_generation_when_unresolved_runtime_toggle_disabled(tmp_path):
+async def test_order_pipeline_skips_when_order_checks_are_disabled(tmp_path):
     store = ProbationStore(
         templates_dir=tmp_path / "probation",
         state_dir=tmp_path / "probation_state",
@@ -257,11 +257,11 @@ async def test_order_pipeline_skips_generation_when_unresolved_runtime_toggle_di
         probation_store=store,
         generate_probation_template=should_not_run,
         ai_calls_enabled=lambda: True,
-        unresolved_generation_enabled=lambda: False,
+        order_checks_enabled=lambda: False,
     )
 
     result = await pipeline.attach_probation_template(build_unresolved_phase4())
 
     assert generate_calls == 0
-    assert "probation_template:skipped_runtime_disabled" in result.template_diagnostics
+    assert "order_checks:disabled" in result.template_diagnostics
     assert store.list_states() == []

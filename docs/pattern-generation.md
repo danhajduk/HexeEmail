@@ -115,7 +115,8 @@ The handoff rules are:
 
 - the unresolved result must expose `ai_template_hook`
 - global runtime `AI Calls` must be enabled
-- runtime `Unresolved ORDER AI` must be enabled
+- runtime `Check Orders` must be enabled
+- AI-backed probation template generation also requires `AI Calls` to be enabled
 - if a probation template already exists for the same profile and vendor, the node evaluates it instead of regenerating
 - if an active template already exists, the probation template only runs in shadow mode
 

@@ -160,7 +160,7 @@ class NodeService:
             probation_store=self.probation_store,
             generate_probation_template=self._generate_probation_template,
             ai_calls_enabled=self._runtime_ai_calls_enabled,
-            unresolved_generation_enabled=self._runtime_unresolved_order_template_generation_enabled,
+            order_checks_enabled=self._runtime_order_checks_enabled,
         )
 
     @staticmethod
@@ -185,8 +185,8 @@ class NodeService:
     def _runtime_provider_disabled_message(self) -> str:
         return self.runtime.runtime_provider_disabled_message()
 
-    def _runtime_unresolved_order_template_generation_enabled(self) -> bool:
-        return self.runtime.runtime_unresolved_order_template_generation_enabled()
+    def _runtime_order_checks_enabled(self) -> bool:
+        return self.runtime.runtime_order_checks_enabled()
 
     async def generate_pattern_template(self, payload: PatternGenerationRequest) -> dict[str, object]:
         return await self._generate_pattern_template(payload, writer_base_dir=None)
@@ -1641,6 +1641,12 @@ class NodeService:
         }
 
     async def _run_order_phase1_flow(self, *, account_id: str, message) -> None:
+        if not self._runtime_order_checks_enabled():
+            LOGGER.info(
+                "ORDER flow skipped because Check Orders is disabled",
+                extra={"event_data": {"account_id": account_id, "message_id": message.message_id}},
+            )
+            return
         normalized = await self.gmail_order_flow.fetch_and_normalize_message(
             fetch_full_message_payload=self.email_provider_gateway.gmail_fetch_full_message_payload,
             account_id=account_id,
@@ -2087,17 +2093,15 @@ class NodeService:
             if payload.provider_calls_enabled is None
             else bool(payload.provider_calls_enabled)
         )
-        unresolved_generation_enabled = (
-            current.get("unresolved_order_template_generation_enabled")
-            if payload.unresolved_order_template_generation_enabled is None
-            else bool(payload.unresolved_order_template_generation_enabled)
+        order_checks_enabled = (
+            current.get("order_checks_enabled", True)
+            if payload.order_checks_enabled is None
+            else bool(payload.order_checks_enabled)
         )
-        if not ai_calls_enabled:
-            unresolved_generation_enabled = False
         state = self._save_runtime_task_state(
             ai_calls_enabled=ai_calls_enabled,
             provider_calls_enabled=provider_calls_enabled,
-            unresolved_order_template_generation_enabled=unresolved_generation_enabled,
+            order_checks_enabled=order_checks_enabled,
         )
         return {
             "ok": True,

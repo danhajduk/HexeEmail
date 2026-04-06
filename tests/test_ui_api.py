@@ -1201,7 +1201,7 @@ async def test_runtime_settings_can_disable_ai_calls(config, core_client_factory
 
 
 @pytest.mark.asyncio
-async def test_runtime_settings_can_enable_unresolved_order_template_generation(config, core_client_factory):
+async def test_runtime_settings_can_enable_order_checks(config, core_client_factory):
     service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
     await service.start()
     app = create_app(config=config, service=service)
@@ -1211,7 +1211,7 @@ async def test_runtime_settings_can_enable_unresolved_order_template_generation(
             "/api/runtime/settings",
             json={
                 "ai_calls_enabled": True,
-                "unresolved_order_template_generation_enabled": True,
+                "order_checks_enabled": True,
             },
         )
 
@@ -1219,12 +1219,12 @@ async def test_runtime_settings_can_enable_unresolved_order_template_generation(
 
     assert response.status_code == 200
     body = response.json()
-    assert body["runtime_task_state"]["unresolved_order_template_generation_enabled"] is True
-    assert service.state.runtime_task_state["unresolved_order_template_generation_enabled"] is True
+    assert body["runtime_task_state"]["order_checks_enabled"] is True
+    assert service.state.runtime_task_state["order_checks_enabled"] is True
 
 
 @pytest.mark.asyncio
-async def test_runtime_settings_force_unresolved_order_template_generation_off_when_ai_is_disabled(
+async def test_runtime_settings_keep_order_checks_enabled_when_ai_is_disabled(
     config,
     core_client_factory,
 ):
@@ -1237,7 +1237,7 @@ async def test_runtime_settings_force_unresolved_order_template_generation_off_w
             "/api/runtime/settings",
             json={
                 "ai_calls_enabled": False,
-                "unresolved_order_template_generation_enabled": True,
+                "order_checks_enabled": True,
             },
         )
 
@@ -1246,7 +1246,7 @@ async def test_runtime_settings_force_unresolved_order_template_generation_off_w
     assert response.status_code == 200
     body = response.json()
     assert body["runtime_task_state"]["ai_calls_enabled"] is False
-    assert body["runtime_task_state"]["unresolved_order_template_generation_enabled"] is False
+    assert body["runtime_task_state"]["order_checks_enabled"] is True
 
 
 @pytest.mark.asyncio

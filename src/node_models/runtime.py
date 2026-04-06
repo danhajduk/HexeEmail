@@ -96,7 +96,7 @@ class RuntimeTaskSettingsInput(BaseModel):
 
     ai_calls_enabled: bool | None = None
     provider_calls_enabled: bool | None = None
-    unresolved_order_template_generation_enabled: bool | None = None
+    order_checks_enabled: bool | None = None
 
 
 class RefreshTriggerRequest(BaseModel):

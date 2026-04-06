@@ -32,7 +32,7 @@ class OrderFlowPipeline:
         probation_promotion: ProbationPromotionManager | None = None,
         generate_probation_template: Callable[[PatternGenerationRequest], Awaitable[dict[str, object]]] | None = None,
         ai_calls_enabled: Callable[[], bool] | None = None,
-        unresolved_generation_enabled: Callable[[], bool] | None = None,
+        order_checks_enabled: Callable[[], bool] | None = None,
     ) -> None:
         self.phase2_scrubber = phase2_scrubber or GmailOrderPhase2Scrubber()
         self.phase3_detector = phase3_detector or GmailOrderPhase3ProfileDetector()
@@ -45,7 +45,7 @@ class OrderFlowPipeline:
         )
         self.generate_probation_template = generate_probation_template
         self.ai_calls_enabled = ai_calls_enabled or (lambda: True)
-        self.unresolved_generation_enabled = unresolved_generation_enabled or (lambda: False)
+        self.order_checks_enabled = order_checks_enabled or (lambda: True)
 
     async def process_normalized_email(self, normalized) -> dict[str, object]:
         phase2 = self.phase2_scrubber.scrub(normalized)
@@ -104,11 +104,10 @@ class OrderFlowPipeline:
             if evaluation.extraction_succeeded and evaluation.extracted_fields:
                 updated_phase4 = self._apply_probation_template(updated_phase4, template_id=existing_state.template_id)
             return updated_phase4
-        if not self.unresolved_generation_enabled():
+        if not self.order_checks_enabled():
             return phase4.model_copy(
                 update={
-                    "template_diagnostics": list(phase4.template_diagnostics)
-                    + ["probation_template:skipped_runtime_disabled"]
+                    "template_diagnostics": list(phase4.template_diagnostics) + ["order_checks:disabled"]
                 }
             )
         if not self.ai_calls_enabled():

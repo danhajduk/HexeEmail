@@ -12,7 +12,7 @@ export function RuntimeDashboardSection({
   handleRuntimeTaskFormChange,
   updateRuntimeAiCallsEnabled,
   updateRuntimeProviderCallsEnabled,
-  updateRuntimeUnresolvedOrderTemplateGenerationEnabled,
+  updateRuntimeOrderChecksEnabled,
   runRuntimeResolveFlow,
   runRuntimeAuthorize,
   runRuntimeRegisterPrompt,
@@ -36,7 +36,7 @@ export function RuntimeDashboardSection({
         <dl className="facts">
           <div><dt>AI Calls</dt><dd>{runtimeTaskStatus?.ai_calls_enabled === false ? "disabled" : "enabled"}</dd></div>
           <div><dt>Provider Calls</dt><dd>{runtimeTaskStatus?.provider_calls_enabled === false ? "disabled" : "enabled"}</dd></div>
-          <div><dt>Unresolved ORDER AI</dt><dd>{runtimeTaskStatus?.unresolved_order_template_generation_enabled ? "enabled" : "disabled"}</dd></div>
+          <div><dt>Check Orders</dt><dd>{runtimeTaskStatus?.order_checks_enabled === false ? "disabled" : "enabled"}</dd></div>
           <div><dt>Request Status</dt><dd>{runtimeTaskStatus?.request_status || "idle"}</dd></div>
           <div><dt>Last Step</dt><dd>{runtimeTaskStatus?.last_step || "none"}</dd></div>
           <div><dt>Requested Node Type</dt><dd>{runtimeTaskForm.requested_node_type}</dd></div>
@@ -96,18 +96,18 @@ export function RuntimeDashboardSection({
             </button>
           </label>
           <label className="field">
-            <span className="field-label">Unresolved ORDER AI</span>
+            <span className="field-label">Check Orders</span>
             <button
               type="button"
-              className={`toggle ${runtimeTaskForm.unresolved_order_template_generation_enabled ? "is-on" : ""}`}
-              aria-pressed={runtimeTaskForm.unresolved_order_template_generation_enabled}
-              disabled={runtimeTaskPending !== "" || !runtimeTaskForm.ai_calls_enabled}
+              className={`toggle ${runtimeTaskForm.order_checks_enabled ? "is-on" : ""}`}
+              aria-pressed={runtimeTaskForm.order_checks_enabled}
+              disabled={runtimeTaskPending !== ""}
               onClick={() =>
-                updateRuntimeUnresolvedOrderTemplateGenerationEnabled(!runtimeTaskForm.unresolved_order_template_generation_enabled)
+                updateRuntimeOrderChecksEnabled(!runtimeTaskForm.order_checks_enabled)
               }
             >
               <span className="toggle-thumb" />
-              <span>{runtimeTaskForm.unresolved_order_template_generation_enabled ? "Enabled" : "Disabled"}</span>
+              <span>{runtimeTaskForm.order_checks_enabled ? "Enabled" : "Disabled"}</span>
             </button>
           </label>
           <label className="field">
