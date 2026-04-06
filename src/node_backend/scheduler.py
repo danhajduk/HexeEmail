@@ -24,6 +24,17 @@ class ScheduleTemplate:
     next_run_resolver: Callable[[datetime], datetime | None]
 
 
+@dataclass(frozen=True)
+class ScheduledTaskDefinition:
+    task_id: str
+    title: str
+    kind: str
+    owner: str
+    schedule_name: str
+    detail: str
+    enabled_resolver: Callable[["BackgroundTaskManager"], bool]
+
+
 class BackgroundTaskManager:
     def __init__(self, service: Any) -> None:
         self.service = service
@@ -216,6 +227,7 @@ class BackgroundTaskManager:
     @classmethod
     def schedule_templates(cls) -> dict[str, ScheduleTemplate]:
         return {
+            "interval_seconds": ScheduleTemplate("interval_seconds", "Fixed interval in seconds", lambda now: None),
             "daily": ScheduleTemplate("daily", "Every day at 00:01", lambda now: cls.next_daily_run(now, hour=0, minute=1)),
             "weekly": ScheduleTemplate("weekly", "Monday 00:01", lambda now: cls.next_weekly_run(now, weekday=0, hour=0, minute=1)),
             "4_times_a_day": ScheduleTemplate("4_times_a_day", "00:00, 06:00, 12:00, 18:00", cls.next_today_window_run),
@@ -247,8 +259,11 @@ class BackgroundTaskManager:
         task_id: str,
         title: str,
         group: str,
+        kind: str | None = None,
+        owner: str | None = None,
         schedule_name: str,
         status: str,
+        enabled: bool,
         last_execution_at: str | None,
         next_execution_at: str | None,
         last_reason: str | None,
@@ -260,9 +275,12 @@ class BackgroundTaskManager:
             "task_id": task_id,
             "title": title,
             "group": group,
+            "kind": kind or group,
+            "owner": owner or group,
             "schedule_name": schedule_name,
             "schedule_detail": schedule_detail or cls.schedule_template_detail(schedule_name),
             "status": status,
+            "enabled": enabled,
             "last_execution_at": last_execution_at,
             "next_execution_at": next_execution_at,
             "last_reason": last_reason,
@@ -274,6 +292,87 @@ class BackgroundTaskManager:
     def scheduled_task_legend(cls) -> list[dict[str, str]]:
         return [{"name": template.name, "detail": template.detail} for template in cls.schedule_templates().values()]
 
+    @classmethod
+    def task_registry(cls) -> tuple[ScheduledTaskDefinition, ...]:
+        return (
+            ScheduledTaskDefinition(
+                task_id="onboarding_finalize_polling",
+                title="Onboarding Finalize Polling",
+                kind="node_local_recurring_work",
+                owner="background_task_manager",
+                schedule_name="interval_seconds",
+                detail="Polls Core finalize state while onboarding approval is pending.",
+                enabled_resolver=lambda manager: bool(manager.service.state.onboarding_session_id),
+            ),
+            ScheduledTaskDefinition(
+                task_id="gmail_status_polling",
+                title="Gmail Status Polling",
+                kind="provider_recurring_work",
+                owner="background_task_manager",
+                schedule_name="interval_seconds",
+                detail="Refreshes Gmail mailbox status for connected accounts on the configured status interval.",
+                enabled_resolver=lambda manager: bool(manager.service.config.gmail_status_poll_on_startup),
+            ),
+            ScheduledTaskDefinition(
+                task_id="gmail_fetch_yesterday",
+                title="Gmail Fetch Yesterday",
+                kind="provider_recurring_work",
+                owner="background_task_manager",
+                schedule_name="daily",
+                detail="Fetches the previous day inbox window for local storage refresh.",
+                enabled_resolver=lambda manager: bool(manager.service.config.gmail_fetch_poll_on_startup),
+            ),
+            ScheduledTaskDefinition(
+                task_id="gmail_fetch_today",
+                title="Gmail Fetch Today",
+                kind="provider_recurring_work",
+                owner="background_task_manager",
+                schedule_name="4_times_a_day",
+                detail="Refreshes the current-day inbox window on the six-hour schedule.",
+                enabled_resolver=lambda manager: bool(manager.service.config.gmail_fetch_poll_on_startup),
+            ),
+            ScheduledTaskDefinition(
+                task_id="gmail_fetch_last_hour",
+                title="Gmail Fetch Last Hour",
+                kind="provider_recurring_work",
+                owner="background_task_manager",
+                schedule_name="every_5_minutes",
+                detail="Keeps the rolling last-hour inbox window fresh for recent classification work.",
+                enabled_resolver=lambda manager: bool(manager.service.config.gmail_fetch_poll_on_startup),
+            ),
+            ScheduledTaskDefinition(
+                task_id="gmail_hourly_batch_classification",
+                title="Hourly Batch Classification",
+                kind="node_local_recurring_work",
+                owner="background_task_manager",
+                schedule_name="hourly",
+                detail="Classifies the newest 100 unclassified emails and sends remaining unknowns to AI.",
+                enabled_resolver=lambda manager: bool(manager.service.config.gmail_fetch_poll_on_startup),
+            ),
+            ScheduledTaskDefinition(
+                task_id="runtime_prompt_sync_weekly",
+                title="Weekly Prompt Sync",
+                kind="node_local_recurring_work",
+                owner="background_task_manager",
+                schedule_name="weekly",
+                detail="Scans local runtime prompt JSON files and syncs them to the AI node prompt service.",
+                enabled_resolver=lambda manager: bool(manager.service.state.runtime_prompt_sync_target_api_base_url),
+            ),
+            ScheduledTaskDefinition(
+                task_id="runtime_monthly_resolve_authorize",
+                title="Monthly Core Resolve and Authorize",
+                kind="core_leased_recurring_work",
+                owner="background_task_manager",
+                schedule_name="monthly",
+                detail="Refreshes the Core AI service resolution and authorization grant for runtime execution.",
+                enabled_resolver=lambda manager: bool(
+                    manager.service.state.trust_state == "trusted"
+                    and manager.service.state.node_id
+                    and manager.service.effective_core_base_url()
+                ),
+            ),
+        )
+
     def scheduled_tasks_snapshot(self) -> list[dict[str, object]]:
         local_now = datetime.now().astimezone()
         fetch_schedule_state = None
@@ -283,6 +382,8 @@ class BackgroundTaskManager:
         scheduler_state = self.gmail_fetch_scheduler_state()
         fetch_loop_active = bool(scheduler_state.get("loop_active"))
         fetch_loop_status = "active" if fetch_loop_active else "inactive"
+        finalize_active = bool(self.finalize_polling_task is not None and not self.finalize_polling_task.done())
+        gmail_status_active = bool(self.gmail_status_task is not None and not self.gmail_status_task.done())
         prompt_sync_configured = bool(self.service.state.runtime_prompt_sync_target_api_base_url)
         prompt_sync_status = "active" if (fetch_loop_active and prompt_sync_configured) else "pending" if prompt_sync_configured else "inactive"
         runtime_authorize_ready = bool(
@@ -294,11 +395,44 @@ class BackgroundTaskManager:
 
         return [
             self.scheduled_task_entry(
+                task_id="onboarding_finalize_polling",
+                title="Onboarding Finalize Polling",
+                group="runtime",
+                kind="node_local_recurring_work",
+                owner="background_task_manager",
+                schedule_name="interval_seconds",
+                status="active" if finalize_active else "inactive",
+                enabled=bool(self.service.state.onboarding_session_id),
+                last_execution_at=(self.service.state.last_poll_at.isoformat() if self.service.state.last_poll_at is not None else None),
+                next_execution_at=None,
+                last_reason=self.service.state.last_finalize_status,
+                detail="Polls Core finalize state while onboarding approval is pending.",
+                schedule_detail=f"Every {self.service.config.onboarding_poll_interval_seconds:g} seconds",
+            ),
+            self.scheduled_task_entry(
+                task_id="gmail_status_polling",
+                title="Gmail Status Polling",
+                group="gmail",
+                kind="provider_recurring_work",
+                owner="background_task_manager",
+                schedule_name="interval_seconds",
+                status="active" if gmail_status_active else "inactive",
+                enabled=bool(self.service.config.gmail_status_poll_on_startup),
+                last_execution_at=None,
+                next_execution_at=None,
+                last_reason=None,
+                detail="Refreshes Gmail mailbox status for connected accounts on the configured status interval.",
+                schedule_detail=f"Every {self.service.config.gmail_status_poll_interval_seconds:g} seconds",
+            ),
+            self.scheduled_task_entry(
                 task_id="gmail_fetch_yesterday",
                 title="Gmail Fetch Yesterday",
                 group="gmail",
+                kind="provider_recurring_work",
+                owner="background_task_manager",
                 schedule_name="daily",
                 status=fetch_loop_status,
+                enabled=bool(self.service.config.gmail_fetch_poll_on_startup),
                 last_execution_at=(
                     fetch_schedule_state.yesterday.last_run_at.isoformat()
                     if fetch_schedule_state is not None and fetch_schedule_state.yesterday.last_run_at is not None
@@ -313,8 +447,11 @@ class BackgroundTaskManager:
                 task_id="gmail_fetch_today",
                 title="Gmail Fetch Today",
                 group="gmail",
+                kind="provider_recurring_work",
+                owner="background_task_manager",
                 schedule_name="4_times_a_day",
                 status=fetch_loop_status,
+                enabled=bool(self.service.config.gmail_fetch_poll_on_startup),
                 last_execution_at=(
                     fetch_schedule_state.today.last_run_at.isoformat()
                     if fetch_schedule_state is not None and fetch_schedule_state.today.last_run_at is not None
@@ -329,8 +466,11 @@ class BackgroundTaskManager:
                 task_id="gmail_fetch_last_hour",
                 title="Gmail Fetch Last Hour",
                 group="gmail",
+                kind="provider_recurring_work",
+                owner="background_task_manager",
                 schedule_name="every_5_minutes",
                 status=fetch_loop_status,
+                enabled=bool(self.service.config.gmail_fetch_poll_on_startup),
                 last_execution_at=(
                     fetch_schedule_state.last_hour.last_run_at.isoformat()
                     if fetch_schedule_state is not None and fetch_schedule_state.last_hour.last_run_at is not None
@@ -345,8 +485,11 @@ class BackgroundTaskManager:
                 task_id="gmail_hourly_batch_classification",
                 title="Hourly Batch Classification",
                 group="gmail",
+                kind="node_local_recurring_work",
+                owner="background_task_manager",
                 schedule_name="hourly",
                 status=fetch_loop_status,
+                enabled=bool(self.service.config.gmail_fetch_poll_on_startup),
                 last_execution_at=(
                     self.service.state.gmail_hourly_batch_classification_last_run_at.isoformat()
                     if self.service.state.gmail_hourly_batch_classification_last_run_at is not None
@@ -361,8 +504,11 @@ class BackgroundTaskManager:
                 task_id="runtime_prompt_sync_weekly",
                 title="Weekly Prompt Sync",
                 group="runtime",
+                kind="node_local_recurring_work",
+                owner="background_task_manager",
                 schedule_name="weekly",
                 status=prompt_sync_status,
+                enabled=prompt_sync_configured,
                 last_execution_at=(
                     self.service.state.runtime_prompt_sync_last_scheduled_at.isoformat()
                     if self.service.state.runtime_prompt_sync_last_scheduled_at is not None
@@ -383,8 +529,11 @@ class BackgroundTaskManager:
                 task_id="runtime_monthly_resolve_authorize",
                 title="Monthly Core Resolve and Authorize",
                 group="runtime",
+                kind="core_leased_recurring_work",
+                owner="background_task_manager",
                 schedule_name="monthly",
                 status=runtime_authorize_status,
+                enabled=runtime_authorize_ready,
                 last_execution_at=(
                     self.service.state.runtime_monthly_authorize_last_run_at.isoformat()
                     if self.service.state.runtime_monthly_authorize_last_run_at is not None

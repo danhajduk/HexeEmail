@@ -331,3 +331,4 @@ Task 323: Define a generic family template-creation prompt contract if the share
 Task 324: Create family-specific AI template-creation prompts if a shared prompt is not viable - Completed on 04/06/2026 03:15 (not needed because Task 322/323 established and implemented the shared prompt contract)
 Task 325: Document the prompt strategy for multi-family AI template generation - Completed on 04/06/2026 03:16
 Task 326: Audit HexeEmail scheduled tasks against the 2026-04-05 background-tasks-and-internal-scheduler standard and document the repo-specific compliance gaps - Completed on 04/06/2026 03:17
+Task 327: Create an explicit scheduler task registry with stable task identity, task kind, schedule name, schedule detail, enabled state, and owner mapping for all recurring work - Completed on 04/06/2026 03:25

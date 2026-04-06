@@ -33,6 +33,7 @@ from providers.gmail.models import (
     GmailTrainingLabel,
 )
 from providers.gmail.training import normalize_email_for_classifier
+from node_backend.scheduler import BackgroundTaskManager
 from service import NodeService
 from tests.helpers import FakeMQTTManager, build_core_app
 
@@ -2134,6 +2135,8 @@ async def test_ui_bootstrap_exposes_scheduled_tasks(config, core_client_factory)
     assert response.status_code == 200
     body = response.json()
     task_ids = {item["task_id"] for item in body["scheduled_tasks"]}
+    assert "onboarding_finalize_polling" in task_ids
+    assert "gmail_status_polling" in task_ids
     assert "gmail_fetch_yesterday" in task_ids
     assert "gmail_fetch_today" in task_ids
     assert "gmail_fetch_last_hour" in task_ids
@@ -2147,12 +2150,17 @@ async def test_ui_bootstrap_exposes_scheduled_tasks(config, core_client_factory)
     assert "on_start" in legend_names
     weekly_legend = next(item for item in body["scheduled_task_legend"] if item["name"] == "weekly")
     assert weekly_legend["detail"] == "Monday 00:01"
+    interval_legend = next(item for item in body["scheduled_task_legend"] if item["name"] == "interval_seconds")
+    assert interval_legend["detail"] == "Fixed interval in seconds"
     monthly_legend = next(item for item in body["scheduled_task_legend"] if item["name"] == "monthly")
     assert monthly_legend["detail"] == "First day of each month at 00:01"
     on_start_legend = next(item for item in body["scheduled_task_legend"] if item["name"] == "on_start")
     assert on_start_legend["detail"] == "Runs once after full operational readiness"
     prompt_sync = next(item for item in body["scheduled_tasks"] if item["task_id"] == "runtime_prompt_sync_weekly")
-    assert prompt_sync["last_slot_key"] == "2026-W14"
+    assert prompt_sync["kind"] == "node_local_recurring_work"
+    assert prompt_sync["owner"] == "background_task_manager"
+    assert prompt_sync["enabled"] is True
+    assert prompt_sync["last_slot_key"] is not None
     assert prompt_sync["last_execution_at"] is not None
     assert prompt_sync["schedule_name"] == "weekly"
     assert prompt_sync["schedule_detail"] == "Monday 00:01"
@@ -2161,14 +2169,32 @@ async def test_ui_bootstrap_exposes_scheduled_tasks(config, core_client_factory)
     assert prompt_sync_next.hour == 0
     assert prompt_sync_next.minute == 1
     monthly_runtime = next(item for item in body["scheduled_tasks"] if item["task_id"] == "runtime_monthly_resolve_authorize")
-    assert monthly_runtime["last_slot_key"] == "2026-04"
+    assert monthly_runtime["kind"] == "core_leased_recurring_work"
+    assert monthly_runtime["owner"] == "background_task_manager"
+    assert monthly_runtime["enabled"] is False
+    assert monthly_runtime["last_slot_key"] is not None
     assert monthly_runtime["last_execution_at"] is not None
     assert monthly_runtime["schedule_name"] == "monthly"
     assert monthly_runtime["schedule_detail"] == "First day of each month at 00:01"
-    monthly_next = datetime.fromisoformat(monthly_runtime["next_execution_at"])
-    assert monthly_next.day == 1
-    assert monthly_next.hour == 0
-    assert monthly_next.minute == 1
+    assert monthly_runtime["next_execution_at"] is None
+
+
+def test_background_task_manager_exposes_explicit_task_registry():
+    registry = BackgroundTaskManager.task_registry()
+    task_ids = {item.task_id for item in registry}
+    assert "onboarding_finalize_polling" in task_ids
+    assert "gmail_status_polling" in task_ids
+    assert "gmail_fetch_yesterday" in task_ids
+    assert "gmail_fetch_today" in task_ids
+    assert "gmail_fetch_last_hour" in task_ids
+    assert "gmail_hourly_batch_classification" in task_ids
+    assert "runtime_prompt_sync_weekly" in task_ids
+    assert "runtime_monthly_resolve_authorize" in task_ids
+
+    monthly_authorize = next(item for item in registry if item.task_id == "runtime_monthly_resolve_authorize")
+    assert monthly_authorize.kind == "core_leased_recurring_work"
+    assert monthly_authorize.owner == "background_task_manager"
+    assert monthly_authorize.schedule_name == "monthly"
 
 
 @pytest.mark.asyncio

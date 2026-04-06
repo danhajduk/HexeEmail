@@ -4,6 +4,12 @@ This document describes the recurring and long-lived background work that the em
 
 The canonical owner is [scheduler.py](/home/dan/Projects/HexeEmail/src/node_backend/scheduler.py). `NodeService` remains the public service surface, but all recurring loop state, schedule templates, due-window evaluation, and operator-facing scheduler snapshots delegate into `BackgroundTaskManager`.
 
+Current scheduler task definitions are now centralized in the explicit registry:
+
+- [BackgroundTaskManager.task_registry()](/home/dan/Projects/HexeEmail/src/node_backend/scheduler.py)
+
+The registry is now the source of truth for stable task identity, task kind, owner, schedule name, and enabled-state intent for all currently modeled recurring work.
+
 ## Owners
 
 - `BackgroundTaskManager`: owns recurring loops, persisted scheduler state, schedule templates, due-slot logic, and operator-visible scheduler snapshots.

@@ -47,7 +47,6 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[TODO] Task 327: Create an explicit scheduler task registry with stable task identity, task kind, schedule name, schedule detail, enabled state, and owner mapping for all recurring work
 [TODO] Task 328: Add mandatory baseline recurring tasks for heartbeat, telemetry, and operational MQTT health with explicit ownership, persisted state, and operator visibility
 [TODO] Task 329: Persist structured scheduler task state per recurring task including current status, enabled state, last start, last completion, last success, last failure, next run, and last error
 [TODO] Task 330: Refactor existing recurring loops into registry-backed scheduled tasks, including finalize polling, Gmail status polling, Gmail fetch scheduler, hourly batch classification, weekly prompt sync, and monthly authorize

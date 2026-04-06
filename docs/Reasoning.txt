@@ -283,3 +283,9 @@ Chosen fix: Compare the new scheduler standard against the live scheduler owner,
 What changed: Added `docs/scheduler-standard-gap-audit.md`, removed Task 326 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
 Verification: Audit review completed against `/home/dan/Projects/Hexe/docs/standards/Node/background-tasks-and-internal-scheduler-standard.md`, `src/node_backend/scheduler.py`, `frontend/src/features/dashboard/ScheduledTasksSection.jsx`, and `docs/scheduler-and-background-tasks.md`.
 ###########
+Task #327
+Step objective: Create an explicit scheduler task registry with stable task identity, task kind, schedule name, schedule detail, enabled state, and owner mapping for all recurring work.
+Chosen fix: Add a first-class scheduler task registry in `BackgroundTaskManager`, enrich scheduled-task snapshot metadata from that registry model, and lock the bootstrap contract down with focused UI API coverage.
+What changed: Updated `src/node_backend/scheduler.py`, `tests/test_ui_api.py`, and `docs/scheduler-and-background-tasks.md`, removed Task 327 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: `python -m py_compile src/node_backend/scheduler.py tests/test_ui_api.py` passed. `PYTHONPATH=src ./.venv/bin/python -m pytest tests/test_ui_api.py -k 'scheduled_tasks or task_registry' -q` passed.
+###########
