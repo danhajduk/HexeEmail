@@ -13,6 +13,7 @@ export function RuntimeDashboardSection({
   updateRuntimeAiCallsEnabled,
   updateRuntimeProviderCallsEnabled,
   updateRuntimeUserNotificationsEnabled,
+  updateRuntimeClassificationEnabled,
   updateRuntimeOrderChecksEnabled,
   runRuntimeResolveFlow,
   runRuntimeAuthorize,
@@ -38,6 +39,7 @@ export function RuntimeDashboardSection({
           <div><dt>AI Calls</dt><dd>{runtimeTaskStatus?.ai_calls_enabled === false ? "disabled" : "enabled"}</dd></div>
           <div><dt>Provider Calls</dt><dd>{runtimeTaskStatus?.provider_calls_enabled === false ? "disabled" : "enabled"}</dd></div>
           <div><dt>User Notifications</dt><dd>{runtimeTaskStatus?.user_notifications_enabled === false ? "disabled" : "enabled"}</dd></div>
+          <div><dt>Clasify</dt><dd>{runtimeTaskStatus?.classification_enabled === false ? "disabled" : "enabled"}</dd></div>
           <div><dt>Check Orders</dt><dd>{runtimeTaskStatus?.order_checks_enabled === false ? "disabled" : "enabled"}</dd></div>
           <div><dt>Request Status</dt><dd>{runtimeTaskStatus?.request_status || "idle"}</dd></div>
           <div><dt>Last Step</dt><dd>{runtimeTaskStatus?.last_step || "none"}</dd></div>
@@ -125,6 +127,20 @@ export function RuntimeDashboardSection({
               <div className="runtime-switch-group-header">Analysis</div>
               <div className="runtime-switch-card">
                 <div className="runtime-switch-grid">
+                  <label className="field runtime-switch-item">
+                  <button
+                    type="button"
+                    className={`runtime-switch-pill runtime-switch-button ${runtimeTaskForm.classification_enabled ? "is-on" : "is-off"}`}
+                    aria-pressed={runtimeTaskForm.classification_enabled}
+                    aria-label={runtimeTaskForm.classification_enabled ? "Disable classification" : "Enable classification"}
+                    disabled={runtimeTaskPending !== ""}
+                    onClick={() => updateRuntimeClassificationEnabled(!runtimeTaskForm.classification_enabled)}
+                  >
+                    <span className="runtime-switch-led" />
+                    <span>Clasify</span>
+                    <span className="sr-only">{runtimeTaskForm.classification_enabled ? "Enabled" : "Disabled"}</span>
+                  </button>
+                </label>
                   <label className="field runtime-switch-item">
                   <button
                     type="button"

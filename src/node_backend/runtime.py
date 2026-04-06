@@ -17,6 +17,7 @@ class RuntimeManager:
             "ai_calls_enabled": True,
             "provider_calls_enabled": True,
             "user_notifications_enabled": True,
+            "classification_enabled": True,
             "order_checks_enabled": True,
             "request_status": "idle",
             "last_step": "none",
@@ -60,6 +61,11 @@ class RuntimeManager:
         value = current.get("user_notifications_enabled")
         return True if value is None else bool(value)
 
+    def runtime_classification_enabled(self) -> bool:
+        current = self.runtime_task_state()
+        value = current.get("classification_enabled")
+        return True if value is None else bool(value)
+
     def runtime_order_checks_enabled(self) -> bool:
         current = self.runtime_task_state()
         value = current.get("order_checks_enabled")
@@ -72,6 +78,10 @@ class RuntimeManager:
     @staticmethod
     def runtime_provider_disabled_message() -> str:
         return "Provider calls are disabled in Runtime Settings."
+
+    @staticmethod
+    def runtime_classification_disabled_message() -> str:
+        return "Classification is disabled in Runtime Settings."
 
     def prompt_definition_dir(self) -> Path:
         directory = self.service.config.prompt_definition_dir

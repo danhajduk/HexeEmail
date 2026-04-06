@@ -36,6 +36,7 @@ const EMPTY_RUNTIME_TASK_FORM = {
   ai_calls_enabled: true,
   provider_calls_enabled: true,
   user_notifications_enabled: true,
+  classification_enabled: true,
   order_checks_enabled: true,
   requested_node_type: "ai",
   task_family: "task.classification",
@@ -52,6 +53,7 @@ const EMPTY_RUNTIME_TASK_STATUS = {
   ai_calls_enabled: true,
   provider_calls_enabled: true,
   user_notifications_enabled: true,
+  classification_enabled: true,
   order_checks_enabled: true,
   request_status: "idle",
   last_step: "none",
@@ -893,6 +895,7 @@ export function App() {
                 ai_calls_enabled: payload.runtime_task_state?.ai_calls_enabled ?? true,
                 provider_calls_enabled: payload.runtime_task_state?.provider_calls_enabled ?? true,
                 user_notifications_enabled: payload.runtime_task_state?.user_notifications_enabled ?? true,
+                classification_enabled: payload.runtime_task_state?.classification_enabled ?? true,
                 order_checks_enabled: payload.runtime_task_state?.order_checks_enabled ?? true,
               },
         );
@@ -901,6 +904,7 @@ export function App() {
           ai_calls_enabled: payload.runtime_task_state?.ai_calls_enabled ?? true,
           provider_calls_enabled: payload.runtime_task_state?.provider_calls_enabled ?? true,
           user_notifications_enabled: payload.runtime_task_state?.user_notifications_enabled ?? true,
+          classification_enabled: payload.runtime_task_state?.classification_enabled ?? true,
           order_checks_enabled: payload.runtime_task_state?.order_checks_enabled ?? true,
         }));
         setUiUpdatedAt(new Date().toISOString());
@@ -1284,6 +1288,37 @@ export function App() {
       setRuntimeTaskForm((current) => ({
         ...current,
         user_notifications_enabled: !enabled,
+      }));
+      setRuntimeTaskError(taskError.message);
+    } finally {
+      setRuntimeTaskPending("");
+    }
+  }
+
+  async function updateRuntimeClassificationEnabled(enabled) {
+    setRuntimeTaskPending("settings");
+    setRuntimeTaskError("");
+    setRuntimeTaskNotice("");
+    setRuntimeTaskForm((current) => ({
+      ...current,
+      classification_enabled: enabled,
+    }));
+    try {
+      const payload = await fetchJson("/api/runtime/settings", {
+        method: "POST",
+        body: JSON.stringify({
+          classification_enabled: enabled,
+        }),
+      });
+      setRuntimeTaskStatus((current) => ({
+        ...current,
+        ...(payload.runtime_task_state || {}),
+      }));
+      setRuntimeTaskNotice(enabled ? "Classification enabled." : "Classification disabled.");
+    } catch (taskError) {
+      setRuntimeTaskForm((current) => ({
+        ...current,
+        classification_enabled: !enabled,
       }));
       setRuntimeTaskError(taskError.message);
     } finally {
@@ -2788,6 +2823,7 @@ export function App() {
                   updateRuntimeAiCallsEnabled={updateRuntimeAiCallsEnabled}
                   updateRuntimeProviderCallsEnabled={updateRuntimeProviderCallsEnabled}
                   updateRuntimeUserNotificationsEnabled={updateRuntimeUserNotificationsEnabled}
+                  updateRuntimeClassificationEnabled={updateRuntimeClassificationEnabled}
                   updateRuntimeOrderChecksEnabled={updateRuntimeOrderChecksEnabled}
                   runRuntimeResolveFlow={runRuntimeResolveFlow}
                   runRuntimeAuthorize={runRuntimeAuthorize}

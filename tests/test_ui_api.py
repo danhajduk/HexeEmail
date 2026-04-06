@@ -1272,6 +1272,54 @@ async def test_runtime_settings_keep_order_checks_enabled_when_ai_is_disabled(
 
 
 @pytest.mark.asyncio
+async def test_runtime_settings_can_disable_classification(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/runtime/settings",
+            json={
+                "classification_enabled": False,
+            },
+        )
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["runtime_task_state"]["classification_enabled"] is False
+    assert service.state.runtime_task_state["classification_enabled"] is False
+
+
+@pytest.mark.asyncio
+async def test_runtime_settings_keep_order_checks_enabled_when_classification_is_disabled(
+    config,
+    core_client_factory,
+):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/runtime/settings",
+            json={
+                "classification_enabled": False,
+                "order_checks_enabled": True,
+            },
+        )
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["runtime_task_state"]["classification_enabled"] is False
+    assert body["runtime_task_state"]["order_checks_enabled"] is True
+
+
+@pytest.mark.asyncio
 async def test_runtime_sync_prompts_rejects_when_ai_calls_disabled(config, core_client_factory):
     core_app = build_core_app()
     service = NodeService(config, core_client=core_client_factory(core_app), mqtt_manager=FakeMQTTManager())
@@ -1369,10 +1417,79 @@ async def test_runtime_execute_email_classifier_rejects_when_ai_calls_disabled(c
 
 
 @pytest.mark.asyncio
+async def test_runtime_execute_email_classifier_rejects_when_classification_disabled(config, core_client_factory):
+    core_app = build_core_app()
+    service = NodeService(config, core_client=core_client_factory(core_app), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    service._save_runtime_task_state(classification_enabled=False)
+    adapter = service.provider_registry.get_provider("gmail")
+    adapter.account_store.save_account(
+        adapter.state_machine.ensure_account("primary").model_copy(
+            update={"status": "connected", "email_address": "primary@example.com"}
+        )
+    )
+    adapter.message_store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="unknown-disabled",
+                subject="Disabled",
+                sender="Disabled Sender <disabled@example.com>",
+                recipients=["primary@example.com"],
+                snippet="do not classify",
+                received_at=datetime(2026, 4, 2, 12, 0, 0).astimezone(),
+                local_label="unknown",
+                local_label_confidence=0.1,
+            )
+        ]
+    )
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/runtime/execute-email-classifier",
+            json={"target_api_base_url": "http://10.0.0.100:9002"},
+        )
+
+    await service.stop()
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Classification is disabled in Runtime Settings."
+    assert len(core_app.state.execution_direct_requests) == 0
+    assert service.state.runtime_task_state["request_status"] == "failed"
+    assert service.state.runtime_task_state["classification_enabled"] is False
+
+
+@pytest.mark.asyncio
 async def test_order_phase1_flow_skips_remote_fetch_when_provider_calls_disabled(config, core_client_factory, monkeypatch):
     service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
     await service.start()
     service._save_runtime_task_state(provider_calls_enabled=False)
+    remote_fetch_attempted = False
+    adapter = service.provider_registry.get_provider("gmail")
+
+    async def should_not_run(account_id: str, message_id: str) -> dict[str, object]:
+        nonlocal remote_fetch_attempted
+        remote_fetch_attempted = True
+        return {}
+
+    monkeypatch.setattr(adapter, "fetch_full_message_payload", should_not_run)
+
+    await service._run_order_phase1_flow(
+        account_id="primary",
+        message=SimpleNamespace(message_id="msg-order-1"),
+    )
+
+    await service.stop()
+
+    assert remote_fetch_attempted is False
+
+
+@pytest.mark.asyncio
+async def test_order_phase1_flow_skips_when_classification_disabled(config, core_client_factory, monkeypatch):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    service._save_runtime_task_state(classification_enabled=False, order_checks_enabled=True)
     remote_fetch_attempted = False
     adapter = service.provider_registry.get_provider("gmail")
 
@@ -1824,6 +1941,70 @@ async def test_runtime_execute_email_classifier_batch_skips_ai_when_disabled(con
     assert service.state.runtime_task_state["request_status"] == "executed"
     assert service.state.runtime_task_state["last_step"] == "execute_batch"
     assert service.state.runtime_task_state["ai_calls_enabled"] is False
+
+
+@pytest.mark.asyncio
+async def test_runtime_execute_email_classifier_batch_skips_when_classification_disabled(config, core_client_factory):
+    core_app = build_core_app()
+    service = NodeService(config, core_client=core_client_factory(core_app), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    service._save_runtime_task_state(classification_enabled=False)
+    adapter = service.provider_registry.get_provider("gmail")
+    adapter.account_store.save_account(
+        adapter.state_machine.ensure_account("primary").model_copy(
+            update={"status": "connected", "email_address": "primary@example.com"}
+        )
+    )
+    adapter.message_store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="unknown-1",
+                subject="First unknown",
+                sender="First Sender <first@example.com>",
+                recipients=["primary@example.com"],
+                snippet="please classify first",
+                received_at=datetime(2026, 4, 2, 10, 0, 0).astimezone(),
+                local_label="unknown",
+                local_label_confidence=0.1,
+            ),
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="unknown-2",
+                subject="Second unknown",
+                sender="Second Sender <second@example.com>",
+                recipients=["primary@example.com"],
+                snippet="please classify second",
+                received_at=datetime(2026, 4, 2, 11, 0, 0).astimezone(),
+                local_label="unknown",
+                local_label_confidence=0.2,
+            ),
+        ]
+    )
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/runtime/execute-email-classifier-batch",
+            json={"target_api_base_url": "http://10.0.0.100:9002"},
+        )
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is True
+    assert body["batch_size"] == 2
+    assert body["local_processed"] == 0
+    assert body["local_classified"] == 0
+    assert body["ai_total"] == 0
+    assert body["ai_attempted"] == 0
+    assert body["ai_completed"] == 0
+    assert body["classification_enabled"] is False
+    assert len(core_app.state.execution_direct_requests) == 0
+    assert service.state.runtime_task_state["request_status"] == "executed"
+    assert service.state.runtime_task_state["last_step"] == "execute_batch"
+    assert service.state.runtime_task_state["classification_enabled"] is False
 
 
 def test_runtime_classifier_output_normalization_helpers(config, core_client_factory):

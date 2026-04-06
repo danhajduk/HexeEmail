@@ -265,6 +265,26 @@ class ProviderManager:
                 updated_at=datetime.now(UTC).isoformat(),
             )
 
+            if not self.service.runtime.runtime_classification_enabled():
+                state["stages"]["local_classification"] = {
+                    "status": "idle",
+                    "detail": "Skipped last-hour classification because Clasify is disabled.",
+                    "count": 0,
+                }
+                state["stages"]["ai_classification"] = {
+                    "status": "idle",
+                    "detail": "Skipped last-hour AI classification because Clasify is disabled.",
+                    "count": 0,
+                }
+                completed_at = datetime.now(UTC).isoformat()
+                return self.service.background_tasks.save_gmail_last_hour_pipeline_state(
+                    status="completed",
+                    detail="Last-hour Gmail pipeline skipped classification because Clasify is disabled.",
+                    stages=state["stages"],
+                    updated_at=completed_at,
+                    last_completed_at=completed_at,
+                )
+
             if not self.service.runtime.runtime_ai_calls_enabled():
                 skipped_count = len(ai_candidates)
                 state["stages"]["ai_classification"] = {

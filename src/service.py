@@ -188,6 +188,12 @@ class NodeService:
     def _runtime_user_notifications_enabled(self) -> bool:
         return self.runtime.runtime_user_notifications_enabled()
 
+    def _runtime_classification_enabled(self) -> bool:
+        return self.runtime.runtime_classification_enabled()
+
+    def _runtime_classification_disabled_message(self) -> str:
+        return self.runtime.runtime_classification_disabled_message()
+
     def _runtime_order_checks_enabled(self) -> bool:
         return self.runtime.runtime_order_checks_enabled()
 
@@ -1644,6 +1650,12 @@ class NodeService:
         }
 
     async def _run_order_phase1_flow(self, *, account_id: str, message) -> None:
+        if not self._runtime_classification_enabled():
+            LOGGER.info(
+                "ORDER flow skipped because Clasify is disabled",
+                extra={"event_data": {"account_id": account_id, "message_id": message.message_id}},
+            )
+            return
         if not self._runtime_order_checks_enabled():
             LOGGER.info(
                 "ORDER flow skipped because Check Orders is disabled",
@@ -2106,6 +2118,11 @@ class NodeService:
             if payload.user_notifications_enabled is None
             else bool(payload.user_notifications_enabled)
         )
+        classification_enabled = (
+            current.get("classification_enabled", True)
+            if payload.classification_enabled is None
+            else bool(payload.classification_enabled)
+        )
         order_checks_enabled = (
             current.get("order_checks_enabled", True)
             if payload.order_checks_enabled is None
@@ -2115,6 +2132,7 @@ class NodeService:
             ai_calls_enabled=ai_calls_enabled,
             provider_calls_enabled=provider_calls_enabled,
             user_notifications_enabled=user_notifications_enabled,
+            classification_enabled=classification_enabled,
             order_checks_enabled=order_checks_enabled,
         )
         return {
@@ -2526,6 +2544,24 @@ class NodeService:
         *,
         correlation_id: str | None = None,
     ) -> dict[str, object]:
+        if not self._runtime_classification_enabled():
+            now = datetime.now(UTC).isoformat()
+            current = self._runtime_task_state()
+            self._save_runtime_task_state(
+                request_status="failed",
+                last_step="execute",
+                detail=self._runtime_classification_disabled_message(),
+                preview_response=current.get("preview_response"),
+                resolve_response=current.get("resolve_response"),
+                authorize_response=current.get("authorize_response"),
+                registration_request_payload=current.get("registration_request_payload"),
+                execution_request_payload={"mode": "classifier_single"},
+                execution_response=None,
+                usage_summary_response=current.get("usage_summary_response"),
+                started_at=current.get("started_at") or now,
+                updated_at=now,
+            )
+            raise ValueError(self._runtime_classification_disabled_message())
         if not self._runtime_ai_calls_enabled():
             now = datetime.now(UTC).isoformat()
             current = self._runtime_task_state()
@@ -2745,6 +2781,37 @@ class NodeService:
             )
             return result
 
+        if not self._runtime_classification_enabled():
+            final_result = {
+                "ok": True,
+                "batch_size": len(candidates),
+                "local_processed": 0,
+                "local_classified": 0,
+                "ai_total": 0,
+                "ai_attempted": 0,
+                "ai_completed": 0,
+                "ai_failed": 0,
+                "ai_results": [],
+                "classification_enabled": False,
+            }
+            self._save_runtime_task_state(
+                request_status="executed",
+                last_step="execute_batch",
+                detail=(
+                    f"Runtime batch classification skipped {len(candidates)} emails because classification is disabled."
+                ),
+                preview_response=current.get("preview_response"),
+                resolve_response=current.get("resolve_response"),
+                authorize_response=current.get("authorize_response"),
+                registration_request_payload=current.get("registration_request_payload"),
+                execution_request_payload=None,
+                execution_response=final_result,
+                usage_summary_response=None,
+                started_at=current.get("started_at") or started_at,
+                updated_at=datetime.now(UTC).isoformat(),
+            )
+            return final_result
+
         local_processed, ai_candidates = await self._classify_candidates_locally(account_id=account_id, candidates=candidates)
         local_classified = max(local_processed - len(ai_candidates), 0)
         if local_processed > 0 and hasattr(adapter, "refresh_sender_reputations"):
@@ -2928,6 +2995,8 @@ class NodeService:
         model_status = adapter.training_model_store.status()
         if not candidates:
             return 0, []
+        if not self._runtime_classification_enabled():
+            return 0, []
         if not bool(model_status.get("trained")):
             return 0, list(candidates)
 
@@ -2969,6 +3038,8 @@ class NodeService:
         correlation_id: str | None,
         persist_runtime_state: bool,
     ) -> dict[str, object]:
+        if not self._runtime_classification_enabled():
+            raise ValueError(self._runtime_classification_disabled_message())
         if not self._runtime_ai_calls_enabled():
             raise ValueError(self._runtime_ai_disabled_message())
         normalized_target_base_url = self._normalize_target_api_base_url(target_api_base_url)
