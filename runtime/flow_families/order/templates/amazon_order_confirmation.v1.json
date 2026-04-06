@@ -1,0 +1,45 @@
+{
+  "schema_version": "order-phase4-template.v1",
+  "template_id": "amazon_order_confirmation.v1",
+  "profile_id": "amazon_order_confirmation",
+  "template_version": "v1",
+  "enabled": true,
+  "match": {
+    "vendor_identity": "amazon"
+  },
+  "extract": {
+    "order_number": {
+      "method": "regex",
+      "pattern": "Order\\s*#\\s*([0-9-]{10,})",
+      "transforms": ["trim", "normalize_order_number"]
+    },
+    "status": {
+      "method": "line_contains",
+      "value": "Arriving"
+    },
+    "order_action_url": {
+      "method": "link_by_type",
+      "link_type": "order_action",
+      "transforms": ["normalize_url"]
+    },
+    "item_name": {
+      "method": "regex",
+      "pattern": "\\*\\s+([^\\n]+)"
+    },
+    "quantity": {
+      "method": "regex",
+      "pattern": "Quantity:\\s*([^\\n]+)",
+      "transforms": ["trim", "collapse_spaces"]
+    },
+    "total": {
+      "method": "regex",
+      "pattern": "Grand Total:\\s*\\n?([^\\n]+)",
+      "transforms": ["trim", "collapse_spaces", "normalize_currency"]
+    }
+  },
+  "required_fields": ["order_number", "status"],
+  "confidence_rules": {
+    "high_requires": ["order_number", "status", "order_action_url"]
+  },
+  "post_process": {}
+}

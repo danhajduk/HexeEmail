@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Schema for Gmail order extraction templates stored under runtime/order_templates/. This matches the contract validated by src/providers/gmail/order_template_registry.py.",
+  "description": "Schema for Gmail order extraction templates stored under runtime/flow_families/order/templates/. This matches the contract validated by src/providers/gmail/order_template_registry.py.",
   "properties": {
     "confidence_rules": {
       "additionalProperties": true,

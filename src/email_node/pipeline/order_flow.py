@@ -52,13 +52,17 @@ class OrderFlowPipeline:
         tracking_monitor_handler: TrackingMonitorHandler | None = None,
         runtime_dir: Path | None = None,
     ) -> None:
+        self.flow_config = get_flow_family_config("order", runtime_dir=runtime_dir)
         self.phase2_scrubber = phase2_scrubber or GmailOrderPhase2Scrubber()
         self.phase3_detector = phase3_detector or GmailOrderPhase3ProfileDetector()
         self.phase4_extractor = phase4_extractor or GmailOrderPhase4Extractor()
-        self.probation_store = probation_store or ProbationStore()
+        self.probation_store = probation_store or ProbationStore(runtime_dir=runtime_dir, flow_family="order")
         self.probation_evaluator = probation_evaluator or ProbationEvaluator(probation_store=self.probation_store)
         self.probation_promotion = probation_promotion or ProbationPromotionManager(
-            promotion_service=TemplatePromotionService(probation_store=self.probation_store),
+            promotion_service=TemplatePromotionService(
+                probation_store=self.probation_store,
+                active_dir=self.flow_config.template_dir,
+            ),
             policy=ProbationPromotionPolicy(),
         )
         self.generate_probation_template = generate_probation_template
@@ -71,7 +75,6 @@ class OrderFlowPipeline:
         self.order_record_service = order_record_service or OrderRecordService(runtime_dir)
         self.user_notification_handler = user_notification_handler or UserNotificationHandler()
         self.tracking_monitor_handler = tracking_monitor_handler or TrackingMonitorHandler()
-        self.flow_config = get_flow_family_config("order", runtime_dir=runtime_dir)
         self.shared_core = SharedEmailPipelineCore(
             flow_config=self.flow_config,
             hooks=SharedEmailPipelineHooks(

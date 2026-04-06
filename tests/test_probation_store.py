@@ -77,3 +77,12 @@ def test_probation_store_can_find_existing_probation_by_profile_and_vendor(tmp_p
 
     assert found is not None
     assert found.template_id == state.template_id
+
+
+def test_probation_store_uses_flow_family_runtime_layout(tmp_path):
+    store = ProbationStore(runtime_dir=tmp_path, flow_family="order")
+
+    assert store.templates_dir == tmp_path / "flow_families" / "order" / "probation" / "templates"
+    assert store.state_dir == tmp_path / "flow_families" / "order" / "probation" / "state"
+    assert store.evaluations_dir == tmp_path / "flow_families" / "order" / "probation" / "evaluations"
+    assert store.shadow_dir == tmp_path / "flow_families" / "order" / "probation" / "shadow"

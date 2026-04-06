@@ -182,7 +182,7 @@ Status: `[PARTIAL]`
 
 19. Store pattern as: `[DONE]`
 
-* `patterns/probation/` `[DONE]`
+* `runtime/flow_families/order/probation/templates/` `[DONE]`
 * `patterns/draft/` `[TODO]`
 
 Current implementation note:

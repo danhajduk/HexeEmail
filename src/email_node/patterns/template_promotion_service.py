@@ -4,6 +4,7 @@ import shutil
 from pathlib import Path
 
 from email_node.patterns.probation_store import ProbationStore
+from email_node.shared_pipeline_core.families import get_flow_family_config
 from logging_utils import get_logger
 
 
@@ -22,7 +23,7 @@ class TemplatePromotionService:
         active_dir: Path | None = None,
     ) -> None:
         self.probation_store = probation_store
-        self.active_dir = active_dir or (Path(__file__).resolve().parents[3] / "runtime" / "order_templates")
+        self.active_dir = active_dir or get_flow_family_config("order").template_dir
 
     def promote(self, template_id: str) -> Path:
         source_path = self.probation_store.build_template_path(template_id)

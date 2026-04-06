@@ -47,19 +47,6 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[TODO] Task 274: Split active and probation template storage by flow family
-
-- Refactor template lookup/storage paths so multiple families can coexist cleanly
-
-Required layout:
-- active templates by family
-- probation templates by family
-- probation state by family
-
-Acceptance:
-- ORDER continues to resolve templates correctly from family-specific paths
-- ACTION_NEEDED paths are ready without touching ORDER directories
-
 [TODO] Task 275: Move probation lifecycle into shared subsystem
 
 - Generalize probation creation/evaluation/promotion support so it is reusable across flow families

@@ -29,6 +29,7 @@ Current family config responsibilities:
 - template directory
 - probation template directory
 - probation state directory
+- family-scoped runtime storage layout
 - validation policy reference
 - decision policy reference
 - action router policy reference

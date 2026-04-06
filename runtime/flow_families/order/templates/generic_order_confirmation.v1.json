@@ -1,0 +1,30 @@
+{
+  "schema_version": "order-phase4-template.v1",
+  "template_id": "generic_order_confirmation.v1",
+  "profile_id": "generic_order_confirmation",
+  "template_version": "v1",
+  "enabled": true,
+  "match": {},
+  "extract": {
+    "order_number": {
+      "method": "regex",
+      "pattern": "(?:Order\\s*(?:#|number:?))\\s*([A-Z0-9-]{6,})",
+      "transforms": ["trim", "normalize_order_number"]
+    },
+    "status": {
+      "method": "first_match",
+      "pattern": "(Thanks for your order|Thank you for your order|Order Confirmation)",
+      "transforms": ["trim", "collapse_spaces"]
+    },
+    "order_action_url": {
+      "method": "link_by_type",
+      "link_type": "order_action",
+      "transforms": ["normalize_url"]
+    }
+  },
+  "required_fields": ["order_number"],
+  "confidence_rules": {
+    "high_requires": ["order_number", "status"]
+  },
+  "post_process": {}
+}

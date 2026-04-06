@@ -33,11 +33,11 @@ When an active template already resolves the email:
 
 ## Directory Structure
 
-- probation templates: `src/email_node/patterns/probation/`
-- probation state: `src/email_node/patterns/probation_state/`
-- probation evaluations: `src/email_node/patterns/probation_evaluations/`
-- probation shadow comparisons: `src/email_node/patterns/probation_shadow/`
-- active templates: `runtime/order_templates/`
+- probation templates: `runtime/flow_families/order/probation/templates/`
+- probation state: `runtime/flow_families/order/probation/state/`
+- probation evaluations: `runtime/flow_families/order/probation/evaluations/`
+- probation shadow comparisons: `runtime/flow_families/order/probation/shadow/`
+- active templates: `runtime/flow_families/order/templates/`
 
 ## Operator Surfaces
 

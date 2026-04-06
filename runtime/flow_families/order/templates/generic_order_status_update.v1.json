@@ -1,0 +1,30 @@
+{
+  "schema_version": "order-phase4-template.v1",
+  "template_id": "generic_order_status_update.v1",
+  "profile_id": "generic_order_status_update",
+  "template_version": "v1",
+  "enabled": true,
+  "match": {},
+  "extract": {
+    "order_number": {
+      "method": "regex",
+      "pattern": "(?:Order\\s*(?:#|number:?))\\s*([A-Z0-9-]{6,})",
+      "transforms": ["trim", "normalize_order_number"]
+    },
+    "status": {
+      "method": "first_match",
+      "pattern": "(Arriving[^\\n]*|Delivered[^\\n]*|Shipped[^\\n]*|Out for delivery[^\\n]*)",
+      "transforms": ["trim", "collapse_spaces"]
+    },
+    "tracking_or_action_url": {
+      "method": "link_by_type",
+      "link_type": "tracking_action",
+      "transforms": ["normalize_url"]
+    }
+  },
+  "required_fields": ["status"],
+  "confidence_rules": {
+    "high_requires": ["order_number", "status"]
+  },
+  "post_process": {}
+}

@@ -20,7 +20,7 @@ Current runtime paths observed in this repo:
 - `runtime/trust_material.json`
 - `runtime/logs/`
 - `runtime/providers/gmail/`
-- `runtime/order_templates/`
+- `runtime/flow_families/order/`
 - `runtime/order_flow_logs/`
 - `runtime/exports/`
 
@@ -113,10 +113,13 @@ Key paths:
 
 ### Node-managed generated reference data
 
-- [runtime/order_templates](/home/dan/Projects/HexeEmail/runtime/order_templates)
+- [runtime/flow_families/order/templates](/home/dan/Projects/HexeEmail/runtime/flow_families/order/templates)
   - deterministic ORDER extraction templates
   - node-managed reference artifacts
   - should normally be source-controlled when curated, but runtime currently hosts the live template set
+- [runtime/flow_families/order/probation](/home/dan/Projects/HexeEmail/runtime/flow_families/order/probation)
+  - family-scoped probation templates, state, evaluations, and shadow comparisons
+  - restart-safe and operator-reviewable
 - [runtime/order_flow_logs](/home/dan/Projects/HexeEmail/runtime/order_flow_logs)
   - generated ORDER flow debug/reference logs
   - not required for runtime correctness

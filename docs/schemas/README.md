@@ -42,7 +42,7 @@ The current schema set covers:
   Structured output schema for `prompt.email.lifecycle_degradation_probe`.
 
 - [gmail-order-template.schema.json](/home/dan/Projects/HexeEmail/docs/schemas/gmail-order-template.schema.json)
-  Contract for the JSON templates stored under `runtime/order_templates/`.
+  Contract for the JSON templates stored under `runtime/flow_families/order/templates/`.
 
 - [pattern-generation-request.schema.json](/home/dan/Projects/HexeEmail/docs/schemas/pattern-generation-request.schema.json)
   Request contract for node-local pattern generation.

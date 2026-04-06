@@ -122,7 +122,7 @@ The handoff rules are:
 
 This path writes probation templates to:
 
-- [src/email_node/patterns/probation](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation)
+- [runtime/flow_families/order/probation/templates](/home/dan/Projects/HexeEmail/runtime/flow_families/order/probation/templates)
 
 ## CLI
 

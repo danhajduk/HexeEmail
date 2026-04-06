@@ -29,8 +29,10 @@ SUPPORTED_TRANSFORMS = {
 class GmailOrderTemplateRegistry(SharedTemplateRegistry):
     def __init__(self, base_dir: Path | None = None) -> None:
         template_dir = base_dir or get_flow_family_config("order").template_dir
+        legacy_dir = Path(__file__).resolve().parents[3] / "runtime" / "order_templates"
         super().__init__(
             base_dir=template_dir,
+            fallback_dirs=[legacy_dir] if legacy_dir != template_dir else [],
             schema_version=TEMPLATE_SCHEMA_VERSION,
             supported_extraction_methods=SUPPORTED_EXTRACTION_METHODS,
             supported_transforms=SUPPORTED_TRANSFORMS,

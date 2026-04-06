@@ -14,7 +14,7 @@ Current Phase 4 responsibilities:
 
 The runtime ORDER orchestration now consumes unresolved known-profile Phase 4 results and can create a probation template artifact through the pattern-generation flow while keeping the extractor itself deterministic and side-effect free.
 
-The initial template set lives in [runtime/order_templates](/home/dan/Projects/HexeEmail/runtime/order_templates) and currently covers:
+The initial template set now lives in [runtime/flow_families/order/templates](/home/dan/Projects/HexeEmail/runtime/flow_families/order/templates) and currently covers:
 
 - `amazon_order_confirmation`
 - `pickup_ready_notification`

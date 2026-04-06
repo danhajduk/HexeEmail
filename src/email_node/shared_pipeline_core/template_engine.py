@@ -23,23 +23,33 @@ class SharedTemplateRegistry:
         self,
         *,
         base_dir: Path,
+        fallback_dirs: list[Path] | None = None,
         schema_version: str,
         supported_extraction_methods: set[str],
         supported_transforms: set[str],
     ) -> None:
         self.base_dir = base_dir
+        self.fallback_dirs = list(fallback_dirs or [])
         self.schema_version = schema_version
         self.supported_extraction_methods = supported_extraction_methods
         self.supported_transforms = supported_transforms
 
     def list_templates(self) -> list[dict[str, object]]:
-        if not self.base_dir.exists():
-            return []
         templates: list[dict[str, object]] = []
-        for path in sorted(self.base_dir.glob("*.json")):
-            payload = json.loads(path.read_text(encoding="utf-8"))
-            payload["_path"] = str(path)
-            templates.append(payload)
+        seen_template_ids: set[str] = set()
+        for root in [self.base_dir, *self.fallback_dirs]:
+            if not root.exists():
+                continue
+            for path in sorted(root.glob("*.json")):
+                payload = json.loads(path.read_text(encoding="utf-8"))
+                if not isinstance(payload, dict):
+                    continue
+                template_id = str(payload.get("template_id") or path.stem)
+                if template_id in seen_template_ids:
+                    continue
+                payload["_path"] = str(path)
+                templates.append(payload)
+                seen_template_ids.add(template_id)
         return templates
 
     def lookup(

@@ -10,16 +10,28 @@ class ProbationStore:
     def __init__(
         self,
         *,
+        runtime_dir: Path | None = None,
+        flow_family: str = "order",
         templates_dir: Path | None = None,
         state_dir: Path | None = None,
         evaluations_dir: Path | None = None,
         shadow_dir: Path | None = None,
     ) -> None:
+        runtime_base_dir = Path(runtime_dir) if runtime_dir is not None else Path("runtime")
+        family_probation_dir = runtime_base_dir / "flow_families" / flow_family / "probation"
         base_dir = Path(__file__).resolve().parent
-        self.templates_dir = templates_dir or (base_dir / "probation")
-        self.state_dir = state_dir or (base_dir / "probation_state")
-        self.evaluations_dir = evaluations_dir or (base_dir / "probation_evaluations")
-        self.shadow_dir = shadow_dir or (base_dir / "probation_shadow")
+        legacy_templates_dir = base_dir / "probation"
+        legacy_state_dir = base_dir / "probation_state"
+        legacy_evaluations_dir = base_dir / "probation_evaluations"
+        legacy_shadow_dir = base_dir / "probation_shadow"
+        self.templates_dir = templates_dir or (family_probation_dir / "templates")
+        self.state_dir = state_dir or (family_probation_dir / "state")
+        self.evaluations_dir = evaluations_dir or (family_probation_dir / "evaluations")
+        self.shadow_dir = shadow_dir or (family_probation_dir / "shadow")
+        self.legacy_templates_dir = None if templates_dir is not None else legacy_templates_dir
+        self.legacy_state_dir = None if state_dir is not None else legacy_state_dir
+        self.legacy_evaluations_dir = None if evaluations_dir is not None else legacy_evaluations_dir
+        self.legacy_shadow_dir = None if shadow_dir is not None else legacy_shadow_dir
         self.templates_dir.mkdir(parents=True, exist_ok=True)
         self.state_dir.mkdir(parents=True, exist_ok=True)
         self.evaluations_dir.mkdir(parents=True, exist_ok=True)
@@ -44,11 +56,13 @@ class ProbationStore:
         return path
 
     def load_template_payload(self, template_id: str) -> dict[str, object] | None:
-        path = self.build_template_path(template_id)
-        if not path.exists():
-            return None
-        payload = json.loads(path.read_text(encoding="utf-8"))
-        return payload if isinstance(payload, dict) else None
+        for path in self._candidate_template_paths(template_id):
+            if not path.exists():
+                continue
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(payload, dict):
+                return payload
+        return None
 
     def save_state(self, state: ProbationTemplateState) -> Path:
         path = self.build_state_path(state.template_id)
@@ -57,10 +71,10 @@ class ProbationStore:
         return path
 
     def load_state(self, template_id: str) -> ProbationTemplateState | None:
-        path = self.build_state_path(template_id)
-        if not path.exists():
-            return None
-        return ProbationTemplateState.model_validate_json(path.read_text(encoding="utf-8"))
+        for path in self._candidate_state_paths(template_id):
+            if path.exists():
+                return ProbationTemplateState.model_validate_json(path.read_text(encoding="utf-8"))
+        return None
 
     def save_evaluation(self, evaluation) -> Path:
         path = self.build_evaluation_path(evaluation.template_id, evaluation.message_id)
@@ -72,14 +86,18 @@ class ProbationStore:
         return path
 
     def list_evaluations(self, template_id: str) -> list[dict[str, object]]:
-        root = self.evaluations_dir / template_id
-        if not root.exists():
-            return []
         evaluations: list[dict[str, object]] = []
-        for path in sorted(root.glob("*.json")):
-            payload = json.loads(path.read_text(encoding="utf-8"))
-            if isinstance(payload, dict):
-                evaluations.append(payload)
+        seen_names: set[str] = set()
+        for root in self._candidate_evaluation_roots(template_id):
+            if not root.exists():
+                continue
+            for path in sorted(root.glob("*.json")):
+                if path.name in seen_names:
+                    continue
+                payload = json.loads(path.read_text(encoding="utf-8"))
+                if isinstance(payload, dict):
+                    evaluations.append(payload)
+                    seen_names.add(path.name)
         return evaluations
 
     def save_shadow_comparison(self, template_id: str, message_id: str, payload: dict[str, object]) -> Path:
@@ -89,29 +107,47 @@ class ProbationStore:
         return path
 
     def list_shadow_comparisons(self, template_id: str) -> list[dict[str, object]]:
-        root = self.shadow_dir / template_id
-        if not root.exists():
-            return []
         comparisons: list[dict[str, object]] = []
-        for path in sorted(root.glob("*.json")):
-            payload = json.loads(path.read_text(encoding="utf-8"))
-            if isinstance(payload, dict):
-                comparisons.append(payload)
+        seen_names: set[str] = set()
+        for root in self._candidate_shadow_roots(template_id):
+            if not root.exists():
+                continue
+            for path in sorted(root.glob("*.json")):
+                if path.name in seen_names:
+                    continue
+                payload = json.loads(path.read_text(encoding="utf-8"))
+                if isinstance(payload, dict):
+                    comparisons.append(payload)
+                    seen_names.add(path.name)
         return comparisons
 
     def list_states(self) -> list[ProbationTemplateState]:
         states: list[ProbationTemplateState] = []
-        for path in sorted(self.state_dir.glob("*.json")):
-            states.append(ProbationTemplateState.model_validate_json(path.read_text(encoding="utf-8")))
+        seen_names: set[str] = set()
+        for root in self._candidate_state_roots():
+            if not root.exists():
+                continue
+            for path in sorted(root.glob("*.json")):
+                if path.name in seen_names:
+                    continue
+                states.append(ProbationTemplateState.model_validate_json(path.read_text(encoding="utf-8")))
+                seen_names.add(path.name)
         return states
 
     def list_templates(self) -> list[dict[str, object]]:
         templates: list[dict[str, object]] = []
-        for path in sorted(self.templates_dir.glob("*.json")):
-            payload = json.loads(path.read_text(encoding="utf-8"))
-            if isinstance(payload, dict):
-                payload["_path"] = str(path)
-                templates.append(payload)
+        seen_names: set[str] = set()
+        for root in self._candidate_template_roots():
+            if not root.exists():
+                continue
+            for path in sorted(root.glob("*.json")):
+                if path.name in seen_names:
+                    continue
+                payload = json.loads(path.read_text(encoding="utf-8"))
+                if isinstance(payload, dict):
+                    payload["_path"] = str(path)
+                    templates.append(payload)
+                    seen_names.add(path.name)
         return templates
 
     def find_state(
@@ -137,3 +173,39 @@ class ProbationStore:
                     continue
             return state
         return None
+
+    def _candidate_template_paths(self, template_id: str) -> list[Path]:
+        paths = [self.build_template_path(template_id)]
+        if self.legacy_templates_dir is not None:
+            paths.append(self.legacy_templates_dir / f"{template_id}.json")
+        return paths
+
+    def _candidate_state_paths(self, template_id: str) -> list[Path]:
+        paths = [self.build_state_path(template_id)]
+        if self.legacy_state_dir is not None:
+            paths.append(self.legacy_state_dir / f"{template_id}.json")
+        return paths
+
+    def _candidate_template_roots(self) -> list[Path]:
+        roots = [self.templates_dir]
+        if self.legacy_templates_dir is not None and self.legacy_templates_dir != self.templates_dir:
+            roots.append(self.legacy_templates_dir)
+        return roots
+
+    def _candidate_state_roots(self) -> list[Path]:
+        roots = [self.state_dir]
+        if self.legacy_state_dir is not None and self.legacy_state_dir != self.state_dir:
+            roots.append(self.legacy_state_dir)
+        return roots
+
+    def _candidate_evaluation_roots(self, template_id: str) -> list[Path]:
+        roots = [self.evaluations_dir / template_id]
+        if self.legacy_evaluations_dir is not None:
+            roots.append(self.legacy_evaluations_dir / template_id)
+        return roots
+
+    def _candidate_shadow_roots(self, template_id: str) -> list[Path]:
+        roots = [self.shadow_dir / template_id]
+        if self.legacy_shadow_dir is not None:
+            roots.append(self.legacy_shadow_dir / template_id)
+        return roots

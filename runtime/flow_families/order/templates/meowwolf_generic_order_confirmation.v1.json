@@ -1,0 +1,38 @@
+{
+  "schema_version": "order-phase4-template.v1",
+  "template_id": "meowwolf_generic_order_confirmation.v1",
+  "profile_id": "generic_order_confirmation",
+  "template_version": "v1",
+  "enabled": true,
+  "match": {
+    "vendor_identity": "meowwolf"
+  },
+  "extract": {
+    "order_number": {
+      "method": "regex",
+      "transforms": [
+        "trim",
+        "collapse_spaces",
+        "normalize_order_number"
+      ],
+      "pattern": "Order\\s*#:\\s*([A-Z0-9-]+)"
+    },
+    "purchase_datetime": {
+      "method": "regex",
+      "transforms": [
+        "trim",
+        "collapse_spaces"
+      ],
+      "pattern": "Purchase Date/Time:\\s*([^\\n]+)"
+    }
+  },
+  "required_fields": [
+    "order_number"
+  ],
+  "confidence_rules": {
+    "high_requires": [
+      "order_number"
+    ]
+  },
+  "post_process": {}
+}
