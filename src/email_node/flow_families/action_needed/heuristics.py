@@ -29,9 +29,9 @@ FOOTER_CUTOFF_PATTERNS = [
 ]
 
 IMPORTANT_LINK_PATTERNS = {
-    "action_url": re.compile(r"verify|confirm|sign|review|pay|resolve|reset", re.IGNORECASE),
+    "account": re.compile(r"verify|confirm|sign|review|pay|resolve|reset", re.IGNORECASE),
     "document_action": re.compile(r"invoice|receipt|document|statement|pdf", re.IGNORECASE),
-    "account": re.compile(r"account|sign in|signin|security", re.IGNORECASE),
+    "other": re.compile(r"account|sign in|signin|security", re.IGNORECASE),
 }
 
 TRACKING_HOST_PATTERNS = [

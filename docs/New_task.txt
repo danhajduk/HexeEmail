@@ -119,7 +119,7 @@ Acceptance:
 - ORDER flow becomes a thin wrapper around shared core
 - Existing ORDER test cases continue to pass
 
-[WIP] Task 284: Add ACTION_NEEDED flow skeleton using shared core
+[DONE] Task 284: Add ACTION_NEEDED flow skeleton using shared core
 
 - Create initial ACTION_NEEDED runner that uses the same shared framework
 
@@ -139,27 +139,7 @@ Acceptance:
 - ACTION_NEEDED flow skeleton exists and can run through the shared core with placeholder configs
 - No duplicate phase implementation is introduced
 
-[TODO] Task 284: Add ACTION_NEEDED flow skeleton using shared core
-
-- Create initial ACTION_NEEDED runner that uses the same shared framework
-
-Requirements:
-- Declare flow_family = action_needed
-- Use shared phases:
-  - normalize
-  - scrub
-  - detect profile
-  - template execution/probation
-  - validation
-  - decision
-  - persistence/action gating
-- Stub family-specific output schema if needed
-
-Acceptance:
-- ACTION_NEEDED flow skeleton exists and can run through the shared core with placeholder configs
-- No duplicate phase implementation is introduced
-
-[TODO] Task 286: Document shared-core vs family-specific architecture
+[WIP] Task 286: Document shared-core vs family-specific architecture
 
 - Create architecture doc for the split
 
