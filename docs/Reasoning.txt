@@ -307,3 +307,9 @@ Chosen fix: Introduce a registry-backed scheduled-task entry builder and use the
 What changed: Updated `src/node_backend/scheduler.py`, `docs/scheduler-and-background-tasks.md`, removed Task 330 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
 Verification: `python -m py_compile src/node_backend/scheduler.py src/service.py tests/test_ui_api.py` passed. `PYTHONPATH=src ./.venv/bin/python -m pytest tests/test_ui_api.py -k 'scheduled_tasks or task_registry' -q` passed.
 ###########
+Task #331
+Step objective: Distinguish node-local recurring work, provider-recurring work, and any Core-leased work in scheduler task metadata and operator-facing labels.
+Chosen fix: Keep the API metadata on `kind`, but switch the Scheduled Tasks dashboard section to render operator-friendly kind labels with the explicit task owner instead of the older `group` field.
+What changed: Updated `frontend/src/features/dashboard/ScheduledTasksSection.jsx`, `frontend/src/features/dashboard/dashboard.test.jsx`, and `docs/scheduler-and-background-tasks.md`, removed Task 331 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: `npm --prefix frontend test -- --run src/features/dashboard/dashboard.test.jsx` passed. `python -m py_compile src/node_backend/scheduler.py src/service.py tests/test_ui_api.py` passed.
+###########

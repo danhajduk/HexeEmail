@@ -5,6 +5,13 @@ export function ScheduledTasksSection({
   formatScheduleTimestamp,
   formatRelativeTime,
 }) {
+  const taskKindLabel = (value) => {
+    if (value === "node_local_recurring_work") return "Node-local";
+    if (value === "provider_recurring_work") return "Provider";
+    if (value === "core_leased_recurring_work") return "Core-leased";
+    return value || "-";
+  };
+
   return (
     <section className="grid scheduled-tasks-grid">
       <article className="card scheduled-tasks-card">
@@ -18,7 +25,7 @@ export function ScheduledTasksSection({
               <thead>
                 <tr>
                   <th>Task</th>
-                  <th>Group</th>
+                  <th>Kind</th>
                   <th>Schedule</th>
                   <th>Status</th>
                   <th>Last Execution</th>
@@ -32,7 +39,10 @@ export function ScheduledTasksSection({
                 {scheduledTasksSorted.map((task) => (
                   <tr key={task.task_id}>
                     <td><strong>{task.title || task.task_id}</strong></td>
-                    <td>{task.group || "-"}</td>
+                    <td>
+                      <div>{taskKindLabel(task.kind)}</div>
+                      <div className="muted tiny">{task.owner || "-"}</div>
+                    </td>
                     <td>
                       <div><code>{task.schedule_name || "-"}</code></div>
                       <div className="muted tiny">{task.schedule_detail || "-"}</div>

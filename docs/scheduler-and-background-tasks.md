@@ -222,6 +222,14 @@ Current operator-facing surfaces:
 - onboarding/setup views for finalize polling outcomes
 - MQTT-backed user notifications for Gmail fetch scheduler degradation and recovery
 
+The Scheduled Tasks UI now uses scheduler `kind` as the primary operator-facing category:
+
+- `Node-local`
+- `Provider`
+- `Core-leased`
+
+The task owner is shown alongside that kind label so operators can distinguish runtime-owned loops from provider-owned or Core-leased work without reading raw ids.
+
 ## Current Boundary
 
 `NodeService` remains the compatibility façade. The actual recurring-work owner is [scheduler.py](/home/dan/Projects/HexeEmail/src/node_backend/scheduler.py), and provider-specific execution of Gmail fetches and last-hour processing lives in [providers.py](/home/dan/Projects/HexeEmail/src/node_backend/providers.py).
