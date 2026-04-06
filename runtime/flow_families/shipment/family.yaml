@@ -46,15 +46,78 @@ heuristics:
     - special offer
 profiles:
   taxonomy_version: shipment-phase3-taxonomy.v1
-  taxonomy: {}
-  known_vendor_identities: {}
+  taxonomy:
+    shipped:
+      profile_family: shipment
+      profile_subtype: shipped
+      vendor_identity:
+    out_for_delivery:
+      profile_family: shipment
+      profile_subtype: out_for_delivery
+      vendor_identity:
+    delivered:
+      profile_family: shipment
+      profile_subtype: delivered
+      vendor_identity:
+    delayed:
+      profile_family: shipment
+      profile_subtype: delayed
+      vendor_identity:
+    label_created:
+      profile_family: shipment
+      profile_subtype: label_created
+      vendor_identity:
+    generic_shipment_update:
+      profile_family: shipment
+      profile_subtype: generic_shipment_update
+      vendor_identity:
+  known_vendor_identities:
+    ups.com: ups
+    fedex.com: fedex
+    usps.com: usps
+    dhl.com: dhl
+    amazon.com: amazon
+    example.com: example_vendor
   rules_override_path: flow_families/shipment/profile_rules.json
   rules:
     schema_version: shipment-phase3-rules.v1
-    signals: {}
+    signals:
+      shipped_terms:
+        - has shipped
+        - shipped
+        - your package is on the way
+        - shipment is on the way
+      out_for_delivery_terms:
+        - out for delivery
+        - arriving today
+        - delivery today
+      delivered_terms:
+        - delivered
+        - package delivered
+        - delivered at
+      delayed_terms:
+        - delivery delayed
+        - shipment delayed
+        - running late
+        - exception in transit
+      label_created_terms:
+        - label created
+        - shipment information sent
+        - awaiting carrier pickup
+      generic_shipment_terms:
+        - tracking number
+        - delivery update
+        - shipment update
+        - track your package
     sender_domain_profiles: {}
     weights:
       sender_match: 5
+      shipped_language: 8
+      out_for_delivery_language: 9
+      delivered_language: 9
+      delayed_language: 8
+      label_created_language: 7
+      generic_shipment_language: 6
     thresholds:
       high_score: 14
       medium_score: 8
@@ -83,7 +146,17 @@ decision_policy:
   high_confidence_threshold: 0.85
   medium_confidence_threshold: 0.6
 action_routing_policy:
-  profile_intents: {}
+  profile_intents:
+    shipped:
+      - store_shipment_record
+    out_for_delivery:
+      - store_shipment_record
+    delivered:
+      - store_shipment_record
+    delayed:
+      - store_shipment_record
+    label_created:
+      - store_shipment_record
   decision_intents:
     accept:
       - user_notification

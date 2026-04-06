@@ -201,7 +201,7 @@ INVOICE now uses the shared skeleton plus a first-pass YAML taxonomy. It has fam
 
 SECURITY now uses the shared skeleton plus a first-pass YAML taxonomy. It has family-owned YAML, runtime paths, smoke-tested shared-core wiring, and initial detector coverage for security-alert, suspicious-login, password-reset, identity-verification, MFA-code, new-device-login, and generic security notice cases. It also has a family-specific Phase 3 intake override for usable security scrubbed text. It still does not have active template behavior or mailbox-sampled refinement yet.
 
-SHIPMENT currently uses the shared skeleton shape. It has family-owned YAML, runtime paths, placeholder handlers, and a smoke-tested shared-core runner, but it does not yet have mailbox-derived taxonomy or active template behavior.
+SHIPMENT now uses the shared skeleton plus a first-pass YAML taxonomy. It has family-owned YAML, runtime paths, smoke-tested shared-core wiring, and initial detector coverage for shipped, out-for-delivery, delivered, delayed, label-created, and generic shipment update cases. It did not require a family-specific Phase 3 intake override in its initial pass. It still does not have active template behavior or mailbox-sampled refinement yet.
 
 ## How ORDER Uses The Framework
 

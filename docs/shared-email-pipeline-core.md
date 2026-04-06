@@ -156,7 +156,9 @@ Current SHIPMENT integration:
 
 - [src/email_node/pipeline/shipment_flow.py](/home/dan/Projects/HexeEmail/src/email_node/pipeline/shipment_flow.py) now provides the initial thin shared-core runner for the `shipment` family
 - [src/email_node/flow_families/shipment/runtime.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/shipment/runtime.py) wires the shared scrub, profile-detection, template, decision, persistence, and action-gating layers together with placeholder family handlers
-- the SHIPMENT family is still an empty-shell detector at this stage, but the YAML contract, runtime paths, smoke coverage, and shared-core runner are now in place for the next taxonomy task
+- the SHIPMENT family now has a first-pass YAML taxonomy for shipped, out-for-delivery, delivered, delayed, label-created, and generic shipment update signals
+- SHIPMENT did not need a family-specific intake override in its initial pass; the shared scrub/profile boundary was sufficient for the current smoke cases
+- SHIPMENT still needs mailbox-sampled refinement and active template coverage, but it now resolves real Phase 3 profiles instead of only failing closed
 
 Why this exists:
 

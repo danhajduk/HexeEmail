@@ -61,14 +61,110 @@ class GmailShipmentPhase3ProfileDetector(SharedProfileDetectorEngine):
         self,
         working: GmailPhase3WorkingEmail,
     ) -> tuple[list[GmailPhase3ProfileCandidate], list[str]]:
-        return [], ["candidate_generation:no_candidates"]
+        signals = self._signal_terms()
+        subject = (working.subject or "").lower()
+        text = working.scrubbed_text.lower()
+        sender_domain = (working.sender_domain or "").lower()
+        vendor = working.vendor_identity
+        candidates: dict[str, list[str]] = {}
+
+        def add(profile_id: str, reason: str) -> None:
+            if profile_id in self.taxonomy:
+                candidates.setdefault(profile_id, []).append(reason)
+
+        signal_to_profile = {
+            "shipped_terms": ("shipped", "shipped_language"),
+            "out_for_delivery_terms": ("out_for_delivery", "out_for_delivery_language"),
+            "delivered_terms": ("delivered", "delivered_language"),
+            "delayed_terms": ("delayed", "delayed_language"),
+            "label_created_terms": ("label_created", "label_created_language"),
+            "generic_shipment_terms": ("generic_shipment_update", "generic_shipment_language"),
+        }
+        for signal_key, (profile_id, reason) in signal_to_profile.items():
+            terms = signals.get(signal_key, [])
+            if terms and (self._contains_any(subject, terms) or self._contains_any(text, terms)):
+                add(profile_id, reason)
+
+        sender_domain_profiles = self.rules.get("sender_domain_profiles", {})
+        if isinstance(sender_domain_profiles, dict):
+            mapped_profile = sender_domain_profiles.get(sender_domain)
+            if isinstance(mapped_profile, str):
+                add(mapped_profile, f"sender_domain:{sender_domain.replace('.', '_')}")
+
+        diagnostics: list[str] = []
+        candidate_models: list[GmailPhase3ProfileCandidate] = []
+        for profile_id, reasons in candidates.items():
+            taxonomy = self.taxonomy[profile_id]
+            diagnostics.append(f"candidate:{profile_id} reasons={','.join(reasons)}")
+            candidate_models.append(
+                GmailPhase3ProfileCandidate(
+                    profile_id=profile_id,
+                    profile_family=str(taxonomy["profile_family"]),
+                    profile_subtype=str(taxonomy["profile_subtype"]),
+                    vendor_identity=(str(taxonomy["vendor_identity"]) if taxonomy["vendor_identity"] else vendor),
+                    sender_identity=working.sender_identity,
+                    reasons=reasons,
+                )
+            )
+
+        if not candidate_models:
+            diagnostics.append("candidate_generation:no_candidates")
+        return candidate_models, diagnostics
 
     def score_candidates(
         self,
         working: GmailPhase3WorkingEmail,
         candidates: list[GmailPhase3ProfileCandidate],
     ) -> tuple[list[GmailPhase3ProfileCandidate], list[str]]:
-        return [], ["candidate_scoring:no_candidates"]
+        signals = self._signal_terms()
+        weights = self._weights()
+        thresholds = self._thresholds()
+        diagnostics: list[str] = []
+        ranked: list[GmailPhase3ProfileCandidate] = []
+        subject = (working.subject or "").lower()
+        text = working.scrubbed_text.lower()
+        vendor = working.vendor_identity
+
+        profile_rules = {
+            "shipped": ("shipped_terms", "shipped_language"),
+            "out_for_delivery": ("out_for_delivery_terms", "out_for_delivery_language"),
+            "delivered": ("delivered_terms", "delivered_language"),
+            "delayed": ("delayed_terms", "delayed_language"),
+            "label_created": ("label_created_terms", "label_created_language"),
+            "generic_shipment_update": ("generic_shipment_terms", "generic_shipment_language"),
+        }
+
+        for candidate in candidates:
+            score = 0
+            reasons = list(candidate.reasons)
+            if candidate.vendor_identity and candidate.vendor_identity == vendor:
+                score += weights.get("sender_match", 0)
+                reasons.append("score:sender_match")
+
+            signal_key, weight_key = profile_rules.get(candidate.profile_id, ("", ""))
+            terms = signals.get(signal_key, [])
+            if terms and (self._contains_any(subject, terms) or self._contains_any(text, terms)):
+                score += weights.get(weight_key, 0)
+                reasons.append(f"score:{weight_key}")
+
+            confidence_level = (
+                "high"
+                if score >= thresholds.get("high_score", 14)
+                else "medium"
+                if score >= thresholds.get("medium_score", 8)
+                else "low"
+            )
+            ranked.append(
+                candidate.model_copy(
+                    update={"score": score, "confidence_level": confidence_level, "reasons": reasons}
+                )
+            )
+            diagnostics.append(f"scored:{candidate.profile_id} score={score} reasons={','.join(reasons[-5:])}")
+
+        ranked.sort(key=lambda item: (item.score, len(item.reasons)), reverse=True)
+        if not ranked:
+            diagnostics.append("candidate_scoring:no_candidates")
+        return ranked, diagnostics
 
 
 class GmailShipmentTemplateRegistry(SharedTemplateRegistry):
