@@ -30,6 +30,23 @@ export function TrainingPage({
   const currentPage = Math.min(trainingPage, pageCount - 1);
   const pageStart = currentPage * pageSize;
   const visibleItems = items.slice(pageStart, pageStart + pageSize);
+  const modelStatus = trainingStatus?.model_status || null;
+  const modelScore = typeof modelStatus?.test_accuracy === "number" ? modelStatus.test_accuracy : null;
+  const trainingStateLabel = trainingModelPending
+    ? "Training model..."
+    : trainingSavePending
+      ? "Saving labels..."
+      : trainingBatchLoading || trainingLoading
+        ? "Refreshing training data..."
+        : modelStatus?.trained
+          ? "Model ready"
+          : "Model not trained";
+  const trainingStateTone = trainingModelPending || trainingSavePending || trainingBatchLoading || trainingLoading
+    ? "warning"
+    : modelStatus?.trained
+      ? "success"
+      : "neutral";
+  const trainingScoreLabel = modelScore !== null ? `${(modelScore * 100).toFixed(1)}%` : "Not available";
 
   useEffect(() => {
     setTrainingPage(0);
@@ -78,6 +95,11 @@ export function TrainingPage({
             <button className="btn" type="button" onClick={onOpenSenderReputation}>
               Show Sender Reputation
             </button>
+            <div className={`callout training-status-card tone-${trainingStateTone}`}>
+              <strong>Training Status</strong>
+              <div>{trainingStateLabel}</div>
+              <div>Score: {trainingScoreLabel}</div>
+            </div>
             <div className="callout">
               Threshold: {trainingStatus?.threshold ?? 0.6}
             </div>

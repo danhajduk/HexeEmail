@@ -47,7 +47,7 @@ describe("extracted feature pages", () => {
   it("renders training and sender reputation pages", () => {
     const trainingHtml = render(
       <TrainingPage
-        trainingStatus={{ threshold: 0.6, classification_summary: { classified_count: 4, manual_count: 1, high_confidence_count: 2, per_label: { order: 2 } }, model_status: { trained: true, train_count: 10, test_count: 2 } }}
+        trainingStatus={{ threshold: 0.6, classification_summary: { classified_count: 4, manual_count: 1, high_confidence_count: 2, per_label: { order: 2 } }, model_status: { trained: true, train_count: 10, test_count: 2, test_accuracy: 0.875 } }}
         trainingLoading={false}
         trainingError=""
         trainingBatch={{ count: 1, items: [{ message_id: "m1", subject: "Order", sender_email: "seller@example.com", raw_text: "hello", local_label: "unknown" }] }}
@@ -102,6 +102,8 @@ describe("extracted feature pages", () => {
     );
 
     expect(trainingHtml).toContain("Training");
+    expect(trainingHtml).toContain("Training Status");
+    expect(trainingHtml).toContain("Score: 87.5%");
     expect(trainingHtml).toContain("Manual Classification");
     expect(reputationHtml).toContain("Sender Reputation");
   });
