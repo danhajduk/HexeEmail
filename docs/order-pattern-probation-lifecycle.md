@@ -2,6 +2,8 @@
 
 This document describes the probation lifecycle for ORDER Phase 4 templates generated from unresolved known-profile emails.
 
+The reusable lifecycle core now lives in [src/email_node/shared_pipeline_core/probation.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/probation.py), while ORDER keeps its own pipeline wiring and template-generation trigger rules.
+
 ## Flow
 
 1. A known-profile ORDER email reaches Phase 4 and no active template matches.

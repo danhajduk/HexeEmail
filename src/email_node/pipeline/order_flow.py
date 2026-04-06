@@ -18,7 +18,7 @@ from email_node.patterns.probation_policy import ProbationPromotionPolicy
 from email_node.patterns.probation_promotion import ProbationPromotionManager
 from email_node.patterns.probation_state import ProbationTemplateState
 from email_node.patterns.probation_store import ProbationStore
-from email_node.shared_pipeline_core import SharedEmailPipelineCore, get_flow_family_config
+from email_node.shared_pipeline_core import SharedEmailPipelineCore, build_probation_shadow_comparison, get_flow_family_config
 from email_node.shared_pipeline_core.pipeline import SharedEmailPipelineHooks
 from email_node.patterns.template_promotion_service import TemplatePromotionService
 from logging_utils import get_logger
@@ -337,7 +337,7 @@ class OrderFlowPipeline:
         updated_state = ProbationMetrics.update_state(probation_state, evaluation)
         updated_state = self.probation_promotion.evaluate_and_apply(updated_state)
         self.probation_store.save_state(updated_state)
-        comparison = self._build_shadow_comparison(phase4, evaluation)
+        comparison = build_probation_shadow_comparison(phase4, evaluation)
         self.probation_store.save_shadow_comparison(probation_state.template_id, phase4.message_id, comparison)
         LOGGER.info(
             "Probation template shadow evaluation completed",
@@ -418,31 +418,3 @@ class OrderFlowPipeline:
                 "profile_diagnostics": diagnostics,
             }
         )
-
-    @staticmethod
-    def _build_shadow_comparison(phase4, evaluation) -> dict[str, object]:
-        active_fields = {
-            field_name: (field.value if hasattr(field, "value") else field.get("value") if isinstance(field, dict) else field)
-            for field_name, field in getattr(phase4, "extracted_fields", {}).items()
-        }
-        probation_fields = dict(evaluation.extracted_fields)
-        all_field_names = sorted(set(active_fields) | set(probation_fields))
-        extraction_variance = {
-            field_name: {
-                "active": active_fields.get(field_name),
-                "probation": probation_fields.get(field_name),
-            }
-            for field_name in all_field_names
-            if active_fields.get(field_name) != probation_fields.get(field_name)
-        }
-        differing_required_fields = sorted(set(evaluation.missing_required_fields))
-        differing_high_requires = sorted(set(evaluation.missing_high_requires))
-        return {
-            "message_id": phase4.message_id,
-            "active_template_id": phase4.template_id,
-            "probation_template_id": evaluation.template_id,
-            "profile_id": phase4.profile_id,
-            "required_field_differences": differing_required_fields,
-            "high_requires_differences": differing_high_requires,
-            "extraction_variance": extraction_variance,
-        }

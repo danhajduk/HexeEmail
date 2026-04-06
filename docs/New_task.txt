@@ -47,24 +47,6 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[TODO] Task 275: Move probation lifecycle into shared subsystem
-
-- Generalize probation creation/evaluation/promotion support so it is reusable across flow families
-
-Requirements:
-- Shared support for:
-  - probation state
-  - probation evaluator
-  - probation metrics
-  - probation policy
-  - promotion gate
-  - shadow mode
-- Family-specific schemas and thresholds must remain configurable
-
-Acceptance:
-- ORDER probation flow works through shared subsystem
-- No ORDER-specific hardcoding remains in probation core logic
-
 [TODO] Task 276: Extract Phase 5 validation into shared validation framework
 
 - Refactor validation/scoring into a family-agnostic framework with loadable policies

@@ -280,3 +280,4 @@ Task 271: Extract Phase 3 profile detection into shared detector engine - Comple
 Task 272: Create family-specific profile definition packs - Completed on 04/06/2026 00:22
 Task 273: Extract Phase 4 template execution into shared template engine - Completed on 04/06/2026 00:29
 Task 274: Split active and probation template storage by flow family - Completed on 04/06/2026 00:31
+Task 275: Move probation lifecycle into shared subsystem - Completed on 04/06/2026 00:36
