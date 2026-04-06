@@ -148,7 +148,7 @@ describe("dashboard feature sections", () => {
     );
     const scheduledHtml = render(
       <ScheduledTasksSection
-        scheduledTasksSorted={[{ task_id: "task-1", title: "Fetch", kind: "provider_recurring_work", owner: "background_task_manager", schedule_name: "daily", schedule_detail: "00:01", status: "active", last_execution_at: "now", next_execution_at: "later", last_reason: "schedule", last_slot_key: "slot-1", detail: "ok" }]}
+        scheduledTasksSorted={[{ task_id: "task-1", title: "Fetch", kind: "provider_recurring_work", owner: "background_task_manager", schedule_name: "daily", schedule_label: "Every day", schedule_detail: "00:01", status: "active", last_success_at: "now", last_failure_at: null, last_error: null, next_execution_at: "later", detail: "ok" }]}
         scheduledTaskLegend={[{ name: "daily", detail: "Every day" }]}
         scheduledTaskStatusTone={() => "success"}
         formatScheduleTimestamp={(value) => value}
@@ -171,6 +171,9 @@ describe("dashboard feature sections", () => {
     expect(runtimeHtml).not.toContain("AI Node API Base URL");
     expect(runtimeHtml).not.toContain("Email Body");
     expect(scheduledHtml).toContain("Scheduled Tasks");
+    expect(scheduledHtml).toContain("Last Success");
+    expect(scheduledHtml).toContain("Last Failure");
+    expect(scheduledHtml).toContain("Last Error");
     expect(scheduledHtml).toContain("Provider");
     expect(scheduledHtml).toContain("background_task_manager");
     expect(ordersHtml).toContain("Tracked Orders");

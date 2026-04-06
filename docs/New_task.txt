@@ -47,7 +47,6 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[TODO] Task 334: Update the Scheduled Tasks dashboard card to match the standard column model: Task, Kind, Schedule, Status, Last Success, Last Failure, Next Run, and Last Error
 [TODO] Task 335: Add the schedule catalog or legend sorted from shortest to longest duration, with interval_seconds sorted last when present
 [TODO] Task 336: Add consistent scheduled-task status semantics and UI badges so idle/stopped are orange, failing is red, and running/scheduled/healthy are green with running darker
 [TODO] Task 337: Add scheduler regression coverage for task registry loading, task-state persistence, baseline recurring tasks, startup/shutdown behavior, and API/UI scheduled-task rendering

@@ -325,3 +325,9 @@ Chosen fix: Extend each scheduled-task payload row with the structured scheduler
 What changed: Updated `src/node_backend/scheduler.py`, `src/service.py`, and `tests/test_ui_api.py`, removed Task 333 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
 Verification: `python -m py_compile src/node_backend/scheduler.py src/service.py tests/test_ui_api.py` passed. `PYTHONPATH=src ./.venv/bin/python -m pytest tests/test_ui_api.py -k 'scheduled_tasks or task_registry or defers_provider_loops' -q` passed.
 ###########
+Task #334
+Step objective: Update the Scheduled Tasks dashboard card to match the standard column model: Task, Kind, Schedule, Status, Last Success, Last Failure, Next Run, and Last Error.
+Chosen fix: Switch the Scheduled Tasks table to the standard columns and render the new API fields directly, while keeping the task kind label and owner presentation from Task 331.
+What changed: Updated `frontend/src/features/dashboard/ScheduledTasksSection.jsx`, `frontend/src/features/dashboard/dashboard.test.jsx`, removed Task 334 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: `npm --prefix frontend test -- --run src/features/dashboard/dashboard.test.jsx` passed. `python -m py_compile src/node_backend/scheduler.py src/service.py tests/test_ui_api.py` passed.
+###########

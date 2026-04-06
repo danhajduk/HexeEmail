@@ -338,3 +338,4 @@ Task 330: Refactor existing recurring loops into registry-backed scheduled tasks
 Task 331: Distinguish node-local recurring work, provider-recurring work, and any Core-leased work in scheduler task metadata and operator-facing labels - Completed on 04/06/2026 03:36
 Task 332: Align scheduler startup, readiness gating, and shutdown handling with the standard, including restored state, trust prerequisites, and explicit stop/finalization rules - Completed on 04/06/2026 03:39
 Task 333: Update the scheduled task API/bootstrap payloads to expose the standard task fields and friendly schedule labels needed by the operator UI - Completed on 04/06/2026 03:42
+Task 334: Update the Scheduled Tasks dashboard card to match the standard column model: Task, Kind, Schedule, Status, Last Success, Last Failure, Next Run, and Last Error - Completed on 04/06/2026 03:43

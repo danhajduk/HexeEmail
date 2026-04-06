@@ -28,11 +28,10 @@ export function ScheduledTasksSection({
                   <th>Kind</th>
                   <th>Schedule</th>
                   <th>Status</th>
-                  <th>Last Execution</th>
-                  <th>Next Execution</th>
-                  <th>Last Reason</th>
-                  <th>Last Slot</th>
-                  <th>Detail</th>
+                  <th>Last Success</th>
+                  <th>Last Failure</th>
+                  <th>Next Run</th>
+                  <th>Last Error</th>
                 </tr>
               </thead>
               <tbody>
@@ -45,7 +44,7 @@ export function ScheduledTasksSection({
                     </td>
                     <td>
                       <div><code>{task.schedule_name || "-"}</code></div>
-                      <div className="muted tiny">{task.schedule_detail || "-"}</div>
+                      <div className="muted tiny">{task.schedule_label || task.schedule_detail || "-"}</div>
                     </td>
                     <td>
                       <span className={`status-pill tone-${scheduledTaskStatusTone(task.status)}`}>
@@ -53,13 +52,15 @@ export function ScheduledTasksSection({
                       </span>
                     </td>
                     <td>
-                      <div>{formatScheduleTimestamp(task.last_execution_at)}</div>
-                      <div className="muted tiny">{formatRelativeTime(task.last_execution_at)}</div>
+                      <div>{formatScheduleTimestamp(task.last_success_at)}</div>
+                      <div className="muted tiny">{formatRelativeTime(task.last_success_at)}</div>
+                    </td>
+                    <td>
+                      <div>{formatScheduleTimestamp(task.last_failure_at)}</div>
+                      <div className="muted tiny">{formatRelativeTime(task.last_failure_at)}</div>
                     </td>
                     <td>{formatScheduleTimestamp(task.next_execution_at)}</td>
-                    <td>{task.last_reason || "-"}</td>
-                    <td><code>{task.last_slot_key || "-"}</code></td>
-                    <td>{task.detail || "-"}</td>
+                    <td>{task.last_error || "-"}</td>
                   </tr>
                 ))}
               </tbody>
