@@ -1,0 +1,2055 @@
+{
+  "schema_version": "flow-family-mailbox-sample.v1",
+  "flow_family": "security",
+  "generated_at": "2026-04-06T03:10:12.682283-07:00",
+  "sample_limit": 30,
+  "sample_size": 30,
+  "total_labelled_messages": 844,
+  "aggregate": {
+    "phase1_validation_status_counts": {
+      "success": 30
+    },
+    "phase2_scrub_status_counts": {
+      "partial": 30
+    },
+    "phase3_profile_counts": {},
+    "top_sender_domains": [
+      {
+        "value": "family.norton.com",
+        "count": 16
+      },
+      {
+        "value": "tripit.com",
+        "count": 3
+      },
+      {
+        "value": "alerts.lamresearch.com",
+        "count": 3
+      },
+      {
+        "value": "myidentity.norton.com",
+        "count": 2
+      },
+      {
+        "value": "swish.co.il",
+        "count": 1
+      },
+      {
+        "value": "linkedin.com",
+        "count": 1
+      },
+      {
+        "value": "e.upgrade.com",
+        "count": 1
+      },
+      {
+        "value": "notification.intuit.com",
+        "count": 1
+      },
+      {
+        "value": "id.apple.com",
+        "count": 1
+      },
+      {
+        "value": "emcom.bankofamerica.com",
+        "count": 1
+      }
+    ],
+    "top_subject_ngrams": [
+      {
+        "value": "norton family",
+        "count": 16
+      },
+      {
+        "value": "norton family notification",
+        "count": 12
+      },
+      {
+        "value": "family notification",
+        "count": 12
+      },
+      {
+        "value": "family notification website",
+        "count": 10
+      },
+      {
+        "value": "norton family notification website",
+        "count": 10
+      },
+      {
+        "value": "notification website",
+        "count": 10
+      },
+      {
+        "value": "website blocked",
+        "count": 9
+      },
+      {
+        "value": "notification website blocked",
+        "count": 9
+      },
+      {
+        "value": "family notification website blocked",
+        "count": 9
+      },
+      {
+        "value": "pro alert",
+        "count": 3
+      },
+      {
+        "value": "tripit pro alert",
+        "count": 3
+      },
+      {
+        "value": "tripit pro",
+        "count": 3
+      },
+      {
+        "value": "emergency alert",
+        "count": 3
+      },
+      {
+        "value": "lam emergency alert",
+        "count": 3
+      },
+      {
+        "value": "lam emergency",
+        "count": 3
+      },
+      {
+        "value": "norton family weekly report",
+        "count": 2
+      },
+      {
+        "value": "norton family weekly",
+        "count": 2
+      },
+      {
+        "value": "family weekly",
+        "count": 2
+      },
+      {
+        "value": "family weekly report",
+        "count": 2
+      },
+      {
+        "value": "report maya",
+        "count": 2
+      },
+      {
+        "value": "weekly report",
+        "count": 2
+      },
+      {
+        "value": "report eyal",
+        "count": 2
+      },
+      {
+        "value": "reported any",
+        "count": 2
+      },
+      {
+        "value": "device reported any",
+        "count": 2
+      },
+      {
+        "value": "family notification device reported",
+        "count": 2
+      }
+    ],
+    "top_scrubbed_ngrams": [
+      {
+        "value": "dan hajduk",
+        "count": 17
+      },
+      {
+        "value": "dan hajduk maya",
+        "count": 10
+      },
+      {
+        "value": "hajduk maya",
+        "count": 10
+      },
+      {
+        "value": "blocked category list",
+        "count": 9
+      },
+      {
+        "value": "blocked visiting website",
+        "count": 9
+      },
+      {
+        "value": "blocked dan hajduk maya",
+        "count": 9
+      },
+      {
+        "value": "maya was blocked visiting",
+        "count": 9
+      },
+      {
+        "value": "blocked visiting website blocked",
+        "count": 9
+      },
+      {
+        "value": "website blocked dan hajduk",
+        "count": 9
+      },
+      {
+        "value": "hajduk maya was blocked",
+        "count": 9
+      },
+      {
+        "value": "2026 maya",
+        "count": 9
+      },
+      {
+        "value": "blocked visiting",
+        "count": 9
+      },
+      {
+        "value": "category list",
+        "count": 9
+      },
+      {
+        "value": "was blocked",
+        "count": 9
+      },
+      {
+        "value": "maya was blocked",
+        "count": 9
+      },
+      {
+        "value": "visiting website blocked",
+        "count": 9
+      },
+      {
+        "value": "was blocked visiting website",
+        "count": 9
+      },
+      {
+        "value": "2026 maya pixel",
+        "count": 9
+      },
+      {
+        "value": "was blocked visiting",
+        "count": 9
+      },
+      {
+        "value": "blocked dan",
+        "count": 9
+      },
+      {
+        "value": "dan hajduk maya was",
+        "count": 9
+      },
+      {
+        "value": "blocked category",
+        "count": 9
+      },
+      {
+        "value": "website blocked category list",
+        "count": 9
+      },
+      {
+        "value": "hajduk maya was",
+        "count": 9
+      },
+      {
+        "value": "website blocked",
+        "count": 9
+      }
+    ],
+    "top_leading_lines": [
+      {
+        "value": "Website Blocked Hi dan.hajduk, Maya was blocked from visiting a website from the Blocked Category list: m.facebook.com (Category: Social Networking,Personals) Apr 4, 2026 7:14 AM Maya Pixel 8a For more",
+        "count": 2
+      },
+      {
+        "value": "Device has not reported any activity Hi dan.hajduk, The following device(s) have reported no activity to Norton Family for at least a month. We recommend checking your child&#39;s devices to make sure",
+        "count": 2
+      },
+      {
+        "value": "Please review the important information inside. FINANCIAL ACTIVITY DETECTED Slobodan, we detected financial activity that you asked us to notify you about. We monitor activity in the accounts you&#39;",
+        "count": 2
+      }
+    ],
+    "unresolved_sender_domains": [
+      {
+        "value": "family.norton.com",
+        "count": 16
+      },
+      {
+        "value": "tripit.com",
+        "count": 3
+      },
+      {
+        "value": "alerts.lamresearch.com",
+        "count": 3
+      },
+      {
+        "value": "myidentity.norton.com",
+        "count": 2
+      },
+      {
+        "value": "swish.co.il",
+        "count": 1
+      },
+      {
+        "value": "linkedin.com",
+        "count": 1
+      },
+      {
+        "value": "e.upgrade.com",
+        "count": 1
+      },
+      {
+        "value": "notification.intuit.com",
+        "count": 1
+      },
+      {
+        "value": "id.apple.com",
+        "count": 1
+      },
+      {
+        "value": "emcom.bankofamerica.com",
+        "count": 1
+      }
+    ],
+    "unresolved_leading_lines": [
+      {
+        "value": "Website Blocked Hi dan.hajduk, Maya was blocked from visiting a website from the Blocked Category list: m.facebook.com (Category: Social Networking,Personals) Apr 4, 2026 7:14 AM Maya Pixel 8a For more",
+        "count": 2
+      },
+      {
+        "value": "Device has not reported any activity Hi dan.hajduk, The following device(s) have reported no activity to Norton Family for at least a month. We recommend checking your child&#39;s devices to make sure",
+        "count": 2
+      },
+      {
+        "value": "Please review the important information inside. FINANCIAL ACTIVITY DETECTED Slobodan, we detected financial activity that you asked us to notify you about. We monitor activity in the accounts you&#39;",
+        "count": 2
+      },
+      {
+        "value": "- -! https://images.pulseem.co.il/Pulseem/ClientImages/3185///",
+        "count": 1
+      },
+      {
+        "value": "Regence BlueCross BlueShield of Oregon AI Scientist Intern: This internship is a 12-week, full-time position",
+        "count": 1
+      },
+      {
+        "value": "Maya&#39;s Weekly Summary Report Dear dan.hajduk, The following is a summary of Maya&#39;s online activity for 3/29/26 - 4/4/26. To change your notifications or your supervision settings, please visit",
+        "count": 1
+      },
+      {
+        "value": "Eyal&#39;s Weekly Summary Report Dear dan.hajduk, The following is a summary of Eyal&#39;s online activity for 3/29/26 - 4/4/26. To change your notifications or your supervision settings, please visit",
+        "count": 1
+      },
+      {
+        "value": "Check your rate and get started on your goals today",
+        "count": 1
+      },
+      {
+        "value": "Intuit TurboTax\u00ae We noticed that you recently started your 2025 taxes. If this was you, you can disregard this email. If you did not start your taxes, we recommend you contact TurboTax at 800-944-8596.",
+        "count": 1
+      },
+      {
+        "value": "Website Blocked Hi dan.hajduk, Maya was blocked from visiting a website from the Blocked Category list: reddit.com (Category: News, Weather &amp; Information,Discussion) Apr 3, 2026 3:29 PM Maya Pixel",
+        "count": 1
+      },
+      {
+        "value": "Website Blocked Hi dan.hajduk, Maya was blocked from visiting a website from the Blocked Category list: m.facebook.com (Category: Social Networking,Personals) Apr 2, 2026 3:16 PM Maya Pixel 8a For more",
+        "count": 1
+      },
+      {
+        "value": "Website Blocked Hi dan.hajduk, Maya was blocked from visiting a website from the Blocked Category list: povison.com (Category: Shopping) Apr 1, 2026 6:21 PM Maya Pixel 8a For more details, sign in to",
+        "count": 1
+      },
+      {
+        "value": "Your Apple Account password has been reset. Dear Slobodan Hajduk, The password for your Apple Account (dan.hajduk@gmail.com) has been successfully reset. If you didn&#39;t make this change or if you",
+        "count": 1
+      },
+      {
+        "value": "Maya&#39;s Monthly Summary Report Dear dan.hajduk, The following is a summary of Maya&#39;s online activity for March 2026. To change your notifications or your supervision settings, please visit the",
+        "count": 1
+      },
+      {
+        "value": "Eyal&#39;s Monthly Summary Report Dear dan.hajduk, The following is a summary of Eyal&#39;s online activity for March 2026. To change your notifications or your supervision settings, please visit the",
+        "count": 1
+      },
+      {
+        "value": "Take action: Visit the Security Center today and enable more features to help protect against fraud. Bank of America logo In the Security Center It&#39;s easy to check your security level. Watch your",
+        "count": 1
+      },
+      {
+        "value": "Website Blocked Hi dan.hajduk, Maya was blocked from visiting a website from the Blocked Category list: connectivitycheck.gstatic.com (Category: Uncategorized) Mar 31, 2026 4:25 PM Maya Pixel 8a",
+        "count": 1
+      },
+      {
+        "value": "Website Access Requested Hi dan.hajduk, Maya has requested your permission to visit the following Website(s) that belong to the blocked Website categories by specifying reasons: getconnected.",
+        "count": 1
+      },
+      {
+        "value": "TripIt TripIt Pro alert: Departure summary for your flight to PDX WN 2886 (LAS to PDX) is currently ON TIME, departing terminal 1 at 3:55pm PDT. Arrival time at PDX is 6:20pm PDT. For help or changes,",
+        "count": 1
+      },
+      {
+        "value": "Website Blocked Hi dan.hajduk, Maya was blocked from visiting a website from the Blocked Category list: ninja.kiwi (Category: Uncategorized) Mar 31, 2026 10:15 AM Maya Pixel 8a For more details, sign",
+        "count": 1
+      }
+    ],
+    "taxonomy_inputs": {
+      "candidate_vendor_domains": [
+        {
+          "value": "family.norton.com",
+          "count": 16
+        },
+        {
+          "value": "tripit.com",
+          "count": 3
+        },
+        {
+          "value": "alerts.lamresearch.com",
+          "count": 3
+        },
+        {
+          "value": "myidentity.norton.com",
+          "count": 2
+        },
+        {
+          "value": "swish.co.il",
+          "count": 1
+        },
+        {
+          "value": "linkedin.com",
+          "count": 1
+        },
+        {
+          "value": "e.upgrade.com",
+          "count": 1
+        },
+        {
+          "value": "notification.intuit.com",
+          "count": 1
+        },
+        {
+          "value": "id.apple.com",
+          "count": 1
+        },
+        {
+          "value": "emcom.bankofamerica.com",
+          "count": 1
+        }
+      ],
+      "candidate_subject_phrases": [
+        {
+          "value": "norton family",
+          "count": 16
+        },
+        {
+          "value": "norton family notification",
+          "count": 12
+        },
+        {
+          "value": "family notification",
+          "count": 12
+        },
+        {
+          "value": "family notification website",
+          "count": 10
+        },
+        {
+          "value": "norton family notification website",
+          "count": 10
+        },
+        {
+          "value": "notification website",
+          "count": 10
+        },
+        {
+          "value": "website blocked",
+          "count": 9
+        },
+        {
+          "value": "notification website blocked",
+          "count": 9
+        },
+        {
+          "value": "family notification website blocked",
+          "count": 9
+        },
+        {
+          "value": "pro alert",
+          "count": 3
+        },
+        {
+          "value": "tripit pro alert",
+          "count": 3
+        },
+        {
+          "value": "tripit pro",
+          "count": 3
+        },
+        {
+          "value": "emergency alert",
+          "count": 3
+        },
+        {
+          "value": "lam emergency alert",
+          "count": 3
+        },
+        {
+          "value": "lam emergency",
+          "count": 3
+        }
+      ],
+      "candidate_scrubbed_phrases": [
+        {
+          "value": "dan hajduk",
+          "count": 17
+        },
+        {
+          "value": "dan hajduk maya",
+          "count": 10
+        },
+        {
+          "value": "hajduk maya",
+          "count": 10
+        },
+        {
+          "value": "blocked category list",
+          "count": 9
+        },
+        {
+          "value": "blocked visiting website",
+          "count": 9
+        },
+        {
+          "value": "blocked dan hajduk maya",
+          "count": 9
+        },
+        {
+          "value": "maya was blocked visiting",
+          "count": 9
+        },
+        {
+          "value": "blocked visiting website blocked",
+          "count": 9
+        },
+        {
+          "value": "website blocked dan hajduk",
+          "count": 9
+        },
+        {
+          "value": "hajduk maya was blocked",
+          "count": 9
+        },
+        {
+          "value": "2026 maya",
+          "count": 9
+        },
+        {
+          "value": "blocked visiting",
+          "count": 9
+        },
+        {
+          "value": "category list",
+          "count": 9
+        },
+        {
+          "value": "was blocked",
+          "count": 9
+        },
+        {
+          "value": "maya was blocked",
+          "count": 9
+        }
+      ],
+      "unresolved_vendor_domains": [
+        {
+          "value": "family.norton.com",
+          "count": 16
+        },
+        {
+          "value": "tripit.com",
+          "count": 3
+        },
+        {
+          "value": "alerts.lamresearch.com",
+          "count": 3
+        },
+        {
+          "value": "myidentity.norton.com",
+          "count": 2
+        },
+        {
+          "value": "swish.co.il",
+          "count": 1
+        },
+        {
+          "value": "linkedin.com",
+          "count": 1
+        },
+        {
+          "value": "e.upgrade.com",
+          "count": 1
+        },
+        {
+          "value": "notification.intuit.com",
+          "count": 1
+        },
+        {
+          "value": "id.apple.com",
+          "count": 1
+        },
+        {
+          "value": "emcom.bankofamerica.com",
+          "count": 1
+        }
+      ],
+      "unresolved_leading_lines": [
+        {
+          "value": "Website Blocked Hi dan.hajduk, Maya was blocked from visiting a website from the Blocked Category list: m.facebook.com (Category: Social Networking,Personals) Apr 4, 2026 7:14 AM Maya Pixel 8a For more",
+          "count": 2
+        },
+        {
+          "value": "Device has not reported any activity Hi dan.hajduk, The following device(s) have reported no activity to Norton Family for at least a month. We recommend checking your child&#39;s devices to make sure",
+          "count": 2
+        },
+        {
+          "value": "Please review the important information inside. FINANCIAL ACTIVITY DETECTED Slobodan, we detected financial activity that you asked us to notify you about. We monitor activity in the accounts you&#39;",
+          "count": 2
+        },
+        {
+          "value": "- -! https://images.pulseem.co.il/Pulseem/ClientImages/3185///",
+          "count": 1
+        },
+        {
+          "value": "Regence BlueCross BlueShield of Oregon AI Scientist Intern: This internship is a 12-week, full-time position",
+          "count": 1
+        },
+        {
+          "value": "Maya&#39;s Weekly Summary Report Dear dan.hajduk, The following is a summary of Maya&#39;s online activity for 3/29/26 - 4/4/26. To change your notifications or your supervision settings, please visit",
+          "count": 1
+        },
+        {
+          "value": "Eyal&#39;s Weekly Summary Report Dear dan.hajduk, The following is a summary of Eyal&#39;s online activity for 3/29/26 - 4/4/26. To change your notifications or your supervision settings, please visit",
+          "count": 1
+        },
+        {
+          "value": "Check your rate and get started on your goals today",
+          "count": 1
+        },
+        {
+          "value": "Intuit TurboTax\u00ae We noticed that you recently started your 2025 taxes. If this was you, you can disregard this email. If you did not start your taxes, we recommend you contact TurboTax at 800-944-8596.",
+          "count": 1
+        },
+        {
+          "value": "Website Blocked Hi dan.hajduk, Maya was blocked from visiting a website from the Blocked Category list: reddit.com (Category: News, Weather &amp; Information,Discussion) Apr 3, 2026 3:29 PM Maya Pixel",
+          "count": 1
+        },
+        {
+          "value": "Website Blocked Hi dan.hajduk, Maya was blocked from visiting a website from the Blocked Category list: m.facebook.com (Category: Social Networking,Personals) Apr 2, 2026 3:16 PM Maya Pixel 8a For more",
+          "count": 1
+        },
+        {
+          "value": "Website Blocked Hi dan.hajduk, Maya was blocked from visiting a website from the Blocked Category list: povison.com (Category: Shopping) Apr 1, 2026 6:21 PM Maya Pixel 8a For more details, sign in to",
+          "count": 1
+        },
+        {
+          "value": "Your Apple Account password has been reset. Dear Slobodan Hajduk, The password for your Apple Account (dan.hajduk@gmail.com) has been successfully reset. If you didn&#39;t make this change or if you",
+          "count": 1
+        },
+        {
+          "value": "Maya&#39;s Monthly Summary Report Dear dan.hajduk, The following is a summary of Maya&#39;s online activity for March 2026. To change your notifications or your supervision settings, please visit the",
+          "count": 1
+        },
+        {
+          "value": "Eyal&#39;s Monthly Summary Report Dear dan.hajduk, The following is a summary of Eyal&#39;s online activity for March 2026. To change your notifications or your supervision settings, please visit the",
+          "count": 1
+        }
+      ]
+    }
+  },
+  "messages": [
+    {
+      "message_id": "19d6119feea5672d",
+      "received_at": "2026-04-05T21:43:05-07:00",
+      "subject": "\u05de\u05e7\u05d3\u05d9\u05de\u05d9\u05dd \u05dc\u05d4\u05d6\u05de\u05d9\u05df \u05dc\u05e2\u05e6\u05de\u05d0\u05d5\u05ea>> \u05d2\u05e8\u05d9\u05dc\u05d9\u05dd, \u05de\u05e2\u05e8\u05db\u05d5\u05ea \u05d9\u05e9\u05d9\u05d1\u05d4 \u05dc\u05d2\u05d9\u05e0\u05d4, \u05e2\u05e8\u05e1\u05dc\u05d9\u05dd \u05d5\u05e2\u05d5\u05d3 \u05de\u05de\u05d5\u05ea\u05d2\u05d9\u05dd \u05de\u05d5\u05d1\u05d9\u05dc\u05d9\u05dd. \u05e4\u05e8\u05e1\u05d5\u05de\u05ea",
+      "sender": "\"\u05d1\u05d4\u05e6\u05d3\u05e2\u05d4\" <info@swish.co.il>",
+      "sender_domain": "swish.co.il",
+      "local_label_confidence": 0.62,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "- -! https://images.pulseem.co.il/Pulseem/ClientImages/3185///",
+        "leading_lines": [
+          "- -! https://images.pulseem.co.il/Pulseem/ClientImages/3185///"
+        ],
+        "extracted_link_count": 1,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "extracted 1 links",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d5e9cc904c4cdd",
+      "received_at": "2026-04-05T10:07:04-07:00",
+      "subject": "\u201cstudent computer science\u201d: Regence BlueCross BlueShield of Oregon - AI Scientist Intern and more",
+      "sender": "LinkedIn Job Alerts <jobalerts-noreply@linkedin.com>",
+      "sender_domain": "linkedin.com",
+      "local_label_confidence": 0.815,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Regence BlueCross BlueShield of Oregon AI Scientist Intern: This internship is a 12-week, full-time position",
+        "leading_lines": [
+          "Regence BlueCross BlueShield of Oregon AI Scientist Intern: This internship is a 12-week, full-time position"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d5e35455ef047a",
+      "received_at": "2026-04-05T08:14:01-07:00",
+      "subject": "Norton Family : Weekly Report - Maya",
+      "sender": "Norton <no-reply@family.norton.com>",
+      "sender_domain": "family.norton.com",
+      "local_label_confidence": 0.79,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Maya&#39;s Weekly Summary Report Dear dan.hajduk, The following is a summary of Maya&#39;s online activity for 3/29/26 - 4/4/26. To change your notifications or your supervision settings, please visit",
+        "leading_lines": [
+          "Maya&#39;s Weekly Summary Report Dear dan.hajduk, The following is a summary of Maya&#39;s online activity for 3/29/26 - 4/4/26. To change your notifications or your supervision settings, please visit"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d5e35434812231",
+      "received_at": "2026-04-05T08:14:00-07:00",
+      "subject": "Norton Family : Weekly Report - Eyal",
+      "sender": "Norton <no-reply@family.norton.com>",
+      "sender_domain": "family.norton.com",
+      "local_label_confidence": 0.79,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Eyal&#39;s Weekly Summary Report Dear dan.hajduk, The following is a summary of Eyal&#39;s online activity for 3/29/26 - 4/4/26. To change your notifications or your supervision settings, please visit",
+        "leading_lines": [
+          "Eyal&#39;s Weekly Summary Report Dear dan.hajduk, The following is a summary of Eyal&#39;s online activity for 3/29/26 - 4/4/26. To change your notifications or your supervision settings, please visit"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d5923b7d3527d6",
+      "received_at": "2026-04-04T08:36:45-07:00",
+      "subject": "Reset your finances",
+      "sender": "Upgrade <email@e.upgrade.com>",
+      "sender_domain": "e.upgrade.com",
+      "local_label_confidence": 0.834,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Check your rate and get started on your goals today",
+        "leading_lines": [
+          "Check your rate and get started on your goals today"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d58dd37fa20974",
+      "received_at": "2026-04-04T07:19:45-07:00",
+      "subject": "Norton Family Notification : Website Blocked",
+      "sender": "Norton <no-reply@family.norton.com>",
+      "sender_domain": "family.norton.com",
+      "local_label_confidence": 0.6854908940612819,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Website Blocked Hi dan.hajduk, Maya was blocked from visiting a website from the Blocked Category list: m.facebook.com (Category: Social Networking,Personals) Apr 4, 2026 7:14 AM Maya Pixel 8a For more",
+        "leading_lines": [
+          "Website Blocked Hi dan.hajduk, Maya was blocked from visiting a website from the Blocked Category list: m.facebook.com (Category: Social Networking,Personals) Apr 4, 2026 7:14 AM Maya Pixel 8a For more"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d58d8819f2c7d9",
+      "received_at": "2026-04-04T07:14:36-07:00",
+      "subject": "Norton Family Notification : Website Blocked",
+      "sender": "Norton <no-reply@family.norton.com>",
+      "sender_domain": "family.norton.com",
+      "local_label_confidence": 0.6854908940612819,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Website Blocked Hi dan.hajduk, Maya was blocked from visiting a website from the Blocked Category list: m.facebook.com (Category: Social Networking,Personals) Apr 4, 2026 7:14 AM Maya Pixel 8a For more",
+        "leading_lines": [
+          "Website Blocked Hi dan.hajduk, Maya was blocked from visiting a website from the Blocked Category list: m.facebook.com (Category: Social Networking,Personals) Apr 4, 2026 7:14 AM Maya Pixel 8a For more"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d56d5ac157f1fd",
+      "received_at": "2026-04-03T21:52:16-07:00",
+      "subject": "Confirming you've started your taxes",
+      "sender": "TurboTax Customer Service <turbotax@notification.intuit.com>",
+      "sender_domain": "notification.intuit.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Intuit TurboTax\u00ae We noticed that you recently started your 2025 taxes. If this was you, you can disregard this email. If you did not start your taxes, we recommend you contact TurboTax at 800-944-8596.",
+        "leading_lines": [
+          "Intuit TurboTax\u00ae We noticed that you recently started your 2025 taxes. If this was you, you can disregard this email. If you did not start your taxes, we recommend you contact TurboTax at 800-944-8596."
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d565aa81a6aa2f",
+      "received_at": "2026-04-03T19:37:55-07:00",
+      "subject": "Norton Family Notification : Device has not reported any activity",
+      "sender": "Norton <no-reply@family.norton.com>",
+      "sender_domain": "family.norton.com",
+      "local_label_confidence": 0.866,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Device has not reported any activity Hi dan.hajduk, The following device(s) have reported no activity to Norton Family for at least a month. We recommend checking your child&#39;s devices to make sure",
+        "leading_lines": [
+          "Device has not reported any activity Hi dan.hajduk, The following device(s) have reported no activity to Norton Family for at least a month. We recommend checking your child&#39;s devices to make sure"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d5580a83fb9c8c",
+      "received_at": "2026-04-03T15:39:47-07:00",
+      "subject": "Norton Family Notification : Website Blocked",
+      "sender": "Norton <no-reply@family.norton.com>",
+      "sender_domain": "family.norton.com",
+      "local_label_confidence": 0.6458408634893544,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Website Blocked Hi dan.hajduk, Maya was blocked from visiting a website from the Blocked Category list: reddit.com (Category: News, Weather &amp; Information,Discussion) Apr 3, 2026 3:29 PM Maya Pixel",
+        "leading_lines": [
+          "Website Blocked Hi dan.hajduk, Maya was blocked from visiting a website from the Blocked Category list: reddit.com (Category: News, Weather &amp; Information,Discussion) Apr 3, 2026 3:29 PM Maya Pixel"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d54752f031503c",
+      "received_at": "2026-04-03T10:47:37-07:00",
+      "subject": "Financial activity detected",
+      "sender": "LifeLock <no-reply@myidentity.norton.com>",
+      "sender_domain": "myidentity.norton.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Please review the important information inside. FINANCIAL ACTIVITY DETECTED Slobodan, we detected financial activity that you asked us to notify you about. We monitor activity in the accounts you&#39;",
+        "leading_lines": [
+          "Please review the important information inside. FINANCIAL ACTIVITY DETECTED Slobodan, we detected financial activity that you asked us to notify you about. We monitor activity in the accounts you&#39;"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d54746eb125778",
+      "received_at": "2026-04-03T10:46:48-07:00",
+      "subject": "Financial activity detected",
+      "sender": "LifeLock <no-reply@myidentity.norton.com>",
+      "sender_domain": "myidentity.norton.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Please review the important information inside. FINANCIAL ACTIVITY DETECTED Slobodan, we detected financial activity that you asked us to notify you about. We monitor activity in the accounts you&#39;",
+        "leading_lines": [
+          "Please review the important information inside. FINANCIAL ACTIVITY DETECTED Slobodan, we detected financial activity that you asked us to notify you about. We monitor activity in the accounts you&#39;"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d50b620b36b744",
+      "received_at": "2026-04-02T17:20:06-07:00",
+      "subject": "Norton Family Notification : Device has not reported any activity",
+      "sender": "Norton <no-reply@family.norton.com>",
+      "sender_domain": "family.norton.com",
+      "local_label_confidence": 0.866,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Device has not reported any activity Hi dan.hajduk, The following device(s) have reported no activity to Norton Family for at least a month. We recommend checking your child&#39;s devices to make sure",
+        "leading_lines": [
+          "Device has not reported any activity Hi dan.hajduk, The following device(s) have reported no activity to Norton Family for at least a month. We recommend checking your child&#39;s devices to make sure"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d5044d78205692",
+      "received_at": "2026-04-02T15:16:21-07:00",
+      "subject": "Norton Family Notification : Website Blocked",
+      "sender": "Norton <no-reply@family.norton.com>",
+      "sender_domain": "family.norton.com",
+      "local_label_confidence": 0.6894845797904317,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Website Blocked Hi dan.hajduk, Maya was blocked from visiting a website from the Blocked Category list: m.facebook.com (Category: Social Networking,Personals) Apr 2, 2026 3:16 PM Maya Pixel 8a For more",
+        "leading_lines": [
+          "Website Blocked Hi dan.hajduk, Maya was blocked from visiting a website from the Blocked Category list: m.facebook.com (Category: Social Networking,Personals) Apr 2, 2026 3:16 PM Maya Pixel 8a For more"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d4bd1c7391313f",
+      "received_at": "2026-04-01T18:32:11-07:00",
+      "subject": "Norton Family Notification : Website Blocked",
+      "sender": "Norton <no-reply@family.norton.com>",
+      "sender_domain": "family.norton.com",
+      "local_label_confidence": 0.712411836791169,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Website Blocked Hi dan.hajduk, Maya was blocked from visiting a website from the Blocked Category list: povison.com (Category: Shopping) Apr 1, 2026 6:21 PM Maya Pixel 8a For more details, sign in to",
+        "leading_lines": [
+          "Website Blocked Hi dan.hajduk, Maya was blocked from visiting a website from the Blocked Category list: povison.com (Category: Shopping) Apr 1, 2026 6:21 PM Maya Pixel 8a For more details, sign in to"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d4aa763c18e7c3",
+      "received_at": "2026-04-01T13:06:15-07:00",
+      "subject": "Your Apple Account password has been reset.",
+      "sender": "Apple <appleid@id.apple.com>",
+      "sender_domain": "id.apple.com",
+      "local_label_confidence": 0.914,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Your Apple Account password has been reset. Dear Slobodan Hajduk, The password for your Apple Account (dan.hajduk@gmail.com) has been successfully reset. If you didn&#39;t make this change or if you",
+        "leading_lines": [
+          "Your Apple Account password has been reset. Dear Slobodan Hajduk, The password for your Apple Account (dan.hajduk@gmail.com) has been successfully reset. If you didn&#39;t make this change or if you"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d49b71daae104d",
+      "received_at": "2026-04-01T08:43:48-07:00",
+      "subject": "Norton Family : Monthly Report - Maya",
+      "sender": "Norton <no-reply@family.norton.com>",
+      "sender_domain": "family.norton.com",
+      "local_label_confidence": 0.966,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Maya&#39;s Monthly Summary Report Dear dan.hajduk, The following is a summary of Maya&#39;s online activity for March 2026. To change your notifications or your supervision settings, please visit the",
+        "leading_lines": [
+          "Maya&#39;s Monthly Summary Report Dear dan.hajduk, The following is a summary of Maya&#39;s online activity for March 2026. To change your notifications or your supervision settings, please visit the"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d49b7169ad18ad",
+      "received_at": "2026-04-01T08:43:48-07:00",
+      "subject": "Norton Family : Monthly Report - Eyal",
+      "sender": "Norton <no-reply@family.norton.com>",
+      "sender_domain": "family.norton.com",
+      "local_label_confidence": 0.966,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Eyal&#39;s Monthly Summary Report Dear dan.hajduk, The following is a summary of Eyal&#39;s online activity for March 2026. To change your notifications or your supervision settings, please visit the",
+        "leading_lines": [
+          "Eyal&#39;s Monthly Summary Report Dear dan.hajduk, The following is a summary of Eyal&#39;s online activity for March 2026. To change your notifications or your supervision settings, please visit the"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d48c968500781b",
+      "received_at": "2026-04-01T04:24:00-07:00",
+      "subject": "SLOBODAN, check your security meter level",
+      "sender": "Bank of America <customerservice@emcom.bankofamerica.com>",
+      "sender_domain": "emcom.bankofamerica.com",
+      "local_label_confidence": 0.824,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Take action: Visit the Security Center today and enable more features to help protect against fraud. Bank of America logo In the Security Center It&#39;s easy to check your security level. Watch your",
+        "leading_lines": [
+          "Take action: Visit the Security Center today and enable more features to help protect against fraud. Bank of America logo In the Security Center It&#39;s easy to check your security level. Watch your"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d469b4d9af7e61",
+      "received_at": "2026-03-31T18:14:34-07:00",
+      "subject": "Norton Family Notification : Website Blocked",
+      "sender": "Norton <no-reply@family.norton.com>",
+      "sender_domain": "family.norton.com",
+      "local_label_confidence": 0.7006342248532982,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Website Blocked Hi dan.hajduk, Maya was blocked from visiting a website from the Blocked Category list: connectivitycheck.gstatic.com (Category: Uncategorized) Mar 31, 2026 4:25 PM Maya Pixel 8a",
+        "leading_lines": [
+          "Website Blocked Hi dan.hajduk, Maya was blocked from visiting a website from the Blocked Category list: connectivitycheck.gstatic.com (Category: Uncategorized) Mar 31, 2026 4:25 PM Maya Pixel 8a"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d469b4af3b2138",
+      "received_at": "2026-03-31T18:14:34-07:00",
+      "subject": "Norton Family Notification : Website Access Requested",
+      "sender": "Norton <no-reply@family.norton.com>",
+      "sender_domain": "family.norton.com",
+      "local_label_confidence": 0.866,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Website Access Requested Hi dan.hajduk, Maya has requested your permission to visit the following Website(s) that belong to the blocked Website categories by specifying reasons: getconnected.",
+        "leading_lines": [
+          "Website Access Requested Hi dan.hajduk, Maya has requested your permission to visit the following Website(s) that belong to the blocked Website categories by specifying reasons: getconnected."
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d45400ca138067",
+      "received_at": "2026-03-31T11:55:18-07:00",
+      "subject": "TripIt Pro alert: Departure summary for your flight to PDX",
+      "sender": "TripIt Pro <support@tripit.com>",
+      "sender_domain": "tripit.com",
+      "local_label_confidence": 0.914,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "TripIt TripIt Pro alert: Departure summary for your flight to PDX WN 2886 (LAS to PDX) is currently ON TIME, departing terminal 1 at 3:55pm PDT. Arrival time at PDX is 6:20pm PDT. For help or changes,",
+        "leading_lines": [
+          "TripIt TripIt Pro alert: Departure summary for your flight to PDX WN 2886 (LAS to PDX) is currently ON TIME, departing terminal 1 at 3:55pm PDT. Arrival time at PDX is 6:20pm PDT. For help or changes,"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d44e4edfc0ed51",
+      "received_at": "2026-03-31T10:15:46-07:00",
+      "subject": "Norton Family Notification : Website Blocked",
+      "sender": "Norton <no-reply@family.norton.com>",
+      "sender_domain": "family.norton.com",
+      "local_label_confidence": 0.6927408102967428,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Website Blocked Hi dan.hajduk, Maya was blocked from visiting a website from the Blocked Category list: ninja.kiwi (Category: Uncategorized) Mar 31, 2026 10:15 AM Maya Pixel 8a For more details, sign",
+        "leading_lines": [
+          "Website Blocked Hi dan.hajduk, Maya was blocked from visiting a website from the Blocked Category list: ninja.kiwi (Category: Uncategorized) Mar 31, 2026 10:15 AM Maya Pixel 8a For more details, sign"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d44dc50c7975cc",
+      "received_at": "2026-03-31T10:06:22-07:00",
+      "subject": "Norton Family Notification : Website Blocked",
+      "sender": "Norton <no-reply@family.norton.com>",
+      "sender_domain": "family.norton.com",
+      "local_label_confidence": 0.6927408102967428,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Website Blocked Hi dan.hajduk, Maya was blocked from visiting a website from the Blocked Category list: ninja.kiwi (Category: Uncategorized) Mar 31, 2026 10:06 AM Maya Pixel 8a For more details, sign",
+        "leading_lines": [
+          "Website Blocked Hi dan.hajduk, Maya was blocked from visiting a website from the Blocked Category list: ninja.kiwi (Category: Uncategorized) Mar 31, 2026 10:06 AM Maya Pixel 8a For more details, sign"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d4219f00fdd01e",
+      "received_at": "2026-03-30T21:14:49-07:00",
+      "subject": "Norton Family Notification : Website Blocked",
+      "sender": "Norton <no-reply@family.norton.com>",
+      "sender_domain": "family.norton.com",
+      "local_label_confidence": 0.7004816732909306,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Website Blocked Hi dan.hajduk, Maya was blocked from visiting a website from the Blocked Category list: gearwrench.com (Category: Uncategorized) Mar 30, 2026 9:14 PM Maya Pixel 8a For more details,",
+        "leading_lines": [
+          "Website Blocked Hi dan.hajduk, Maya was blocked from visiting a website from the Blocked Category list: gearwrench.com (Category: Uncategorized) Mar 30, 2026 9:14 PM Maya Pixel 8a For more details,"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d40f0f8c877b87",
+      "received_at": "2026-03-30T15:50:27-07:00",
+      "subject": "TripIt Pro alert: Check-in reminder for your flight to PDX",
+      "sender": "TripIt Pro <support@tripit.com>",
+      "sender_domain": "tripit.com",
+      "local_label_confidence": 0.784,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "TripIt TripIt Pro alert: Check-in reminder for your flight to PDX Your flight to PDX departs in 24 hours. WN 2886 departs LAS on 3/31/2026 at 3:55pm PDT. You may be able to check in now. Check in",
+        "leading_lines": [
+          "TripIt TripIt Pro alert: Check-in reminder for your flight to PDX Your flight to PDX departs in 24 hours. WN 2886 departs LAS on 3/31/2026 at 3:55pm PDT. You may be able to check in now. Check in"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d40b086a4fea10",
+      "received_at": "2026-03-30T14:40:03-07:00",
+      "subject": "TripIt Pro alert: $19.96 airfare refund may be available]",
+      "sender": "TripIt Pro <support@tripit.com>",
+      "sender_domain": "tripit.com",
+      "local_label_confidence": 0.914,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "TripIt Your flight may be eligible for a refund! Your flight Southwest Airlines 2886 departing on 3/31/2026 may be eligible for a refund! Price paid: $933.56 Change fee: $0.00 Current price: $913.60",
+        "leading_lines": [
+          "TripIt Your flight may be eligible for a refund! Your flight Southwest Airlines 2886 departing on 3/31/2026 may be eligible for a refund! Price paid: $933.56 Change fee: $0.00 Current price: $913.60"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=-2 (seed=-2, merged=-2)",
+          "penalty:price_without_order_identifier",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d40a655f26bb08",
+      "received_at": "2026-03-30T14:28:55-07:00",
+      "subject": "Lam Emergency Alert",
+      "sender": "Lam Emergency Alert <EmergencyAlert@alerts.lamresearch.com>",
+      "sender_domain": "alerts.lamresearch.com",
+      "local_label_confidence": 0.834,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Lam Emergency Alert Slobodan Hajduk, The Tualatin Bldg q Power outage event has been resolved. ERT and EHS have approved the buildings for occupancy. Unsubscribe",
+        "leading_lines": [
+          "Lam Emergency Alert Slobodan Hajduk, The Tualatin Bldg q Power outage event has been resolved. ERT and EHS have approved the buildings for occupancy. Unsubscribe"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d407c3053cdb71",
+      "received_at": "2026-03-30T13:42:53-07:00",
+      "subject": "Lam Emergency Alert",
+      "sender": "Lam Emergency Alert <EmergencyAlert@alerts.lamresearch.com>",
+      "sender_domain": "alerts.lamresearch.com",
+      "local_label_confidence": 0.834,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Lam Emergency Alert Slobodan Hajduk, The Bldg S Power outage event has been resolved. ERT and EHS have approved the buildings for occupancy. Unsubscribe",
+        "leading_lines": [
+          "Lam Emergency Alert Slobodan Hajduk, The Bldg S Power outage event has been resolved. ERT and EHS have approved the buildings for occupancy. Unsubscribe"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d40666c94fdfe5",
+      "received_at": "2026-03-30T13:19:06-07:00",
+      "subject": "Lam Emergency Alert",
+      "sender": "Lam Emergency Alert <EmergencyAlert@alerts.lamresearch.com>",
+      "sender_domain": "alerts.lamresearch.com",
+      "local_label_confidence": 0.834,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Lam Emergency Alert Slobodan Hajduk, ERT and Facilities are evaluating the power outage affecting Bldg S and Q. Please follow their instructions. Currently there is no need to evacuate Bldg S and Q ERT",
+        "leading_lines": [
+          "Lam Emergency Alert Slobodan Hajduk, ERT and Facilities are evaluating the power outage affecting Bldg S and Q. Please follow their instructions. Currently there is no need to evacuate Bldg S and Q ERT"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    }
+  ]
+}
