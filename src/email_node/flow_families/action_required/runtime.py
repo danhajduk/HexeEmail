@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Awaitable, Callable
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from email_node.patterns import PatternGenerationRequest, ProbationStore, TemplatePromotionService
 from email_node.shared_pipeline_core import (
     SharedEmailPipelineCore,
     SharedOutputPersistenceHandler,
@@ -19,6 +22,12 @@ from email_node.shared_pipeline_core import (
 )
 from email_node.shared_pipeline_core.pipeline import SharedEmailPipelineHooks
 from email_node.shared_pipeline_core.profile_detector import SharedProfileDetectorEngine
+from email_node.shared_pipeline_core.probation import (
+    SharedProbationEvaluator,
+    SharedProbationMetrics,
+    SharedProbationPromotionManager,
+    SharedProbationPromotionPolicy,
+)
 from email_node.shared_pipeline_core.scrub_engine import SharedScrubEngine
 from providers.gmail.order_template_registry import SUPPORTED_EXTRACTION_METHODS, SUPPORTED_TRANSFORMS
 from providers.gmail.models import GmailPhase3ProfileCandidate, GmailPhase3WorkingEmail
@@ -205,15 +214,69 @@ class GmailActionRequiredPhase4Extractor(SharedTemplateExecutionEngine):
             validation_policy=load_validation_policy(flow_config.validation_policy),
         )
 
+    def build_ai_template_hook(self, phase3) -> dict[str, object]:
+        phase2 = phase3.phase2_reference
+        return {
+            "sender_identity": phase3.sender_identity,
+            "vendor_identity": phase3.vendor_identity or phase3.sender_domain,
+            "profile_id": phase3.profile_id,
+            "profile_family": phase3.profile_family,
+            "profile_subtype": phase3.profile_subtype,
+            "subject": phase3.subject,
+            "scrubbed_text": phase2.scrubbed_text,
+            "normalized_lines": list(phase2.normalized_lines),
+            "extracted_links": [
+                link.model_dump() if hasattr(link, "model_dump") else dict(link)
+                for link in phase2.extracted_links
+            ],
+            "expected_output_schema": {
+                "template_id": "candidate_template_id",
+                "profile_id": phase3.profile_id,
+                "template_version": "v1",
+                "enabled": True,
+                "match": {},
+                "extract": {},
+                "required_fields": [],
+                "confidence_rules": {},
+                "post_process": {},
+            },
+        }
+
 
 class ActionRequiredFlowRuntime:
     flow_family = "action_required"
 
-    def __init__(self, *, runtime_dir: Path | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        phase2_scrubber: GmailActionRequiredPhase2Scrubber | None = None,
+        phase3_detector: GmailActionRequiredPhase3ProfileDetector | None = None,
+        phase4_extractor: GmailActionRequiredPhase4Extractor | None = None,
+        probation_store: ProbationStore | None = None,
+        probation_evaluator: SharedProbationEvaluator | None = None,
+        probation_promotion: SharedProbationPromotionManager | None = None,
+        generate_probation_template: Callable[[PatternGenerationRequest], Awaitable[dict[str, object]]] | None = None,
+        ai_calls_enabled: Callable[[], bool] | None = None,
+        runtime_dir: Path | None = None,
+    ) -> None:
         self.flow_config = get_flow_family_config("action_required", runtime_dir=runtime_dir)
-        self.phase2_scrubber = GmailActionRequiredPhase2Scrubber()
-        self.phase3_detector = GmailActionRequiredPhase3ProfileDetector(runtime_dir=runtime_dir)
-        self.phase4_extractor = GmailActionRequiredPhase4Extractor(runtime_dir=runtime_dir)
+        self.phase2_scrubber = phase2_scrubber or GmailActionRequiredPhase2Scrubber()
+        self.phase3_detector = phase3_detector or GmailActionRequiredPhase3ProfileDetector(runtime_dir=runtime_dir)
+        self.phase4_extractor = phase4_extractor or GmailActionRequiredPhase4Extractor(runtime_dir=runtime_dir)
+        self.probation_store = probation_store or ProbationStore(runtime_dir=runtime_dir, flow_family="action_required")
+        self.probation_evaluator = probation_evaluator or SharedProbationEvaluator(
+            probation_store=self.probation_store,
+            extractor=self.phase4_extractor,
+        )
+        self.probation_promotion = probation_promotion or SharedProbationPromotionManager(
+            promotion_service=TemplatePromotionService(
+                probation_store=self.probation_store,
+                active_dir=self.flow_config.template_dir,
+            ),
+            policy=SharedProbationPromotionPolicy(),
+        )
+        self.generate_probation_template = generate_probation_template
+        self.ai_calls_enabled = ai_calls_enabled or (lambda: True)
         self.decision_engine = None
         self.output_handler = SharedOutputPersistenceHandler(flow_family="action_required", runtime_dir=runtime_dir)
         self.action_gate = SharedActionGate()
@@ -250,6 +313,50 @@ class ActionRequiredFlowRuntime:
         return await self.shared_core.process_normalized_email(normalized)
 
     async def attach_probation_template(self, phase4):
+        if not self._should_attempt_probation(phase4):
+            return phase4
+        profile_id = str(getattr(phase4, "profile_id", "") or "").strip()
+        vendor_identity = str(
+            getattr(phase4, "vendor_identity", None)
+            or getattr(phase4, "sender_domain", None)
+            or ""
+        ).strip().lower()
+        existing_state = self.probation_store.find_state(
+            profile_id=profile_id or None,
+            vendor_identity=vendor_identity or None,
+            status="probation",
+        )
+        if existing_state is not None:
+            evaluation = self.probation_evaluator.evaluate(
+                self._phase3_with_probation_profile(phase4, template_id=existing_state.template_id),
+                template_id=existing_state.template_id,
+            )
+            updated_state = SharedProbationMetrics.update_state(existing_state, evaluation)
+            updated_state = updated_state.model_copy(
+                update={
+                    "last_generation_attempt_at": datetime.now(UTC),
+                    "last_generation_result": "skipped_existing_probation",
+                }
+            )
+            updated_state = self.probation_promotion.evaluate_and_apply(updated_state)
+            self.probation_store.save_state(updated_state)
+            return phase4.model_copy(
+                update={
+                    "template_diagnostics": list(phase4.template_diagnostics)
+                    + [
+                        f"probation_template:existing:{existing_state.template_id}",
+                        f"probation_template:evaluated:{existing_state.template_id}:{'hard_failure' if evaluation.hard_failure else 'ok'}",
+                        f"probation_template:state:{existing_state.template_id}:{updated_state.status}",
+                    ]
+                }
+            )
+        if not self.ai_calls_enabled():
+            return phase4.model_copy(
+                update={
+                    "template_diagnostics": list(phase4.template_diagnostics)
+                    + ["probation_template:skipped_ai_disabled"]
+                }
+            )
         return phase4
 
     def run_probation_shadow_mode(self, phase4):
@@ -297,4 +404,24 @@ class ActionRequiredFlowRuntime:
         return ActionRequiredActionResult(
             queued=True,
             diagnostics=list(action_routing.diagnostics) + [f"action_required_followup:queued:{','.join(selected)}"],
+        )
+
+    @staticmethod
+    def _should_attempt_probation(phase4) -> bool:
+        extraction_status = str(getattr(phase4, "extraction_status", "") or "")
+        return extraction_status in {"failed", "unresolved"}
+
+    @staticmethod
+    def _phase3_with_probation_profile(phase4, *, template_id: str):
+        phase3 = getattr(phase4, "phase3_reference", None)
+        if phase3 is None:
+            return phase4
+        return phase3.model_copy(
+            update={
+                "profile_id": getattr(phase4, "profile_id", None) or getattr(phase3, "profile_id", None),
+                "profile_family": getattr(phase4, "profile_family", None) or getattr(phase3, "profile_family", None),
+                "profile_subtype": getattr(phase4, "profile_subtype", None) or getattr(phase3, "profile_subtype", None),
+                "vendor_identity": getattr(phase4, "vendor_identity", None) or getattr(phase3, "vendor_identity", None),
+                "phase4_template_id": template_id,
+            }
         )

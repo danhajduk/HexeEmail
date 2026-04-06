@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime
 
 from email_node.flow_families.action_required.runtime import GmailActionRequiredPhase3ProfileDetector
+from email_node.patterns import ProbationStore, ProbationTemplateState
 from email_node.pipeline import ActionRequiredFlowPipeline
 from providers.gmail.models import GmailPhase1NormalizedEmail
 from tests.test_gmail_order_phase3 import build_phase2_payload
@@ -31,6 +33,32 @@ def build_action_required_phase1_payload() -> GmailPhase1NormalizedEmail:
             "</body></html>"
         ),
         selected_body_quality="rich_html",
+        handoff_ready=True,
+        validation_status="success",
+    )
+
+
+def build_site_issue_phase1_payload() -> GmailPhase1NormalizedEmail:
+    return GmailPhase1NormalizedEmail(
+        message_id="action-site-msg-1",
+        thread_id="action-site-thread-1",
+        provider_message_id="action-site-msg-1",
+        provider_thread_id="action-site-thread-1",
+        rfc_message_id="<action-site-msg-1@example.com>",
+        subject="New reasons prevent pages from being indexed on site hexe-ai.com",
+        sender_name="Google Search Console Team",
+        sender_email="sc-noreply@google.com",
+        sender_domain="google.com",
+        raw_sender="Google Search Console Team <sc-noreply@google.com>",
+        selected_body_type="text",
+        selected_body_source="parsed_mime_text_part",
+        selected_body_selection_path="quality_comparison",
+        selected_body_content=(
+            "New reasons prevent pages from being indexed on site hexe-ai.com.\n"
+            "Open indexing report.\n"
+            "Review the affected pages."
+        ),
+        selected_body_quality="usable_text",
         handoff_ready=True,
         validation_status="success",
     )
@@ -109,3 +137,65 @@ def test_action_required_detector_matches_site_issue():
 
     assert result.profile_id == "site_issue_action_required"
     assert result.profile_confidence_level in {"high", "medium"}
+
+
+def test_action_required_phase4_builds_ai_template_hook_for_unresolved_result(tmp_path):
+    result = asyncio.run(
+        ActionRequiredFlowPipeline(runtime_dir=tmp_path / "runtime").process_normalized_email(
+            build_site_issue_phase1_payload()
+        )
+    )
+
+    phase4 = result["phase4"]
+    assert phase4.ai_template_hook is not None
+    assert phase4.ai_template_hook["profile_id"] == "site_issue_action_required"
+    assert phase4.ai_template_hook["profile_family"] == "action_required"
+    assert phase4.ai_template_hook["scrubbed_text"]
+
+
+def test_action_required_pipeline_loads_existing_probation_state(tmp_path):
+    store = ProbationStore(
+        templates_dir=tmp_path / "probation" / "templates",
+        state_dir=tmp_path / "probation" / "state",
+        evaluations_dir=tmp_path / "probation" / "evaluations",
+        shadow_dir=tmp_path / "probation" / "shadow",
+    )
+    template_id = "example_account_verification_required.v1"
+    store.save_template_payload(
+        template_id,
+        {
+            "schema_version": "action-required-phase4-template.v1",
+            "template_id": template_id,
+            "profile_id": "site_issue_action_required",
+            "template_version": "v1",
+            "enabled": True,
+            "match": {"vendor_identity": "google"},
+            "extract": {},
+            "required_fields": [],
+            "confidence_rules": {"high_requires": []},
+            "post_process": {},
+        },
+    )
+    store.save_state(
+        ProbationTemplateState(
+            template_id=template_id,
+            profile_id="site_issue_action_required",
+            template_version="v1",
+            created_at=datetime(2026, 4, 6, 9, 0, tzinfo=UTC),
+            updated_at=datetime(2026, 4, 6, 9, 0, tzinfo=UTC),
+        )
+    )
+
+    result = asyncio.run(
+        ActionRequiredFlowPipeline(
+            runtime_dir=tmp_path / "runtime",
+            probation_store=store,
+            ai_calls_enabled=lambda: True,
+        ).process_normalized_email(build_site_issue_phase1_payload())
+    )
+
+    phase4 = result["phase4"]
+    assert f"probation_template:existing:{template_id}" in phase4.template_diagnostics
+    updated_state = store.load_state(template_id)
+    assert updated_state is not None
+    assert updated_state.sample_count == 2

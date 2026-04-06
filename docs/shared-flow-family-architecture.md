@@ -120,7 +120,7 @@ ORDER currently implements that family behavior in:
 
 - [src/email_node/flow_families/order/runtime.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/order/runtime.py)
 
-ACTION_REQUIRED currently does not attempt probation generation yet. Its skeleton uses a pass-through probation hook.
+ACTION_REQUIRED now has the same probation storage, evaluation, and promotion scaffold as ORDER, but it does not attempt AI template creation yet. Its current hook can reuse existing probation templates and persist probation state, while the unresolved-template request mapper and AI generation path remain follow-up work.
 
 ## How ORDER Uses The Framework
 
@@ -167,7 +167,7 @@ Current limitations:
 
 - scrub completeness is still tuned around ORDER-style transactional signals
 - ACTION_REQUIRED does not yet have active template coverage
-- probation generation and promotion are not yet implemented for ACTION_REQUIRED
+- ACTION_REQUIRED probation AI request mapping and template generation are not yet implemented
 - placeholder downstream actions need to be replaced with family-owned handlers
 
 ## Practical Rule
