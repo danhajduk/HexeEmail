@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Awaitable, Callable
 
+from email_node.orders.order_record_service import OrderRecordService
 from email_node.pipeline.order_action_gate import OrderActionGate
 from email_node.pipeline.order_action_router import OrderActionRouter
 from email_node.pipeline.order_decision_engine import OrderDecisionEngine
@@ -42,6 +43,7 @@ class OrderFlowPipeline:
         output_handler: OrderOutputHandler | None = None,
         action_gate: OrderActionGate | None = None,
         action_router: OrderActionRouter | None = None,
+        order_record_service: OrderRecordService | None = None,
         runtime_dir: Path | None = None,
     ) -> None:
         self.phase2_scrubber = phase2_scrubber or GmailOrderPhase2Scrubber()
@@ -60,6 +62,7 @@ class OrderFlowPipeline:
         self.output_handler = output_handler or OrderOutputHandler(runtime_dir)
         self.action_gate = action_gate or OrderActionGate()
         self.action_router = action_router or OrderActionRouter()
+        self.order_record_service = order_record_service or OrderRecordService(runtime_dir)
 
     async def process_normalized_email(self, normalized) -> dict[str, object]:
         phase2 = self.phase2_scrubber.scrub(normalized)
@@ -71,6 +74,11 @@ class OrderFlowPipeline:
         phase7 = self.output_handler.persist(decision=phase6, phase4=phase4)
         action_gate = self.action_gate.authorize(decision=phase6, phase4=phase4)
         action_router = self.action_router.route(decision=phase6, authorization=action_gate, phase4=phase4)
+        order_record_write = self.order_record_service.write_from_order_result(
+            decision=phase6,
+            phase4=phase4,
+            action_routing=action_router,
+        )
         return {
             "phase2": phase2,
             "phase3": phase3,
@@ -79,6 +87,7 @@ class OrderFlowPipeline:
             "phase7": phase7,
             "action_gate": action_gate,
             "action_router": action_router,
+            "order_record_write": order_record_write,
         }
 
     async def attach_probation_template(self, phase4):

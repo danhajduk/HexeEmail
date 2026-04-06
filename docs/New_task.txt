@@ -48,7 +48,7 @@ Standards reference:
 Do not edit above this line:
 #######################################################################
 
-[WIP] Task 261: Implement Phase 7 order record writer
+[WIP] Task 262: Implement Phase 7 user notification action handler
 
 - Add service that writes accepted ORDER outputs into the node-local order record store
 - File: src/email_node/orders/order_record_service.py
@@ -97,43 +97,7 @@ Acceptance:
 - Existing records are updated safely
 - Probation results do not corrupt trusted order records
 
-[TODO] Task 262: Implement Phase 7 user notification action handler
-
-- Add action execution path for user_notification intents
-- File: src/email_node/actions/user_notification_handler.py
-
-Purpose:
-- Turn accepted ORDER action intents into a user-facing notification request
-
-Inputs:
-- accepted ORDER result
-- action intent
-- message metadata
-- profile_id
-- extracted_fields
-
-Required behavior:
-- Build a normalized user notification payload with:
-  - title
-  - message
-  - severity
-  - dedupe key
-  - source metadata
-- Notification text must be concise and user-facing
-- Reservation/order confirmations should produce a useful confirmation message
-- Shipping/tracking updates should produce a useful status message
-
-Examples:
-- reservation_confirmation:
-  - title: "Reservation confirmed"
-  - message: "Your Recreation.gov order 0892885499 is confirmed."
-- shipping update:
-  - title: "Order update"
-  - message: "Your package is out for delivery."
-
-Rules:
-- Use the term user notification in code/comments/docs for this action path
-- Do not trigger user notification for probation or reject results
+[WIP] Task 262: Implement Phase 7 user notification action handler
 - Avoid duplicate user notification requests for the same message/action when dedupe data exists
 
 Acceptance:

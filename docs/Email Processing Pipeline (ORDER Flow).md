@@ -143,6 +143,16 @@ Status: `[DONE]`
 22. Routing is profile-aware and field-aware.
 23. Blocked results produce an empty action intent list.
 
+---
+
+### Phase 7D — Order Record Writer
+
+Status: `[DONE]`
+
+24. Accepted ORDER results may create or update local order records.
+25. Matching prefers stable identities like order number, tracking number, then source message.
+26. Probation results do not overwrite trusted order records.
+
 #### Unknown Profile
 
 Status: `[PARTIAL]`
