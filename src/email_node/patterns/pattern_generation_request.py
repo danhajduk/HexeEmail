@@ -45,8 +45,8 @@ class PatternGenerationRequest(BaseModel):
         if not isinstance(value, str):
             raise ValueError("must be a string")
         normalized = value.strip().upper()
-        if normalized not in {"ORDER", "SHIPMENT"}:
-            raise ValueError("expected_label must be ORDER or SHIPMENT")
+        if normalized not in {"ORDER", "SHIPMENT", "ACTION_REQUIRED", "FINANCIAL", "INVOICE", "SECURITY"}:
+            raise ValueError("expected_label must be ORDER, SHIPMENT, ACTION_REQUIRED, FINANCIAL, INVOICE, or SECURITY")
         return normalized
 
     @field_validator("body_text", mode="before")

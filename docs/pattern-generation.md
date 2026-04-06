@@ -1,6 +1,6 @@
 # Pattern Generation
 
-This document describes the node-local pattern generation flow for creating Phase 4 ORDER extraction templates with the AI node.
+This document describes the node-local pattern generation flow for creating Phase 4 family extraction templates with the AI node.
 
 ## Main components
 
@@ -12,6 +12,8 @@ Key modules:
 
 - [order_ai_template_request_mapper.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/order_ai_template_request_mapper.py)
   Deterministic mapper from unresolved Phase 4 `ai_template_hook` payloads into `PatternGenerationRequest`.
+- [action_required_ai_template_request_mapper.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/action_required_ai_template_request_mapper.py)
+  Deterministic mapper from unresolved ACTION_REQUIRED Phase 4 `ai_template_hook` payloads into `PatternGenerationRequest`.
 - [pattern_generation_request.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/pattern_generation_request.py)
   Strict request contract for the AI prompt input.
 - [pattern_generation_response.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/pattern_generation_response.py)
@@ -27,15 +29,22 @@ Key modules:
 
 ## Runtime prompt
 
-The AI prompt definition used by this flow is:
+Current AI prompt definitions used by this flow are:
 
 - [runtime/prompts/prompt.email.order_pattern_template_creation.json](/home/dan/Projects/HexeEmail/runtime/prompts/prompt.email.order_pattern_template_creation.json)
+- [runtime/prompts/prompt.email.action_required_pattern_template_creation.json](/home/dan/Projects/HexeEmail/runtime/prompts/prompt.email.action_required_pattern_template_creation.json)
 
 The client sends it to the AI node through:
 
 - `POST /api/execution/direct`
 
-The prompt currently expects a structured extraction-style task family and returns one Phase 4 template JSON object.
+The client selects the prompt from `expected_label` and currently supports:
+
+- `ORDER`
+- `SHIPMENT`
+- `ACTION_REQUIRED`
+
+Each prompt expects a structured extraction-style task family and returns one Phase 4 template JSON object.
 
 ## Request contract
 
@@ -54,13 +63,13 @@ The pattern generation request includes:
 - `body_html`
 - `links_json`
 
-For unresolved ORDER probation generation, these inputs are derived from the Phase 4 `ai_template_hook` plus sender metadata. The mapper keeps `template_id` deterministic for the same profile and vendor shape.
+For unresolved family probation generation, these inputs are derived from the Phase 4 `ai_template_hook` plus sender metadata. The mapper keeps `template_id` deterministic for the same profile and vendor shape.
 
 Important validation behavior:
 
 - `template_id` and `profile_id` must be non-empty
 - `body_text` must be non-empty
-- `expected_label` is normalized to `ORDER` or `SHIPMENT`
+- `expected_label` is normalized to one of `ORDER`, `SHIPMENT`, `ACTION_REQUIRED`, `FINANCIAL`, `INVOICE`, or `SECURITY`
 - `body_html` defaults to `""`
 - `links_json` defaults to `[]`
 
@@ -82,9 +91,8 @@ The validated response must match the Phase 4 template shape:
 Current response validation is strict:
 
 - extra top-level keys are rejected
-- `schema_version` must be `order-phase4-template.v1`
 - `template_version` must be `v1`
-- `match.vendor_identity` is required by the response contract
+- `schema_version` must be non-empty and match the selected family prompt's output schema
 - `extract` rules are validated against the supported method set already used by the order-template registry
 
 ## API route
@@ -107,22 +115,26 @@ Failure behavior:
 
 - validation or generation failures are returned as HTTP 400 with a deterministic error string
 
-## ORDER unresolved handoff
+## Family unresolved handoff
 
-Known-profile ORDER emails that reach Phase 4 with `extraction_status = unresolved` and `template_lookup:no_template_for_profile:*` can enter the probation-generation path.
+Known-profile family emails that reach Phase 4 with `extraction_status = unresolved` or reusable `failed` unresolved hooks can enter the probation-generation path.
 
 The handoff rules are:
 
 - the unresolved result must expose `ai_template_hook`
 - global runtime `AI Calls` must be enabled
-- runtime `Check Orders` must be enabled
-- AI-backed probation template generation also requires `AI Calls` to be enabled
 - if a probation template already exists for the same profile and vendor, the node evaluates it instead of regenerating
 - if an active template already exists, the probation template only runs in shadow mode
 
-This path writes probation templates to:
+Current family-specific handoffs:
+
+- ORDER additionally requires runtime `Check Orders`
+- ACTION_REQUIRED runs from the ACTION_REQUIRED flow path on `action_required` classifications
+
+This path writes probation templates to family-scoped runtime storage such as:
 
 - [runtime/flow_families/order/probation/templates](/home/dan/Projects/HexeEmail/runtime/flow_families/order/probation/templates)
+- [runtime/flow_families/action_required/probation/templates](/home/dan/Projects/HexeEmail/runtime/flow_families/action_required/probation/templates)
 
 ## CLI
 

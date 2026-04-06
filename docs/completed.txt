@@ -299,3 +299,8 @@ Task 291: Normalize runtime family directory layout in YAML - Completed on 04/06
 Task 292: Remove legacy Python family policy packs after YAML cutover - Completed on 04/06/2026 01:29
 Task 293: Add regression tests for YAML-backed family loading - Completed on 04/06/2026 01:29
 Task 294: Document YAML flow-family configuration model - Completed on 04/06/2026 01:29
+Task 295: Add ORDER-style AI probation/template generation for ACTION_REQUIRED - Completed on 04/06/2026 02:28
+Task 296: Add ACTION_REQUIRED unresolved-template request mapper and AI handoff - Completed on 04/06/2026 02:28
+Task 297: Add ACTION_REQUIRED probation evaluation, reuse, and promotion flow - Completed on 04/06/2026 02:28
+Task 298: Apply ACTION_REQUIRED probation templates as low-confidence fallback results - Completed on 04/06/2026 02:28
+Task 299: Add tests and docs for ACTION_REQUIRED probation generation flow - Completed on 04/06/2026 02:28

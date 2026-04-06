@@ -1,0 +1,304 @@
+{
+  "prompt_id": "prompt.email.action_required_pattern_template_creation",
+  "service_id": "node-email",
+  "task_family": "task.structured_extraction",
+  "prompt_name": "Action required pattern template creation",
+  "owner_service": "node-email",
+  "privacy_class": "restricted",
+  "status": "active",
+  "execution_policy": {
+    "allow_direct_execution": true,
+    "allow_version_pinning": true,
+    "access_scope": "service",
+    "allowed_callers": [
+      "node-email"
+    ]
+  },
+  "provider_preferences": {
+    "default_provider": "openai",
+    "default_model": "gpt-5.4-mini",
+    "preferred_models": [
+      "gpt-5.4-mini",
+      "gpt-5-mini"
+    ]
+  },
+  "constraints": {
+    "max_timeout_s": 45,
+    "structured_output_required": true
+  },
+  "definition": {
+    "system_prompt": "You are a deterministic email extraction-template author for Hexe Email Node. Your job is to produce one reusable Phase 4 template JSON for a known action-required email profile using the required schema exactly. Return JSON only. Do not return markdown. Do not return explanation text. Do not add comments. Do not add fields that are not in the required shape. Do not rename fields. Do not omit required fields. The template must be practical for deterministic parsing of similar emails from the same known domain or profile. Prefer stable anchors, stable field labels, and durable regex patterns over brittle sentence matching. Use the normalized email body as the primary source. Use HTML only when it clearly reveals a stable action link or structure not visible in the text body. Ignore decorative boilerplate, styling, legal footers, recommendation sections, account navigation, and tracking pixels. Only include extract fields that are meaningfully supported by the sample. Every extract entry must use one supported method and may include transforms when useful. required_fields should include the minimum fields needed to consider the extraction valid. confidence_rules.high_requires should contain the critical fields required for high confidence. post_process must always be present, even if empty. match must always be present, but vendor_identity is optional and should only be included when it is reliably supported. Return one JSON object only.",
+    "prompt_template": "Create a Hexe Email Node Phase 4 extraction template from this known-domain action-required email sample.\n\nTemplate inputs:\n- template_id: {{template_id}}\n- profile_id: {{profile_id}}\n- template_version: {{template_version}}\n- vendor_identity: {{vendor_identity}}\n- expected_label: {{expected_label}}\n- enabled: {{enabled}}\n\nEmail metadata:\n- from_name: {{from_name}}\n- from_email: {{from_email}}\n- subject: {{subject}}\n- received_at: {{received_at}}\n\nNormalized email body:\n{{body_text}}\n\nOptional HTML body:\n{{body_html}}\n\nOptional extracted links:\n{{links_json}}\n\nReturn JSON with this exact top-level shape:\n{\n  \"schema_version\": \"action-required-phase4-template.v1\",\n  \"template_id\": \"string\",\n  \"profile_id\": \"string\",\n  \"template_version\": \"v1\",\n  \"enabled\": true,\n  \"match\": {},\n  \"extract\": {\n    \"field_name\": {\n      \"method\": \"supported_method\",\n      \"...\": \"method-specific fields\"\n    }\n  },\n  \"required_fields\": [\"string\"],\n  \"confidence_rules\": {\n    \"high_requires\": [\"string\"]\n  },\n  \"post_process\": {}\n}\n\nSupported extract methods and required method-specific fields:\n- regex: pattern\n- line_contains: value\n- line_after: marker\n- between_markers: start_marker, end_marker\n- all_matches: pattern\n- first_match: pattern\n- link_by_label: label\n- link_by_type: link_type\n\nHard output rules:\n- Return exactly one JSON object.\n- schema_version must be exactly \"action-required-phase4-template.v1\".\n- template_version must be exactly \"v1\".\n- post_process must always be present.\n- match must always be an object. vendor_identity is optional.\n- extract must be an object keyed by extracted field name.\n- Each extract rule must contain exactly one supported method and the method-specific required field(s).\n- Do not invent unsupported extraction methods.\n- Do not add extra top-level keys.\n- Keep the template compact and practical.\n\nField guidance:\n- action_url: prefer link_by_type or link_by_label when a stable action link exists.\n- verification_code: use regex when the code is clearly labeled and stable.\n- due_date: use regex, first_match, or line_after when a deadline is explicitly stated.\n- document_url: use link_by_type or link_by_label when a stable document or review link exists.\n- issue_summary: use line_contains or first_match only when a stable visible issue phrase exists.\n- account_identifier: use regex only if clearly labeled.\n\nTransform guidance:\n- Use transforms only when they add real value.\n- Prefer: trim, collapse_spaces, normalize_url.\n- Do not invent transforms outside the supported set.\n\nAuthoring guidance:\n- Prefer fewer good rules over many brittle ones.\n- required_fields should be the minimum reliable fields needed to accept the parse.\n- confidence_rules.high_requires should include the fields that make the template strongly trustworthy.\n- If the sample does not support a field reliably, leave it out of extract rather than hallucinating a weak rule.\n\nReturn JSON only.",
+    "template_variables": [
+      "template_id",
+      "profile_id",
+      "template_version",
+      "vendor_identity",
+      "expected_label",
+      "enabled",
+      "from_name",
+      "from_email",
+      "subject",
+      "received_at",
+      "body_text",
+      "body_html",
+      "links_json"
+    ],
+    "default_inputs": {
+      "template_version": "v1",
+      "enabled": true,
+      "vendor_identity": "",
+      "body_html": "",
+      "links_json": "[]"
+    }
+  },
+  "version": "v1.0",
+  "metadata": {
+    "content_type": "email",
+    "prompt_role": "phase4_template_creation",
+    "delegated_by": "node-email",
+    "intended_executor": "node-ai",
+    "template_schema": "action-required-phase4-template.v1",
+    "supported_methods": [
+      "regex",
+      "line_contains",
+      "line_after",
+      "between_markers",
+      "all_matches",
+      "first_match",
+      "link_by_label",
+      "link_by_type"
+    ]
+  },
+  "review_policy": {
+    "last_reviewed_at": null,
+    "review_owner": "node-email",
+    "review_reason": null
+  },
+  "node_runtime": {
+    "timeout_s": 45,
+    "json_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "enum": [
+            "action-required-phase4-template.v1"
+          ]
+        },
+        "template_id": {
+          "type": "string"
+        },
+        "profile_id": {
+          "type": "string"
+        },
+        "template_version": {
+          "type": "string",
+          "enum": [
+            "v1"
+          ]
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "match": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "vendor_identity": {
+              "type": "string"
+            }
+          }
+        },
+        "extract": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "method": {
+                "type": "string",
+                "enum": [
+                  "regex",
+                  "line_contains",
+                  "line_after",
+                  "between_markers",
+                  "all_matches",
+                  "first_match",
+                  "link_by_label",
+                  "link_by_type"
+                ]
+              },
+              "pattern": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              },
+              "marker": {
+                "type": "string"
+              },
+              "start_marker": {
+                "type": "string"
+              },
+              "end_marker": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "link_type": {
+                "type": "string"
+              },
+              "transforms": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "trim",
+                    "collapse_spaces",
+                    "normalize_currency",
+                    "normalize_order_number",
+                    "normalize_phone_number",
+                    "normalize_url"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "method"
+            ],
+            "oneOf": [
+              {
+                "properties": {
+                  "method": {
+                    "const": "regex"
+                  }
+                },
+                "required": [
+                  "method",
+                  "pattern"
+                ]
+              },
+              {
+                "properties": {
+                  "method": {
+                    "const": "line_contains"
+                  }
+                },
+                "required": [
+                  "method",
+                  "value"
+                ]
+              },
+              {
+                "properties": {
+                  "method": {
+                    "const": "line_after"
+                  }
+                },
+                "required": [
+                  "method",
+                  "marker"
+                ]
+              },
+              {
+                "properties": {
+                  "method": {
+                    "const": "between_markers"
+                  }
+                },
+                "required": [
+                  "method",
+                  "start_marker",
+                  "end_marker"
+                ]
+              },
+              {
+                "properties": {
+                  "method": {
+                    "const": "all_matches"
+                  }
+                },
+                "required": [
+                  "method",
+                  "pattern"
+                ]
+              },
+              {
+                "properties": {
+                  "method": {
+                    "const": "first_match"
+                  }
+                },
+                "required": [
+                  "method",
+                  "pattern"
+                ]
+              },
+              {
+                "properties": {
+                  "method": {
+                    "const": "link_by_label"
+                  }
+                },
+                "required": [
+                  "method",
+                  "label"
+                ]
+              },
+              {
+                "properties": {
+                  "method": {
+                    "const": "link_by_type"
+                  }
+                },
+                "required": [
+                  "method",
+                  "link_type"
+                ]
+              }
+            ]
+          }
+        },
+        "required_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "confidence_rules": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "high_requires": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "high_requires"
+          ]
+        },
+        "post_process": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "schema_version",
+        "template_id",
+        "profile_id",
+        "template_version",
+        "enabled",
+        "match",
+        "extract",
+        "required_fields",
+        "confidence_rules",
+        "post_process"
+      ]
+    }
+  }
+}

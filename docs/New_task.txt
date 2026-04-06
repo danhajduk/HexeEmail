@@ -47,11 +47,6 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[WIP] Task 295: Add ORDER-style AI probation/template generation for ACTION_REQUIRED
-[TODO] Task 296: Add ACTION_REQUIRED unresolved-template request mapper and AI handoff
-[TODO] Task 297: Add ACTION_REQUIRED probation evaluation, reuse, and promotion flow
-[TODO] Task 298: Apply ACTION_REQUIRED probation templates as low-confidence fallback results
-[TODO] Task 299: Add tests and docs for ACTION_REQUIRED probation generation flow
 [TODO] Task 300: Mark failed family flows as review_needed for user review
 [TODO] Task 301: Add shared review_needed decision/result contract across flow families
 [TODO] Task 302: Surface review_needed state in persisted outputs, reports, and notifications

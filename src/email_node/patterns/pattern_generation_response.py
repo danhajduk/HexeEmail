@@ -101,7 +101,7 @@ class PatternGenerationConfidenceRules(BaseModel):
 class PatternGenerationResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    schema_version: Literal["order-phase4-template.v1"]
+    schema_version: str
     template_id: str
     profile_id: str
     template_version: Literal["v1"]
@@ -112,7 +112,7 @@ class PatternGenerationResponse(BaseModel):
     confidence_rules: PatternGenerationConfidenceRules
     post_process: dict[str, object] = Field(default_factory=dict)
 
-    @field_validator("template_id", "profile_id")
+    @field_validator("schema_version", "template_id", "profile_id")
     @classmethod
     def validate_non_empty_ids(cls, value: str) -> str:
         stripped = value.strip()

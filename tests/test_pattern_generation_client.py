@@ -134,3 +134,45 @@ async def test_pattern_generation_client_raises_after_retry_exhausted(tmp_path):
 
     with pytest.raises(PatternGenerationClientError, match="JSON only"):
         await client.generate_pattern(build_request())
+
+
+@pytest.mark.asyncio
+async def test_pattern_generation_client_selects_action_required_prompt_from_expected_label(tmp_path):
+    prompt_path = tmp_path / "action_required_prompt.json"
+    prompt_path.write_text(
+        json.dumps(
+            {
+                **build_prompt_definition(),
+                "prompt_id": "prompt.email.action_required_pattern_template_creation",
+            }
+        ),
+        encoding="utf-8",
+    )
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["body"] = json.loads(request.read().decode("utf-8"))
+        return httpx.Response(200, json={"status": "completed", "output": "{\"template_id\":\"site_issue_action_required.v1\"}"})
+
+    client = PatternGenerationClient(
+        target_api_base_url="http://127.0.0.1:9002",
+        prompt_definition_path=prompt_path,
+        transport=httpx.MockTransport(handler),
+    )
+
+    result = await client.generate_pattern(
+        PatternGenerationRequest(
+            template_id="site_issue_action_required.v1",
+            profile_id="site_issue_action_required",
+            vendor_identity="google",
+            expected_label="ACTION_REQUIRED",
+            from_name="Google Search Console Team",
+            from_email="sc-noreply@google.com",
+            subject="New reasons prevent pages from being indexed",
+            received_at="2026-04-06T13:00:00Z",
+            body_text="New reasons prevent pages from being indexed.",
+        )
+    )
+
+    assert seen["body"]["prompt_id"] == "prompt.email.action_required_pattern_template_creation"
+    assert result == {"template_id": "site_issue_action_required.v1"}

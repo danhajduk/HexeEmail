@@ -23,32 +23,53 @@ LOGGER = get_logger(__name__)
 
 class PatternGenerationClient:
     PROMPT_ID = "prompt.email.order_pattern_template_creation"
+    PROMPT_ID_BY_LABEL = {
+        "ORDER": "prompt.email.order_pattern_template_creation",
+        "SHIPMENT": "prompt.email.order_pattern_template_creation",
+        "ACTION_REQUIRED": "prompt.email.action_required_pattern_template_creation",
+    }
 
     def __init__(
         self,
         *,
         target_api_base_url: str,
+        prompt_id: str | None = None,
         prompt_definition_path: Path | None = None,
         transport: httpx.AsyncBaseTransport | None = None,
         timeout: float = 30.0,
         debug_full_response: bool = False,
     ) -> None:
         self.target_api_base_url = target_api_base_url.rstrip("/")
-        self.prompt_definition_path = prompt_definition_path or (
-            Path(__file__).resolve().parents[3] / "runtime" / "prompts" / f"{self.PROMPT_ID}.json"
-        )
+        self.prompt_id = str(prompt_id or "").strip() or None
+        self.prompt_definition_path = prompt_definition_path
         self.transport = transport
         self.timeout = timeout
         self.debug_full_response = debug_full_response
 
-    def load_prompt_definition(self) -> dict[str, object]:
+    def _resolve_prompt_id(self, request: PatternGenerationRequest | None = None) -> str:
+        if self.prompt_id:
+            return self.prompt_id
+        expected_label = str(getattr(request, "expected_label", "") or "").strip().upper()
+        prompt_id = self.PROMPT_ID_BY_LABEL.get(expected_label)
+        if not prompt_id:
+            raise PatternGenerationClientError(f"No pattern-generation prompt is configured for expected_label={expected_label or 'unknown'}")
+        return prompt_id
+
+    def _resolve_prompt_definition_path(self, prompt_id: str) -> Path:
+        if self.prompt_definition_path is not None:
+            return self.prompt_definition_path
+        return Path(__file__).resolve().parents[3] / "runtime" / "prompts" / f"{prompt_id}.json"
+
+    def load_prompt_definition(self, request: PatternGenerationRequest | None = None) -> dict[str, object]:
+        prompt_id = self._resolve_prompt_id(request)
+        prompt_definition_path = self._resolve_prompt_definition_path(prompt_id)
         try:
-            payload = json.loads(self.prompt_definition_path.read_text(encoding="utf-8"))
+            payload = json.loads(prompt_definition_path.read_text(encoding="utf-8"))
         except FileNotFoundError as exc:
-            raise PatternGenerationClientError(f"Prompt definition file not found: {self.prompt_definition_path}") from exc
+            raise PatternGenerationClientError(f"Prompt definition file not found: {prompt_definition_path}") from exc
         if not isinstance(payload, dict):
             raise PatternGenerationClientError("Prompt definition must be a JSON object")
-        if payload.get("prompt_id") != self.PROMPT_ID:
+        if payload.get("prompt_id") != prompt_id:
             raise PatternGenerationClientError(f"Prompt definition prompt_id mismatch: {payload.get('prompt_id')}")
         return payload
 
@@ -63,7 +84,7 @@ class PatternGenerationClient:
         return json_schema
 
     def build_request_body(self, request: PatternGenerationRequest) -> dict[str, object]:
-        prompt_definition = self.load_prompt_definition()
+        prompt_definition = self.load_prompt_definition(request)
         prompt_runtime = prompt_definition.get("node_runtime")
         if not isinstance(prompt_runtime, dict):
             raise PatternGenerationClientError("Prompt definition is missing node_runtime")

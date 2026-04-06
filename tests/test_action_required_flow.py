@@ -199,3 +199,111 @@ def test_action_required_pipeline_loads_existing_probation_state(tmp_path):
     updated_state = store.load_state(template_id)
     assert updated_state is not None
     assert updated_state.sample_count == 2
+
+
+def test_action_required_pipeline_creates_probation_template_for_unresolved_profile(tmp_path):
+    store = ProbationStore(
+        templates_dir=tmp_path / "probation" / "templates",
+        state_dir=tmp_path / "probation" / "state",
+        evaluations_dir=tmp_path / "probation" / "evaluations",
+        shadow_dir=tmp_path / "probation" / "shadow",
+    )
+    seen = {}
+
+    async def fake_generate(request):
+        seen["request"] = request
+        payload = {
+            "schema_version": "action-required-phase4-template.v1",
+            "template_id": request.template_id,
+            "profile_id": request.profile_id,
+            "template_version": request.template_version,
+            "enabled": True,
+            "match": {"vendor_identity": request.vendor_identity},
+            "extract": {},
+            "required_fields": [],
+            "confidence_rules": {"high_requires": []},
+            "post_process": {},
+        }
+        path = store.save_template_payload(request.template_id, payload)
+        return {"ok": True, "template_id": request.template_id, "file_path": str(path)}
+
+    pipeline = ActionRequiredFlowPipeline(
+        runtime_dir=tmp_path / "runtime",
+        probation_store=store,
+        generate_probation_template=fake_generate,
+        ai_calls_enabled=lambda: True,
+    )
+    phase2 = pipeline.phase2_scrubber.scrub(build_site_issue_phase1_payload())
+    phase3 = pipeline.phase3_detector.detect(phase2)
+    phase4 = pipeline.phase4_extractor.extract(phase3)
+
+    result = asyncio.run(pipeline.runtime.attach_probation_template(phase4))
+
+    assert seen["request"].expected_label == "ACTION_REQUIRED"
+    assert seen["request"].profile_id == "site_issue_action_required"
+    assert seen["request"].vendor_identity == "google"
+    assert any(item.startswith("probation_template:created:") for item in result.template_diagnostics)
+    state = store.find_state(
+        profile_id="site_issue_action_required",
+        vendor_identity="google",
+        status="probation",
+    )
+    assert state is not None
+
+
+def test_action_required_pipeline_applies_existing_probation_template_as_low_confidence_partial(tmp_path):
+    store = ProbationStore(
+        templates_dir=tmp_path / "probation" / "templates",
+        state_dir=tmp_path / "probation" / "state",
+        evaluations_dir=tmp_path / "probation" / "evaluations",
+        shadow_dir=tmp_path / "probation" / "shadow",
+    )
+    template_id = "google_site_issue_action_required.v1"
+    store.save_template_payload(
+        template_id,
+        {
+            "schema_version": "action-required-phase4-template.v1",
+            "template_id": template_id,
+            "profile_id": "site_issue_action_required",
+            "template_version": "v1",
+            "enabled": True,
+            "match": {"vendor_identity": "google"},
+            "extract": {
+                "issue_summary": {
+                    "method": "line_contains",
+                    "value": "prevent pages from being indexed",
+                    "transforms": ["trim"],
+                }
+            },
+            "required_fields": ["issue_summary"],
+            "confidence_rules": {"high_requires": ["issue_summary"]},
+            "post_process": {},
+        },
+    )
+    store.save_state(
+        ProbationTemplateState(
+            template_id=template_id,
+            profile_id="site_issue_action_required",
+            template_version="v1",
+            created_at=datetime(2026, 4, 6, 9, 0, tzinfo=UTC),
+            updated_at=datetime(2026, 4, 6, 9, 0, tzinfo=UTC),
+        )
+    )
+
+    result = asyncio.run(
+        ActionRequiredFlowPipeline(
+            runtime_dir=tmp_path / "runtime",
+            probation_store=store,
+            ai_calls_enabled=lambda: True,
+        ).process_normalized_email(build_site_issue_phase1_payload())
+    )
+
+    phase4 = result["phase4"]
+    phase6 = result["phase6"]
+    assert phase4.template_id == template_id
+    assert phase4.extraction_status == "partial"
+    assert phase4.extraction_confidence_level == "low"
+    assert phase4.extraction_confidence <= 0.49
+    assert phase4.extracted_fields["issue_summary"].value.startswith("New reasons prevent pages")
+    assert f"probation_template:applied:{template_id}" in phase4.template_diagnostics
+    assert phase6.decision == "probation"

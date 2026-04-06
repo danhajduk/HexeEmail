@@ -87,8 +87,8 @@ Current ORDER integration:
 Current ACTION_REQUIRED integration:
 
 - [src/email_node/pipeline/action_required_flow.py](/home/dan/Projects/HexeEmail/src/email_node/pipeline/action_required_flow.py) now provides an initial thin shared-core runner for the `action_required` family
-- [src/email_node/flow_families/action_required/runtime.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_required/runtime.py) wires the shared scrub, profile-detection, template, decision, persistence, and action-gating layers together with placeholder downstream action handlers
-- the ACTION_REQUIRED skeleton currently proves the shared-core integration path and placeholder family policy loading, but it does not yet have tuned scrub completeness or active template coverage
+- [src/email_node/flow_families/action_required/runtime.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_required/runtime.py) wires the shared scrub, profile-detection, template, probation, decision, persistence, and action-gating layers together with placeholder downstream action handlers
+- the ACTION_REQUIRED family now has unresolved-template AI handoff, probation-state reuse, and low-confidence probation fallback behavior, but it still does not have active template coverage or family-owned downstream actions
 - [src/email_node/patterns/probation_evaluator.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation_evaluator.py), [src/email_node/patterns/probation_metrics.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation_metrics.py), [src/email_node/patterns/probation_policy.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation_policy.py), and [src/email_node/patterns/probation_promotion.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation_promotion.py) now thinly wrap the shared probation subsystem in [src/email_node/shared_pipeline_core/probation.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/probation.py)
 - ORDER still owns its current route-selection policy and downstream action handlers
 
@@ -101,4 +101,4 @@ Why this exists:
 Not migrated yet:
 
 - active template coverage for ACTION_REQUIRED
-- non-ORDER probation generation behavior
+- shared generic prompt strategy across all families

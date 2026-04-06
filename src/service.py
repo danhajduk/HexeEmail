@@ -35,7 +35,7 @@ from email_node.patterns import (
     PatternGenerationWriter,
     ProbationStore,
 )
-from email_node.pipeline import OrderFlowPipeline
+from email_node.pipeline import ActionRequiredFlowPipeline, OrderFlowPipeline
 from email_node.shared_pipeline_core import SharedEmailPhase1Interface, SharedPhase1NormalizeRequest
 from node_backend import (
     AiNodeGateway,
@@ -148,7 +148,8 @@ class NodeService:
         self.startup_error: str | None = None
         self.gmail_order_flow = GmailOrderPhase1Processor()
         self.email_phase1 = SharedEmailPhase1Interface(self.gmail_order_flow)
-        self.probation_store = ProbationStore()
+        self.probation_store = ProbationStore(flow_family="order")
+        self.action_required_probation_store = ProbationStore(flow_family="action_required")
         self.runtime = RuntimeManager(self)
         self.ai_gateway = AiNodeGateway(self)
         self.onboarding = OnboardingManager(self)
@@ -163,6 +164,11 @@ class NodeService:
             generate_probation_template=self._generate_probation_template,
             ai_calls_enabled=self._runtime_ai_calls_enabled,
             order_checks_enabled=self._runtime_order_checks_enabled,
+        )
+        self.action_required_pipeline = ActionRequiredFlowPipeline(
+            probation_store=self.action_required_probation_store,
+            generate_probation_template=self._generate_action_required_probation_template,
+            ai_calls_enabled=self._runtime_ai_calls_enabled,
         )
 
     @staticmethod
@@ -204,6 +210,9 @@ class NodeService:
 
     async def _generate_probation_template(self, payload: PatternGenerationRequest) -> dict[str, object]:
         return await self._generate_pattern_template(payload, writer_base_dir=self.probation_store.templates_dir)
+
+    async def _generate_action_required_probation_template(self, payload: PatternGenerationRequest) -> dict[str, object]:
+        return await self._generate_pattern_template(payload, writer_base_dir=self.action_required_probation_store.templates_dir)
 
     async def _generate_pattern_template(
         self,
@@ -1602,6 +1611,20 @@ class NodeService:
                         }
                     },
                 )
+        elif classification_label == GmailTrainingLabel.ACTION_REQUIRED:
+            try:
+                await self._run_action_required_phase1_flow(account_id=account_id, message=message)
+            except Exception as exc:
+                LOGGER.warning(
+                    "ACTION_REQUIRED flow failed during classification handling",
+                    extra={
+                        "event_data": {
+                            "account_id": account_id,
+                            "message_id": message_id,
+                            "detail": str(exc),
+                        }
+                    },
+                )
         sender_reputation = self._sender_reputation_context(account_id, sender=message.sender)
         action_decision = await self._execute_email_action_decision_for_message(
             account_id=account_id,
@@ -1709,6 +1732,55 @@ class NodeService:
                     "phase7_actions_allowed": phase7_result.get("actions_allowed"),
                     "phase7_action_intents": phase7_result.get("action_intents"),
                     "phase7_action_results": phase7_result.get("action_results"),
+                }
+            },
+        )
+
+    async def _run_action_required_phase1_flow(self, *, account_id: str, message) -> None:
+        if not self._runtime_classification_enabled():
+            LOGGER.info(
+                "ACTION_REQUIRED flow skipped because Clasify is disabled",
+                extra={"event_data": {"account_id": account_id, "message_id": message.message_id}},
+            )
+            return
+        normalized = await self.email_phase1.normalize(
+            SharedPhase1NormalizeRequest(
+                fetch_full_message_payload=self.email_provider_gateway.gmail_fetch_full_message_payload,
+                account_id=account_id,
+                message_id=message.message_id,
+            )
+        )
+        LOGGER.info(
+            "ACTION_REQUIRED Phase 1 normalization completed",
+            extra={
+                "event_data": {
+                    "account_id": account_id,
+                    "message_id": message.message_id,
+                    "fetch_status": normalized.fetch_status,
+                    "decode_status": normalized.decode_state.status,
+                    "selected_body_type": normalized.selected_body_type,
+                }
+            },
+        )
+        pipeline_result = await self.action_required_pipeline.process_normalized_email(normalized)
+        phase4 = pipeline_result["phase4"]
+        phase6 = pipeline_result["phase6"]
+        phase7_result = pipeline_result.get("phase7_result") or {}
+        LOGGER.info(
+            "ACTION_REQUIRED Phase 2-7 pipeline completed",
+            extra={
+                "event_data": {
+                    "account_id": account_id,
+                    "message_id": message.message_id,
+                    "phase2_status": pipeline_result["phase2"].scrub_status,
+                    "phase3_profile_id": pipeline_result["phase3"].profile_id,
+                    "phase4_status": phase4.extraction_status,
+                    "phase4_template_id": phase4.template_id,
+                    "phase4_diagnostics": phase4.template_diagnostics,
+                    "phase6_decision": phase6.decision,
+                    "phase6_reason": phase6.decision_reason,
+                    "phase7_persisted": phase7_result.get("persisted"),
+                    "phase7_record_path": phase7_result.get("record_path"),
                 }
             },
         )

@@ -139,3 +139,44 @@ async def test_pattern_generation_pipeline_fails_on_schema_mismatch():
 
     with pytest.raises(PatternGenerationPipelineError, match="schema validation"):
         await pipeline.generate_template(build_request())
+
+
+@pytest.mark.asyncio
+async def test_pattern_generation_pipeline_accepts_action_required_template_schema():
+    pipeline = PatternGenerationPipeline(
+        FakeClient(
+            {
+                "schema_version": "action-required-phase4-template.v1",
+                "template_id": "google_site_issue_action_required.v1",
+                "profile_id": "site_issue_action_required",
+                "template_version": "v1",
+                "enabled": True,
+                "match": {"vendor_identity": "google"},
+                "extract": {
+                    "action_url": {
+                        "method": "line_contains",
+                        "value": "Open indexing report",
+                    }
+                },
+                "required_fields": [],
+                "confidence_rules": {"high_requires": []},
+                "post_process": {},
+            }
+        )
+    )
+
+    result = await pipeline.generate_template(
+        PatternGenerationRequest(
+            template_id="google_site_issue_action_required.v1",
+            profile_id="site_issue_action_required",
+            vendor_identity="google",
+            expected_label="ACTION_REQUIRED",
+            from_name="Google Search Console Team",
+            from_email="sc-noreply@google.com",
+            subject="New reasons prevent pages from being indexed",
+            received_at="2026-04-06T13:00:00Z",
+            body_text="New reasons prevent pages from being indexed.\nOpen indexing report.",
+        )
+    )
+
+    assert result.schema_version == "action-required-phase4-template.v1"
