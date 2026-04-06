@@ -458,7 +458,8 @@
       "enum": [
         "order",
         "action_required",
-        "financial"
+        "financial",
+        "invoice"
       ],
       "title": "Flow Family",
       "type": "string"

@@ -31,6 +31,7 @@ Current flow families:
 - `order`
 - `action_required`
 - `financial`
+- `invoice`
 
 Shared family entry point:
 
@@ -55,6 +56,7 @@ Current declarative family config:
 - ORDER: [runtime/flow_families/order/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/order/family.yaml)
 - ACTION_REQUIRED: [runtime/flow_families/action_required/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/action_required/family.yaml)
 - FINANCIAL: [runtime/flow_families/financial/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/financial/family.yaml)
+- INVOICE: [runtime/flow_families/invoice/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/invoice/family.yaml)
 
 Schema:
 
@@ -77,6 +79,11 @@ Current family wrapper modules:
   - [src/email_node/flow_families/financial/profiles.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/financial/profiles.py)
   - [src/email_node/flow_families/financial/validation.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/financial/validation.py)
   - [src/email_node/flow_families/financial/decision.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/financial/decision.py)
+- INVOICE:
+  - [src/email_node/flow_families/invoice/heuristics.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/invoice/heuristics.py)
+  - [src/email_node/flow_families/invoice/profiles.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/invoice/profiles.py)
+  - [src/email_node/flow_families/invoice/validation.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/invoice/validation.py)
+  - [src/email_node/flow_families/invoice/decision.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/invoice/decision.py)
 
 Those modules are now thin YAML-backed adapters rather than the source of truth for declarative family data.
 
@@ -114,6 +121,12 @@ Current FINANCIAL integration:
 - [src/email_node/flow_families/financial/runtime.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/financial/runtime.py) wires the shared scrub, profile-detection, template, decision, persistence, and action-gating layers together with placeholder family handlers
 - the FINANCIAL family now has a first-pass YAML taxonomy for statement-ready, payment-due, payment-received, refund, balance-alert, tax-document, and generic financial update signals
 - FINANCIAL still needs mailbox-sampled refinement and active template coverage, but it now resolves real Phase 3 profiles instead of only failing closed
+
+Current INVOICE integration:
+
+- [src/email_node/pipeline/invoice_flow.py](/home/dan/Projects/HexeEmail/src/email_node/pipeline/invoice_flow.py) now provides the initial thin shared-core runner for the `invoice` family
+- [src/email_node/flow_families/invoice/runtime.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/invoice/runtime.py) wires the shared scrub, profile-detection, template, decision, persistence, and action-gating layers together with placeholder family handlers
+- the INVOICE family is still an empty-shell detector at this stage, but the YAML contract, runtime paths, smoke coverage, and shared-core runner are now in place for the next taxonomy task
 
 Why this exists:
 

@@ -311,3 +311,4 @@ Task 303: Add tests and docs for cross-family review_needed fallback behavior - 
 Task 304: Create FINANCIAL flow family skeleton on shared core - Completed on 04/06/2026 02:37
 Task 305: Define FINANCIAL YAML taxonomy, heuristics, validation, decision, and action routing - Completed on 04/06/2026 02:37
 Task 306: Add FINANCIAL runtime/report path wiring and smoke coverage - Completed on 04/06/2026 02:37
+Task 307: Create INVOICE flow family skeleton on shared core - Completed on 04/06/2026 02:37

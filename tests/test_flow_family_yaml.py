@@ -148,13 +148,16 @@ def test_repo_yaml_definitions_load_for_both_families():
     order_definition = load_flow_family_yaml_definition("order")
     action_required_definition = load_flow_family_yaml_definition("action_required")
     financial_definition = load_flow_family_yaml_definition("financial")
+    invoice_definition = load_flow_family_yaml_definition("invoice")
 
     assert order_definition.flow_family == "order"
     assert action_required_definition.flow_family == "action_required"
     assert financial_definition.flow_family == "financial"
+    assert invoice_definition.flow_family == "invoice"
     assert order_definition.profiles.rules_override_path == "order_profile_rules.json"
     assert action_required_definition.runtime_paths.template_dir == "flow_families/action_required/templates"
     assert financial_definition.runtime_paths.template_dir == "flow_families/financial/templates"
+    assert invoice_definition.runtime_paths.template_dir == "flow_families/invoice/templates"
 
 
 def test_flow_family_yaml_definition_rejects_unknown_keys():
