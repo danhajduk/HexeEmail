@@ -13,6 +13,7 @@ Current scope:
 - shared Phase 5 validation and confidence policy framework
 - shared Phase 6 decision framework
 - shared Phase 7 persistence and action-gating framework
+- shared diagnostics and report builder
 - flow-family identity carried with the pipeline result
 - family config loaded from one shared entry point
 - flow-specific logic remains injected as hooks
@@ -74,6 +75,7 @@ Current ORDER integration:
 - [src/email_node/pipeline/order_action_gate.py](/home/dan/Projects/HexeEmail/src/email_node/pipeline/order_action_gate.py) now thinly wraps the shared action authorization logic in [src/email_node/shared_pipeline_core/actions.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/actions.py)
 - [src/email_node/pipeline/order_action_router.py](/home/dan/Projects/HexeEmail/src/email_node/pipeline/order_action_router.py) now thinly wraps the shared policy-driven action router in [src/email_node/shared_pipeline_core/actions.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/actions.py), and loads ORDER action intents from [src/email_node/flow_families/order/action_routing.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/order/action_routing.py)
 - ACTION_NEEDED now has its own placeholder action policy pack in [src/email_node/flow_families/action_needed/action_routing.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_needed/action_routing.py)
+- [scripts/run_order_flow_ad_hoc.py](/home/dan/Projects/HexeEmail/scripts/run_order_flow_ad_hoc.py) now builds JSON and Markdown reports through [src/email_node/shared_pipeline_core/reporting.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/reporting.py), which adds a shared report summary block and explicit `flow_family`
 - [src/email_node/patterns/probation_evaluator.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation_evaluator.py), [src/email_node/patterns/probation_metrics.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation_metrics.py), [src/email_node/patterns/probation_policy.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation_policy.py), and [src/email_node/patterns/probation_promotion.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation_promotion.py) now thinly wrap the shared probation subsystem in [src/email_node/shared_pipeline_core/probation.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/probation.py)
 - ORDER still owns its current route-selection policy and downstream action handlers
 

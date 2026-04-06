@@ -287,3 +287,4 @@ Task 278: Extract Phase 6 decisioning into shared decision framework - Completed
 Task 279: Create family-specific decision policy packs - Completed on 04/06/2026 01:02
 Task 280: Extract Phase 7 persistence and action gating into shared framework - Completed on 04/06/2026 01:10
 Task 281: Create family-specific action routing policies - Completed on 04/06/2026 01:16
+Task 282: Extract shared report builder for all flow families - Completed on 04/06/2026 01:24

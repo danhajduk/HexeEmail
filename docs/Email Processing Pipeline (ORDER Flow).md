@@ -165,6 +165,14 @@ Status: `[DONE]`
 28. Notification content is derived from trusted extracted fields and profile type.
 29. Probation and reject results do not generate notification requests.
 
+### Reporting
+
+Status: `[DONE]`
+
+30. Ad hoc ORDER reports are now assembled through the shared report builder.
+31. Reports include `flow_family` and a shared summary block for status, diagnostics, decision, persistence, and actions.
+32. ORDER keeps the current readable markdown report layout for operators.
+
 #### Unknown Profile
 
 Status: `[PARTIAL]`

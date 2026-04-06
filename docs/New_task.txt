@@ -85,7 +85,7 @@ Acceptance:
 - Shared action router can load family-specific action policies
 - ORDER action intents remain stable after migration
 
-[WIP] Task 282: Extract shared report builder for all flow families
+[DONE] Task 282: Extract shared report builder for all flow families
 
 - Move report assembly into one shared diagnostics/report module
 
@@ -103,7 +103,7 @@ Acceptance:
 - ORDER reports are generated through shared builder
 - Reports remain readable and comparable across flow families
 
-[TODO] Task 283: Convert ORDER flow into a thin family-specific runner on top of shared core
+[WIP] Task 283: Convert ORDER flow into a thin family-specific runner on top of shared core
 
 - Refactor ORDER pipeline into orchestration only
 

@@ -33,6 +33,7 @@ from email_node.shared_pipeline_core.probation_models import (
 )
 from email_node.shared_pipeline_core.profile_detector import SharedProfileDetectorEngine
 from email_node.shared_pipeline_core.profile_packs import SharedProfileDefinitionPack, load_profile_definition_pack
+from email_node.shared_pipeline_core.reporting import SharedFlowReportBuilder, to_report_data
 from email_node.shared_pipeline_core.scrub_engine import SharedScrubEngine, SharedScrubHeuristicPack, load_scrub_heuristic_pack
 from email_node.shared_pipeline_core.template_engine import SharedTemplateExecutionEngine, SharedTemplateRegistry
 from email_node.shared_pipeline_core.validation import SharedValidationPolicy
@@ -66,6 +67,7 @@ __all__ = [
     "SharedOutputPersistenceHandler",
     "SharedOutputPersistenceResult",
     "SharedPersistedTrustLevel",
+    "SharedFlowReportBuilder",
     "SharedScrubEngine",
     "SharedScrubHeuristicPack",
     "SharedStructuredOutputRecord",
@@ -78,4 +80,5 @@ __all__ = [
     "get_flow_family_config",
     "load_profile_definition_pack",
     "load_scrub_heuristic_pack",
+    "to_report_data",
 ]
