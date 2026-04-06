@@ -334,3 +334,4 @@ Task 326: Audit HexeEmail scheduled tasks against the 2026-04-05 background-task
 Task 327: Create an explicit scheduler task registry with stable task identity, task kind, schedule name, schedule detail, enabled state, and owner mapping for all recurring work - Completed on 04/06/2026 03:25
 Task 328: Add mandatory baseline recurring tasks for heartbeat, telemetry, and operational MQTT health with explicit ownership, persisted state, and operator visibility - Completed on 04/06/2026 03:29
 Task 329: Persist structured scheduler task state per recurring task including current status, enabled state, last start, last completion, last success, last failure, next run, and last error - Completed on 04/06/2026 03:33
+Task 330: Refactor existing recurring loops into registry-backed scheduled tasks, including finalize polling, Gmail status polling, Gmail fetch scheduler, hourly batch classification, weekly prompt sync, and monthly authorize - Completed on 04/06/2026 03:35

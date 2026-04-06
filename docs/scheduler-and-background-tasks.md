@@ -10,6 +10,8 @@ Current scheduler task definitions are now centralized in the explicit registry:
 
 The registry is now the source of truth for stable task identity, task kind, owner, schedule name, and enabled-state intent for all currently modeled recurring work.
 
+The scheduled-task snapshot is now built from that registry metadata as well, so task identity and operator-visible schedule metadata no longer need to be repeated separately in the snapshot builder.
+
 ## Owners
 
 - `BackgroundTaskManager`: owns recurring loops, persisted scheduler state, schedule templates, due-slot logic, and operator-visible scheduler snapshots.

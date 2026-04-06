@@ -217,6 +217,40 @@ class BackgroundTaskManager:
             next_run_at=next_run_at,
         )
 
+    def scheduled_task_entry_from_registry(
+        self,
+        task_id: str,
+        *,
+        group: str,
+        status: str,
+        last_execution_at: str | None,
+        next_execution_at: str | None,
+        last_reason: str | None,
+        detail: str,
+        last_slot_key: str | None = None,
+        schedule_detail: str | None = None,
+        enabled: bool | None = None,
+    ) -> dict[str, object]:
+        definition = self.task_definition(task_id)
+        if definition is None:
+            raise KeyError(f"Unknown scheduler task id: {task_id}")
+        return self.scheduled_task_entry(
+            task_id=definition.task_id,
+            title=definition.title,
+            group=group,
+            kind=definition.kind,
+            owner=definition.owner,
+            schedule_name=definition.schedule_name,
+            status=status,
+            enabled=bool(definition.enabled_resolver(self)) if enabled is None else enabled,
+            last_execution_at=last_execution_at,
+            next_execution_at=next_execution_at,
+            last_reason=last_reason,
+            detail=detail,
+            last_slot_key=last_slot_key,
+            schedule_detail=schedule_detail,
+        )
+
     def record_heartbeat_event(self) -> None:
         now = datetime.now(UTC).replace(tzinfo=None)
         self.save_scheduler_task_state(
@@ -595,45 +629,32 @@ class BackgroundTaskManager:
         runtime_authorize_status = "active" if runtime_authorize_ready else "pending"
 
         return [
-            self.scheduled_task_entry(
-                task_id="heartbeat",
-                title="Heartbeat",
+            self.scheduled_task_entry_from_registry(
+                "heartbeat",
                 group="runtime",
-                kind="node_local_recurring_work",
-                owner="mqtt_manager",
-                schedule_name="interval_seconds",
                 status=str(heartbeat_state.get("status") or ("running" if self.service.mqtt_manager.status.state == "connected" else "inactive")),
-                enabled=bool(heartbeat_state.get("enabled")),
                 last_execution_at=heartbeat_state.get("last_success_at"),
                 next_execution_at=heartbeat_state.get("next_run_at"),
                 last_reason=None,
                 detail=str(heartbeat_state.get("detail") or "Publishes MQTT presence heartbeats for node liveness and freshness tracking."),
                 schedule_detail=f"Every {self.service.config.mqtt_heartbeat_seconds:g} seconds",
+                enabled=bool(heartbeat_state.get("enabled")),
             ),
-            self.scheduled_task_entry(
-                task_id="telemetry",
-                title="Telemetry",
+            self.scheduled_task_entry_from_registry(
+                "telemetry",
                 group="runtime",
-                kind="node_local_recurring_work",
-                owner="background_task_manager",
-                schedule_name="interval_seconds",
                 status=str(telemetry_state.get("status") or "idle"),
-                enabled=bool(telemetry_state.get("enabled")),
                 last_execution_at=telemetry_state.get("last_success_at") or telemetry_state.get("last_started_at"),
                 next_execution_at=telemetry_state.get("next_run_at"),
                 last_reason=None,
                 detail=str(telemetry_state.get("detail") or "Refreshes baseline runtime telemetry state for operator-visible scheduler status."),
                 schedule_detail="Every 60 seconds",
+                enabled=bool(telemetry_state.get("enabled")),
             ),
-            self.scheduled_task_entry(
-                task_id="operational_mqtt_health",
-                title="Operational MQTT Health",
+            self.scheduled_task_entry_from_registry(
+                "operational_mqtt_health",
                 group="runtime",
-                kind="node_local_recurring_work",
-                owner="background_task_manager",
-                schedule_name="every_10_seconds",
                 status=str(mqtt_health_state.get("status") or "idle"),
-                enabled=bool(mqtt_health_state.get("enabled")),
                 last_execution_at=mqtt_health_state.get("last_success_at") or mqtt_health_state.get("last_started_at"),
                 next_execution_at=mqtt_health_state.get("next_run_at"),
                 last_reason=None,
@@ -644,46 +665,34 @@ class BackgroundTaskManager:
                 schedule_detail=(
                     "Every 10 seconds while degraded or during recovery windows; every 5 minutes while stable."
                 ),
+                enabled=bool(mqtt_health_state.get("enabled")),
             ),
-            self.scheduled_task_entry(
-                task_id="onboarding_finalize_polling",
-                title="Onboarding Finalize Polling",
+            self.scheduled_task_entry_from_registry(
+                "onboarding_finalize_polling",
                 group="runtime",
-                kind="node_local_recurring_work",
-                owner="background_task_manager",
-                schedule_name="interval_seconds",
                 status="active" if finalize_active else "inactive",
-                enabled=bool(self.service.state.onboarding_session_id),
                 last_execution_at=(self.service.state.last_poll_at.isoformat() if self.service.state.last_poll_at is not None else None),
                 next_execution_at=None,
                 last_reason=self.service.state.last_finalize_status,
                 detail="Polls Core finalize state while onboarding approval is pending.",
                 schedule_detail=f"Every {self.service.config.onboarding_poll_interval_seconds:g} seconds",
+                enabled=bool(self.service.state.onboarding_session_id),
             ),
-            self.scheduled_task_entry(
-                task_id="gmail_status_polling",
-                title="Gmail Status Polling",
+            self.scheduled_task_entry_from_registry(
+                "gmail_status_polling",
                 group="gmail",
-                kind="provider_recurring_work",
-                owner="background_task_manager",
-                schedule_name="interval_seconds",
                 status="active" if gmail_status_active else "inactive",
-                enabled=bool(self.service.config.gmail_status_poll_on_startup),
                 last_execution_at=None,
                 next_execution_at=None,
                 last_reason=None,
                 detail="Refreshes Gmail mailbox status for connected accounts on the configured status interval.",
                 schedule_detail=f"Every {self.service.config.gmail_status_poll_interval_seconds:g} seconds",
+                enabled=bool(self.service.config.gmail_status_poll_on_startup),
             ),
-            self.scheduled_task_entry(
-                task_id="gmail_fetch_yesterday",
-                title="Gmail Fetch Yesterday",
+            self.scheduled_task_entry_from_registry(
+                "gmail_fetch_yesterday",
                 group="gmail",
-                kind="provider_recurring_work",
-                owner="background_task_manager",
-                schedule_name="daily",
                 status=fetch_loop_status,
-                enabled=bool(self.service.config.gmail_fetch_poll_on_startup),
                 last_execution_at=(
                     fetch_schedule_state.yesterday.last_run_at.isoformat()
                     if fetch_schedule_state is not None and fetch_schedule_state.yesterday.last_run_at is not None
@@ -693,16 +702,12 @@ class BackgroundTaskManager:
                 last_reason=(fetch_schedule_state.yesterday.last_run_reason if fetch_schedule_state is not None else None),
                 detail="Fetches the previous day inbox window for local storage refresh.",
                 last_slot_key=(fetch_schedule_state.yesterday.last_slot_key if fetch_schedule_state is not None else None),
-            ),
-            self.scheduled_task_entry(
-                task_id="gmail_fetch_today",
-                title="Gmail Fetch Today",
-                group="gmail",
-                kind="provider_recurring_work",
-                owner="background_task_manager",
-                schedule_name="4_times_a_day",
-                status=fetch_loop_status,
                 enabled=bool(self.service.config.gmail_fetch_poll_on_startup),
+            ),
+            self.scheduled_task_entry_from_registry(
+                "gmail_fetch_today",
+                group="gmail",
+                status=fetch_loop_status,
                 last_execution_at=(
                     fetch_schedule_state.today.last_run_at.isoformat()
                     if fetch_schedule_state is not None and fetch_schedule_state.today.last_run_at is not None
@@ -712,16 +717,12 @@ class BackgroundTaskManager:
                 last_reason=(fetch_schedule_state.today.last_run_reason if fetch_schedule_state is not None else None),
                 detail="Refreshes the current-day inbox window on the six-hour schedule.",
                 last_slot_key=(fetch_schedule_state.today.last_slot_key if fetch_schedule_state is not None else None),
-            ),
-            self.scheduled_task_entry(
-                task_id="gmail_fetch_last_hour",
-                title="Gmail Fetch Last Hour",
-                group="gmail",
-                kind="provider_recurring_work",
-                owner="background_task_manager",
-                schedule_name="every_5_minutes",
-                status=fetch_loop_status,
                 enabled=bool(self.service.config.gmail_fetch_poll_on_startup),
+            ),
+            self.scheduled_task_entry_from_registry(
+                "gmail_fetch_last_hour",
+                group="gmail",
+                status=fetch_loop_status,
                 last_execution_at=(
                     fetch_schedule_state.last_hour.last_run_at.isoformat()
                     if fetch_schedule_state is not None and fetch_schedule_state.last_hour.last_run_at is not None
@@ -731,16 +732,12 @@ class BackgroundTaskManager:
                 last_reason=(fetch_schedule_state.last_hour.last_run_reason if fetch_schedule_state is not None else None),
                 detail="Keeps the rolling last-hour inbox window fresh for recent classification work.",
                 last_slot_key=(fetch_schedule_state.last_hour.last_slot_key if fetch_schedule_state is not None else None),
-            ),
-            self.scheduled_task_entry(
-                task_id="gmail_hourly_batch_classification",
-                title="Hourly Batch Classification",
-                group="gmail",
-                kind="node_local_recurring_work",
-                owner="background_task_manager",
-                schedule_name="hourly",
-                status=fetch_loop_status,
                 enabled=bool(self.service.config.gmail_fetch_poll_on_startup),
+            ),
+            self.scheduled_task_entry_from_registry(
+                "gmail_hourly_batch_classification",
+                group="gmail",
+                status=fetch_loop_status,
                 last_execution_at=(
                     self.service.state.gmail_hourly_batch_classification_last_run_at.isoformat()
                     if self.service.state.gmail_hourly_batch_classification_last_run_at is not None
@@ -750,16 +747,12 @@ class BackgroundTaskManager:
                 last_reason="scheduled" if self.service.state.gmail_hourly_batch_classification_last_run_at is not None else None,
                 detail="Classifies the newest 100 unclassified emails and sends remaining unknowns to AI.",
                 last_slot_key=self.service.state.gmail_hourly_batch_classification_slot_key,
+                enabled=bool(self.service.config.gmail_fetch_poll_on_startup),
             ),
-            self.scheduled_task_entry(
-                task_id="runtime_prompt_sync_weekly",
-                title="Weekly Prompt Sync",
+            self.scheduled_task_entry_from_registry(
+                "runtime_prompt_sync_weekly",
                 group="runtime",
-                kind="node_local_recurring_work",
-                owner="background_task_manager",
-                schedule_name="weekly",
                 status=prompt_sync_status,
-                enabled=prompt_sync_configured,
                 last_execution_at=(
                     self.service.state.runtime_prompt_sync_last_scheduled_at.isoformat()
                     if self.service.state.runtime_prompt_sync_last_scheduled_at is not None
@@ -775,16 +768,12 @@ class BackgroundTaskManager:
                     else "Waiting for a prompt sync target to be configured from the Runtime page."
                 ),
                 last_slot_key=self.service.state.runtime_prompt_sync_weekly_slot_key,
+                enabled=prompt_sync_configured,
             ),
-            self.scheduled_task_entry(
-                task_id="runtime_monthly_resolve_authorize",
-                title="Monthly Core Resolve and Authorize",
+            self.scheduled_task_entry_from_registry(
+                "runtime_monthly_resolve_authorize",
                 group="runtime",
-                kind="core_leased_recurring_work",
-                owner="background_task_manager",
-                schedule_name="monthly",
                 status=runtime_authorize_status,
-                enabled=runtime_authorize_ready,
                 last_execution_at=(
                     self.service.state.runtime_monthly_authorize_last_run_at.isoformat()
                     if self.service.state.runtime_monthly_authorize_last_run_at is not None
@@ -800,6 +789,7 @@ class BackgroundTaskManager:
                     else "Waiting for a trusted Core connection before monthly runtime authorization can run."
                 ),
                 last_slot_key=self.service.state.runtime_monthly_authorize_slot_key,
+                enabled=runtime_authorize_ready,
             ),
         ]
 

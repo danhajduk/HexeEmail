@@ -301,3 +301,9 @@ Chosen fix: Extend `runtime_task_state.scheduler_task_states` from the baseline 
 What changed: Updated `src/node_backend/scheduler.py`, `src/service.py`, `tests/test_ui_api.py`, and `docs/scheduler-and-background-tasks.md`, removed Task 329 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
 Verification: `python -m py_compile src/node_backend/scheduler.py src/service.py tests/test_ui_api.py` passed. `PYTHONPATH=src ./.venv/bin/python -m pytest tests/test_ui_api.py -k 'scheduled_tasks or task_registry' -q` passed.
 ###########
+Task #330
+Step objective: Refactor existing recurring loops into registry-backed scheduled tasks, including finalize polling, Gmail status polling, Gmail fetch scheduler, hourly batch classification, weekly prompt sync, and monthly authorize.
+Chosen fix: Introduce a registry-backed scheduled-task entry builder and use the explicit registry metadata as the source of truth for the operator-visible scheduled-task snapshot, while keeping the loop/task-state updates wired to the same task ids.
+What changed: Updated `src/node_backend/scheduler.py`, `docs/scheduler-and-background-tasks.md`, removed Task 330 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: `python -m py_compile src/node_backend/scheduler.py src/service.py tests/test_ui_api.py` passed. `PYTHONPATH=src ./.venv/bin/python -m pytest tests/test_ui_api.py -k 'scheduled_tasks or task_registry' -q` passed.
+###########
