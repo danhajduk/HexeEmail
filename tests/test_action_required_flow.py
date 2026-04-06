@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import asyncio
 
+from email_node.flow_families.action_required.runtime import GmailActionRequiredPhase3ProfileDetector
 from email_node.pipeline import ActionRequiredFlowPipeline
 from providers.gmail.models import GmailPhase1NormalizedEmail
+from tests.test_gmail_order_phase3 import build_phase2_payload
 
 
 def build_action_required_phase1_payload() -> GmailPhase1NormalizedEmail:
@@ -47,3 +49,63 @@ def test_action_required_flow_skeleton_runs_through_shared_core(tmp_path):
     assert result["phase4"].extraction_status in {"unresolved", "failed"}
     assert result["phase6"].decision == "reject"
     assert result["phase7"].persisted is False
+
+
+def test_action_required_detector_matches_payment_method_update():
+    detector = GmailActionRequiredPhase3ProfileDetector()
+    phase2 = build_phase2_payload(
+        subject="Your card's expiring soon--confirm your mailing address",
+        sender_name="Capital One",
+        sender_email="capitalone@notification.capitalone.com",
+        sender_domain="notification.capitalone.com",
+        scrubbed_text=(
+            "Your card's expiring soon.\n"
+            "Confirm your mailing address to get your replacement card.\n"
+            "Sign in to your account."
+        ),
+    )
+
+    result = detector.detect(phase2)
+
+    assert result.profile_id == "payment_method_update_required"
+    assert result.profile_confidence_level in {"high", "medium"}
+
+
+def test_action_required_detector_matches_application_completion():
+    detector = GmailActionRequiredPhase3ProfileDetector()
+    phase2 = build_phase2_payload(
+        subject="Rent is coming due soon: Complete your Flex profile to split your rent",
+        sender_name="Flex",
+        sender_email="team@payments.getflex.com",
+        sender_domain="payments.getflex.com",
+        scrubbed_text=(
+            "Complete your Flex profile to split your rent.\n"
+            "It looks like you created an account with Flex but didn't finish your application.\n"
+            "See your new option."
+        ),
+    )
+
+    result = detector.detect(phase2)
+
+    assert result.profile_id == "application_completion_required"
+    assert result.profile_confidence_level in {"high", "medium"}
+
+
+def test_action_required_detector_matches_site_issue():
+    detector = GmailActionRequiredPhase3ProfileDetector()
+    phase2 = build_phase2_payload(
+        subject="New reasons prevent pages from being indexed on site hexe-ai.com",
+        sender_name="Google Search Console Team",
+        sender_email="sc-noreply@google.com",
+        sender_domain="google.com",
+        scrubbed_text=(
+            "New reasons prevent pages from being indexed on site hexe-ai.com.\n"
+            "Open indexing report.\n"
+            "Review the affected pages."
+        ),
+    )
+
+    result = detector.detect(phase2)
+
+    assert result.profile_id == "site_issue_action_required"
+    assert result.profile_confidence_level in {"high", "medium"}

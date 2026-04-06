@@ -50,56 +50,195 @@ heuristics:
 profiles:
   taxonomy_version: action-required-phase3-taxonomy.v1
   taxonomy:
+    subscription_expiring:
+      profile_family: action_required
+      profile_subtype: subscription_expiring
+      vendor_identity:
+    benefit_order_update_required:
+      profile_family: action_required
+      profile_subtype: benefit_order_update_required
+      vendor_identity:
+    appointment_preparation_required:
+      profile_family: action_required
+      profile_subtype: appointment_preparation_required
+      vendor_identity:
+    appointment_scheduling_required:
+      profile_family: action_required
+      profile_subtype: appointment_scheduling_required
+      vendor_identity:
     payment_due:
       profile_family: action_required
       profile_subtype: payment_due
+      vendor_identity:
+    payment_method_update_required:
+      profile_family: action_required
+      profile_subtype: payment_method_update_required
       vendor_identity:
     subscription_payment_failed:
       profile_family: action_required
       profile_subtype: subscription_payment_failed
       vendor_identity:
+    application_completion_required:
+      profile_family: action_required
+      profile_subtype: application_completion_required
+      vendor_identity:
     account_verification_required:
       profile_family: action_required
       profile_subtype: account_verification_required
+      vendor_identity:
+    verification_code_required:
+      profile_family: action_required
+      profile_subtype: verification_code_required
+      vendor_identity:
+    account_retention_required:
+      profile_family: action_required
+      profile_subtype: account_retention_required
       vendor_identity:
     security_alert_action_required:
       profile_family: action_required
       profile_subtype: security_alert_action_required
       vendor_identity:
+    site_issue_action_required:
+      profile_family: action_required
+      profile_subtype: site_issue_action_required
+      vendor_identity:
+    service_issue_action_required:
+      profile_family: action_required
+      profile_subtype: service_issue_action_required
+      vendor_identity:
     document_signature_required:
       profile_family: action_required
       profile_subtype: document_signature_required
+      vendor_identity:
+    document_available_action_required:
+      profile_family: action_required
+      profile_subtype: document_available_action_required
+      vendor_identity:
+    pickup_ready_action_required:
+      profile_family: action_required
+      profile_subtype: pickup_ready_action_required
+      vendor_identity:
+    travel_check_in_required:
+      profile_family: action_required
+      profile_subtype: travel_check_in_required
+      vendor_identity:
+    benefit_expiring:
+      profile_family: action_required
+      profile_subtype: benefit_expiring
       vendor_identity:
     generic_action_required:
       profile_family: action_required
       profile_subtype: generic_action_required
       vendor_identity:
-  known_vendor_identities: {}
+  known_vendor_identities:
+    capitalone.com: capital_one
+    creditkarma.com: credit_karma
+    edenredbenefits.com: edenred_benefits
+    alaskaair.com: alaska_air
+    walgreens.com: walgreens
+    tripit.com: tripit
+    aftership.com: aftership
+    intuit.com: intuit
+    google.com: google
+    meetaxle.com: axle
   rules_override_path: flow_families/action_required/profile_rules.json
   rules:
     schema_version: action-required-phase3-rules.v1
     signals:
+      subscription_expiring_terms:
+        - subscription is expiring
+        - subscription expiring
+        - subscription expires soon
+        - your subscription is expiring
+      benefit_order_update_terms:
+        - commuter benefits order
+        - pending transit order
+        - pending order details
+        - make any changes
+        - benefit month
+      appointment_preparation_terms:
+        - get ready for the genius bar
+        - appointment is right around the corner
+        - add to calendar
+        - next steps
+        - call before you go
+        - your repair is confirmed
+        - walk-in repair
+      appointment_scheduling_terms:
+        - schedule appointment
+        - regular checkup and cleaning
+        - overdue hygiene
+        - come in for their regular checkup
       payment_due_terms:
         - payment due
         - invoice due
         - amount due
         - past due
+      payment_method_update_terms:
+        - card's expiring soon
+        - card is expiring soon
+        - confirm your mailing address
+        - expiring soon confirm your mailing address
       subscription_payment_failed_terms:
         - payment failed
         - subscription payment failed
         - billing issue
+      application_completion_terms:
+        - complete your flex
+        - finish your application
+        - split your rent
+        - saved your progress
+        - see your new option
+        - created an account with flex
       account_verification_terms:
         - verify your account
         - confirm your account
         - verification required
+      verification_code_terms:
+        - verification code is
+        - use verification code
+        - enter this verification code
+      account_retention_terms:
+        - scheduled for deletion
+        - keep your aftership account active
+        - keep your account active
       security_alert_terms:
         - security alert
         - suspicious login
         - unusual sign-in
+      site_issue_terms:
+        - prevent pages from being indexed
+        - open indexing report
+        - indexing report
+        - pages from being indexed
+      service_issue_terms:
+        - there was a problem with your tripit submission
+        - review your tripit submission
+        - unable to import your confirmation email
+        - there was a problem with your submission
       document_signature_terms:
         - signature required
         - sign document
         - review and sign
+      document_available_terms:
+        - your w-2 is available
+        - add your w-2
+        - upload your docs
+        - your w-2 is ready
+      pickup_ready_action_terms:
+        - ready for pickup
+        - your rx is ready for pickup
+      travel_check_in_terms:
+        - check in now for your flight
+        - time to check in for your flight
+        - it's time to check in
+        - confirmation code
+      benefit_expiring_terms:
+        - expires soon
+        - expire soon
+        - expire in
+        - will expire soon
+        - expiring soon
       generic_action_terms:
         - action required
         - requires your attention
@@ -107,11 +246,25 @@ profiles:
     sender_domain_profiles: {}
     weights:
       sender_match: 5
+      subscription_expiring_language: 8
+      benefit_order_update_language: 8
+      appointment_preparation_language: 8
+      appointment_scheduling_language: 8
       payment_due_language: 8
+      payment_method_update_language: 9
       subscription_payment_failed_language: 9
+      application_completion_language: 8
       account_verification_language: 9
+      verification_code_language: 10
+      account_retention_language: 8
       security_alert_language: 9
+      site_issue_language: 9
+      service_issue_language: 8
       document_signature_language: 8
+      document_available_language: 7
+      pickup_ready_action_language: 8
+      travel_check_in_language: 8
+      benefit_expiring_language: 7
       generic_action_language: 6
     thresholds:
       high_score: 14

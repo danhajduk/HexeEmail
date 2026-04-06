@@ -73,11 +73,25 @@ class GmailActionRequiredPhase3ProfileDetector(SharedProfileDetectorEngine):
                 candidates.setdefault(profile_id, []).append(reason)
 
         signal_to_profile = {
+            "subscription_expiring_terms": ("subscription_expiring", "subscription_expiring_language"),
+            "benefit_order_update_terms": ("benefit_order_update_required", "benefit_order_update_language"),
+            "appointment_preparation_terms": ("appointment_preparation_required", "appointment_preparation_language"),
+            "appointment_scheduling_terms": ("appointment_scheduling_required", "appointment_scheduling_language"),
             "payment_due_terms": ("payment_due", "payment_due_language"),
+            "payment_method_update_terms": ("payment_method_update_required", "payment_method_update_language"),
             "subscription_payment_failed_terms": ("subscription_payment_failed", "subscription_payment_failed_language"),
+            "application_completion_terms": ("application_completion_required", "application_completion_language"),
             "account_verification_terms": ("account_verification_required", "account_verification_language"),
+            "verification_code_terms": ("verification_code_required", "verification_code_language"),
+            "account_retention_terms": ("account_retention_required", "account_retention_language"),
             "security_alert_terms": ("security_alert_action_required", "security_alert_language"),
+            "site_issue_terms": ("site_issue_action_required", "site_issue_language"),
+            "service_issue_terms": ("service_issue_action_required", "service_issue_language"),
             "document_signature_terms": ("document_signature_required", "document_signature_language"),
+            "document_available_terms": ("document_available_action_required", "document_available_language"),
+            "pickup_ready_action_terms": ("pickup_ready_action_required", "pickup_ready_action_language"),
+            "travel_check_in_terms": ("travel_check_in_required", "travel_check_in_language"),
+            "benefit_expiring_terms": ("benefit_expiring", "benefit_expiring_language"),
             "generic_action_terms": ("generic_action_required", "generic_action_language"),
         }
         for signal_key, (profile_id, reason) in signal_to_profile.items():
@@ -126,11 +140,25 @@ class GmailActionRequiredPhase3ProfileDetector(SharedProfileDetectorEngine):
         vendor = working.vendor_identity
 
         profile_rules = {
+            "subscription_expiring": ("subscription_expiring_terms", "subscription_expiring_language"),
+            "benefit_order_update_required": ("benefit_order_update_terms", "benefit_order_update_language"),
+            "appointment_preparation_required": ("appointment_preparation_terms", "appointment_preparation_language"),
+            "appointment_scheduling_required": ("appointment_scheduling_terms", "appointment_scheduling_language"),
             "payment_due": ("payment_due_terms", "payment_due_language"),
+            "payment_method_update_required": ("payment_method_update_terms", "payment_method_update_language"),
             "subscription_payment_failed": ("subscription_payment_failed_terms", "subscription_payment_failed_language"),
+            "application_completion_required": ("application_completion_terms", "application_completion_language"),
             "account_verification_required": ("account_verification_terms", "account_verification_language"),
+            "verification_code_required": ("verification_code_terms", "verification_code_language"),
+            "account_retention_required": ("account_retention_terms", "account_retention_language"),
             "security_alert_action_required": ("security_alert_terms", "security_alert_language"),
+            "site_issue_action_required": ("site_issue_terms", "site_issue_language"),
+            "service_issue_action_required": ("service_issue_terms", "service_issue_language"),
             "document_signature_required": ("document_signature_terms", "document_signature_language"),
+            "document_available_action_required": ("document_available_terms", "document_available_language"),
+            "pickup_ready_action_required": ("pickup_ready_action_terms", "pickup_ready_action_language"),
+            "travel_check_in_required": ("travel_check_in_terms", "travel_check_in_language"),
+            "benefit_expiring": ("benefit_expiring_terms", "benefit_expiring_language"),
             "generic_action_required": ("generic_action_terms", "generic_action_language"),
         }
 
