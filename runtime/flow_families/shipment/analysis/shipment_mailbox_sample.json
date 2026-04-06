@@ -1,0 +1,2112 @@
+{
+  "schema_version": "flow-family-mailbox-sample.v1",
+  "flow_family": "shipment",
+  "generated_at": "2026-04-06T03:10:47.818503-07:00",
+  "sample_limit": 30,
+  "sample_size": 30,
+  "total_labelled_messages": 586,
+  "aggregate": {
+    "phase1_validation_status_counts": {
+      "partial": 1,
+      "success": 29
+    },
+    "phase2_scrub_status_counts": {
+      "failed": 1,
+      "partial": 29
+    },
+    "phase3_profile_counts": {
+      "delivered": 8,
+      "shipped": 5
+    },
+    "top_sender_domains": [
+      {
+        "value": "amazon.com",
+        "count": 12
+      },
+      {
+        "value": "email.informeddelivery.usps.com",
+        "count": 10
+      },
+      {
+        "value": "parcelpending.com",
+        "count": 3
+      },
+      {
+        "value": "instacart.com",
+        "count": 2
+      },
+      {
+        "value": "doordash.com",
+        "count": 1
+      },
+      {
+        "value": "mg.homedepot.com",
+        "count": 1
+      },
+      {
+        "value": "proxyvote.com",
+        "count": 1
+      }
+    ],
+    "top_subject_ngrams": [
+      {
+        "value": "daily digest",
+        "count": 10
+      },
+      {
+        "value": "ready view",
+        "count": 10
+      },
+      {
+        "value": "parcel pending",
+        "count": 3
+      },
+      {
+        "value": "ordinary azelaic acid",
+        "count": 2
+      },
+      {
+        "value": "ordinary azelaic",
+        "count": 2
+      },
+      {
+        "value": "azelaic acid",
+        "count": 2
+      },
+      {
+        "value": "esp32-s3-box-3b development",
+        "count": 2
+      },
+      {
+        "value": "kawaye meta quest",
+        "count": 2
+      },
+      {
+        "value": "kawaye meta",
+        "count": 2
+      },
+      {
+        "value": "meta quest",
+        "count": 2
+      },
+      {
+        "value": "pending cortland village",
+        "count": 2
+      },
+      {
+        "value": "daily reminder parcel",
+        "count": 2
+      },
+      {
+        "value": "reminder parcel pending",
+        "count": 2
+      },
+      {
+        "value": "parcel pending cortland village",
+        "count": 2
+      },
+      {
+        "value": "reminder parcel pending cortland",
+        "count": 2
+      },
+      {
+        "value": "parcel pending cortland",
+        "count": 2
+      },
+      {
+        "value": "reminder parcel",
+        "count": 2
+      },
+      {
+        "value": "daily reminder parcel pending",
+        "count": 2
+      },
+      {
+        "value": "cortland village",
+        "count": 2
+      },
+      {
+        "value": "pending cortland",
+        "count": 2
+      },
+      {
+        "value": "daily reminder",
+        "count": 2
+      },
+      {
+        "value": "digest fri ready view",
+        "count": 2
+      },
+      {
+        "value": "fri ready",
+        "count": 2
+      },
+      {
+        "value": "daily digest fri ready",
+        "count": 2
+      },
+      {
+        "value": "digest fri ready",
+        "count": 2
+      }
+    ],
+    "top_scrubbed_ngrams": [
+      {
+        "value": "mailpiece package",
+        "count": 10
+      },
+      {
+        "value": "mailpiece inbound package arriving",
+        "count": 10
+      },
+      {
+        "value": "2026 mailpiece package slobodan",
+        "count": 10
+      },
+      {
+        "value": "slobodan mailpiece inbound package",
+        "count": 10
+      },
+      {
+        "value": "package slobodan mailpiece",
+        "count": 10
+      },
+      {
+        "value": "inbound package arriving",
+        "count": 10
+      },
+      {
+        "value": "mailpiece package slobodan",
+        "count": 10
+      },
+      {
+        "value": "inbound package",
+        "count": 10
+      },
+      {
+        "value": "package slobodan mailpiece inbound",
+        "count": 10
+      },
+      {
+        "value": "slobodan mailpiece",
+        "count": 10
+      },
+      {
+        "value": "coming slobodan",
+        "count": 10
+      },
+      {
+        "value": "package slobodan",
+        "count": 10
+      },
+      {
+        "value": "coming slobodan mailpiece",
+        "count": 10
+      },
+      {
+        "value": "coming slobodan mailpiece inbound",
+        "count": 10
+      },
+      {
+        "value": "2026 mailpiece",
+        "count": 10
+      },
+      {
+        "value": "mailpiece inbound package",
+        "count": 10
+      },
+      {
+        "value": "slobodan mailpiece inbound",
+        "count": 10
+      },
+      {
+        "value": "2026 mailpiece package",
+        "count": 10
+      },
+      {
+        "value": "mailpiece package slobodan mailpiece",
+        "count": 10
+      },
+      {
+        "value": "mailpiece inbound",
+        "count": 10
+      },
+      {
+        "value": "package arriving",
+        "count": 10
+      },
+      {
+        "value": "march 2026 mailpiece package",
+        "count": 8
+      },
+      {
+        "value": "march 2026 mailpiece",
+        "count": 8
+      },
+      {
+        "value": "march 2026",
+        "count": 8
+      },
+      {
+        "value": "delivered quot",
+        "count": 5
+      }
+    ],
+    "top_leading_lines": [
+      {
+        "value": "Hi Slobodan, Just a friendly reminder that you have a Parcel Pending at Cortland Village. To avoid paying a storage fee please pick it up by 11:59 PM on 04/03/2026. Your access code is: 46062503 Your",
+        "count": 2
+      }
+    ],
+    "unresolved_sender_domains": [
+      {
+        "value": "email.informeddelivery.usps.com",
+        "count": 10
+      },
+      {
+        "value": "parcelpending.com",
+        "count": 2
+      },
+      {
+        "value": "amazon.com",
+        "count": 2
+      },
+      {
+        "value": "doordash.com",
+        "count": 1
+      },
+      {
+        "value": "instacart.com",
+        "count": 1
+      },
+      {
+        "value": "proxyvote.com",
+        "count": 1
+      }
+    ],
+    "unresolved_leading_lines": [
+      {
+        "value": "Hi Slobodan, Just a friendly reminder that you have a Parcel Pending at Cortland Village. To avoid paying a storage fee please pick it up by 11:59 PM on 04/03/2026. Your access code is: 46062503 Your",
+        "count": 2
+      },
+      {
+        "value": "COMING TO YOU SOON Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound package(s) arriving soon. Saturday 4 April 2026 1 Mailpiece(s) 0 Package(s) Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound",
+        "count": 1
+      },
+      {
+        "value": "COMING TO YOU SOON Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound package(s) arriving soon. Friday 3 April 2026 1 Mailpiece(s) 0 Package(s) Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound",
+        "count": 1
+      },
+      {
+        "value": "You can add items until your shopper checks out. Hi Dan, your family order from Fred Meyer is all set. Delivery address Delivery time 6937 Northeast Ronler Way, 2021 Today from 11:26am - 12:11pm",
+        "count": 1
+      },
+      {
+        "value": "COMING TO YOU SOON Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound package(s) arriving soon. Tuesday 31 March 2026 1 Mailpiece(s) 0 Package(s) Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound",
+        "count": 1
+      },
+      {
+        "value": "You are receiving this notification to educate you on important information related to one or more of your holdings. Details in this material may include investment strategy, performance tracking and",
+        "count": 1
+      },
+      {
+        "value": "COMING TO YOU SOON Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound package(s) arriving soon. Monday 30 March 2026 1 Mailpiece(s) 0 Package(s) Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound",
+        "count": 1
+      },
+      {
+        "value": "COMING TO YOU SOON Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound package(s) arriving soon. Friday 27 March 2026 1 Mailpiece(s) 0 Package(s) Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound",
+        "count": 1
+      },
+      {
+        "value": "COMING TO YOU SOON Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound package(s) arriving soon. Thursday 26 March 2026 1 Mailpiece(s) 0 Package(s) Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound",
+        "count": 1
+      },
+      {
+        "value": "COMING TO YOU SOON Hi, Slobodan! You have 2 mailpiece(s) and 0 inbound package(s) arriving soon. Wednesday 25 March 2026 2 Mailpiece(s) 0 Package(s) Hi, Slobodan! You have 2 mailpiece(s) and 0 inbound",
+        "count": 1
+      },
+      {
+        "value": "COMING TO YOU SOON Hi, Slobodan! You have 2 mailpiece(s) and 1 inbound package(s) arriving soon. Tuesday 24 March 2026 2 Mailpiece(s) 1 Package(s) Hi, Slobodan! You have 2 mailpiece(s) and 1 inbound",
+        "count": 1
+      },
+      {
+        "value": "Amazon Amazon Hello Slobodan, Your return was dropped off. Your return is in-transit. Refund will be issued by Mar 24. Most refunds are issued shortly after drop off, with funds typically available in",
+        "count": 1
+      },
+      {
+        "value": "Amazon Amazon Hello Slobodan, You ordered the item below, but the package is being returned to us by the carrier. We&#39;ve issued your refund. You can find the list of possible reasons why the package",
+        "count": 1
+      },
+      {
+        "value": "COMING TO YOU SOON Hi, Slobodan! You have 0 mailpiece(s) and 1 inbound package(s) arriving soon. Monday 23 March 2026 0 Mailpiece(s) 1 Package(s) Hi, Slobodan! You have 0 mailpiece(s) and 1 inbound",
+        "count": 1
+      },
+      {
+        "value": "COMING TO YOU SOON Hi, Slobodan! You have 0 mailpiece(s) and 1 inbound package(s) arriving soon. Sunday 22 March 2026 0 Mailpiece(s) 1 Package(s) Hi, Slobodan! You have 0 mailpiece(s) and 1 inbound",
+        "count": 1
+      }
+    ],
+    "taxonomy_inputs": {
+      "candidate_vendor_domains": [
+        {
+          "value": "amazon.com",
+          "count": 12
+        },
+        {
+          "value": "email.informeddelivery.usps.com",
+          "count": 10
+        },
+        {
+          "value": "parcelpending.com",
+          "count": 3
+        },
+        {
+          "value": "instacart.com",
+          "count": 2
+        },
+        {
+          "value": "doordash.com",
+          "count": 1
+        },
+        {
+          "value": "mg.homedepot.com",
+          "count": 1
+        },
+        {
+          "value": "proxyvote.com",
+          "count": 1
+        }
+      ],
+      "candidate_subject_phrases": [
+        {
+          "value": "daily digest",
+          "count": 10
+        },
+        {
+          "value": "ready view",
+          "count": 10
+        },
+        {
+          "value": "parcel pending",
+          "count": 3
+        },
+        {
+          "value": "ordinary azelaic acid",
+          "count": 2
+        },
+        {
+          "value": "ordinary azelaic",
+          "count": 2
+        },
+        {
+          "value": "azelaic acid",
+          "count": 2
+        },
+        {
+          "value": "esp32-s3-box-3b development",
+          "count": 2
+        },
+        {
+          "value": "kawaye meta quest",
+          "count": 2
+        },
+        {
+          "value": "kawaye meta",
+          "count": 2
+        },
+        {
+          "value": "meta quest",
+          "count": 2
+        },
+        {
+          "value": "pending cortland village",
+          "count": 2
+        },
+        {
+          "value": "daily reminder parcel",
+          "count": 2
+        },
+        {
+          "value": "reminder parcel pending",
+          "count": 2
+        },
+        {
+          "value": "parcel pending cortland village",
+          "count": 2
+        },
+        {
+          "value": "reminder parcel pending cortland",
+          "count": 2
+        }
+      ],
+      "candidate_scrubbed_phrases": [
+        {
+          "value": "mailpiece package",
+          "count": 10
+        },
+        {
+          "value": "mailpiece inbound package arriving",
+          "count": 10
+        },
+        {
+          "value": "2026 mailpiece package slobodan",
+          "count": 10
+        },
+        {
+          "value": "slobodan mailpiece inbound package",
+          "count": 10
+        },
+        {
+          "value": "package slobodan mailpiece",
+          "count": 10
+        },
+        {
+          "value": "inbound package arriving",
+          "count": 10
+        },
+        {
+          "value": "mailpiece package slobodan",
+          "count": 10
+        },
+        {
+          "value": "inbound package",
+          "count": 10
+        },
+        {
+          "value": "package slobodan mailpiece inbound",
+          "count": 10
+        },
+        {
+          "value": "slobodan mailpiece",
+          "count": 10
+        },
+        {
+          "value": "coming slobodan",
+          "count": 10
+        },
+        {
+          "value": "package slobodan",
+          "count": 10
+        },
+        {
+          "value": "coming slobodan mailpiece",
+          "count": 10
+        },
+        {
+          "value": "coming slobodan mailpiece inbound",
+          "count": 10
+        },
+        {
+          "value": "2026 mailpiece",
+          "count": 10
+        }
+      ],
+      "unresolved_vendor_domains": [
+        {
+          "value": "email.informeddelivery.usps.com",
+          "count": 10
+        },
+        {
+          "value": "parcelpending.com",
+          "count": 2
+        },
+        {
+          "value": "amazon.com",
+          "count": 2
+        },
+        {
+          "value": "doordash.com",
+          "count": 1
+        },
+        {
+          "value": "instacart.com",
+          "count": 1
+        },
+        {
+          "value": "proxyvote.com",
+          "count": 1
+        }
+      ],
+      "unresolved_leading_lines": [
+        {
+          "value": "Hi Slobodan, Just a friendly reminder that you have a Parcel Pending at Cortland Village. To avoid paying a storage fee please pick it up by 11:59 PM on 04/03/2026. Your access code is: 46062503 Your",
+          "count": 2
+        },
+        {
+          "value": "COMING TO YOU SOON Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound package(s) arriving soon. Saturday 4 April 2026 1 Mailpiece(s) 0 Package(s) Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound",
+          "count": 1
+        },
+        {
+          "value": "COMING TO YOU SOON Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound package(s) arriving soon. Friday 3 April 2026 1 Mailpiece(s) 0 Package(s) Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound",
+          "count": 1
+        },
+        {
+          "value": "You can add items until your shopper checks out. Hi Dan, your family order from Fred Meyer is all set. Delivery address Delivery time 6937 Northeast Ronler Way, 2021 Today from 11:26am - 12:11pm",
+          "count": 1
+        },
+        {
+          "value": "COMING TO YOU SOON Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound package(s) arriving soon. Tuesday 31 March 2026 1 Mailpiece(s) 0 Package(s) Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound",
+          "count": 1
+        },
+        {
+          "value": "You are receiving this notification to educate you on important information related to one or more of your holdings. Details in this material may include investment strategy, performance tracking and",
+          "count": 1
+        },
+        {
+          "value": "COMING TO YOU SOON Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound package(s) arriving soon. Monday 30 March 2026 1 Mailpiece(s) 0 Package(s) Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound",
+          "count": 1
+        },
+        {
+          "value": "COMING TO YOU SOON Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound package(s) arriving soon. Friday 27 March 2026 1 Mailpiece(s) 0 Package(s) Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound",
+          "count": 1
+        },
+        {
+          "value": "COMING TO YOU SOON Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound package(s) arriving soon. Thursday 26 March 2026 1 Mailpiece(s) 0 Package(s) Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound",
+          "count": 1
+        },
+        {
+          "value": "COMING TO YOU SOON Hi, Slobodan! You have 2 mailpiece(s) and 0 inbound package(s) arriving soon. Wednesday 25 March 2026 2 Mailpiece(s) 0 Package(s) Hi, Slobodan! You have 2 mailpiece(s) and 0 inbound",
+          "count": 1
+        },
+        {
+          "value": "COMING TO YOU SOON Hi, Slobodan! You have 2 mailpiece(s) and 1 inbound package(s) arriving soon. Tuesday 24 March 2026 2 Mailpiece(s) 1 Package(s) Hi, Slobodan! You have 2 mailpiece(s) and 1 inbound",
+          "count": 1
+        },
+        {
+          "value": "Amazon Amazon Hello Slobodan, Your return was dropped off. Your return is in-transit. Refund will be issued by Mar 24. Most refunds are issued shortly after drop off, with funds typically available in",
+          "count": 1
+        },
+        {
+          "value": "Amazon Amazon Hello Slobodan, You ordered the item below, but the package is being returned to us by the carrier. We&#39;ve issued your refund. You can find the list of possible reasons why the package",
+          "count": 1
+        },
+        {
+          "value": "COMING TO YOU SOON Hi, Slobodan! You have 0 mailpiece(s) and 1 inbound package(s) arriving soon. Monday 23 March 2026 0 Mailpiece(s) 1 Package(s) Hi, Slobodan! You have 0 mailpiece(s) and 1 inbound",
+          "count": 1
+        },
+        {
+          "value": "COMING TO YOU SOON Hi, Slobodan! You have 0 mailpiece(s) and 1 inbound package(s) arriving soon. Sunday 22 March 2026 0 Mailpiece(s) 1 Package(s) Hi, Slobodan! You have 0 mailpiece(s) and 1 inbound",
+          "count": 1
+        }
+      ]
+    }
+  },
+  "messages": [
+    {
+      "message_id": "19d5b8c171b3c821",
+      "received_at": "2026-04-04T19:49:59-07:00",
+      "subject": "Details of your no-contact delivery from Victorico's Mexican Food",
+      "sender": "DoorDash <no-reply@doordash.com>",
+      "sender_domain": "doordash.com",
+      "local_label_confidence": 0.945,
+      "phase1": {
+        "validation_status": "partial",
+        "handoff_ready": false,
+        "selected_body_type": "none",
+        "body_selection_reason": "no usable decoded body content",
+        "validation_diagnostics": [
+          "selected_body_type must identify a handoff body",
+          "selected_body_content is required",
+          "selected body quality is empty"
+        ]
+      },
+      "phase2": {
+        "scrub_status": "failed",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "",
+        "leading_lines": [],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "phase1 payload is not ready for handoff"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "phase2 scrub_status is failed"
+        ]
+      }
+    },
+    {
+      "message_id": "19d5b50523d6f418",
+      "received_at": "2026-04-04T18:44:43-07:00",
+      "subject": "Delivered: \"The Ordinary Azelaic Acid...\"",
+      "sender": "\"Amazon.com\" <order-update@amazon.com>",
+      "sender_domain": "amazon.com",
+      "local_label_confidence": 0.895,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "partial",
+        "scrubbed_text_preview": "Delivered: &quot;The Ordinary Azelaic Acid...&quot;",
+        "leading_lines": [
+          "Delivered: &quot;The Ordinary Azelaic Acid...&quot;"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=13 (seed=13, merged=13)",
+          "status_anchor",
+          "item_anchor",
+          "completeness:status_plus_item_or_total",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": "delivered",
+        "profile_confidence": 0.7,
+        "profile_confidence_level": "high",
+        "profile_status": "success",
+        "top_candidates": [
+          {
+            "profile_id": "delivered",
+            "score": 14,
+            "confidence_level": "high",
+            "reasons": [
+              "delivered_language",
+              "score:sender_match",
+              "score:delivered_language"
+            ]
+          }
+        ],
+        "profile_diagnostics": [
+          "candidate:delivered reasons=delivered_language",
+          "scored:delivered score=14 reasons=delivered_language,score:sender_match,score:delivered_language",
+          "resolved_profile:delivered score=14"
+        ]
+      }
+    },
+    {
+      "message_id": "19d5b1562b4dd7e0",
+      "received_at": "2026-04-04T17:40:20-07:00",
+      "subject": "Delivered: \"ESP32-S3-BOX-3B Development...\"",
+      "sender": "\"Amazon.com\" <order-update@amazon.com>",
+      "sender_domain": "amazon.com",
+      "local_label_confidence": 0.895,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "partial",
+        "scrubbed_text_preview": "Delivered: &quot;ESP32-S3-BOX-3B Development...&quot;",
+        "leading_lines": [
+          "Delivered: &quot;ESP32-S3-BOX-3B Development...&quot;"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=13 (seed=13, merged=13)",
+          "status_anchor",
+          "item_anchor",
+          "completeness:status_plus_item_or_total",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": "delivered",
+        "profile_confidence": 0.7,
+        "profile_confidence_level": "high",
+        "profile_status": "success",
+        "top_candidates": [
+          {
+            "profile_id": "delivered",
+            "score": 14,
+            "confidence_level": "high",
+            "reasons": [
+              "delivered_language",
+              "score:sender_match",
+              "score:delivered_language"
+            ]
+          }
+        ],
+        "profile_diagnostics": [
+          "candidate:delivered reasons=delivered_language",
+          "scored:delivered score=14 reasons=delivered_language,score:sender_match,score:delivered_language",
+          "resolved_profile:delivered score=14"
+        ]
+      }
+    },
+    {
+      "message_id": "19d58e3c7129bac9",
+      "received_at": "2026-04-04T07:26:55-07:00",
+      "subject": "Your Daily Digest for Sat, 4/4 is ready to view",
+      "sender": "USPS Informed Delivery <USPSInformeddelivery@email.informeddelivery.usps.com>",
+      "sender_domain": "email.informeddelivery.usps.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "partial",
+        "scrubbed_text_preview": "COMING TO YOU SOON Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound package(s) arriving soon. Saturday 4 April 2026 1 Mailpiece(s) 0 Package(s) Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound",
+        "leading_lines": [
+          "COMING TO YOU SOON Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound package(s) arriving soon. Saturday 4 April 2026 1 Mailpiece(s) 0 Package(s) Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=6 (seed=6, merged=6)",
+          "status_anchor",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_critical_order_anchor"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d583d108097dac",
+      "received_at": "2026-04-04T04:24:50-07:00",
+      "subject": "Delivered: \"Kawaye for Meta Quest...\"",
+      "sender": "\"Amazon.com\" <order-update@amazon.com>",
+      "sender_domain": "amazon.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "partial",
+        "scrubbed_text_preview": "Delivered: &quot;Kawaye for Meta Quest...&quot;",
+        "leading_lines": [
+          "Delivered: &quot;Kawaye for Meta Quest...&quot;"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=13 (seed=13, merged=13)",
+          "status_anchor",
+          "item_anchor",
+          "completeness:status_plus_item_or_total",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": "delivered",
+        "profile_confidence": 0.7,
+        "profile_confidence_level": "high",
+        "profile_status": "success",
+        "top_candidates": [
+          {
+            "profile_id": "delivered",
+            "score": 14,
+            "confidence_level": "high",
+            "reasons": [
+              "delivered_language",
+              "score:sender_match",
+              "score:delivered_language"
+            ]
+          }
+        ],
+        "profile_diagnostics": [
+          "candidate:delivered reasons=delivered_language",
+          "scored:delivered score=14 reasons=delivered_language,score:sender_match,score:delivered_language",
+          "resolved_profile:delivered score=14"
+        ]
+      }
+    },
+    {
+      "message_id": "19d57f846f2184d9",
+      "received_at": "2026-04-04T03:09:41-07:00",
+      "subject": "Shipped: \"The Ordinary Azelaic Acid...\"",
+      "sender": "\"Amazon.com\" <shipment-tracking@amazon.com>",
+      "sender_domain": "amazon.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "partial",
+        "scrubbed_text_preview": "Shipped: &quot;The Ordinary Azelaic Acid...&quot;",
+        "leading_lines": [
+          "Shipped: &quot;The Ordinary Azelaic Acid...&quot;"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=15 (seed=15, merged=15)",
+          "transactional_anchor:shipped",
+          "status_anchor",
+          "item_anchor",
+          "completeness:status_plus_item_or_total",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:quantity=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": "shipped",
+        "profile_confidence": 0.65,
+        "profile_confidence_level": "medium",
+        "profile_status": "partial",
+        "top_candidates": [
+          {
+            "profile_id": "shipped",
+            "score": 13,
+            "confidence_level": "medium",
+            "reasons": [
+              "shipped_language",
+              "score:sender_match",
+              "score:shipped_language"
+            ]
+          }
+        ],
+        "profile_diagnostics": [
+          "candidate:shipped reasons=shipped_language",
+          "scored:shipped score=13 reasons=shipped_language,score:sender_match,score:shipped_language",
+          "resolved_profile:shipped score=13"
+        ]
+      }
+    },
+    {
+      "message_id": "19d577980397df6c",
+      "received_at": "2026-04-04T00:51:13-07:00",
+      "subject": "Shipped: \"ESP32-S3-BOX-3B Development...\"",
+      "sender": "\"Amazon.com\" <shipment-tracking@amazon.com>",
+      "sender_domain": "amazon.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "partial",
+        "scrubbed_text_preview": "Shipped: &quot;ESP32-S3-BOX-3B Development...&quot;",
+        "leading_lines": [
+          "Shipped: &quot;ESP32-S3-BOX-3B Development...&quot;"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=15 (seed=15, merged=15)",
+          "transactional_anchor:shipped",
+          "status_anchor",
+          "item_anchor",
+          "completeness:status_plus_item_or_total",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:quantity=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": "shipped",
+        "profile_confidence": 0.65,
+        "profile_confidence_level": "medium",
+        "profile_status": "partial",
+        "top_candidates": [
+          {
+            "profile_id": "shipped",
+            "score": 13,
+            "confidence_level": "medium",
+            "reasons": [
+              "shipped_language",
+              "score:sender_match",
+              "score:shipped_language"
+            ]
+          }
+        ],
+        "profile_diagnostics": [
+          "candidate:shipped reasons=shipped_language",
+          "scored:shipped score=13 reasons=shipped_language,score:sender_match,score:shipped_language",
+          "resolved_profile:shipped score=13"
+        ]
+      }
+    },
+    {
+      "message_id": "19d57232da437c76",
+      "received_at": "2026-04-03T23:16:55-07:00",
+      "subject": "Shipped: \"Kawaye for Meta Quest...\"",
+      "sender": "\"Amazon.com\" <shipment-tracking@amazon.com>",
+      "sender_domain": "amazon.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "partial",
+        "scrubbed_text_preview": "Shipped: &quot;Kawaye for Meta Quest...&quot;",
+        "leading_lines": [
+          "Shipped: &quot;Kawaye for Meta Quest...&quot;"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=15 (seed=15, merged=15)",
+          "transactional_anchor:shipped",
+          "status_anchor",
+          "item_anchor",
+          "completeness:status_plus_item_or_total",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:quantity=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": "shipped",
+        "profile_confidence": 0.65,
+        "profile_confidence_level": "medium",
+        "profile_status": "partial",
+        "top_candidates": [
+          {
+            "profile_id": "shipped",
+            "score": 13,
+            "confidence_level": "medium",
+            "reasons": [
+              "shipped_language",
+              "score:sender_match",
+              "score:shipped_language"
+            ]
+          }
+        ],
+        "profile_diagnostics": [
+          "candidate:shipped reasons=shipped_language",
+          "scored:shipped score=13 reasons=shipped_language,score:sender_match,score:shipped_language",
+          "resolved_profile:shipped score=13"
+        ]
+      }
+    },
+    {
+      "message_id": "19d5443552615726",
+      "received_at": "2026-04-03T09:53:11-07:00",
+      "subject": "Daily Reminder: You have a Parcel Pending at Cortland Village!",
+      "sender": "ParcelPending <no-reply@parcelpending.com>",
+      "sender_domain": "parcelpending.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Hi Slobodan, Just a friendly reminder that you have a Parcel Pending at Cortland Village. To avoid paying a storage fee please pick it up by 11:59 PM on 04/03/2026. Your access code is: 46062503 Your",
+        "leading_lines": [
+          "Hi Slobodan, Just a friendly reminder that you have a Parcel Pending at Cortland Village. To avoid paying a storage fee please pick it up by 11:59 PM on 04/03/2026. Your access code is: 46062503 Your"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d53beb45773999",
+      "received_at": "2026-04-03T07:28:19-07:00",
+      "subject": "Your Daily Digest for Fri, 4/3 is ready to view",
+      "sender": "USPS Informed Delivery <USPSInformeddelivery@email.informeddelivery.usps.com>",
+      "sender_domain": "email.informeddelivery.usps.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "partial",
+        "scrubbed_text_preview": "COMING TO YOU SOON Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound package(s) arriving soon. Friday 3 April 2026 1 Mailpiece(s) 0 Package(s) Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound",
+        "leading_lines": [
+          "COMING TO YOU SOON Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound package(s) arriving soon. Friday 3 April 2026 1 Mailpiece(s) 0 Package(s) Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=6 (seed=6, merged=6)",
+          "status_anchor",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_critical_order_anchor"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d4f1e337778fd4",
+      "received_at": "2026-04-02T09:54:32-07:00",
+      "subject": "Daily Reminder: You have a Parcel Pending at Cortland Village!",
+      "sender": "ParcelPending <no-reply@parcelpending.com>",
+      "sender_domain": "parcelpending.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Hi Slobodan, Just a friendly reminder that you have a Parcel Pending at Cortland Village. To avoid paying a storage fee please pick it up by 11:59 PM on 04/03/2026. Your access code is: 46062503 Your",
+        "leading_lines": [
+          "Hi Slobodan, Just a friendly reminder that you have a Parcel Pending at Cortland Village. To avoid paying a storage fee please pick it up by 11:59 PM on 04/03/2026. Your access code is: 46062503 Your"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d4e65ebd28b51c",
+      "received_at": "2026-04-02T06:20:04-07:00",
+      "subject": "Exclusive Tools to Gear Up for Spring",
+      "sender": "The Home Depot <homedepotcustomercare@mg.homedepot.com>",
+      "sender_domain": "mg.homedepot.com",
+      "local_label_confidence": 0.955,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "partial",
+        "scrubbed_text_preview": "Get Plants Delivered + Get a Free Battery",
+        "leading_lines": [
+          "Get Plants Delivered + Get a Free Battery"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=6 (seed=6, merged=6)",
+          "status_anchor",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_critical_order_anchor"
+        ]
+      },
+      "phase3": {
+        "profile_id": "delivered",
+        "profile_confidence": 0.7,
+        "profile_confidence_level": "high",
+        "profile_status": "success",
+        "top_candidates": [
+          {
+            "profile_id": "delivered",
+            "score": 14,
+            "confidence_level": "high",
+            "reasons": [
+              "delivered_language",
+              "score:sender_match",
+              "score:delivered_language"
+            ]
+          }
+        ],
+        "profile_diagnostics": [
+          "candidate:delivered reasons=delivered_language",
+          "scored:delivered score=14 reasons=delivered_language,score:sender_match,score:delivered_language",
+          "resolved_profile:delivered score=14"
+        ]
+      }
+    },
+    {
+      "message_id": "19d4a6ff2541d8f2",
+      "received_at": "2026-04-01T12:05:43-07:00",
+      "subject": "Delivered: \"Fruit of the Loom Big Tag...\"",
+      "sender": "\"Amazon.com\" <order-update@amazon.com>",
+      "sender_domain": "amazon.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "partial",
+        "scrubbed_text_preview": "Delivered: &quot;Fruit of the Loom Big Tag...&quot;",
+        "leading_lines": [
+          "Delivered: &quot;Fruit of the Loom Big Tag...&quot;"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=6 (seed=6, merged=6)",
+          "status_anchor",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_critical_order_anchor"
+        ]
+      },
+      "phase3": {
+        "profile_id": "delivered",
+        "profile_confidence": 0.7,
+        "profile_confidence_level": "high",
+        "profile_status": "success",
+        "top_candidates": [
+          {
+            "profile_id": "delivered",
+            "score": 14,
+            "confidence_level": "high",
+            "reasons": [
+              "delivered_language",
+              "score:sender_match",
+              "score:delivered_language"
+            ]
+          }
+        ],
+        "profile_diagnostics": [
+          "candidate:delivered reasons=delivered_language",
+          "scored:delivered score=14 reasons=delivered_language,score:sender_match,score:delivered_language",
+          "resolved_profile:delivered score=14"
+        ]
+      }
+    },
+    {
+      "message_id": "19d4a6d2b0c10395",
+      "received_at": "2026-04-01T12:02:41-07:00",
+      "subject": "You have a Parcel Pending!",
+      "sender": "ParcelPending <no-reply@parcelpending.com>",
+      "sender_domain": "parcelpending.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "partial",
+        "scrubbed_text_preview": "You have a Parcel Pending! footer-logo-lp.png Hi Slobodan, Special delivery! You had a parcel delivered to Cortland Village, 2021. Don&#39;t worry it&#39;s safe and secure in its locker. To avoid",
+        "leading_lines": [
+          "You have a Parcel Pending! footer-logo-lp.png Hi Slobodan, Special delivery! You had a parcel delivered to Cortland Village, 2021. Don&#39;t worry it&#39;s safe and secure in its locker. To avoid"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=6 (seed=6, merged=6)",
+          "status_anchor",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_critical_order_anchor"
+        ]
+      },
+      "phase3": {
+        "profile_id": "delivered",
+        "profile_confidence": 0.7,
+        "profile_confidence_level": "high",
+        "profile_status": "success",
+        "top_candidates": [
+          {
+            "profile_id": "delivered",
+            "score": 14,
+            "confidence_level": "high",
+            "reasons": [
+              "delivered_language",
+              "score:sender_match",
+              "score:delivered_language"
+            ]
+          }
+        ],
+        "profile_diagnostics": [
+          "candidate:delivered reasons=delivered_language",
+          "scored:delivered score=14 reasons=delivered_language,score:sender_match,score:delivered_language",
+          "resolved_profile:delivered score=14"
+        ]
+      }
+    },
+    {
+      "message_id": "19d4a57678c79266",
+      "received_at": "2026-04-01T11:38:54-07:00",
+      "subject": "Your Instacart family order receipt",
+      "sender": "Instacart <orders@instacart.com>",
+      "sender_domain": "instacart.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "partial",
+        "scrubbed_text_preview": "Thanks for ordering from Instacart! Ciara delivered your family order Your order from Fred Meyer was placed on April 1st, 2026 and delivered on April 1st, 2026 at 11:33 AM 15 Items Found 4 Adjustments",
+        "leading_lines": [
+          "Thanks for ordering from Instacart! Ciara delivered your family order Your order from Fred Meyer was placed on April 1st, 2026 and delivered on April 1st, 2026 at 11:33 AM 15 Items Found 4 Adjustments"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=6 (seed=6, merged=6)",
+          "status_anchor",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_critical_order_anchor"
+        ]
+      },
+      "phase3": {
+        "profile_id": "delivered",
+        "profile_confidence": 0.7,
+        "profile_confidence_level": "high",
+        "profile_status": "success",
+        "top_candidates": [
+          {
+            "profile_id": "delivered",
+            "score": 14,
+            "confidence_level": "high",
+            "reasons": [
+              "delivered_language",
+              "score:sender_match",
+              "score:delivered_language"
+            ]
+          }
+        ],
+        "profile_diagnostics": [
+          "candidate:delivered reasons=delivered_language",
+          "scored:delivered score=14 reasons=delivered_language,score:sender_match,score:delivered_language",
+          "resolved_profile:delivered score=14"
+        ]
+      }
+    },
+    {
+      "message_id": "19d4a320bca36b57",
+      "received_at": "2026-04-01T10:58:06-07:00",
+      "subject": "Your family order from Fred Meyer is confirmed for April 1",
+      "sender": "Instacart <orders@instacart.com>",
+      "sender_domain": "instacart.com",
+      "local_label_confidence": 0.895,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "You can add items until your shopper checks out. Hi Dan, your family order from Fred Meyer is all set. Delivery address Delivery time 6937 Northeast Ronler Way, 2021 Today from 11:26am - 12:11pm",
+        "leading_lines": [
+          "You can add items until your shopper checks out. Hi Dan, your family order from Fred Meyer is all set. Delivery address Delivery time 6937 Northeast Ronler Way, 2021 Today from 11:26am - 12:11pm"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d49c569db7d71c",
+      "received_at": "2026-04-01T08:59:26-07:00",
+      "subject": "Delivered: \"Oral-B Kids Electric...\" and 1 more item",
+      "sender": "\"Amazon.com\" <order-update@amazon.com>",
+      "sender_domain": "amazon.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "partial",
+        "scrubbed_text_preview": "Delivered: &quot;Oral-B Kids Electric...&quot; and 1 more item",
+        "leading_lines": [
+          "Delivered: &quot;Oral-B Kids Electric...&quot; and 1 more item"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=13 (seed=13, merged=13)",
+          "status_anchor",
+          "item_anchor",
+          "completeness:status_plus_item_or_total",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": "delivered",
+        "profile_confidence": 0.7,
+        "profile_confidence_level": "high",
+        "profile_status": "success",
+        "top_candidates": [
+          {
+            "profile_id": "delivered",
+            "score": 14,
+            "confidence_level": "high",
+            "reasons": [
+              "delivered_language",
+              "score:sender_match",
+              "score:delivered_language"
+            ]
+          }
+        ],
+        "profile_diagnostics": [
+          "candidate:delivered reasons=delivered_language",
+          "scored:delivered score=14 reasons=delivered_language,score:sender_match,score:delivered_language",
+          "resolved_profile:delivered score=14"
+        ]
+      }
+    },
+    {
+      "message_id": "19d48e81178a86c4",
+      "received_at": "2026-04-01T04:57:41-07:00",
+      "subject": "Shipped: \"Fruit of the Loom Big Tag...\"",
+      "sender": "\"Amazon.com\" <shipment-tracking@amazon.com>",
+      "sender_domain": "amazon.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "partial",
+        "scrubbed_text_preview": "Shipped: &quot;Fruit of the Loom Big Tag...&quot;",
+        "leading_lines": [
+          "Shipped: &quot;Fruit of the Loom Big Tag...&quot;"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=8 (seed=8, merged=8)",
+          "transactional_anchor:shipped",
+          "status_anchor",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": "shipped",
+        "profile_confidence": 0.65,
+        "profile_confidence_level": "medium",
+        "profile_status": "partial",
+        "top_candidates": [
+          {
+            "profile_id": "shipped",
+            "score": 13,
+            "confidence_level": "medium",
+            "reasons": [
+              "shipped_language",
+              "score:sender_match",
+              "score:shipped_language"
+            ]
+          }
+        ],
+        "profile_diagnostics": [
+          "candidate:shipped reasons=shipped_language",
+          "scored:shipped score=13 reasons=shipped_language,score:sender_match,score:shipped_language",
+          "resolved_profile:shipped score=13"
+        ]
+      }
+    },
+    {
+      "message_id": "19d485fd5977bc3f",
+      "received_at": "2026-04-01T02:28:52-07:00",
+      "subject": "Shipped: \"Oral-B Kids Electric...\" and 1 more item",
+      "sender": "\"Amazon.com\" <shipment-tracking@amazon.com>",
+      "sender_domain": "amazon.com",
+      "local_label_confidence": 0.7639061331355068,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "partial",
+        "scrubbed_text_preview": "Shipped: &quot;Oral-B Kids Electric...&quot; and 1 more item",
+        "leading_lines": [
+          "Shipped: &quot;Oral-B Kids Electric...&quot; and 1 more item"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=15 (seed=15, merged=15)",
+          "transactional_anchor:shipped",
+          "status_anchor",
+          "item_anchor",
+          "completeness:status_plus_item_or_total",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:quantity=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": "shipped",
+        "profile_confidence": 0.65,
+        "profile_confidence_level": "medium",
+        "profile_status": "partial",
+        "top_candidates": [
+          {
+            "profile_id": "shipped",
+            "score": 13,
+            "confidence_level": "medium",
+            "reasons": [
+              "shipped_language",
+              "score:sender_match",
+              "score:shipped_language"
+            ]
+          }
+        ],
+        "profile_diagnostics": [
+          "candidate:shipped reasons=shipped_language",
+          "scored:shipped score=13 reasons=shipped_language,score:sender_match,score:shipped_language",
+          "resolved_profile:shipped score=13"
+        ]
+      }
+    },
+    {
+      "message_id": "19d4457d25903483",
+      "received_at": "2026-03-31T07:41:37-07:00",
+      "subject": "Your Daily Digest for Tue, 3/31 is ready to view",
+      "sender": "USPS Informed Delivery <USPSInformeddelivery@email.informeddelivery.usps.com>",
+      "sender_domain": "email.informeddelivery.usps.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "partial",
+        "scrubbed_text_preview": "COMING TO YOU SOON Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound package(s) arriving soon. Tuesday 31 March 2026 1 Mailpiece(s) 0 Package(s) Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound",
+        "leading_lines": [
+          "COMING TO YOU SOON Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound package(s) arriving soon. Tuesday 31 March 2026 1 Mailpiece(s) 0 Package(s) Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=6 (seed=6, merged=6)",
+          "status_anchor",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_critical_order_anchor"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d43f4205b86980",
+      "received_at": "2026-03-31T05:52:45-07:00",
+      "subject": "AB FUNDS Important Information",
+      "sender": "FIDELITY INVESTMENTS <id@proxyvote.com>",
+      "sender_domain": "proxyvote.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "You are receiving this notification to educate you on important information related to one or more of your holdings. Details in this material may include investment strategy, performance tracking and",
+        "leading_lines": [
+          "You are receiving this notification to educate you on important information related to one or more of your holdings. Details in this material may include investment strategy, performance tracking and"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d3f209dfcb9223",
+      "received_at": "2026-03-30T07:23:14-07:00",
+      "subject": "Your Daily Digest for Mon, 3/30 is ready to view",
+      "sender": "USPS Informed Delivery <USPSInformeddelivery@email.informeddelivery.usps.com>",
+      "sender_domain": "email.informeddelivery.usps.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "partial",
+        "scrubbed_text_preview": "COMING TO YOU SOON Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound package(s) arriving soon. Monday 30 March 2026 1 Mailpiece(s) 0 Package(s) Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound",
+        "leading_lines": [
+          "COMING TO YOU SOON Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound package(s) arriving soon. Monday 30 March 2026 1 Mailpiece(s) 0 Package(s) Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=6 (seed=6, merged=6)",
+          "status_anchor",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_critical_order_anchor"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d2fb089a78c0d4",
+      "received_at": "2026-03-27T07:26:29-07:00",
+      "subject": "Your Daily Digest for Fri, 3/27 is ready to view",
+      "sender": "USPS Informed Delivery <USPSInformeddelivery@email.informeddelivery.usps.com>",
+      "sender_domain": "email.informeddelivery.usps.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "partial",
+        "scrubbed_text_preview": "COMING TO YOU SOON Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound package(s) arriving soon. Friday 27 March 2026 1 Mailpiece(s) 0 Package(s) Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound",
+        "leading_lines": [
+          "COMING TO YOU SOON Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound package(s) arriving soon. Friday 27 March 2026 1 Mailpiece(s) 0 Package(s) Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=6 (seed=6, merged=6)",
+          "status_anchor",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_critical_order_anchor"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d2a887cdb6a49b",
+      "received_at": "2026-03-26T07:24:40-07:00",
+      "subject": "Your Daily Digest for Thu, 3/26 is ready to view",
+      "sender": "USPS Informed Delivery <USPSInformeddelivery@email.informeddelivery.usps.com>",
+      "sender_domain": "email.informeddelivery.usps.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "partial",
+        "scrubbed_text_preview": "COMING TO YOU SOON Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound package(s) arriving soon. Thursday 26 March 2026 1 Mailpiece(s) 0 Package(s) Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound",
+        "leading_lines": [
+          "COMING TO YOU SOON Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound package(s) arriving soon. Thursday 26 March 2026 1 Mailpiece(s) 0 Package(s) Hi, Slobodan! You have 1 mailpiece(s) and 0 inbound"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=6 (seed=6, merged=6)",
+          "status_anchor",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_critical_order_anchor"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d256567cd1434a",
+      "received_at": "2026-03-25T07:28:14-07:00",
+      "subject": "Your Daily Digest for Wed, 3/25 is ready to view",
+      "sender": "USPS Informed Delivery <USPSInformeddelivery@email.informeddelivery.usps.com>",
+      "sender_domain": "email.informeddelivery.usps.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "partial",
+        "scrubbed_text_preview": "COMING TO YOU SOON Hi, Slobodan! You have 2 mailpiece(s) and 0 inbound package(s) arriving soon. Wednesday 25 March 2026 2 Mailpiece(s) 0 Package(s) Hi, Slobodan! You have 2 mailpiece(s) and 0 inbound",
+        "leading_lines": [
+          "COMING TO YOU SOON Hi, Slobodan! You have 2 mailpiece(s) and 0 inbound package(s) arriving soon. Wednesday 25 March 2026 2 Mailpiece(s) 0 Package(s) Hi, Slobodan! You have 2 mailpiece(s) and 0 inbound"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=6 (seed=6, merged=6)",
+          "status_anchor",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_critical_order_anchor"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d203ac51c85a6c",
+      "received_at": "2026-03-24T07:23:31-07:00",
+      "subject": "Your Daily Digest for Tue, 3/24 is ready to view",
+      "sender": "USPS Informed Delivery <USPSInformeddelivery@email.informeddelivery.usps.com>",
+      "sender_domain": "email.informeddelivery.usps.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "partial",
+        "scrubbed_text_preview": "COMING TO YOU SOON Hi, Slobodan! You have 2 mailpiece(s) and 1 inbound package(s) arriving soon. Tuesday 24 March 2026 2 Mailpiece(s) 1 Package(s) Hi, Slobodan! You have 2 mailpiece(s) and 1 inbound",
+        "leading_lines": [
+          "COMING TO YOU SOON Hi, Slobodan! You have 2 mailpiece(s) and 1 inbound package(s) arriving soon. Tuesday 24 March 2026 2 Mailpiece(s) 1 Package(s) Hi, Slobodan! You have 2 mailpiece(s) and 1 inbound"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=6 (seed=6, merged=6)",
+          "status_anchor",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_critical_order_anchor"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d1cd0e5a46d86d",
+      "received_at": "2026-03-23T15:29:05-07:00",
+      "subject": "Dropoff confirmed for Amazon Essentials Men's...",
+      "sender": "\"return@amazon.com\" <return@amazon.com>",
+      "sender_domain": "amazon.com",
+      "local_label_confidence": 0.6,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "failed",
+        "scrubbed_text_preview": "Amazon Amazon Hello Slobodan, Your return was dropped off. Your return is in-transit. Refund will be issued by Mar 24. Most refunds are issued shortly after drop off, with funds typically available in",
+        "leading_lines": [
+          "Amazon Amazon Hello Slobodan, Your return was dropped off. Your return is in-transit. Refund will be issued by Mar 24. Most refunds are issued shortly after drop off, with funds typically available in"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=0 (seed=0, merged=0)",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:status=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_order_identifier_and_status"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d1bad218d36fc7",
+      "received_at": "2026-03-23T10:10:23-07:00",
+      "subject": "Advance refund issued for Wrangler Authentics Men's....",
+      "sender": "\"return@amazon.com\" <return@amazon.com>",
+      "sender_domain": "amazon.com",
+      "local_label_confidence": 0.925,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "partial",
+        "scrubbed_text_preview": "Amazon Amazon Hello Slobodan, You ordered the item below, but the package is being returned to us by the carrier. We&#39;ve issued your refund. You can find the list of possible reasons why the package",
+        "leading_lines": [
+          "Amazon Amazon Hello Slobodan, You ordered the item below, but the package is being returned to us by the carrier. We&#39;ve issued your refund. You can find the list of possible reasons why the package"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=13 (seed=13, merged=13)",
+          "status_anchor",
+          "item_anchor",
+          "completeness:status_plus_item_or_total",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d1b10f3a0dd722",
+      "received_at": "2026-03-23T07:19:48-07:00",
+      "subject": "Your Daily Digest for Mon, 3/23 is ready to view",
+      "sender": "USPS Informed Delivery <USPSInformeddelivery@email.informeddelivery.usps.com>",
+      "sender_domain": "email.informeddelivery.usps.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "partial",
+        "scrubbed_text_preview": "COMING TO YOU SOON Hi, Slobodan! You have 0 mailpiece(s) and 1 inbound package(s) arriving soon. Monday 23 March 2026 0 Mailpiece(s) 1 Package(s) Hi, Slobodan! You have 0 mailpiece(s) and 1 inbound",
+        "leading_lines": [
+          "COMING TO YOU SOON Hi, Slobodan! You have 0 mailpiece(s) and 1 inbound package(s) arriving soon. Monday 23 March 2026 0 Mailpiece(s) 1 Package(s) Hi, Slobodan! You have 0 mailpiece(s) and 1 inbound"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=6 (seed=6, merged=6)",
+          "status_anchor",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_critical_order_anchor"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    },
+    {
+      "message_id": "19d15eb522d5e352",
+      "received_at": "2026-03-22T07:20:36-07:00",
+      "subject": "Your Daily Digest for Sun, 3/22 is ready to view",
+      "sender": "USPS Informed Delivery <USPSInformeddelivery@email.informeddelivery.usps.com>",
+      "sender_domain": "email.informeddelivery.usps.com",
+      "local_label_confidence": 0.99,
+      "phase1": {
+        "validation_status": "success",
+        "handoff_ready": true,
+        "selected_body_type": "text",
+        "body_selection_reason": "selected text because quality=usable_text",
+        "validation_diagnostics": []
+      },
+      "phase2": {
+        "scrub_status": "partial",
+        "transactional_quality": "partial",
+        "scrubbed_text_preview": "COMING TO YOU SOON Hi, Slobodan! You have 0 mailpiece(s) and 1 inbound package(s) arriving soon. Sunday 22 March 2026 0 Mailpiece(s) 1 Package(s) Hi, Slobodan! You have 0 mailpiece(s) and 1 inbound",
+        "leading_lines": [
+          "COMING TO YOU SOON Hi, Slobodan! You have 0 mailpiece(s) and 1 inbound package(s) arriving soon. Sunday 22 March 2026 0 Mailpiece(s) 1 Package(s) Hi, Slobodan! You have 0 mailpiece(s) and 1 inbound"
+        ],
+        "extracted_link_count": 0,
+        "scrub_diagnostics": [
+          "selected primary transactional block 0 score=6 (seed=6, merged=6)",
+          "status_anchor",
+          "merged block 0:seed",
+          "transactional_completeness:order_identifier=missing",
+          "transactional_completeness:item_line=missing",
+          "transactional_completeness:quantity=missing",
+          "transactional_completeness:total=missing",
+          "transactional_downgrade:missing_critical_order_anchor"
+        ]
+      },
+      "phase3": {
+        "profile_id": null,
+        "profile_confidence": 0.0,
+        "profile_confidence_level": "low",
+        "profile_status": "failed",
+        "top_candidates": [],
+        "profile_diagnostics": [
+          "candidate_generation:no_candidates",
+          "candidate_scoring:no_candidates",
+          "profile_resolution:no_ranked_candidates"
+        ]
+      }
+    }
+  ]
+}

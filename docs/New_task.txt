@@ -47,7 +47,6 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[TODO] Task 320: Sample 20-30 SHIPMENT emails from the Gmail DB and derive taxonomy inputs from scrubbed content
 [TODO] Task 321: Add sampled-family analysis artifacts and notes for FINANCIAL, INVOICE, SECURITY, and SHIPMENT
 [TODO] Task 322: Evaluate whether one generic family template-creation prompt can cover multi-family AI template generation
 [TODO] Task 323: Define a generic family template-creation prompt contract if the shared prompt is viable

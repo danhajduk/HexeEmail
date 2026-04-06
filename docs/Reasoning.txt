@@ -241,3 +241,9 @@ Chosen fix: Reuse the same mailbox-sampling script so SECURITY sample artifacts 
 What changed: Generated `runtime/flow_families/security/analysis/security_mailbox_sample.json`, generated `runtime/flow_families/security/analysis/security_mailbox_sample.md`, removed Task 319 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
 Verification: `PYTHONPATH=src ./.venv/bin/python scripts/sample_flow_family_mailbox.py security --limit 30` passed.
 ###########
+Task #320
+Step objective: Sample 20-30 SHIPMENT emails from the Gmail DB and derive taxonomy inputs from scrubbed content.
+Chosen fix: Reuse the mailbox-sampling script one more time for the SHIPMENT label so all four new-family sample artifacts share the same runtime execution path, aggregate format, and output location.
+What changed: Generated `runtime/flow_families/shipment/analysis/shipment_mailbox_sample.json`, generated `runtime/flow_families/shipment/analysis/shipment_mailbox_sample.md`, removed Task 320 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: `PYTHONPATH=src ./.venv/bin/python scripts/sample_flow_family_mailbox.py shipment --limit 30` passed.
+###########
