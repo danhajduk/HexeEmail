@@ -48,3 +48,285 @@ Standards reference:
 Do not edit above this line:
 #######################################################################
 
+[WIP] Task 259: Implement Phase 7 downstream action gate
+
+- Add a dedicated action gate that blocks or allows downstream behavior based on the Phase 6 decision
+- File: src/email_node/pipeline/order_action_gate.py
+
+Purpose:
+- Prevent weak or probationary extraction results from triggering downstream effects
+- Make action eligibility deterministic and transparent
+
+Inputs:
+- decision output from Phase 6
+- extraction result
+- profile_id
+- extracted_fields
+- confidence
+- extraction_source
+
+Required behavior:
+- If decision == accept:
+  - allow downstream actions
+- If decision == probation:
+  - block downstream actions
+- If decision == reject:
+  - block downstream actions
+
+Rules:
+- Only active-template trusted accept results may unlock downstream actions
+- Probation-template results never unlock downstream actions
+- Reject results never unlock downstream actions
+- Gate must return a structured action authorization result:
+  - actions_allowed
+  - blocked_reason
+  - decision
+  - extraction_source
+
+Acceptance:
+- Downstream action eligibility is fully determined by the action gate
+- Probation and reject results are always blocked
+- Accept results are eligible only when policy allows
+
+[TODO] Task 260: Create Phase 7 action router for ORDER outputs
+
+- Add an action router that maps trusted ORDER profiles to downstream action intents
+- File: src/email_node/pipeline/order_action_router.py
+
+Purpose:
+- Convert accepted ORDER results into explicit action intents
+- Keep action selection separate from execution
+
+Inputs:
+- decision output
+- profile_id
+- extracted_fields
+- diagnostics
+
+Required output:
+- action intents array
+
+Initial supported action intents:
+- store_order_record
+- update_order_record
+- attach_tracking_reference
+- user_notification
+- queue_tracking_monitor
+- mark_for_manual_review
+
+Required behavior:
+- Do not execute actions directly in this task
+- Only build action intents
+- Return empty action list when actions are blocked by Phase 6
+
+Initial routing examples:
+- reservation_confirmation:
+  - store_order_record
+- amazon_order_confirmation:
+  - store_order_record
+  - user_notification
+- shipping/tracking profile with tracking number:
+  - update_order_record
+  - attach_tracking_reference
+  - queue_tracking_monitor
+  - user_notification
+
+Rules:
+- user_notification is allowed only for accepted results
+- attach_tracking_reference requires tracking_number or order linkage data
+- queue_tracking_monitor requires carrier/tracking or equivalent monitoring signal
+- mark_for_manual_review may be added for accepted results with important inconsistencies
+
+Acceptance:
+- Router returns deterministic action intents from accepted ORDER results
+- No actions are returned for blocked results
+- Action selection is profile-aware and field-aware
+
+[TODO] Task 261: Implement Phase 7 order record writer
+
+- Add service that writes accepted ORDER outputs into the node-local order record store
+- File: src/email_node/orders/order_record_service.py
+
+Purpose:
+- Create or update a canonical local order/reservation record from trusted ORDER outputs
+
+Inputs:
+- accepted structured ORDER result
+- message metadata
+- action intents
+
+Required record fields:
+- order_record_id
+- profile_id
+- order_number
+- status
+- seller
+- carrier
+- item titles/items
+- total
+- currency
+- delivery_date
+- delivery_window
+- tracking_number
+- source_message_id
+- source_account_id
+- extraction_source
+- confidence
+- created_at
+- updated_at
+
+Required behavior:
+- Create new record when no matching order exists
+- Update existing record when order_number or other stable matching identity already exists
+- Support reservation-style orders even when they are not physical shipments
+- Preserve source linkage back to the email message
+
+Rules:
+- Only accept results may write trusted order records
+- Probation results must not overwrite trusted records
+- Matching/merge logic must be deterministic and documented
+
+Acceptance:
+- Trusted ORDER outputs create/update local order records correctly
+- Existing records are updated safely
+- Probation results do not corrupt trusted order records
+
+[TODO] Task 262: Implement Phase 7 user notification action handler
+
+- Add action execution path for user_notification intents
+- File: src/email_node/actions/user_notification_handler.py
+
+Purpose:
+- Turn accepted ORDER action intents into a user-facing notification request
+
+Inputs:
+- accepted ORDER result
+- action intent
+- message metadata
+- profile_id
+- extracted_fields
+
+Required behavior:
+- Build a normalized user notification payload with:
+  - title
+  - message
+  - severity
+  - dedupe key
+  - source metadata
+- Notification text must be concise and user-facing
+- Reservation/order confirmations should produce a useful confirmation message
+- Shipping/tracking updates should produce a useful status message
+
+Examples:
+- reservation_confirmation:
+  - title: "Reservation confirmed"
+  - message: "Your Recreation.gov order 0892885499 is confirmed."
+- shipping update:
+  - title: "Order update"
+  - message: "Your package is out for delivery."
+
+Rules:
+- Use the term user notification in code/comments/docs for this action path
+- Do not trigger user notification for probation or reject results
+- Avoid duplicate user notification requests for the same message/action when dedupe data exists
+
+Acceptance:
+- Accepted ORDER results can produce normalized user notification requests
+- Probation and reject results never trigger user notifications
+- Notification content is derived from trusted extracted fields
+
+[TODO] Task 263: Implement Phase 7 tracking monitor queue action handler
+
+- Add action execution path for queue_tracking_monitor intents
+- File: src/email_node/actions/tracking_monitor_handler.py
+
+Purpose:
+- Queue trusted shipment/order tracking data for later monitoring workflows
+
+Inputs:
+- accepted ORDER result
+- action intent
+- extracted_fields
+
+Required behavior:
+- Build a normalized tracking-monitor request with:
+  - order_number
+  - tracking_number
+  - carrier
+  - seller
+  - current_status
+  - source_message_id
+- Only queue when enough tracking identity exists
+- Reservation-style non-shipment orders should not enter tracking monitoring unless tracking data is actually present
+
+Rules:
+- Require at least one of:
+  - tracking_number
+  - carrier + stable order linkage suitable for later tracking resolution
+- Do not queue from probation or reject results
+- Do not create duplicate monitor requests for the same tracking identity without a good reason
+
+Acceptance:
+- Shipping-capable accepted results can queue monitoring requests
+- Non-shippable orders do not incorrectly enter tracking monitoring
+- Probation/reject results are blocked
+
+[TODO] Task 264: Integrate Phase 7 persistence and action handling into the ORDER pipeline
+
+- Wire the new Phase 7 modules into the ORDER flow after Phase 6 decision integration
+- File: src/email_node/pipeline/order_flow.py
+
+Flow:
+- run Phase 6 decision engine
+- run Phase 7 persistence gate
+- run Phase 7 action gate
+- build action intents
+- execute allowed action handlers
+- attach Phase 7 results to final flow report
+
+Required behavior:
+- Final report must include:
+  - persisted_result: true/false
+  - persistence_reason
+  - actions_allowed: true/false
+  - action_intents
+  - action_results
+- Preserve existing diagnostics
+- Keep Phase 7 failures isolated so they do not silently corrupt extraction output
+
+Rules:
+- Persistence and action execution must be clearly separated
+- A Phase 7 failure must not silently convert an accept result into success if persistence/actions actually failed
+- Phase 7 must be visible in the ad hoc/order flow report output
+
+Acceptance:
+- ORDER pipeline executes full Phase 7 path after decision
+- Final report includes Phase 7 outcomes
+- Accept/probation/reject behave consistently through output/actions
+
+[TODO] Task 265: Add tests for Phase 7 persistence, action gating, and user notification flow
+
+- Add end-to-end and unit coverage for Phase 7 behavior
+- File: tests/test_order_phase7.py
+
+Required test cases:
+- accept result persists structured output
+- probation result persists only partial/untrusted output when policy allows
+- reject result does not persist trusted output
+- accept result allows downstream actions
+- probation result blocks downstream actions
+- reject result blocks downstream actions
+- accepted reservation_confirmation produces:
+  - store_order_record
+  - optional user_notification according to router policy
+- accepted shipping result with tracking data produces:
+  - update_order_record
+  - attach_tracking_reference
+  - queue_tracking_monitor
+  - user_notification
+- duplicate user notification requests are deduplicated when applicable
+
+Acceptance:
+- Tests cover core Phase 7 policy behavior
+- Accept/probation/reject handling is verified
+- User notification action path is tested without relying on weak extraction results

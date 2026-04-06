@@ -112,6 +112,17 @@ Status: `[DONE]`
 12. Normalize extracted values.
 13. Compute confidence score.
 
+---
+
+### Phase 7 — Structured Result Persistence
+
+Status: `[DONE]`
+
+14. Persist structured ORDER output only when allowed by Phase 6.
+15. Accepted results are written as trusted output.
+16. Probation results may be written as partial output.
+17. Reject results do not persist trusted structured output.
+
 #### Unknown Profile
 
 Status: `[PARTIAL]`
