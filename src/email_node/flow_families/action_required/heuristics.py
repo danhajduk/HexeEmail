@@ -7,7 +7,7 @@ from email_node.shared_pipeline_core.family_yaml import (
 
 
 def _heuristic_pack():
-    definition = load_flow_family_yaml_definition("action_needed")
+    definition = load_flow_family_yaml_definition("action_required")
     return build_scrub_heuristic_pack_from_yaml(definition)
 
 

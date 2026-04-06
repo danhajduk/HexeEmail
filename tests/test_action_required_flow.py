@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import asyncio
 
-from email_node.pipeline import ActionNeededFlowPipeline
+from email_node.pipeline import ActionRequiredFlowPipeline
 from providers.gmail.models import GmailPhase1NormalizedEmail
 
 
-def build_action_needed_phase1_payload() -> GmailPhase1NormalizedEmail:
+def build_action_required_phase1_payload() -> GmailPhase1NormalizedEmail:
     return GmailPhase1NormalizedEmail(
         message_id="action-msg-1",
         thread_id="action-thread-1",
@@ -34,14 +34,14 @@ def build_action_needed_phase1_payload() -> GmailPhase1NormalizedEmail:
     )
 
 
-def test_action_needed_flow_skeleton_runs_through_shared_core(tmp_path):
+def test_action_required_flow_skeleton_runs_through_shared_core(tmp_path):
     result = asyncio.run(
-        ActionNeededFlowPipeline(runtime_dir=tmp_path / "runtime").process_normalized_email(
-            build_action_needed_phase1_payload()
+        ActionRequiredFlowPipeline(runtime_dir=tmp_path / "runtime").process_normalized_email(
+            build_action_required_phase1_payload()
         )
     )
 
-    assert result["flow_family"] == "action_needed"
+    assert result["flow_family"] == "action_required"
     assert result["phase2"].scrub_status in {"success", "partial", "failed"}
     assert result["phase3"].profile_status in {"success", "partial", "failed"}
     assert result["phase4"].extraction_status in {"unresolved", "failed"}

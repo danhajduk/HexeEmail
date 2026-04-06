@@ -138,20 +138,20 @@ def test_get_flow_family_config_prefers_yaml_when_present(tmp_path):
 
 
 def test_shared_pack_loader_falls_back_to_python_module_reference():
-    profile_pack = load_profile_definition_pack("email_node.flow_families.action_needed.profiles")
+    profile_pack = load_profile_definition_pack("email_node.flow_families.action_required.profiles")
 
-    assert profile_pack.flow_family == "action_needed"
+    assert profile_pack.flow_family == "action_required"
     assert "generic_action_required" in profile_pack.taxonomy
 
 
 def test_repo_yaml_definitions_load_for_both_families():
     order_definition = load_flow_family_yaml_definition("order")
-    action_needed_definition = load_flow_family_yaml_definition("action_needed")
+    action_required_definition = load_flow_family_yaml_definition("action_required")
 
     assert order_definition.flow_family == "order"
-    assert action_needed_definition.flow_family == "action_needed"
+    assert action_required_definition.flow_family == "action_required"
     assert order_definition.profiles.rules_override_path == "order_profile_rules.json"
-    assert action_needed_definition.runtime_paths.template_dir == "flow_families/action_needed/templates"
+    assert action_required_definition.runtime_paths.template_dir == "flow_families/action_required/templates"
 
 
 def test_flow_family_yaml_definition_rejects_unknown_keys():

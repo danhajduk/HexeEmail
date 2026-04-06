@@ -8,7 +8,7 @@ from email_node.shared_pipeline_core.validation import SharedValidationPolicy
 
 
 def build_validation_policy() -> SharedValidationPolicy:
-    definition = load_flow_family_yaml_definition("action_needed")
+    definition = load_flow_family_yaml_definition("action_required")
     return build_validation_policy_from_yaml(definition)
 
 

@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Literal
 
 
-FlowFamily = Literal["order", "action_needed"]
+FlowFamily = Literal["order", "action_required"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,19 +26,20 @@ class FlowFamilyConfig:
     reports_dir: Path | None = None
 
 
-def get_flow_family_config(flow_family: FlowFamily, *, runtime_dir: Path | None = None) -> FlowFamilyConfig:
+def get_flow_family_config(flow_family: FlowFamily | str, *, runtime_dir: Path | None = None) -> FlowFamilyConfig:
     from email_node.shared_pipeline_core.family_yaml import (
         build_flow_family_config_from_yaml,
         load_flow_family_yaml_definition,
         resolve_family_yaml_path,
     )
 
+    canonical_flow_family = _canonicalize_flow_family(flow_family)
     base_runtime_dir = Path(runtime_dir) if runtime_dir is not None else Path("runtime")
-    yaml_path = resolve_family_yaml_path(flow_family, runtime_dir=runtime_dir)
+    yaml_path = resolve_family_yaml_path(canonical_flow_family, runtime_dir=runtime_dir)
     if yaml_path.exists():
-        definition = load_flow_family_yaml_definition(flow_family, runtime_dir=runtime_dir)
+        definition = load_flow_family_yaml_definition(canonical_flow_family, runtime_dir=runtime_dir)
         return build_flow_family_config_from_yaml(definition, runtime_dir=runtime_dir)
-    if flow_family == "order":
+    if canonical_flow_family == "order":
         return FlowFamilyConfig(
             flow_family="order",
             scrub_heuristic_pack="email_node.flow_families.order.heuristics",
@@ -55,21 +56,29 @@ def get_flow_family_config(flow_family: FlowFamily, *, runtime_dir: Path | None 
             output_dir=base_runtime_dir / "order_outputs",
             reports_dir=base_runtime_dir / "order_flow_logs" / "ad_hoc_reports",
         )
-    if flow_family == "action_needed":
+    if canonical_flow_family == "action_required":
         return FlowFamilyConfig(
-            flow_family="action_needed",
-            scrub_heuristic_pack="email_node.flow_families.action_needed.heuristics",
-            profile_detector_pack="email_node.flow_families.action_needed.profiles",
-            template_dir=base_runtime_dir / "action_needed_templates",
-            probation_template_dir=base_runtime_dir / "flow_families" / "action_needed" / "probation_templates",
-            probation_state_dir=base_runtime_dir / "flow_families" / "action_needed" / "probation_state",
-            probation_evaluations_dir=base_runtime_dir / "flow_families" / "action_needed" / "probation_evaluations",
-            probation_shadow_dir=base_runtime_dir / "flow_families" / "action_needed" / "probation_shadow",
-            validation_policy="email_node.flow_families.action_needed.validation",
-            decision_policy="email_node.flow_families.action_needed.decision",
-            action_router_policy="email_node.flow_families.action_needed.action_routing",
-            output_schema_family="action_needed",
-            output_dir=base_runtime_dir / "action_needed_outputs",
-            reports_dir=base_runtime_dir / "flow_families" / "action_needed" / "reports",
+            flow_family="action_required",
+            scrub_heuristic_pack="email_node.flow_families.action_required.heuristics",
+            profile_detector_pack="email_node.flow_families.action_required.profiles",
+            template_dir=base_runtime_dir / "flow_families" / "action_required" / "templates",
+            probation_template_dir=base_runtime_dir / "flow_families" / "action_required" / "probation" / "templates",
+            probation_state_dir=base_runtime_dir / "flow_families" / "action_required" / "probation" / "state",
+            probation_evaluations_dir=base_runtime_dir / "flow_families" / "action_required" / "probation" / "evaluations",
+            probation_shadow_dir=base_runtime_dir / "flow_families" / "action_required" / "probation" / "shadow",
+            validation_policy="email_node.flow_families.action_required.validation",
+            decision_policy="email_node.flow_families.action_required.decision",
+            action_router_policy="email_node.flow_families.action_required.action_routing",
+            output_schema_family="action_required",
+            output_dir=base_runtime_dir / "flow_families" / "action_required" / "outputs",
+            reports_dir=base_runtime_dir / "flow_families" / "action_required" / "reports",
         )
+    raise ValueError(f"Unsupported flow family: {flow_family}")
+
+
+def _canonicalize_flow_family(flow_family: FlowFamily | str) -> FlowFamily:
+    if flow_family == "action_needed":
+        return "action_required"
+    if flow_family in {"order", "action_required"}:
+        return flow_family
     raise ValueError(f"Unsupported flow family: {flow_family}")

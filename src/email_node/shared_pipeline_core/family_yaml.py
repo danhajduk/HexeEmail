@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 import yaml
 
 
-FlowFamilyYamlName = Literal["order", "action_needed"]
+FlowFamilyYamlName = Literal["order", "action_required"]
 
 
 class FamilyRuntimePathsConfig(BaseModel):
@@ -149,34 +149,38 @@ def parse_yaml_family_reference(reference: str) -> FlowFamilyYamlName:
     if not is_yaml_family_reference(reference):
         raise ValueError(f"Not a YAML family reference: {reference}")
     family_name = reference.removeprefix("yaml://").strip()
-    if family_name not in {"order", "action_needed"}:
+    if family_name == "action_needed":
+        return "action_required"
+    if family_name not in {"order", "action_required"}:
         raise ValueError(f"Unsupported YAML family reference: {reference}")
     return family_name  # type: ignore[return-value]
 
 
-def resolve_family_yaml_path(flow_family: FlowFamilyYamlName, *, runtime_dir: Path | None = None) -> Path:
+def resolve_family_yaml_path(flow_family: FlowFamilyYamlName | str, *, runtime_dir: Path | None = None) -> Path:
+    canonical_flow_family = _canonicalize_yaml_flow_family(flow_family)
     requested_runtime_dir = Path(runtime_dir) if runtime_dir is not None else None
     candidates: list[Path] = []
     if requested_runtime_dir is not None:
-        candidates.append(requested_runtime_dir / "flow_families" / flow_family / "family.yaml")
+        candidates.append(requested_runtime_dir / "flow_families" / canonical_flow_family / "family.yaml")
     repo_runtime = _repo_root() / "runtime"
-    candidates.append(repo_runtime / "flow_families" / flow_family / "family.yaml")
+    candidates.append(repo_runtime / "flow_families" / canonical_flow_family / "family.yaml")
     for path in candidates:
         if path.exists():
             return path
     return candidates[0]
 
 
-def load_flow_family_yaml_definition(flow_family: FlowFamilyYamlName, *, runtime_dir: Path | None = None) -> FlowFamilyYamlDefinition:
-    path = resolve_family_yaml_path(flow_family, runtime_dir=runtime_dir)
+def load_flow_family_yaml_definition(flow_family: FlowFamilyYamlName | str, *, runtime_dir: Path | None = None) -> FlowFamilyYamlDefinition:
+    canonical_flow_family = _canonicalize_yaml_flow_family(flow_family)
+    path = resolve_family_yaml_path(canonical_flow_family, runtime_dir=runtime_dir)
     if not path.exists():
-        raise FileNotFoundError(f"Flow-family YAML was not found for {flow_family}: {path}")
+        raise FileNotFoundError(f"Flow-family YAML was not found for {canonical_flow_family}: {path}")
     payload = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise ValueError(f"Flow-family YAML must be a mapping: {path}")
     definition = FlowFamilyYamlDefinition.model_validate(payload)
-    if definition.flow_family != flow_family:
-        raise ValueError(f"Flow-family YAML mismatch: expected {flow_family}, found {definition.flow_family}")
+    if definition.flow_family != canonical_flow_family:
+        raise ValueError(f"Flow-family YAML mismatch: expected {canonical_flow_family}, found {definition.flow_family}")
     return definition
 
 
@@ -265,6 +269,14 @@ def _resolve_relative_runtime_path(raw_value: str, *, runtime_dir: Path | None =
     base_runtime_dir = Path(runtime_dir) if runtime_dir is not None else Path("runtime")
     relative = Path(raw_value)
     return relative if relative.is_absolute() else base_runtime_dir / relative
+
+
+def _canonicalize_yaml_flow_family(flow_family: FlowFamilyYamlName | str) -> FlowFamilyYamlName:
+    if flow_family == "action_needed":
+        return "action_required"
+    if flow_family in {"order", "action_required"}:
+        return flow_family  # type: ignore[return-value]
+    raise ValueError(f"Unsupported flow family: {flow_family}")
 
 
 def build_flow_family_config_from_yaml(

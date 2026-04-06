@@ -253,7 +253,7 @@ def test_phase3_uses_runtime_rule_overrides(tmp_path: Path):
     assert result.profile_confidence_level == "low"
 
 
-def test_shared_profile_pack_loader_supports_order_and_action_needed(tmp_path: Path):
+def test_shared_profile_pack_loader_supports_order_and_action_required(tmp_path: Path):
     runtime_dir = tmp_path / "runtime"
     runtime_dir.mkdir(parents=True, exist_ok=True)
 
@@ -261,8 +261,8 @@ def test_shared_profile_pack_loader_supports_order_and_action_needed(tmp_path: P
         get_flow_family_config("order", runtime_dir=runtime_dir).profile_detector_pack,
         runtime_dir=runtime_dir,
     )
-    action_needed_pack = load_profile_definition_pack(
-        get_flow_family_config("action_needed", runtime_dir=runtime_dir).profile_detector_pack,
+    action_required_pack = load_profile_definition_pack(
+        get_flow_family_config("action_required", runtime_dir=runtime_dir).profile_detector_pack,
         runtime_dir=runtime_dir,
     )
 
@@ -270,6 +270,6 @@ def test_shared_profile_pack_loader_supports_order_and_action_needed(tmp_path: P
     assert "amazon_order_confirmation" in order_pack.taxonomy
     assert order_pack.runtime_rules_path == runtime_dir / "order_profile_rules.json"
 
-    assert action_needed_pack.flow_family == "action_needed"
-    assert "payment_due" in action_needed_pack.taxonomy
-    assert action_needed_pack.runtime_rules_path == runtime_dir / "flow_families" / "action_needed" / "profile_rules.json"
+    assert action_required_pack.flow_family == "action_required"
+    assert "payment_due" in action_required_pack.taxonomy
+    assert action_required_pack.runtime_rules_path == runtime_dir / "flow_families" / "action_required" / "profile_rules.json"

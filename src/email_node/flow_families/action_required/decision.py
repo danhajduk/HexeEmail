@@ -8,7 +8,7 @@ from email_node.shared_pipeline_core.family_yaml import (
 
 
 def build_decision_policy() -> SharedDecisionPolicy:
-    definition = load_flow_family_yaml_definition("action_needed")
+    definition = load_flow_family_yaml_definition("action_required")
     return build_decision_policy_from_yaml(definition)
 
 

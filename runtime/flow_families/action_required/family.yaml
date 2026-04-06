@@ -1,14 +1,14 @@
 schema_version: flow-family-config.v1
-flow_family: action_needed
-output_schema_family: action_needed
+flow_family: action_required
+output_schema_family: action_required
 runtime_paths:
-  template_dir: flow_families/action_needed/templates
-  probation_template_dir: flow_families/action_needed/probation/templates
-  probation_state_dir: flow_families/action_needed/probation/state
-  probation_evaluations_dir: flow_families/action_needed/probation/evaluations
-  probation_shadow_dir: flow_families/action_needed/probation/shadow
-  output_dir: flow_families/action_needed/outputs
-  reports_dir: flow_families/action_needed/reports
+  template_dir: flow_families/action_required/templates
+  probation_template_dir: flow_families/action_required/probation/templates
+  probation_state_dir: flow_families/action_required/probation/state
+  probation_evaluations_dir: flow_families/action_required/probation/evaluations
+  probation_shadow_dir: flow_families/action_required/probation/shadow
+  output_dir: flow_families/action_required/outputs
+  reports_dir: flow_families/action_required/reports
 heuristics:
   ignore_line_patterns:
     - ^\s*view (this )?(email|message) in your browser\s*$
@@ -48,36 +48,36 @@ heuristics:
     - shop now
     - new features
 profiles:
-  taxonomy_version: action-needed-phase3-taxonomy.v1
+  taxonomy_version: action-required-phase3-taxonomy.v1
   taxonomy:
     payment_due:
-      profile_family: action_needed
+      profile_family: action_required
       profile_subtype: payment_due
       vendor_identity:
     subscription_payment_failed:
-      profile_family: action_needed
+      profile_family: action_required
       profile_subtype: subscription_payment_failed
       vendor_identity:
     account_verification_required:
-      profile_family: action_needed
+      profile_family: action_required
       profile_subtype: account_verification_required
       vendor_identity:
     security_alert_action_required:
-      profile_family: action_needed
+      profile_family: action_required
       profile_subtype: security_alert_action_required
       vendor_identity:
     document_signature_required:
-      profile_family: action_needed
+      profile_family: action_required
       profile_subtype: document_signature_required
       vendor_identity:
     generic_action_required:
-      profile_family: action_needed
+      profile_family: action_required
       profile_subtype: generic_action_required
       vendor_identity:
   known_vendor_identities: {}
-  rules_override_path: flow_families/action_needed/profile_rules.json
+  rules_override_path: flow_families/action_required/profile_rules.json
   rules:
-    schema_version: action-needed-phase3-rules.v1
+    schema_version: action-required-phase3-rules.v1
     signals:
       payment_due_terms:
         - payment due

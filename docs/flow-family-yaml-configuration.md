@@ -3,7 +3,7 @@
 Flow-family declarative configuration now lives in validated YAML files under:
 
 - [runtime/flow_families/order/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/order/family.yaml)
-- [runtime/flow_families/action_needed/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/action_needed/family.yaml)
+- [runtime/flow_families/action_required/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/action_required/family.yaml)
 
 The shared schema for these files is:
 
@@ -60,11 +60,11 @@ Practical expectation:
 ## Migration Notes
 
 - `order` keeps its runtime Phase 3 override file at [runtime/order_profile_rules.json](/home/dan/Projects/HexeEmail/runtime/order_profile_rules.json) through `profiles.rules_override_path`
-- `action_needed` now uses the normalized family-scoped runtime layout:
-  - `runtime/flow_families/action_needed/templates`
-  - `runtime/flow_families/action_needed/probation/...`
-  - `runtime/flow_families/action_needed/outputs`
-  - `runtime/flow_families/action_needed/reports`
+- `action_required` now uses the normalized family-scoped runtime layout:
+  - `runtime/flow_families/action_required/templates`
+  - `runtime/flow_families/action_required/probation/...`
+  - `runtime/flow_families/action_required/outputs`
+  - `runtime/flow_families/action_required/reports`
 
 ## Rule Of Thumb
 

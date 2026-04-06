@@ -22,7 +22,7 @@ Current scope:
 Current flow families:
 
 - `order`
-- `action_needed`
+- `action_required`
 
 Shared family entry point:
 
@@ -45,7 +45,7 @@ Current family config responsibilities:
 Current declarative family config:
 
 - ORDER: [runtime/flow_families/order/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/order/family.yaml)
-- ACTION_NEEDED: [runtime/flow_families/action_needed/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/action_needed/family.yaml)
+- ACTION_REQUIRED: [runtime/flow_families/action_required/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/action_required/family.yaml)
 
 Schema:
 
@@ -58,11 +58,11 @@ Current family wrapper modules:
   - [src/email_node/flow_families/order/profiles.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/order/profiles.py)
   - [src/email_node/flow_families/order/validation.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/order/validation.py)
   - [src/email_node/flow_families/order/decision.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/order/decision.py)
-- ACTION_NEEDED:
-  - [src/email_node/flow_families/action_needed/heuristics.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_needed/heuristics.py)
-  - [src/email_node/flow_families/action_needed/profiles.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_needed/profiles.py)
-  - [src/email_node/flow_families/action_needed/validation.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_needed/validation.py)
-  - [src/email_node/flow_families/action_needed/decision.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_needed/decision.py)
+- ACTION_REQUIRED:
+  - [src/email_node/flow_families/action_required/heuristics.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_required/heuristics.py)
+  - [src/email_node/flow_families/action_required/profiles.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_required/profiles.py)
+  - [src/email_node/flow_families/action_required/validation.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_required/validation.py)
+  - [src/email_node/flow_families/action_required/decision.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_required/decision.py)
 
 Those modules are now thin YAML-backed adapters rather than the source of truth for declarative family data.
 
@@ -80,15 +80,15 @@ Current ORDER integration:
 - [src/email_node/pipeline/order_output_handler.py](/home/dan/Projects/HexeEmail/src/email_node/pipeline/order_output_handler.py) now thinly wraps the shared persistence gate in [src/email_node/shared_pipeline_core/persistence.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/persistence.py), while preserving the current ORDER output record shape and legacy `runtime/order_outputs` layout
 - [src/email_node/pipeline/order_action_gate.py](/home/dan/Projects/HexeEmail/src/email_node/pipeline/order_action_gate.py) now thinly wraps the shared action authorization logic in [src/email_node/shared_pipeline_core/actions.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/actions.py)
 - [src/email_node/pipeline/order_action_router.py](/home/dan/Projects/HexeEmail/src/email_node/pipeline/order_action_router.py) now thinly wraps the shared policy-driven action router in [src/email_node/shared_pipeline_core/actions.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/actions.py), and loads ORDER action intents from [src/email_node/flow_families/order/action_routing.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/order/action_routing.py)
-- ACTION_NEEDED now has its own placeholder action policy pack in [src/email_node/flow_families/action_needed/action_routing.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_needed/action_routing.py)
+- ACTION_REQUIRED now has its own placeholder action policy pack in [src/email_node/flow_families/action_required/action_routing.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_required/action_routing.py)
 - [scripts/run_order_flow_ad_hoc.py](/home/dan/Projects/HexeEmail/scripts/run_order_flow_ad_hoc.py) now builds JSON and Markdown reports through [src/email_node/shared_pipeline_core/reporting.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/reporting.py), which adds a shared report summary block and explicit `flow_family`
 - [src/email_node/pipeline/order_flow.py](/home/dan/Projects/HexeEmail/src/email_node/pipeline/order_flow.py) is now a thin ORDER runner that delegates the actual family wiring and probation behavior to [src/email_node/flow_families/order/runtime.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/order/runtime.py)
 
-Current ACTION_NEEDED integration:
+Current ACTION_REQUIRED integration:
 
-- [src/email_node/pipeline/action_needed_flow.py](/home/dan/Projects/HexeEmail/src/email_node/pipeline/action_needed_flow.py) now provides an initial thin shared-core runner for the `action_needed` family
-- [src/email_node/flow_families/action_needed/runtime.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_needed/runtime.py) wires the shared scrub, profile-detection, template, decision, persistence, and action-gating layers together with placeholder downstream action handlers
-- the ACTION_NEEDED skeleton currently proves the shared-core integration path and placeholder family policy loading, but it does not yet have tuned scrub completeness or active template coverage
+- [src/email_node/pipeline/action_required_flow.py](/home/dan/Projects/HexeEmail/src/email_node/pipeline/action_required_flow.py) now provides an initial thin shared-core runner for the `action_required` family
+- [src/email_node/flow_families/action_required/runtime.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_required/runtime.py) wires the shared scrub, profile-detection, template, decision, persistence, and action-gating layers together with placeholder downstream action handlers
+- the ACTION_REQUIRED skeleton currently proves the shared-core integration path and placeholder family policy loading, but it does not yet have tuned scrub completeness or active template coverage
 - [src/email_node/patterns/probation_evaluator.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation_evaluator.py), [src/email_node/patterns/probation_metrics.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation_metrics.py), [src/email_node/patterns/probation_policy.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation_policy.py), and [src/email_node/patterns/probation_promotion.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation_promotion.py) now thinly wrap the shared probation subsystem in [src/email_node/shared_pipeline_core/probation.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/probation.py)
 - ORDER still owns its current route-selection policy and downstream action handlers
 
@@ -100,5 +100,5 @@ Why this exists:
 
 Not migrated yet:
 
-- active template coverage for ACTION_NEEDED
+- active template coverage for ACTION_REQUIRED
 - non-ORDER probation generation behavior

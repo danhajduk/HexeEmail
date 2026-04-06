@@ -10,7 +10,7 @@ from email_node.shared_pipeline_core.profile_packs import SharedProfileDefinitio
 
 
 def build_profile_definition_pack(*, runtime_dir: Path | None = None) -> SharedProfileDefinitionPack:
-    definition = load_flow_family_yaml_definition("action_needed", runtime_dir=runtime_dir)
+    definition = load_flow_family_yaml_definition("action_required", runtime_dir=runtime_dir)
     return build_profile_definition_pack_from_yaml(definition, runtime_dir=runtime_dir)
 
 

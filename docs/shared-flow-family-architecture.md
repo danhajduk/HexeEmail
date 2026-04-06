@@ -41,7 +41,7 @@ It currently owns:
 Flow-family modules live under:
 
 - [src/email_node/flow_families/order](/home/dan/Projects/HexeEmail/src/email_node/flow_families/order)
-- [src/email_node/flow_families/action_needed](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_needed)
+- [src/email_node/flow_families/action_required](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_required)
 
 Each family is responsible for:
 
@@ -59,7 +59,7 @@ Shared family identity is declared through:
 Current runtime-owned family config layout:
 
 - [runtime/flow_families/order/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/order/family.yaml)
-- [runtime/flow_families/action_needed/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/action_needed/family.yaml)
+- [runtime/flow_families/action_required/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/action_required/family.yaml)
 - ORDER Phase 3 override compatibility file:
   - [runtime/order_profile_rules.json](/home/dan/Projects/HexeEmail/runtime/order_profile_rules.json)
 
@@ -71,12 +71,12 @@ Current code-owned family config layout:
   - [src/email_node/flow_families/order/validation.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/order/validation.py)
   - [src/email_node/flow_families/order/decision.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/order/decision.py)
   - [src/email_node/flow_families/order/action_routing.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/order/action_routing.py)
-- thin ACTION_NEEDED wrappers:
-  - [src/email_node/flow_families/action_needed/heuristics.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_needed/heuristics.py)
-  - [src/email_node/flow_families/action_needed/profiles.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_needed/profiles.py)
-  - [src/email_node/flow_families/action_needed/validation.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_needed/validation.py)
-  - [src/email_node/flow_families/action_needed/decision.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_needed/decision.py)
-  - [src/email_node/flow_families/action_needed/action_routing.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_needed/action_routing.py)
+- thin ACTION_REQUIRED wrappers:
+  - [src/email_node/flow_families/action_required/heuristics.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_required/heuristics.py)
+  - [src/email_node/flow_families/action_required/profiles.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_required/profiles.py)
+  - [src/email_node/flow_families/action_required/validation.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_required/validation.py)
+  - [src/email_node/flow_families/action_required/decision.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_required/decision.py)
+  - [src/email_node/flow_families/action_required/action_routing.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_required/action_routing.py)
 
 ## Template Directory Layout
 
@@ -90,13 +90,13 @@ Active templates are now family-scoped under runtime:
   - [runtime/flow_families/order/probation/evaluations](/home/dan/Projects/HexeEmail/runtime/flow_families/order/probation/evaluations)
   - [runtime/flow_families/order/probation/shadow](/home/dan/Projects/HexeEmail/runtime/flow_families/order/probation/shadow)
 
-Current ACTION_NEEDED template root from family config:
+Current ACTION_REQUIRED template root from family config:
 
-- [runtime/flow_families/action_needed/templates](/home/dan/Projects/HexeEmail/runtime/flow_families/action_needed/templates)
-- [runtime/flow_families/action_needed/probation/templates](/home/dan/Projects/HexeEmail/runtime/flow_families/action_needed/probation/templates)
-- [runtime/flow_families/action_needed/probation/state](/home/dan/Projects/HexeEmail/runtime/flow_families/action_needed/probation/state)
-- [runtime/flow_families/action_needed/probation/evaluations](/home/dan/Projects/HexeEmail/runtime/flow_families/action_needed/probation/evaluations)
-- [runtime/flow_families/action_needed/probation/shadow](/home/dan/Projects/HexeEmail/runtime/flow_families/action_needed/probation/shadow)
+- [runtime/flow_families/action_required/templates](/home/dan/Projects/HexeEmail/runtime/flow_families/action_required/templates)
+- [runtime/flow_families/action_required/probation/templates](/home/dan/Projects/HexeEmail/runtime/flow_families/action_required/probation/templates)
+- [runtime/flow_families/action_required/probation/state](/home/dan/Projects/HexeEmail/runtime/flow_families/action_required/probation/state)
+- [runtime/flow_families/action_required/probation/evaluations](/home/dan/Projects/HexeEmail/runtime/flow_families/action_required/probation/evaluations)
+- [runtime/flow_families/action_required/probation/shadow](/home/dan/Projects/HexeEmail/runtime/flow_families/action_required/probation/shadow)
 
 ## Probation Reuse Model
 
@@ -120,7 +120,7 @@ ORDER currently implements that family behavior in:
 
 - [src/email_node/flow_families/order/runtime.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/order/runtime.py)
 
-ACTION_NEEDED currently does not attempt probation generation yet. Its skeleton uses a pass-through probation hook.
+ACTION_REQUIRED currently does not attempt probation generation yet. Its skeleton uses a pass-through probation hook.
 
 ## How ORDER Uses The Framework
 
@@ -146,28 +146,28 @@ ORDER-specific pieces still outside shared core:
   - [src/email_node/actions/user_notification_handler.py](/home/dan/Projects/HexeEmail/src/email_node/actions/user_notification_handler.py)
   - [src/email_node/actions/tracking_monitor_handler.py](/home/dan/Projects/HexeEmail/src/email_node/actions/tracking_monitor_handler.py)
 
-## How ACTION_NEEDED Plugs In
+## How ACTION_REQUIRED Plugs In
 
 Public runner:
 
-- [src/email_node/pipeline/action_needed_flow.py](/home/dan/Projects/HexeEmail/src/email_node/pipeline/action_needed_flow.py)
+- [src/email_node/pipeline/action_required_flow.py](/home/dan/Projects/HexeEmail/src/email_node/pipeline/action_required_flow.py)
 
 Family runtime:
 
-- [src/email_node/flow_families/action_needed/runtime.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_needed/runtime.py)
+- [src/email_node/flow_families/action_required/runtime.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_required/runtime.py)
 
 Current skeleton behavior:
 
 - uses shared scrub/profile/template/decision/persistence/action-gate layers
-- loads ACTION_NEEDED family heuristic/profile/policy packs
+- loads ACTION_REQUIRED family heuristic/profile/policy packs
 - uses placeholder downstream action results
 - proves that a second family can execute through the same shared orchestration path
 
 Current limitations:
 
 - scrub completeness is still tuned around ORDER-style transactional signals
-- ACTION_NEEDED does not yet have active template coverage
-- probation generation and promotion are not yet implemented for ACTION_NEEDED
+- ACTION_REQUIRED does not yet have active template coverage
+- probation generation and promotion are not yet implemented for ACTION_REQUIRED
 - placeholder downstream actions need to be replaced with family-owned handlers
 
 ## Practical Rule
