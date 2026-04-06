@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from providers.gmail.models import GmailPhase1Reference, GmailPhase2ScrubbedEmail
 from providers.gmail.order_phase3 import GmailOrderPhase3ProfileDetector
 
@@ -163,3 +166,86 @@ def test_phase3_detects_upcoming_order_notice_profile():
 
     assert result.profile_id == "upcoming_order_notice"
     assert result.profile_subtype == "upcoming_order"
+
+
+def test_phase3_detects_ride_cancellation_without_pickup_conflict_downgrade():
+    detector = GmailOrderPhase3ProfileDetector()
+    phase2 = build_phase2_payload(
+        subject="Your canceled ride receipt",
+        sender_name="Zoox",
+        sender_email="noreply@notifications.zoox.com",
+        sender_domain="notifications.zoox.com",
+        scrubbed_text=(
+            "Pickup:\n"
+            "Your canceled ride receipt\n"
+            "Trip distance\n"
+            "0.0 miles\n"
+            "Trip duration\n"
+            "0 minutes\n"
+            "Drop-off:\n"
+            "West Reno Avenue\n"
+            "Trip Total\n"
+            "$0.00\n"
+            "Your refund will be issued to your original payment method.\n"
+            "Fare\n"
+            "$0.00"
+        ),
+    )
+
+    result = detector.detect(phase2)
+
+    assert result.profile_id == "ride_cancellation"
+    assert result.profile_subtype == "ride_cancellation"
+    assert result.profile_confidence >= 0.8
+    assert "confidence_downgrade:conflicting_state_signals" not in result.profile_diagnostics
+
+
+def test_phase3_uses_runtime_rule_overrides(tmp_path: Path):
+    runtime_dir = tmp_path / "runtime"
+    runtime_dir.mkdir(parents=True, exist_ok=True)
+    (runtime_dir / "order_profile_rules.json").write_text(
+        json.dumps(
+                {
+                    "weights": {
+                        "sender_match": 1,
+                        "ride_cancellation_language": 9,
+                        "ride_transactional_fields": 1,
+                    },
+                "thresholds": {
+                    "high_score": 14,
+                    "medium_score": 8,
+                    "max_score": 20,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    detector = GmailOrderPhase3ProfileDetector(runtime_dir=runtime_dir)
+    phase2 = build_phase2_payload(
+        subject="Your canceled ride receipt",
+        sender_name="Zoox",
+        sender_email="noreply@notifications.zoox.com",
+        sender_domain="notifications.zoox.com",
+        scrubbed_text=(
+            "Pickup:\n"
+            "Your canceled ride receipt\n"
+            "Trip distance\n"
+            "0.0 miles\n"
+            "Trip duration\n"
+            "0 minutes\n"
+            "Drop-off:\n"
+            "West Reno Avenue\n"
+            "Trip Total\n"
+            "$0.00\n"
+            "Your refund will be issued to your original payment method.\n"
+            "Fare\n"
+            "$0.00"
+        ),
+    )
+
+    result = detector.detect(phase2)
+
+    assert result.profile_id == "ride_cancellation"
+    assert result.profile_confidence == 0.35
+    assert result.profile_confidence_level == "low"

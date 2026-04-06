@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-PROFILE_TAXONOMY_VERSION = "order-phase3-taxonomy.v1"
+PROFILE_TAXONOMY_VERSION = "order-phase3-taxonomy.v2"
 
 
 PROFILE_TAXONOMY: dict[str, dict[str, str | None]] = {
@@ -53,6 +53,16 @@ PROFILE_TAXONOMY: dict[str, dict[str, str | None]] = {
     "generic_order_cancellation": {
         "profile_family": "order",
         "profile_subtype": "cancellation",
+        "vendor_identity": None,
+    },
+    "ride_receipt": {
+        "profile_family": "order",
+        "profile_subtype": "ride_receipt",
+        "vendor_identity": None,
+    },
+    "ride_cancellation": {
+        "profile_family": "order",
+        "profile_subtype": "ride_cancellation",
         "vendor_identity": None,
     },
 }

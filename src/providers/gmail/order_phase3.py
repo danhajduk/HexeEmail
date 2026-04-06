@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
+from pathlib import Path
 
 from providers.gmail.models import (
     GmailPhase1DiagnosticItem,
@@ -16,6 +17,7 @@ from providers.gmail.order_profile_taxonomy import (
     PROFILE_TAXONOMY,
     PROFILE_TAXONOMY_VERSION,
 )
+from providers.gmail.order_profile_rules import GmailOrderProfileRulesStore
 
 
 PROFILE_DETECTOR_VERSION = "order-phase3-profile-detector.v1"
@@ -23,6 +25,9 @@ ORDER_ID_PATTERN = re.compile(r"\b\d{3}-\d{7}-\d{7}\b")
 
 
 class GmailOrderPhase3ProfileDetector:
+    def __init__(self, runtime_dir: Path | None = None) -> None:
+        self.rules = GmailOrderProfileRulesStore(runtime_dir).load()
+
     def detect(self, phase2: GmailPhase2ScrubbedEmail) -> GmailPhase3DetectedEmail:
         working, intake_error = self.build_working_object(phase2)
         if working is None:
@@ -142,6 +147,7 @@ class GmailOrderPhase3ProfileDetector:
         self,
         working: GmailPhase3WorkingEmail,
     ) -> tuple[list[GmailPhase3ProfileCandidate], list[str]]:
+        signals = self._signal_terms()
         subject = (working.subject or "").lower()
         text = working.scrubbed_text.lower()
         lines = "\n".join(working.normalized_lines).lower()
@@ -152,39 +158,39 @@ class GmailOrderPhase3ProfileDetector:
         def add(profile_id: str, reason: str) -> None:
             candidates.setdefault(profile_id, []).append(reason)
 
-        if vendor == "amazon" and subject.startswith("ordered:"):
+        if vendor == "amazon" and self._contains_any(subject, signals["amazon_confirmation_subject_terms"]):
             add("amazon_order_confirmation", "sender_domain:amazon_confirmation_subject")
-        if vendor == "amazon" and any(token in subject for token in ("shipped:", "delivered:", "arriving", "item cancelled")):
+        if vendor == "amazon" and self._contains_any(subject, signals["amazon_status_subject_terms"]):
             add("amazon_order_status_update", "sender_domain:amazon_status_subject")
         if vendor == "amazon" and "cancel" in subject:
             add("amazon_order_cancellation", "subject:cancellation")
-        if "ready for pickup" in subject or "ready for pickup" in text or "order is ready for pickup" in text:
+        if self._contains_any(subject, signals["pickup_ready_terms"]) or self._contains_any(text, signals["pickup_ready_terms"]):
             add("pickup_ready_notification", "pickup_language:ready_for_pickup")
-        if "curbside pickup" in subject or "curbside" in text:
+        if self._contains_any(subject, signals["curbside_terms"]) or self._contains_any(text, signals["curbside_terms"]):
             add("curbside_pickup_order", "pickup_language:curbside")
-        if "reservation confirmation" in subject or "reservation details" in text or "your reservation details" in lines:
+        if self._contains_any(subject, signals["reservation_terms"]) or self._contains_any(text, signals["reservation_terms"]) or self._contains_any(lines, signals["reservation_terms"]):
             add("reservation_confirmation", "reservation_language:confirmed")
-        if "upcoming" in subject and "order" in subject:
+        if self._contains_any(subject, signals["upcoming_subject_terms"]) and "order" in subject:
             add("upcoming_order_notice", "subject:upcoming_order")
-        if "pending order" in text:
+        if self._contains_any(text, signals["upcoming_text_terms"]):
             add("upcoming_order_notice", "body:pending_order")
-        if "order confirmation" in subject or "thanks for your order" in text or "thank you for your order" in text:
+        if self._contains_any(subject, signals["confirmation_terms"]) or self._contains_any(text, signals["confirmation_terms"]):
             add("generic_order_confirmation", "confirmation_language")
-        if any(token in subject for token in ("shipped", "delivered", "arriving")) or any(
-            token in text for token in ("shipped", "delivered", "arriving", "out for delivery")
-        ):
+        if self._contains_any(subject, signals["status_terms"]) or self._contains_any(text, signals["status_terms"]):
             add("generic_order_status_update", "status_language")
-        if "cancel" in subject or "cancelled" in text or "cancellation" in text:
+        if self._contains_any(subject, signals["cancellation_terms"]) or self._contains_any(text, signals["cancellation_terms"]):
             add("generic_order_cancellation", "cancellation_language")
+        has_cancellation = self._contains_any(subject, signals["cancellation_terms"]) or self._contains_any(text, signals["cancellation_terms"])
+        if (self._contains_any(subject, signals["ride_terms"]) or self._contains_any(text, signals["ride_terms"])) and not has_cancellation:
+            add("ride_receipt", "ride_language")
+        if (self._contains_any(subject, signals["ride_cancellation_terms"]) or self._contains_any(text, signals["ride_cancellation_terms"])) and has_cancellation:
+            add("ride_cancellation", "ride_cancellation_language")
 
-        if sender_domain == "dutchie.com":
-            add("pickup_ready_notification", "sender_domain:dutchie")
-        if sender_domain == "walmart.com":
-            add("curbside_pickup_order", "sender_domain:walmart")
-        if sender_domain == "recreation.gov":
-            add("reservation_confirmation", "sender_domain:recreation_gov")
-        if sender_domain == "edenredbenefits.com":
-            add("upcoming_order_notice", "sender_domain:edenred_benefits")
+        sender_domain_profiles = self.rules.get("sender_domain_profiles", {})
+        if isinstance(sender_domain_profiles, dict):
+            mapped_profile = sender_domain_profiles.get(sender_domain)
+            if isinstance(mapped_profile, str) and mapped_profile in PROFILE_TAXONOMY:
+                add(mapped_profile, f"sender_domain:{sender_domain.replace('.', '_')}")
 
         diagnostics: list[str] = []
         candidate_models: list[GmailPhase3ProfileCandidate] = []
@@ -211,6 +217,9 @@ class GmailOrderPhase3ProfileDetector:
         working: GmailPhase3WorkingEmail,
         candidates: list[GmailPhase3ProfileCandidate],
     ) -> tuple[list[GmailPhase3ProfileCandidate], list[str]]:
+        signals = self._signal_terms()
+        weights = self._weights()
+        thresholds = self._thresholds()
         diagnostics: list[str] = []
         ranked: list[GmailPhase3ProfileCandidate] = []
         subject = (working.subject or "").lower()
@@ -220,48 +229,58 @@ class GmailOrderPhase3ProfileDetector:
         has_pickup = "pickup" in subject or "pickup" in text
         has_curbside = "curbside" in subject or "curbside" in text
         has_reservation = "reservation" in subject or "reservation" in text
-        has_upcoming = "upcoming" in subject or "pending order" in text
-        has_status = any(token in text or token in subject for token in ("shipped", "delivered", "arriving", "ordered"))
-        has_cancellation = "cancel" in subject or "cancelled" in text
+        has_upcoming = self._contains_any(subject, signals["upcoming_subject_terms"]) or self._contains_any(text, signals["upcoming_text_terms"])
+        has_status = self._contains_any(text, signals["status_terms"]) or self._contains_any(subject, signals["status_terms"]) or "ordered" in text or "ordered" in subject
+        has_cancellation = self._contains_any(subject, signals["cancellation_terms"]) or self._contains_any(text, signals["cancellation_terms"])
+        has_ride = self._contains_any(text, signals["ride_terms"]) or self._contains_any(subject, signals["ride_terms"])
 
         for candidate in candidates:
             score = 0
             reasons = list(candidate.reasons)
             if candidate.vendor_identity and candidate.vendor_identity == vendor:
-                score += 5
+                score += weights["sender_match"]
                 reasons.append("score:sender_match")
             if candidate.profile_id.startswith("amazon_") and vendor == "amazon":
-                score += 5
+                score += weights["amazon_vendor_profile"]
                 reasons.append("score:amazon_vendor_profile")
             if candidate.profile_subtype == "confirmation" and any(token in subject for token in ("ordered:", "order confirmation", "thanks for")):
-                score += 4
+                score += weights["confirmation_subject"]
                 reasons.append("score:confirmation_subject")
             if candidate.profile_subtype == "status_update" and has_status:
-                score += 4
+                score += weights["status_language"]
                 reasons.append("score:status_language")
             if candidate.profile_subtype == "pickup_ready" and has_pickup:
-                score += 6
+                score += weights["pickup_language"]
                 reasons.append("score:pickup_language")
             if candidate.profile_subtype == "curbside_ready" and has_curbside:
-                score += 7
+                score += weights["curbside_language"]
                 reasons.append("score:curbside_language")
             if candidate.profile_subtype == "reservation_confirmed" and has_reservation:
-                score += 7
+                score += weights["reservation_language"]
                 reasons.append("score:reservation_language")
             if candidate.profile_subtype == "upcoming_order" and has_upcoming:
-                score += 7
+                score += weights["upcoming_language"]
                 reasons.append("score:upcoming_language")
             if candidate.profile_subtype == "cancellation" and has_cancellation:
-                score += 7
+                score += weights["cancellation_language"]
                 reasons.append("score:cancellation_language")
+            if candidate.profile_subtype == "ride_receipt" and has_ride:
+                score += weights["ride_language"]
+                reasons.append("score:ride_language")
+            if candidate.profile_subtype == "ride_cancellation" and has_ride and has_cancellation:
+                score += weights["ride_cancellation_language"]
+                reasons.append("score:ride_cancellation_language")
             if has_order_id:
-                score += 2
+                score += weights["order_identifier_present"]
                 reasons.append("score:order_identifier_present")
-            if any(token in text for token in ("grand total", "quantity", "view or edit order", "reservation")):
-                score += 1
+            if self._contains_any(text, signals["transactional_terms"]):
+                score += weights["transactional_fields_present"]
                 reasons.append("score:transactional_fields_present")
+            if has_ride and self._contains_any(text, signals["ride_transactional_terms"]):
+                score += weights["ride_transactional_fields"]
+                reasons.append("score:ride_transactional_fields")
 
-            confidence_level = "high" if score >= 14 else "medium" if score >= 8 else "low"
+            confidence_level = "high" if score >= thresholds["high_score"] else "medium" if score >= thresholds["medium_score"] else "low"
             ranked.append(candidate.model_copy(update={"score": score, "confidence_level": confidence_level, "reasons": reasons}))
             diagnostics.append(f"scored:{candidate.profile_id} score={score} reasons={','.join(reasons[-5:])}")
 
@@ -286,19 +305,21 @@ class GmailOrderPhase3ProfileDetector:
         primary = ranked[0]
         fallbacks = ranked[1:4]
         diagnostics = [f"resolved_profile:{primary.profile_id} score={primary.score}"]
-        confidence = min(1.0, max(0.05, primary.score / 20))
+        thresholds = self._thresholds()
+        conflicts = self._conflicts()
+        confidence = min(1.0, max(thresholds["min_confidence"], primary.score / thresholds["max_score"]))
         confidence_level = primary.confidence_level
         profile_status = "success" if confidence_level == "high" else "partial"
 
-        if fallbacks and primary.score - fallbacks[0].score <= 2:
+        if fallbacks and primary.score - fallbacks[0].score <= conflicts["close_competing_score_gap"]:
             confidence_level = "medium" if confidence_level == "high" else "low"
-            confidence = max(0.2, confidence - 0.2)
+            confidence = max(thresholds["min_confidence_after_downgrade"], confidence - conflicts["close_competing_confidence_penalty"])
             profile_status = "partial"
             diagnostics.append("confidence_downgrade:close_competing_candidates")
 
         if self._has_conflicting_state_signals(working.scrubbed_text, working.subject or ""):
             confidence_level = "medium" if confidence_level == "high" else "low"
-            confidence = max(0.2, confidence - 0.15)
+            confidence = max(thresholds["min_confidence_after_downgrade"], confidence - conflicts["conflicting_state_penalty"])
             profile_status = "partial"
             diagnostics.append("confidence_downgrade:conflicting_state_signals")
 
@@ -309,9 +330,70 @@ class GmailOrderPhase3ProfileDetector:
         return primary, fallbacks, round(confidence, 2), confidence_level, diagnostics, profile_status
 
     @staticmethod
-    def _has_conflicting_state_signals(text: str, subject: str) -> bool:
+    def _contains_any(text: str, terms: list[str]) -> bool:
+        return any(term in text for term in terms)
+
+    def _has_conflicting_state_signals(self, text: str, subject: str) -> bool:
         lowered = f"{subject}\n{text}".lower()
-        return ("cancel" in lowered and "pickup" in lowered) or ("reservation" in lowered and "curbside" in lowered)
+        conflicts = self._conflicts()
+        ignore_rules = conflicts["ignore_when_any_terms_present"]
+        for pair in conflicts["pairs"]:
+            if not all(term in lowered for term in pair):
+                continue
+            should_ignore = False
+            for rule in ignore_rules:
+                if rule["pair"] == pair and any(term in lowered for term in rule["any_terms"]):
+                    should_ignore = True
+                    break
+            if not should_ignore:
+                return True
+        return False
+
+    def _signal_terms(self) -> dict[str, list[str]]:
+        signals = self.rules.get("signals", {})
+        if not isinstance(signals, dict):
+            return {}
+        return {key: [str(item).lower() for item in value] for key, value in signals.items() if isinstance(value, list)}
+
+    def _weights(self) -> dict[str, int]:
+        weights = self.rules.get("weights", {})
+        if not isinstance(weights, dict):
+            return {}
+        return {key: int(value) for key, value in weights.items() if isinstance(value, (int, float))}
+
+    def _thresholds(self) -> dict[str, float]:
+        thresholds = self.rules.get("thresholds", {})
+        if not isinstance(thresholds, dict):
+            return {}
+        return {key: float(value) for key, value in thresholds.items() if isinstance(value, (int, float))}
+
+    def _conflicts(self) -> dict[str, object]:
+        raw = self.rules.get("conflicts", {})
+        if not isinstance(raw, dict):
+            return {"pairs": [], "ignore_when_any_terms_present": [], "close_competing_score_gap": 2, "close_competing_confidence_penalty": 0.2, "conflicting_state_penalty": 0.15}
+        pairs: list[list[str]] = []
+        for item in raw.get("pairs", []):
+            if isinstance(item, list):
+                pairs.append([str(part).lower() for part in item])
+        ignore_rules: list[dict[str, list[str]]] = []
+        for item in raw.get("ignore_when_any_terms_present", []):
+            if isinstance(item, dict):
+                pair = item.get("pair")
+                any_terms = item.get("any_terms")
+                if isinstance(pair, list) and isinstance(any_terms, list):
+                    ignore_rules.append(
+                        {
+                            "pair": [str(part).lower() for part in pair],
+                            "any_terms": [str(term).lower() for term in any_terms],
+                        }
+                    )
+        return {
+            "pairs": pairs,
+            "ignore_when_any_terms_present": ignore_rules,
+            "close_competing_score_gap": int(raw.get("close_competing_score_gap", 2)),
+            "close_competing_confidence_penalty": float(raw.get("close_competing_confidence_penalty", 0.2)),
+            "conflicting_state_penalty": float(raw.get("conflicting_state_penalty", 0.15)),
+        }
 
     @staticmethod
     def _sender_identity(sender_name: str | None, sender_domain: str | None) -> str | None:
