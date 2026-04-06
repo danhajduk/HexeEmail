@@ -30,6 +30,7 @@ Current flow families:
 
 - `order`
 - `action_required`
+- `financial`
 
 Shared family entry point:
 
@@ -53,6 +54,7 @@ Current declarative family config:
 
 - ORDER: [runtime/flow_families/order/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/order/family.yaml)
 - ACTION_REQUIRED: [runtime/flow_families/action_required/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/action_required/family.yaml)
+- FINANCIAL: [runtime/flow_families/financial/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/financial/family.yaml)
 
 Schema:
 
@@ -70,6 +72,11 @@ Current family wrapper modules:
   - [src/email_node/flow_families/action_required/profiles.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_required/profiles.py)
   - [src/email_node/flow_families/action_required/validation.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_required/validation.py)
   - [src/email_node/flow_families/action_required/decision.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_required/decision.py)
+- FINANCIAL:
+  - [src/email_node/flow_families/financial/heuristics.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/financial/heuristics.py)
+  - [src/email_node/flow_families/financial/profiles.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/financial/profiles.py)
+  - [src/email_node/flow_families/financial/validation.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/financial/validation.py)
+  - [src/email_node/flow_families/financial/decision.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/financial/decision.py)
 
 Those modules are now thin YAML-backed adapters rather than the source of truth for declarative family data.
 
@@ -100,6 +107,12 @@ Current ACTION_REQUIRED integration:
 - unresolved ACTION_REQUIRED results now also use the shared `review_needed` decision so they can persist and surface manual-review signals consistently with ORDER
 - [src/email_node/patterns/probation_evaluator.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation_evaluator.py), [src/email_node/patterns/probation_metrics.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation_metrics.py), [src/email_node/patterns/probation_policy.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation_policy.py), and [src/email_node/patterns/probation_promotion.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation_promotion.py) now thinly wrap the shared probation subsystem in [src/email_node/shared_pipeline_core/probation.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/probation.py)
 - ORDER still owns its current route-selection policy and downstream action handlers
+
+Current FINANCIAL integration:
+
+- [src/email_node/pipeline/financial_flow.py](/home/dan/Projects/HexeEmail/src/email_node/pipeline/financial_flow.py) now provides the initial thin shared-core runner for the `financial` family
+- [src/email_node/flow_families/financial/runtime.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/financial/runtime.py) wires the shared scrub, profile-detection, template, decision, persistence, and action-gating layers together with placeholder family handlers
+- the FINANCIAL family is intentionally still taxonomy-light at this stage; it proves the shared-core family extension path before real mailbox-derived rules are added
 
 Why this exists:
 

@@ -1,0 +1,94 @@
+schema_version: flow-family-config.v1
+flow_family: financial
+output_schema_family: financial
+runtime_paths:
+  template_dir: flow_families/financial/templates
+  probation_template_dir: flow_families/financial/probation/templates
+  probation_state_dir: flow_families/financial/probation/state
+  probation_evaluations_dir: flow_families/financial/probation/evaluations
+  probation_shadow_dir: flow_families/financial/probation/shadow
+  output_dir: flow_families/financial/outputs
+  reports_dir: flow_families/financial/reports
+heuristics:
+  ignore_line_patterns:
+    - ^\s*view (this )?(email|message) in your browser\s*$
+    - ^\s*manage preferences\s*$
+    - ^\s*unsubscribe\s*$
+  stop_marker_patterns:
+    - ^\s*privacy policy\s*$
+    - ^\s*terms and conditions\s*$
+    - ^\s*help center\s*$
+  chrome_line_patterns:
+    - ^\s*your account\s*$
+    - ^\s*notification settings\s*$
+    - ^\s*support center\s*$
+  footer_cutoff_patterns:
+    - copyright\s+\d{4}
+    - privacy policy
+    - terms and conditions
+    - do not reply
+  important_link_patterns:
+    account: account|sign in|signin|review
+    document_action: statement|document|download|view
+    payment_action: payment|balance|invoice|billing
+  tracking_host_patterns:
+    - /open|/track|/pixel
+  filler_entity_patterns:
+    - (?:&zwnj;|&nbsp;|&#8199;|&shy;|\u200c|\u00a0){3,}
+  transactional_anchor_patterns:
+    - account summary
+    - payment reminder
+    - statement ready
+    - billing notice
+  promo_marker_patterns:
+    - recommended for you
+    - shop now
+    - special offer
+profiles:
+  taxonomy_version: financial-phase3-taxonomy.v1
+  taxonomy: {}
+  known_vendor_identities: {}
+  rules_override_path: flow_families/financial/profile_rules.json
+  rules:
+    schema_version: financial-phase3-rules.v1
+    signals: {}
+    sender_domain_profiles: {}
+    weights:
+      sender_match: 5
+    thresholds:
+      high_score: 14
+      medium_score: 8
+      max_score: 20
+      min_confidence: 0.05
+      min_confidence_after_downgrade: 0.2
+    conflicts:
+      pairs: []
+      ignore_when_any_terms_present: []
+      close_competing_score_gap: 2
+      close_competing_confidence_penalty: 0.2
+      conflicting_state_penalty: 0.15
+validation_policy:
+  url_field_suffixes:
+    - _url
+  identifier_fields:
+    - account_number
+    - statement_id
+    - payment_id
+  identifier_min_length: 4
+  success_threshold: 0.85
+  partial_threshold: 0.5
+  required_field_confidence_weight: 0.6
+  valid_field_confidence_weight: 0.4
+decision_policy:
+  high_confidence_threshold: 0.85
+  medium_confidence_threshold: 0.6
+action_routing_policy:
+  profile_intents: {}
+  decision_intents:
+    accept:
+      - user_notification
+    review_needed:
+      - user_notification
+      - mark_for_manual_review
+  diagnostic_token_intents: {}
+  field_rules: []

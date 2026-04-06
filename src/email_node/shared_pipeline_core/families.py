@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Literal
 
 
-FlowFamily = Literal["order", "action_required"]
+FlowFamily = Literal["order", "action_required", "financial"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,12 +73,29 @@ def get_flow_family_config(flow_family: FlowFamily | str, *, runtime_dir: Path |
             output_dir=base_runtime_dir / "flow_families" / "action_required" / "outputs",
             reports_dir=base_runtime_dir / "flow_families" / "action_required" / "reports",
         )
+    if canonical_flow_family == "financial":
+        return FlowFamilyConfig(
+            flow_family="financial",
+            scrub_heuristic_pack="email_node.flow_families.financial.heuristics",
+            profile_detector_pack="email_node.flow_families.financial.profiles",
+            template_dir=base_runtime_dir / "flow_families" / "financial" / "templates",
+            probation_template_dir=base_runtime_dir / "flow_families" / "financial" / "probation" / "templates",
+            probation_state_dir=base_runtime_dir / "flow_families" / "financial" / "probation" / "state",
+            probation_evaluations_dir=base_runtime_dir / "flow_families" / "financial" / "probation" / "evaluations",
+            probation_shadow_dir=base_runtime_dir / "flow_families" / "financial" / "probation" / "shadow",
+            validation_policy="email_node.flow_families.financial.validation",
+            decision_policy="email_node.flow_families.financial.decision",
+            action_router_policy="email_node.flow_families.financial.action_routing",
+            output_schema_family="financial",
+            output_dir=base_runtime_dir / "flow_families" / "financial" / "outputs",
+            reports_dir=base_runtime_dir / "flow_families" / "financial" / "reports",
+        )
     raise ValueError(f"Unsupported flow family: {flow_family}")
 
 
 def _canonicalize_flow_family(flow_family: FlowFamily | str) -> FlowFamily:
     if flow_family == "action_needed":
         return "action_required"
-    if flow_family in {"order", "action_required"}:
+    if flow_family in {"order", "action_required", "financial"}:
         return flow_family
     raise ValueError(f"Unsupported flow family: {flow_family}")

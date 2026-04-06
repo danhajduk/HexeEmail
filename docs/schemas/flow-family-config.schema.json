@@ -457,7 +457,8 @@
     "flow_family": {
       "enum": [
         "order",
-        "action_required"
+        "action_required",
+        "financial"
       ],
       "title": "Flow Family",
       "type": "string"

@@ -4,6 +4,7 @@ Flow-family declarative configuration now lives in validated YAML files under:
 
 - [runtime/flow_families/order/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/order/family.yaml)
 - [runtime/flow_families/action_required/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/action_required/family.yaml)
+- [runtime/flow_families/financial/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/financial/family.yaml)
 
 The shared schema for these files is:
 
@@ -65,6 +66,11 @@ Practical expectation:
   - `runtime/flow_families/action_required/probation/...`
   - `runtime/flow_families/action_required/outputs`
   - `runtime/flow_families/action_required/reports`
+- `financial` now has the same family-scoped runtime layout reserved under:
+  - `runtime/flow_families/financial/templates`
+  - `runtime/flow_families/financial/probation/...`
+  - `runtime/flow_families/financial/outputs`
+  - `runtime/flow_families/financial/reports`
 
 ## Rule Of Thumb
 

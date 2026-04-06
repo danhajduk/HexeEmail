@@ -51,6 +51,7 @@ Flow-family modules live under:
 
 - [src/email_node/flow_families/order](/home/dan/Projects/HexeEmail/src/email_node/flow_families/order)
 - [src/email_node/flow_families/action_required](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_required)
+- [src/email_node/flow_families/financial](/home/dan/Projects/HexeEmail/src/email_node/flow_families/financial)
 
 Each family is responsible for:
 
@@ -69,6 +70,7 @@ Current runtime-owned family config layout:
 
 - [runtime/flow_families/order/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/order/family.yaml)
 - [runtime/flow_families/action_required/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/action_required/family.yaml)
+- [runtime/flow_families/financial/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/financial/family.yaml)
 - ORDER Phase 3 override compatibility file:
   - [runtime/order_profile_rules.json](/home/dan/Projects/HexeEmail/runtime/order_profile_rules.json)
 
@@ -86,6 +88,12 @@ Current code-owned family config layout:
   - [src/email_node/flow_families/action_required/validation.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_required/validation.py)
   - [src/email_node/flow_families/action_required/decision.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_required/decision.py)
   - [src/email_node/flow_families/action_required/action_routing.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_required/action_routing.py)
+- thin FINANCIAL wrappers:
+  - [src/email_node/flow_families/financial/heuristics.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/financial/heuristics.py)
+  - [src/email_node/flow_families/financial/profiles.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/financial/profiles.py)
+  - [src/email_node/flow_families/financial/validation.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/financial/validation.py)
+  - [src/email_node/flow_families/financial/decision.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/financial/decision.py)
+  - [src/email_node/flow_families/financial/action_routing.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/financial/action_routing.py)
 
 ## Template Directory Layout
 
@@ -106,6 +114,14 @@ Current ACTION_REQUIRED template root from family config:
 - [runtime/flow_families/action_required/probation/state](/home/dan/Projects/HexeEmail/runtime/flow_families/action_required/probation/state)
 - [runtime/flow_families/action_required/probation/evaluations](/home/dan/Projects/HexeEmail/runtime/flow_families/action_required/probation/evaluations)
 - [runtime/flow_families/action_required/probation/shadow](/home/dan/Projects/HexeEmail/runtime/flow_families/action_required/probation/shadow)
+
+Current FINANCIAL template root from family config:
+
+- [runtime/flow_families/financial/templates](/home/dan/Projects/HexeEmail/runtime/flow_families/financial/templates)
+- [runtime/flow_families/financial/probation/templates](/home/dan/Projects/HexeEmail/runtime/flow_families/financial/probation/templates)
+- [runtime/flow_families/financial/probation/state](/home/dan/Projects/HexeEmail/runtime/flow_families/financial/probation/state)
+- [runtime/flow_families/financial/probation/evaluations](/home/dan/Projects/HexeEmail/runtime/flow_families/financial/probation/evaluations)
+- [runtime/flow_families/financial/probation/shadow](/home/dan/Projects/HexeEmail/runtime/flow_families/financial/probation/shadow)
 
 ## Probation Reuse Model
 
@@ -130,6 +146,8 @@ ORDER currently implements that family behavior in:
 - [src/email_node/flow_families/order/runtime.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/order/runtime.py)
 
 ACTION_REQUIRED now has the same probation storage, evaluation, promotion, unresolved-template AI handoff, and low-confidence probation fallback shape as ORDER, while still keeping family-specific request mapping and template schema ownership inside the family runtime.
+
+FINANCIAL currently only uses the shared skeleton shape. It has family-owned YAML, runtime paths, placeholder handlers, and a smoke-tested shared-core runner, but it does not yet have mailbox-derived taxonomy or active template behavior.
 
 ## How ORDER Uses The Framework
 
