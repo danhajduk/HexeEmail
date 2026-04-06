@@ -1,31 +1,22 @@
 from __future__ import annotations
 
-from typing import Literal
-
-from pydantic import BaseModel, ConfigDict, Field
-
 from email_node.pipeline.order_action_gate import OrderActionAuthorizationResult
 from email_node.pipeline.order_decision_engine import OrderDecisionResult
+from email_node.shared_pipeline_core.actions import (
+    SharedActionIntent,
+    SharedActionRouter,
+    SharedActionRoutingResult,
+)
 
 
-OrderActionIntent = Literal[
-    "store_order_record",
-    "update_order_record",
-    "attach_tracking_reference",
-    "user_notification",
-    "queue_tracking_monitor",
-    "mark_for_manual_review",
-]
+OrderActionIntent = SharedActionIntent
 
 
-class OrderActionRoutingResult(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    action_intents: list[OrderActionIntent] = Field(default_factory=list)
-    diagnostics: list[str] = Field(default_factory=list)
+class OrderActionRoutingResult(SharedActionRoutingResult):
+    pass
 
 
-class OrderActionRouter:
+class OrderActionRouter(SharedActionRouter):
     def route(
         self,
         *,
@@ -33,10 +24,17 @@ class OrderActionRouter:
         authorization: OrderActionAuthorizationResult,
         phase4,
     ) -> OrderActionRoutingResult:
-        diagnostics = list(decision.diagnostics) + list(authorization.diagnostics)
-        if not authorization.actions_allowed:
-            return OrderActionRoutingResult(action_intents=[], diagnostics=diagnostics + ["action_router:blocked"])
+        result = super().route(decision=decision, authorization=authorization, phase4=phase4)
+        return OrderActionRoutingResult.model_validate(result.model_dump(mode="json"))
 
+    def resolve_action_intents(
+        self,
+        *,
+        decision: OrderDecisionResult,
+        authorization: OrderActionAuthorizationResult,
+        phase4,
+    ) -> list[OrderActionIntent]:
+        diagnostics = list(decision.diagnostics) + list(authorization.diagnostics)
         profile_id = str(getattr(phase4, "profile_id", "") or "")
         extracted_fields = getattr(phase4, "extracted_fields", {}) or {}
         tracking_number = self._field_value(extracted_fields, "tracking_number")
@@ -54,9 +52,7 @@ class OrderActionRouter:
             intents.append("user_notification")
         if any("important_inconsistency" in item for item in diagnostics):
             intents.append("mark_for_manual_review")
-
-        deduped = list(dict.fromkeys(intents))
-        return OrderActionRoutingResult(action_intents=deduped, diagnostics=diagnostics + [f"action_router:intents:{','.join(deduped) or 'none'}"])
+        return intents
 
     @staticmethod
     def _field_value(extracted_fields: dict[str, object], field_name: str) -> str | None:

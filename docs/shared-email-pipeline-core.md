@@ -12,6 +12,7 @@ Current scope:
 - shared probation lifecycle core for evaluation, metrics, promotion, and shadow comparison
 - shared Phase 5 validation and confidence policy framework
 - shared Phase 6 decision framework
+- shared Phase 7 persistence and action-gating framework
 - flow-family identity carried with the pipeline result
 - family config loaded from one shared entry point
 - flow-specific logic remains injected as hooks
@@ -69,8 +70,11 @@ Current ORDER integration:
 - [src/email_node/shared_pipeline_core/template_engine.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/template_engine.py) now delegates required-field checks, field-format validation, and confidence scoring to [src/email_node/shared_pipeline_core/validation.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/validation.py)
 - [src/email_node/pipeline/order_decision_engine.py](/home/dan/Projects/HexeEmail/src/email_node/pipeline/order_decision_engine.py) now thinly wraps the shared decision framework in [src/email_node/shared_pipeline_core/decision.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/decision.py)
 - the ORDER decision wrapper now loads its thresholds from [src/email_node/flow_families/order/decision.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/order/decision.py)
+- [src/email_node/pipeline/order_output_handler.py](/home/dan/Projects/HexeEmail/src/email_node/pipeline/order_output_handler.py) now thinly wraps the shared persistence gate in [src/email_node/shared_pipeline_core/persistence.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/persistence.py), while preserving the current ORDER output record shape and legacy `runtime/order_outputs` layout
+- [src/email_node/pipeline/order_action_gate.py](/home/dan/Projects/HexeEmail/src/email_node/pipeline/order_action_gate.py) now thinly wraps the shared action authorization logic in [src/email_node/shared_pipeline_core/actions.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/actions.py)
+- [src/email_node/pipeline/order_action_router.py](/home/dan/Projects/HexeEmail/src/email_node/pipeline/order_action_router.py) now thinly wraps a shared action-routing interface in [src/email_node/shared_pipeline_core/actions.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/actions.py), with ORDER-specific intent selection still local until family policy packs are extracted
 - [src/email_node/patterns/probation_evaluator.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation_evaluator.py), [src/email_node/patterns/probation_metrics.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation_metrics.py), [src/email_node/patterns/probation_policy.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation_policy.py), and [src/email_node/patterns/probation_promotion.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation_promotion.py) now thinly wrap the shared probation subsystem in [src/email_node/shared_pipeline_core/probation.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/probation.py)
-- ORDER still owns its current decisioning, persistence, and action handlers
+- ORDER still owns its current route-selection policy and downstream action handlers
 
 Why this exists:
 
@@ -83,5 +87,5 @@ Not migrated yet:
 - external heuristic packs
 - family-specific profile packs
 - family-specific template packs
-- shared validation/decision/action policy packs
+- family-specific action policy packs
 - ACTION_NEEDED runner

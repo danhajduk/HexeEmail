@@ -47,7 +47,7 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[TODO] Task 280: Extract Phase 7 persistence and action gating into shared framework
+[DONE] Task 280: Extract Phase 7 persistence and action gating into shared framework
 
 - Generalize persistence gate, action gate, and action routing interfaces
 
@@ -64,7 +64,7 @@ Acceptance:
 - ORDER Phase 7 runs through shared framework
 - ACTION_NEEDED can later define its own action intents without duplicating the framework
 
-[TODO] Task 281: Create family-specific action routing policies
+[WIP] Task 281: Create family-specific action routing policies
 
 - Externalize action routing rules by flow family
 
