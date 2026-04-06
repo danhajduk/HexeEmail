@@ -47,8 +47,6 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[TODO] Task 305: Define FINANCIAL YAML taxonomy, heuristics, validation, decision, and action routing
-[TODO] Task 306: Add FINANCIAL runtime/report path wiring and smoke coverage
 [TODO] Task 307: Create INVOICE flow family skeleton on shared core
 [TODO] Task 308: Define INVOICE YAML taxonomy, heuristics, validation, decision, and action routing
 [TODO] Task 309: Add INVOICE runtime/report path wiring and smoke coverage

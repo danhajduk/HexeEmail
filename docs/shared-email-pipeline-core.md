@@ -112,7 +112,8 @@ Current FINANCIAL integration:
 
 - [src/email_node/pipeline/financial_flow.py](/home/dan/Projects/HexeEmail/src/email_node/pipeline/financial_flow.py) now provides the initial thin shared-core runner for the `financial` family
 - [src/email_node/flow_families/financial/runtime.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/financial/runtime.py) wires the shared scrub, profile-detection, template, decision, persistence, and action-gating layers together with placeholder family handlers
-- the FINANCIAL family is intentionally still taxonomy-light at this stage; it proves the shared-core family extension path before real mailbox-derived rules are added
+- the FINANCIAL family now has a first-pass YAML taxonomy for statement-ready, payment-due, payment-received, refund, balance-alert, tax-document, and generic financial update signals
+- FINANCIAL still needs mailbox-sampled refinement and active template coverage, but it now resolves real Phase 3 profiles instead of only failing closed
 
 Why this exists:
 

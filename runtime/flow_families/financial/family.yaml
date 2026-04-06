@@ -46,15 +46,94 @@ heuristics:
     - special offer
 profiles:
   taxonomy_version: financial-phase3-taxonomy.v1
-  taxonomy: {}
-  known_vendor_identities: {}
+  taxonomy:
+    statement_ready:
+      profile_family: financial
+      profile_subtype: statement_ready
+      vendor_identity:
+    payment_due:
+      profile_family: financial
+      profile_subtype: payment_due
+      vendor_identity:
+    payment_received:
+      profile_family: financial
+      profile_subtype: payment_received
+      vendor_identity:
+    refund_processed:
+      profile_family: financial
+      profile_subtype: refund_processed
+      vendor_identity:
+    balance_alert:
+      profile_family: financial
+      profile_subtype: balance_alert
+      vendor_identity:
+    tax_document_ready:
+      profile_family: financial
+      profile_subtype: tax_document_ready
+      vendor_identity:
+    generic_financial_update:
+      profile_family: financial
+      profile_subtype: generic_financial_update
+      vendor_identity:
+  known_vendor_identities:
+    examplebank.com: example_bank
+    capitalone.com: capital_one
+    chase.com: chase
+    americanexpress.com: american_express
+    paypal.com: paypal
+    stripe.com: stripe
+    intuit.com: intuit
+    turbotax.com: turbotax
   rules_override_path: flow_families/financial/profile_rules.json
   rules:
     schema_version: financial-phase3-rules.v1
-    signals: {}
+    signals:
+      statement_ready_terms:
+        - statement is ready
+        - monthly statement is ready
+        - your statement is ready
+        - statement available
+      payment_due_terms:
+        - payment due
+        - amount due
+        - due date
+        - pay now
+        - minimum payment due
+      payment_received_terms:
+        - payment received
+        - we received your payment
+        - payment posted
+        - thanks for your payment
+      refund_processed_terms:
+        - refund processed
+        - refund issued
+        - refunded to your
+        - your refund is on the way
+      balance_alert_terms:
+        - balance alert
+        - low balance
+        - current balance
+        - account balance
+      tax_document_ready_terms:
+        - tax document is ready
+        - your 1099 is ready
+        - your w-2 is ready
+        - tax forms available
+      generic_financial_terms:
+        - billing notice
+        - account summary
+        - financial update
+        - statement notice
     sender_domain_profiles: {}
     weights:
       sender_match: 5
+      statement_ready_language: 8
+      payment_due_language: 9
+      payment_received_language: 8
+      refund_processed_language: 9
+      balance_alert_language: 8
+      tax_document_ready_language: 9
+      generic_financial_language: 6
     thresholds:
       high_score: 14
       medium_score: 8
@@ -83,7 +162,19 @@ decision_policy:
   high_confidence_threshold: 0.85
   medium_confidence_threshold: 0.6
 action_routing_policy:
-  profile_intents: {}
+  profile_intents:
+    statement_ready:
+      - store_financial_record
+    payment_due:
+      - store_financial_record
+    payment_received:
+      - store_financial_record
+    refund_processed:
+      - store_financial_record
+    balance_alert:
+      - store_financial_record
+    tax_document_ready:
+      - store_financial_record
   decision_intents:
     accept:
       - user_notification

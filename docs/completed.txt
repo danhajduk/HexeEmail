@@ -309,3 +309,5 @@ Task 301: Add shared review_needed decision/result contract across flow families
 Task 302: Surface review_needed state in persisted outputs, reports, and notifications - Completed on 04/06/2026 02:37
 Task 303: Add tests and docs for cross-family review_needed fallback behavior - Completed on 04/06/2026 02:37
 Task 304: Create FINANCIAL flow family skeleton on shared core - Completed on 04/06/2026 02:37
+Task 305: Define FINANCIAL YAML taxonomy, heuristics, validation, decision, and action routing - Completed on 04/06/2026 02:37
+Task 306: Add FINANCIAL runtime/report path wiring and smoke coverage - Completed on 04/06/2026 02:37
