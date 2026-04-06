@@ -12,6 +12,7 @@ export function RuntimeDashboardSection({
   handleRuntimeTaskFormChange,
   updateRuntimeAiCallsEnabled,
   updateRuntimeProviderCallsEnabled,
+  updateRuntimeUserNotificationsEnabled,
   updateRuntimeOrderChecksEnabled,
   runRuntimeResolveFlow,
   runRuntimeAuthorize,
@@ -36,6 +37,7 @@ export function RuntimeDashboardSection({
         <dl className="facts">
           <div><dt>AI Calls</dt><dd>{runtimeTaskStatus?.ai_calls_enabled === false ? "disabled" : "enabled"}</dd></div>
           <div><dt>Provider Calls</dt><dd>{runtimeTaskStatus?.provider_calls_enabled === false ? "disabled" : "enabled"}</dd></div>
+          <div><dt>User Notifications</dt><dd>{runtimeTaskStatus?.user_notifications_enabled === false ? "disabled" : "enabled"}</dd></div>
           <div><dt>Check Orders</dt><dd>{runtimeTaskStatus?.order_checks_enabled === false ? "disabled" : "enabled"}</dd></div>
           <div><dt>Request Status</dt><dd>{runtimeTaskStatus?.request_status || "idle"}</dd></div>
           <div><dt>Last Step</dt><dd>{runtimeTaskStatus?.last_step || "none"}</dd></div>
@@ -69,103 +71,84 @@ export function RuntimeDashboardSection({
           <p className="muted">Configure the task request that will be previewed, resolved, and authorized through Core.</p>
         </div>
         <div className="stack compact-stack">
-          <label className="field">
-            <span className="field-label">AI Calls</span>
-            <button
-              type="button"
-              className={`toggle ${runtimeTaskForm.ai_calls_enabled ? "is-on" : ""}`}
-              aria-pressed={runtimeTaskForm.ai_calls_enabled}
-              disabled={runtimeTaskPending !== ""}
-              onClick={() => updateRuntimeAiCallsEnabled(!runtimeTaskForm.ai_calls_enabled)}
-            >
-              <span className="toggle-thumb" />
-              <span>{runtimeTaskForm.ai_calls_enabled ? "Enabled" : "Disabled"}</span>
-            </button>
-          </label>
-          <label className="field">
-            <span className="field-label">Provider Calls</span>
-            <button
-              type="button"
-              className={`toggle ${runtimeTaskForm.provider_calls_enabled ? "is-on" : ""}`}
-              aria-pressed={runtimeTaskForm.provider_calls_enabled}
-              disabled={runtimeTaskPending !== ""}
-              onClick={() => updateRuntimeProviderCallsEnabled(!runtimeTaskForm.provider_calls_enabled)}
-            >
-              <span className="toggle-thumb" />
-              <span>{runtimeTaskForm.provider_calls_enabled ? "Enabled" : "Disabled"}</span>
-            </button>
-          </label>
-          <label className="field">
-            <span className="field-label">Check Orders</span>
-            <button
-              type="button"
-              className={`toggle ${runtimeTaskForm.order_checks_enabled ? "is-on" : ""}`}
-              aria-pressed={runtimeTaskForm.order_checks_enabled}
-              disabled={runtimeTaskPending !== ""}
-              onClick={() =>
-                updateRuntimeOrderChecksEnabled(!runtimeTaskForm.order_checks_enabled)
-              }
-            >
-              <span className="toggle-thumb" />
-              <span>{runtimeTaskForm.order_checks_enabled ? "Enabled" : "Disabled"}</span>
-            </button>
-          </label>
-          <label className="field">
-            <span className="field-label">Requested Node Type</span>
-            <select name="requested_node_type" value={runtimeTaskForm.requested_node_type} onChange={handleRuntimeTaskFormChange}>
-              <option value="ai">ai</option>
-              <option value="email">email</option>
-            </select>
-          </label>
-          <label className="field">
-            <span className="field-label">Task Family</span>
-            <select name="task_family" value={runtimeTaskForm.task_family} onChange={handleRuntimeTaskFormChange}>
-              <option value="task.classification">task.classification</option>
-              <option value="task.summarization">task.summarization</option>
-              <option value="task.tracking">task.tracking</option>
-            </select>
-          </label>
-          <label className="field">
-            <span className="field-label">Content Type</span>
-            <input name="content_type" value={runtimeTaskForm.content_type} onChange={handleRuntimeTaskFormChange} />
-          </label>
-          <label className="field">
-            <span className="field-label">Preferred Provider</span>
-            <input name="preferred_provider" value={runtimeTaskForm.preferred_provider} onChange={handleRuntimeTaskFormChange} />
-          </label>
-          <label className="field">
-            <span className="field-label">Preferred Model</span>
-            <input name="preferred_model" value={runtimeTaskForm.preferred_model} onChange={handleRuntimeTaskFormChange} />
-          </label>
-          <label className="field">
-            <span className="field-label">Service ID</span>
-            <input
-              name="service_id"
-              value={runtimeTaskForm.service_id}
-              onChange={handleRuntimeTaskFormChange}
-              placeholder="node-service:node-123e4567-e89b-42d3-a456-426614174000:openai"
-            />
-          </label>
-          <label className="field">
-            <span className="field-label">AI Node API Base URL</span>
-            <input
-              name="target_api_base_url"
-              value={runtimeTaskForm.target_api_base_url}
-              onChange={handleRuntimeTaskFormChange}
-              placeholder={
-                (Array.isArray(runtimeResolved?.candidates) && runtimeResolved.candidates[0]?.provider_api_base_url) ||
-                "http://10.0.0.100:9002/api"
-              }
-            />
-          </label>
-          <label className="field">
-            <span className="field-label">Email Subject</span>
-            <input name="email_subject" value={runtimeTaskForm.email_subject} onChange={handleRuntimeTaskFormChange} />
-          </label>
-          <label className="field">
-            <span className="field-label">Email Body</span>
-            <textarea name="email_body" rows="6" value={runtimeTaskForm.email_body} onChange={handleRuntimeTaskFormChange} />
-          </label>
+          <div className="runtime-switch-groups">
+            <div className="runtime-switch-group">
+              <div className="runtime-switch-group-header">Calls</div>
+              <div className="runtime-switch-card">
+                <div className="runtime-switch-grid">
+                  <label className="field runtime-switch-item">
+                  <button
+                    type="button"
+                    className={`runtime-switch-pill runtime-switch-button ${runtimeTaskForm.ai_calls_enabled ? "is-on" : "is-off"}`}
+                    aria-pressed={runtimeTaskForm.ai_calls_enabled}
+                    aria-label={runtimeTaskForm.ai_calls_enabled ? "Disable AI calls" : "Enable AI calls"}
+                    disabled={runtimeTaskPending !== ""}
+                    onClick={() => updateRuntimeAiCallsEnabled(!runtimeTaskForm.ai_calls_enabled)}
+                  >
+                    <span className="runtime-switch-led" />
+                    <span>AI</span>
+                    <span className="sr-only">{runtimeTaskForm.ai_calls_enabled ? "Enabled" : "Disabled"}</span>
+                  </button>
+                  </label>
+                  <label className="field runtime-switch-item">
+                  <button
+                    type="button"
+                    className={`runtime-switch-pill runtime-switch-button ${runtimeTaskForm.provider_calls_enabled ? "is-on" : "is-off"}`}
+                    aria-pressed={runtimeTaskForm.provider_calls_enabled}
+                    aria-label={runtimeTaskForm.provider_calls_enabled ? "Disable provider calls" : "Enable provider calls"}
+                    disabled={runtimeTaskPending !== ""}
+                    onClick={() => updateRuntimeProviderCallsEnabled(!runtimeTaskForm.provider_calls_enabled)}
+                  >
+                    <span className="runtime-switch-led" />
+                    <span>Provider</span>
+                    <span className="sr-only">{runtimeTaskForm.provider_calls_enabled ? "Enabled" : "Disabled"}</span>
+                  </button>
+                  </label>
+                  <label className="field runtime-switch-item">
+                  <button
+                    type="button"
+                    className={`runtime-switch-pill runtime-switch-button ${runtimeTaskForm.user_notifications_enabled ? "is-on" : "is-off"}`}
+                    aria-pressed={runtimeTaskForm.user_notifications_enabled}
+                    aria-label={runtimeTaskForm.user_notifications_enabled ? "Disable user notifications" : "Enable user notifications"}
+                    disabled={runtimeTaskPending !== ""}
+                    onClick={() => updateRuntimeUserNotificationsEnabled(!runtimeTaskForm.user_notifications_enabled)}
+                  >
+                    <span className="runtime-switch-led" />
+                    <span>Notify</span>
+                    <span className="sr-only">{runtimeTaskForm.user_notifications_enabled ? "Enabled" : "Disabled"}</span>
+                  </button>
+                </label>
+                </div>
+              </div>
+            </div>
+            <div className="runtime-switch-group">
+              <div className="runtime-switch-group-header">Analysis</div>
+              <div className="runtime-switch-card">
+                <div className="runtime-switch-grid">
+                  <label className="field runtime-switch-item">
+                  <button
+                    type="button"
+                    className={`runtime-switch-pill runtime-switch-button ${runtimeTaskForm.order_checks_enabled ? "is-on" : "is-off"}`}
+                    aria-pressed={runtimeTaskForm.order_checks_enabled}
+                    aria-label={runtimeTaskForm.order_checks_enabled ? "Disable order analysis" : "Enable order analysis"}
+                    disabled={runtimeTaskPending !== ""}
+                    onClick={() => updateRuntimeOrderChecksEnabled(!runtimeTaskForm.order_checks_enabled)}
+                  >
+                    <span className="runtime-switch-led" />
+                    <span>Order</span>
+                    <span className="sr-only">{runtimeTaskForm.order_checks_enabled ? "Enabled" : "Disabled"}</span>
+                  </button>
+                </label>
+                <div className="field runtime-switch-item runtime-switch-item-disabled" aria-hidden="true">
+                  <span className="runtime-switch-pill is-off">
+                    <span className="runtime-switch-led" />
+                    <span>Etc</span>
+                  </span>
+                </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </article>
 

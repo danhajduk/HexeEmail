@@ -185,6 +185,9 @@ class NodeService:
     def _runtime_provider_disabled_message(self) -> str:
         return self.runtime.runtime_provider_disabled_message()
 
+    def _runtime_user_notifications_enabled(self) -> bool:
+        return self.runtime.runtime_user_notifications_enabled()
+
     def _runtime_order_checks_enabled(self) -> bool:
         return self.runtime.runtime_order_checks_enabled()
 
@@ -2093,6 +2096,11 @@ class NodeService:
             if payload.provider_calls_enabled is None
             else bool(payload.provider_calls_enabled)
         )
+        user_notifications_enabled = (
+            current.get("user_notifications_enabled", True)
+            if payload.user_notifications_enabled is None
+            else bool(payload.user_notifications_enabled)
+        )
         order_checks_enabled = (
             current.get("order_checks_enabled", True)
             if payload.order_checks_enabled is None
@@ -2101,6 +2109,7 @@ class NodeService:
         state = self._save_runtime_task_state(
             ai_calls_enabled=ai_calls_enabled,
             provider_calls_enabled=provider_calls_enabled,
+            user_notifications_enabled=user_notifications_enabled,
             order_checks_enabled=order_checks_enabled,
         )
         return {

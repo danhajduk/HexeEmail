@@ -1224,6 +1224,28 @@ async def test_runtime_settings_can_enable_order_checks(config, core_client_fact
 
 
 @pytest.mark.asyncio
+async def test_runtime_settings_can_disable_user_notifications(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/runtime/settings",
+            json={
+                "user_notifications_enabled": False,
+            },
+        )
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["runtime_task_state"]["user_notifications_enabled"] is False
+    assert service.state.runtime_task_state["user_notifications_enabled"] is False
+
+
+@pytest.mark.asyncio
 async def test_runtime_settings_keep_order_checks_enabled_when_ai_is_disabled(
     config,
     core_client_factory,

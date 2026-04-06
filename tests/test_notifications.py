@@ -60,6 +60,31 @@ async def test_send_user_notification_publishes_core_contract(config, core_clien
 
 
 @pytest.mark.asyncio
+async def test_send_user_notification_skips_when_runtime_notifications_disabled(config, core_client_factory):
+    mqtt_manager = FakeMQTTManager()
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=mqtt_manager)
+    service.state.trust_state = "trusted"
+    service.state.node_id = "node-1"
+    service.mqtt_manager.status.state = "connected"
+    service._save_runtime_task_state(user_notifications_enabled=False)
+
+    published = service.send_user_notification(
+        title="Hexe Email warning",
+        message="Something needs attention.",
+        severity="warning",
+        urgency="actions_needed",
+        dedupe_key="test-warning-disabled",
+        event_type="test_warning_disabled",
+        summary="Test warning",
+        source_component="tests",
+        data={"scope": "unit"},
+    )
+
+    assert published is False
+    assert mqtt_manager.notification_requests == []
+
+
+@pytest.mark.asyncio
 async def test_gmail_fetch_warning_and_recovery_notifications_are_transition_based(config, core_client_factory):
     mqtt_manager = FakeMQTTManager()
     service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=mqtt_manager)

@@ -82,6 +82,12 @@ class NotificationManager:
         source_component: str,
         data: dict[str, object] | None = None,
     ) -> bool:
+        if not self.service.runtime.runtime_user_notifications_enabled():
+            LOGGER.info(
+                "Skipping user notification because runtime notifications are disabled",
+                extra={"event_data": {"dedupe_key": dedupe_key, "event_type": event_type}},
+            )
+            return False
         if self.service.state.trust_state != "trusted" or not self.service.state.node_id:
             return False
         if self.service.mqtt_manager.status.state != "connected":

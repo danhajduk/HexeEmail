@@ -35,7 +35,7 @@ describe("dashboard feature sections", () => {
         openTraining={() => {}}
         runtimeTaskPending=""
         runRuntimeExecuteEmailClassifierBatch={() => {}}
-        runtimeTaskForm={{ ai_calls_enabled: true, provider_calls_enabled: true, order_checks_enabled: true }}
+        runtimeTaskForm={{ ai_calls_enabled: true, provider_calls_enabled: true, user_notifications_enabled: true, order_checks_enabled: true }}
         runtimeBatchExecution={null}
         runtimeBatchProgressPercent={0}
         gmailLastHourPipelinePills={[{ key: "fetch", label: "fetch", value: "done" }]}
@@ -99,6 +99,7 @@ describe("dashboard feature sections", () => {
         runtimeTaskStatus={{
           ai_calls_enabled: true,
           provider_calls_enabled: true,
+          user_notifications_enabled: true,
           order_checks_enabled: true,
           request_status: "idle",
           last_step: "none",
@@ -107,6 +108,7 @@ describe("dashboard feature sections", () => {
         runtimeTaskForm={{
           ai_calls_enabled: true,
           provider_calls_enabled: true,
+          user_notifications_enabled: true,
           order_checks_enabled: true,
           requested_node_type: "ai",
           task_family: "task.classification",
@@ -127,6 +129,7 @@ describe("dashboard feature sections", () => {
         handleRuntimeTaskFormChange={() => {}}
         updateRuntimeAiCallsEnabled={() => {}}
         updateRuntimeProviderCallsEnabled={() => {}}
+        updateRuntimeUserNotificationsEnabled={() => {}}
         updateRuntimeOrderChecksEnabled={() => {}}
         runRuntimeResolveFlow={() => {}}
         runRuntimeAuthorize={() => {}}
@@ -158,7 +161,11 @@ describe("dashboard feature sections", () => {
 
     expect(runtimeHtml).toContain("Runtime Status");
     expect(runtimeHtml).toContain("Runtime Actions");
-    expect(runtimeHtml).toContain("Check Orders");
+    expect(runtimeHtml).toContain("Notify");
+    expect(runtimeHtml).toContain("Analysis");
+    expect(runtimeHtml).toContain("Order");
+    expect(runtimeHtml).not.toContain("AI Node API Base URL");
+    expect(runtimeHtml).not.toContain("Email Body");
     expect(scheduledHtml).toContain("Scheduled Tasks");
     expect(ordersHtml).toContain("Tracked Orders");
   });

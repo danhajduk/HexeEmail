@@ -16,6 +16,7 @@ class RuntimeManager:
         return {
             "ai_calls_enabled": True,
             "provider_calls_enabled": True,
+            "user_notifications_enabled": True,
             "order_checks_enabled": True,
             "request_status": "idle",
             "last_step": "none",
@@ -52,6 +53,11 @@ class RuntimeManager:
     def runtime_provider_calls_enabled(self) -> bool:
         current = self.runtime_task_state()
         value = current.get("provider_calls_enabled")
+        return True if value is None else bool(value)
+
+    def runtime_user_notifications_enabled(self) -> bool:
+        current = self.runtime_task_state()
+        value = current.get("user_notifications_enabled")
         return True if value is None else bool(value)
 
     def runtime_order_checks_enabled(self) -> bool:
