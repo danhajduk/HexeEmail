@@ -277,3 +277,4 @@ Task 268: Extract Phase 1 normalization into shared core interface - Completed o
 Task 269: Extract Phase 2 scrubber into shared engine with heuristic pack loading - Completed on 04/06/2026 00:05
 Task 270: Create flow-family heuristic config directories - Completed on 04/06/2026 00:09
 Task 271: Extract Phase 3 profile detection into shared detector engine - Completed on 04/06/2026 00:17
+Task 272: Create family-specific profile definition packs - Completed on 04/06/2026 00:22

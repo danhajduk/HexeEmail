@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from email_node.shared_pipeline_core.families import get_flow_family_config
+from email_node.shared_pipeline_core.profile_packs import load_profile_definition_pack
 from providers.gmail.models import GmailPhase1Reference, GmailPhase2ScrubbedEmail
 from providers.gmail.order_phase3 import GmailOrderPhase3ProfileDetector
 
@@ -249,3 +251,25 @@ def test_phase3_uses_runtime_rule_overrides(tmp_path: Path):
     assert result.profile_id == "ride_cancellation"
     assert result.profile_confidence == 0.35
     assert result.profile_confidence_level == "low"
+
+
+def test_shared_profile_pack_loader_supports_order_and_action_needed(tmp_path: Path):
+    runtime_dir = tmp_path / "runtime"
+    runtime_dir.mkdir(parents=True, exist_ok=True)
+
+    order_pack = load_profile_definition_pack(
+        get_flow_family_config("order", runtime_dir=runtime_dir).profile_detector_pack,
+        runtime_dir=runtime_dir,
+    )
+    action_needed_pack = load_profile_definition_pack(
+        get_flow_family_config("action_needed", runtime_dir=runtime_dir).profile_detector_pack,
+        runtime_dir=runtime_dir,
+    )
+
+    assert order_pack.flow_family == "order"
+    assert "amazon_order_confirmation" in order_pack.taxonomy
+    assert order_pack.runtime_rules_path == runtime_dir / "order_profile_rules.json"
+
+    assert action_needed_pack.flow_family == "action_needed"
+    assert "payment_due" in action_needed_pack.taxonomy
+    assert action_needed_pack.runtime_rules_path == runtime_dir / "flow_families" / "action_needed" / "profile_rules.json"

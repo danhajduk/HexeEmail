@@ -1,6 +1,7 @@
 # ORDER Phase 3 Profile Detection
 
 The ORDER Phase 3 detector lives in [src/providers/gmail/order_phase3.py](/home/dan/Projects/HexeEmail/src/providers/gmail/order_phase3.py).
+Its shared detection mechanics now come from [src/email_node/shared_pipeline_core/profile_detector.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/profile_detector.py).
 
 Current Phase 3 responsibilities:
 
@@ -12,9 +13,9 @@ Current Phase 3 responsibilities:
 - resolve one canonical `profile_id` plus fallback candidates for downstream pattern lookup
 - downgrade confidence when strong signals conflict or the leading candidate is weak
 
-The initial taxonomy and known vendor mappings live in [src/providers/gmail/order_profile_taxonomy.py](/home/dan/Projects/HexeEmail/src/providers/gmail/order_profile_taxonomy.py).
+The ORDER family taxonomy and known vendor mappings now live in [src/email_node/flow_families/order/profiles.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/order/profiles.py).
 
-The runtime-tunable keyword and scoring rules now live in [runtime/order_profile_rules.json](/home/dan/Projects/HexeEmail/runtime/order_profile_rules.json). This file controls Phase 3 signal keywords, score weights, thresholds, sender-domain profile hints, and conflict overrides without requiring code edits.
+The default ORDER keyword and scoring rules also live in [src/email_node/flow_families/order/profiles.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/order/profiles.py), while runtime overrides still live in [runtime/order_profile_rules.json](/home/dan/Projects/HexeEmail/runtime/order_profile_rules.json). That runtime file controls Phase 3 signal keywords, score weights, thresholds, sender-domain profile hints, and conflict overrides without requiring code edits.
 
 Current sample-grounded profile coverage includes:
 

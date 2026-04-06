@@ -47,28 +47,6 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[TODO] Task 272: Create family-specific profile definition packs
-
-- Externalize profile taxonomy and detection rules from code
-
-ORDER examples:
-- amazon_order_confirmation
-- reservation_confirmation
-- generic_order_cancellation
-- ride_cancellation
-
-ACTION_NEEDED examples:
-- payment_due
-- subscription_payment_failed
-- account_verification_required
-- security_alert_action_required
-- document_signature_required
-- generic_action_required
-
-Acceptance:
-- Shared profile detector can load profile packs by family
-- ORDER profiles are no longer embedded directly in detector code
-
 [TODO] Task 273: Extract Phase 4 template execution into shared template engine
 
 - Convert current ORDER pattern execution runtime into a family-agnostic template engine

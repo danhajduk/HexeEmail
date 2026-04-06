@@ -28,7 +28,7 @@ def get_flow_family_config(flow_family: FlowFamily, *, runtime_dir: Path | None 
         return FlowFamilyConfig(
             flow_family="order",
             scrub_heuristic_pack="email_node.flow_families.order.heuristics",
-            profile_detector_pack="runtime/order_profile_rules.json",
+            profile_detector_pack="email_node.flow_families.order.profiles",
             template_dir=base_runtime_dir / "order_templates",
             probation_template_dir=Path("src/email_node/patterns/probation"),
             probation_state_dir=Path("src/email_node/patterns/probation_state"),
@@ -41,7 +41,7 @@ def get_flow_family_config(flow_family: FlowFamily, *, runtime_dir: Path | None 
         return FlowFamilyConfig(
             flow_family="action_needed",
             scrub_heuristic_pack="email_node.flow_families.action_needed.heuristics",
-            profile_detector_pack="runtime/flow_families/action_needed/profile_rules.json",
+            profile_detector_pack="email_node.flow_families.action_needed.profiles",
             template_dir=base_runtime_dir / "action_needed_templates",
             probation_template_dir=base_runtime_dir / "flow_families" / "action_needed" / "probation_templates",
             probation_state_dir=base_runtime_dir / "flow_families" / "action_needed" / "probation_state",

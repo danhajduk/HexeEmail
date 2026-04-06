@@ -86,6 +86,7 @@ Status: `[DONE]`
    * sender domain
    * subject
    * cleaned_text markers
+   * ORDER family profile pack definitions
    * runtime tuning rules from `runtime/order_profile_rules.json`
 
 9. Example profiles:

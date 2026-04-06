@@ -2,22 +2,18 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from email_node.shared_pipeline_core.families import get_flow_family_config
+from email_node.shared_pipeline_core.profile_packs import load_profile_definition_pack
 from email_node.shared_pipeline_core.profile_detector import SharedProfileDetectorEngine
-from providers.gmail.models import (
-    GmailPhase2ScrubbedEmail,
-)
-from providers.gmail.order_profile_taxonomy import (
-    KNOWN_VENDOR_IDENTITIES,
-    PROFILE_TAXONOMY,
-    PROFILE_TAXONOMY_VERSION,
-)
-from providers.gmail.order_profile_rules import GmailOrderProfileRulesStore
+
 
 class GmailOrderPhase3ProfileDetector(SharedProfileDetectorEngine):
     def __init__(self, runtime_dir: Path | None = None) -> None:
+        config = get_flow_family_config("order", runtime_dir=runtime_dir)
+        profile_pack = load_profile_definition_pack(config.profile_detector_pack, runtime_dir=runtime_dir)
         super().__init__(
-            taxonomy=PROFILE_TAXONOMY,
-            taxonomy_version=PROFILE_TAXONOMY_VERSION,
-            known_vendor_identities=KNOWN_VENDOR_IDENTITIES,
-            rules=GmailOrderProfileRulesStore(runtime_dir).load(),
+            taxonomy=profile_pack.taxonomy,
+            taxonomy_version=profile_pack.taxonomy_version,
+            known_vendor_identities=profile_pack.known_vendor_identities,
+            rules=profile_pack.load_rules(),
         )
