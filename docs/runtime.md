@@ -59,6 +59,25 @@ Current operator-visible runtime surfaces include:
 
 Scheduler and background-task ownership is now centered in [scheduler.py](/home/dan/Projects/HexeEmail/src/node_backend/scheduler.py), with provider-specific runtime execution routed through [providers.py](/home/dan/Projects/HexeEmail/src/node_backend/providers.py).
 
+The runtime also now hosts the shared flow-family pipeline model used by:
+
+- `order`
+- `action_required`
+- `financial`
+- `invoice`
+- `security`
+- `shipment`
+
+The main architecture and family references for that model are:
+
+- [shared-flow-family-architecture.md](/home/dan/Projects/HexeEmail/docs/shared-flow-family-architecture.md)
+- [order-family-reference.md](/home/dan/Projects/HexeEmail/docs/order-family-reference.md)
+- [action-required-family-reference.md](/home/dan/Projects/HexeEmail/docs/action-required-family-reference.md)
+- [planned-family-references.md](/home/dan/Projects/HexeEmail/docs/planned-family-references.md)
+- [flow-family-action-matrix.md](/home/dan/Projects/HexeEmail/docs/flow-family-action-matrix.md)
+- [flow-family-terminal-outcomes.md](/home/dan/Projects/HexeEmail/docs/flow-family-terminal-outcomes.md)
+- [flow-family-worked-examples.md](/home/dan/Projects/HexeEmail/docs/flow-family-worked-examples.md)
+
 The standardized scheduler model now includes:
 
 - an explicit task registry in [scheduler.py](/home/dan/Projects/HexeEmail/src/node_backend/scheduler.py)

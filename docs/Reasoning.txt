@@ -355,3 +355,51 @@ Chosen fix: Expand the scheduler reference doc with the final operator rules, th
 What changed: Updated `docs/scheduler-and-background-tasks.md`, `docs/runtime.md`, and `docs/index.md`, removed Task 338 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
 Verification: Documentation review completed against `docs/scheduler-and-background-tasks.md`, `docs/runtime.md`, `docs/index.md`, and the live scheduler implementation in `src/node_backend/scheduler.py`.
 ###########
+Task #339
+Step objective: Create a comprehensive flow-family architecture document covering the end-to-end shared pipeline model, per-phase responsibilities, shared-core boundaries, and family-specific extension points.
+Chosen fix: Rewrite the shared architecture reference around the live phase order, shared contracts, family extension points, runtime layout, and current maturity of each family so it works as the top-level map for the new family docs instead of just a migration note.
+What changed: Rewrote `docs/shared-flow-family-architecture.md`, removed Task 339 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: Documentation review completed against `src/email_node/shared_pipeline_core/pipeline.py`, `src/email_node/shared_pipeline_core/decision.py`, `src/email_node/shared_pipeline_core/persistence.py`, and the live family YAML/runtime files.
+###########
+Task #340
+Step objective: Document the ORDER family in detail, including profile detection, template execution, probation flow, decisioning, persistence, and downstream action behavior.
+Chosen fix: Add one dedicated ORDER reference that explains the live taxonomy, Phase 2-4 behavior, probation lifecycle, decision model, persistence paths, downstream actions, and runtime switches without mixing it into the broader architecture doc.
+What changed: Added `docs/order-family-reference.md`, removed Task 340 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: Documentation review completed against `src/email_node/flow_families/order/runtime.py`, `runtime/flow_families/order/family.yaml`, and the current ORDER report artifacts under `runtime/order_flow_logs/ad_hoc_reports/`.
+###########
+Task #341
+Step objective: Document the ACTION_REQUIRED family in detail, including taxonomy, profile detection, template strategy, fallback behavior, and downstream action behavior.
+Chosen fix: Add a dedicated ACTION_REQUIRED reference that captures the expanded taxonomy, AI probation shape, current template limitations, placeholder actions, and the current gap between the family plumbing and active template coverage.
+What changed: Added `docs/action-required-family-reference.md`, removed Task 341 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: Documentation review completed against `src/email_node/flow_families/action_required/runtime.py`, `runtime/flow_families/action_required/family.yaml`, and the sampled ACTION_REQUIRED report artifacts.
+###########
+Task #342
+Step objective: Document the planned FINANCIAL, INVOICE, SECURITY, and SHIPMENT families in detail, including intended taxonomy model, expected detection patterns, and planned action surfaces.
+Chosen fix: Group the four newer families into a single planned-family reference that records their live YAML taxonomy, current placeholder action surfaces, smoke-tested runtime status, and family-specific quirks like intake overrides.
+What changed: Added `docs/planned-family-references.md`, removed Task 342 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: Documentation review completed against the `runtime/flow_families/{financial,invoice,security,shipment}/family.yaml` files, their runtime modules, and the mailbox sample artifacts under each family analysis directory.
+###########
+Task #343
+Step objective: Create a family-by-family action matrix that lists every supported and planned downstream action, the gating conditions for each action, and the runtime switches or trust requirements that affect them.
+Chosen fix: Add one shared action matrix document centered on the live action gate, family routing policies, and runtime switch interactions so operators can see which intents are real, which are blocked by decision state, and which remain placeholders.
+What changed: Added `docs/flow-family-action-matrix.md`, removed Task 343 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: Documentation review completed against `src/email_node/shared_pipeline_core/actions.py`, the family `action_routing.py` adapters, and the family YAML action routing blocks.
+###########
+Task #344
+Step objective: Document all possible cross-family terminal outcomes and operator states, including accept, probation, review_needed, reject, persistence behavior, notification behavior, and user-review handoff.
+Chosen fix: Write one shared terminal-outcomes reference built directly from the shared decision and persistence contracts so all families inherit the same operator-visible meaning for trusted, partial, review-needed, and non-persisted results.
+What changed: Added `docs/flow-family-terminal-outcomes.md`, removed Task 344 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: Documentation review completed against `src/email_node/shared_pipeline_core/decision.py` and `src/email_node/shared_pipeline_core/persistence.py`.
+###########
+Task #345
+Step objective: Add concrete worked examples for representative emails across multiple families, showing phase-by-phase progression, confidence changes, fallback paths, and final action outcomes.
+Chosen fix: Use the existing ORDER and ACTION_REQUIRED runtime report artifacts plus the new-family mailbox sample artifacts to build one worked-examples document that shows the mature accept path, probation fallback path, unknown-to-probation path, and current incomplete family path.
+What changed: Added `docs/flow-family-worked-examples.md`, removed Task 345 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: Documentation review completed against `runtime/order_flow_logs/ad_hoc_reports/order_flow_report.current.index.json`, `runtime/flow_families/action_required/reports/action_required_flow_report.renamecheck.index.json`, and the family sample analysis artifacts.
+###########
+Task #346
+Step objective: Update repo documentation indexes so the new flow and action docs are discoverable from the main runtime, pipeline, and architecture docs.
+Chosen fix: Link the new family references from the docs index, runtime doc, shared-core doc, and ORDER pipeline doc so operators and developers can discover them from the main runtime, architecture, and family-specific entrypoints.
+What changed: Updated `docs/index.md`, `docs/runtime.md`, `docs/shared-email-pipeline-core.md`, and `docs/Email Processing Pipeline (ORDER Flow).md`, removed Task 346 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: Documentation review completed against the updated entrypoint docs and the newly added family reference set.
+###########

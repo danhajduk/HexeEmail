@@ -166,6 +166,15 @@ Why this exists:
 - preserve existing ORDER output contracts while enabling later migration tasks
 - keep Phase 2 through Phase 7 execution order and aggregation consistent across future flow families
 
+Primary architecture references:
+
+- [shared-flow-family-architecture.md](/home/dan/Projects/HexeEmail/docs/shared-flow-family-architecture.md)
+- [order-family-reference.md](/home/dan/Projects/HexeEmail/docs/order-family-reference.md)
+- [action-required-family-reference.md](/home/dan/Projects/HexeEmail/docs/action-required-family-reference.md)
+- [planned-family-references.md](/home/dan/Projects/HexeEmail/docs/planned-family-references.md)
+- [flow-family-action-matrix.md](/home/dan/Projects/HexeEmail/docs/flow-family-action-matrix.md)
+- [flow-family-terminal-outcomes.md](/home/dan/Projects/HexeEmail/docs/flow-family-terminal-outcomes.md)
+
 Not migrated yet:
 
 - active template coverage for ACTION_REQUIRED

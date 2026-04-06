@@ -185,6 +185,12 @@ Status: `[DONE]`
 34. Shared phase orchestration stays in the shared core.
 35. ORDER family wiring and probation behavior now live in the ORDER family runtime module.
 
+Related references:
+
+* [order-family-reference.md](/home/dan/Projects/HexeEmail/docs/order-family-reference.md)
+* [shared-flow-family-architecture.md](/home/dan/Projects/HexeEmail/docs/shared-flow-family-architecture.md)
+* [flow-family-terminal-outcomes.md](/home/dan/Projects/HexeEmail/docs/flow-family-terminal-outcomes.md)
+
 #### Unknown Profile
 
 Status: `[PARTIAL]`

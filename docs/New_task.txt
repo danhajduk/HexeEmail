@@ -47,12 +47,4 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[TODO] Task 339: Create a comprehensive flow-family architecture document covering the end-to-end shared pipeline model, per-phase responsibilities, shared-core boundaries, and family-specific extension points
-[TODO] Task 340: Document the ORDER family in detail, including profile detection, template execution, probation flow, decisioning, persistence, and downstream action behavior
-[TODO] Task 341: Document the ACTION_REQUIRED family in detail, including taxonomy, profile detection, template strategy, fallback behavior, and downstream action behavior
-[TODO] Task 342: Document the planned FINANCIAL, INVOICE, SECURITY, and SHIPMENT families in detail, including intended taxonomy model, expected detection patterns, and planned action surfaces
-[TODO] Task 343: Create a family-by-family action matrix that lists every supported and planned downstream action, the gating conditions for each action, and the runtime switches or trust requirements that affect them
-[TODO] Task 344: Document all possible cross-family terminal outcomes and operator states, including accept, probation, review_needed, reject, persistence behavior, notification behavior, and user-review handoff
-[TODO] Task 345: Add concrete worked examples for representative emails across multiple families, showing phase-by-phase progression, confidence changes, fallback paths, and final action outcomes
-[TODO] Task 346: Update repo documentation indexes so the new flow and action docs are discoverable from the main runtime, pipeline, and architecture docs
-[TODO] Task 347: Send a completion user notification over MQTT using the Core-documented user-notification format after the scheduled-task and flow-family work is finished
+[WIP] Task 347: Send a completion user notification over MQTT using the Core-documented user-notification format after the scheduled-task and flow-family work is finished

@@ -19,6 +19,13 @@ Implementation and architecture references:
 
 - [email-node-architecture.md](/home/dan/Projects/HexeEmail/docs/email-node-architecture.md)
 - [shared-flow-family-architecture.md](/home/dan/Projects/HexeEmail/docs/shared-flow-family-architecture.md)
+- [shared-email-pipeline-core.md](/home/dan/Projects/HexeEmail/docs/shared-email-pipeline-core.md)
+- [order-family-reference.md](/home/dan/Projects/HexeEmail/docs/order-family-reference.md)
+- [action-required-family-reference.md](/home/dan/Projects/HexeEmail/docs/action-required-family-reference.md)
+- [planned-family-references.md](/home/dan/Projects/HexeEmail/docs/planned-family-references.md)
+- [flow-family-action-matrix.md](/home/dan/Projects/HexeEmail/docs/flow-family-action-matrix.md)
+- [flow-family-terminal-outcomes.md](/home/dan/Projects/HexeEmail/docs/flow-family-terminal-outcomes.md)
+- [flow-family-worked-examples.md](/home/dan/Projects/HexeEmail/docs/flow-family-worked-examples.md)
 - [core-compatibility.md](/home/dan/Projects/HexeEmail/docs/core-compatibility.md)
 - [gmail-oauth-setup-guide.md](/home/dan/Projects/HexeEmail/docs/gmail-oauth-setup-guide.md)
 
