@@ -47,3 +47,373 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
+[TODO] Task 267: Define flow family abstraction for pipeline execution
+
+- Add a formal flow family model so ORDER and ACTION_NEEDED can run through the same pipeline core with different loaded configs
+
+Requirements:
+- Define flow families:
+  - order
+  - action_needed
+- Each flow family must resolve:
+  - scrub heuristic pack
+  - profile detector pack
+  - template directory
+  - validation policy
+  - decision policy
+  - action router policy
+  - output schema family
+- Add helper:
+  - get_flow_family_config(flow_family)
+
+Acceptance:
+- Pipeline can load family-specific config from one shared entry point
+- ORDER and ACTION_NEEDED can be represented as first-class flow families
+
+[TODO] Task 268: Extract Phase 1 normalization into shared core interface
+
+- Move the current fetch/normalize entry into shared pipeline core without changing behavior
+
+Requirements:
+- Keep current normalized payload contract unchanged
+- Make Phase 1 callable by any flow family
+- Do not introduce ORDER-specific assumptions into the shared interface
+- Preserve:
+  - headers
+  - raw_html
+  - raw_text
+  - sender normalization
+  - mime diagnostics
+  - link-ready content
+
+Acceptance:
+- ORDER uses shared Phase 1 interface
+- No behavior regression in existing ORDER reports
+
+[TODO] Task 269: Extract Phase 2 scrubber into shared engine with heuristic pack loading
+
+- Refactor the current scrub logic into one engine that loads heuristics by flow family
+
+Requirements:
+- Shared engine handles:
+  - block filtering
+  - noise removal
+  - line preservation
+  - link extraction
+  - signal scoring
+- Heuristic pack must be loaded by flow family
+- Keep output contract stable enough for current ORDER flow
+
+Acceptance:
+- ORDER scrub behavior still works through shared engine
+- Engine no longer hardcodes ORDER-only assumptions
+
+[TODO] Task 270: Create flow-family heuristic config directories
+
+- Add external heuristic packs for shared scrub engine
+
+ORDER pack should cover:
+- transactional/order signal
+- totals/items/tracking/order ids
+- common boilerplate removal
+
+ACTION_NEEDED pack should cover:
+- deadlines
+- imperative language
+- due/payment/verify/sign/confirm wording
+- action URLs
+- warning/consequence language
+
+Acceptance:
+- Heuristic packs exist for both flow families
+- Shared scrub engine can load either pack
+
+[TODO] Task 271: Extract Phase 3 profile detection into shared detector engine
+
+- Move current ORDER profile detection mechanics into a shared detection engine
+
+Requirements:
+- Shared engine must support:
+  - sender/domain markers
+  - subject markers
+  - scrubbed body markers
+  - weighted scoring
+  - confidence output
+  - diagnostics
+- Flow-family-specific profile definitions must be loaded externally
+- Keep ORDER profile detection behavior functionally equivalent
+
+Acceptance:
+- ORDER profile detection runs through shared engine
+- Engine can later load ACTION_NEEDED profile definitions
+
+[TODO] Task 272: Create family-specific profile definition packs
+
+- Externalize profile taxonomy and detection rules from code
+
+ORDER examples:
+- amazon_order_confirmation
+- reservation_confirmation
+- generic_order_cancellation
+- ride_cancellation
+
+ACTION_NEEDED examples:
+- payment_due
+- subscription_payment_failed
+- account_verification_required
+- security_alert_action_required
+- document_signature_required
+- generic_action_required
+
+Acceptance:
+- Shared profile detector can load profile packs by family
+- ORDER profiles are no longer embedded directly in detector code
+
+[TODO] Task 273: Extract Phase 4 template execution into shared template engine
+
+- Convert current ORDER pattern execution runtime into a family-agnostic template engine
+
+Requirements:
+- Shared engine must support:
+  - template loading
+  - field extractors
+  - transforms
+  - required field checks
+  - confidence rules
+  - diagnostics
+- Engine must load templates from family-specific directories
+- Keep current ORDER extraction behavior intact
+
+Acceptance:
+- ORDER templates execute through shared engine
+- Engine is ready for ACTION_NEEDED templates later
+
+[TODO] Task 274: Split active and probation template storage by flow family
+
+- Refactor template lookup/storage paths so multiple families can coexist cleanly
+
+Required layout:
+- active templates by family
+- probation templates by family
+- probation state by family
+
+Acceptance:
+- ORDER continues to resolve templates correctly from family-specific paths
+- ACTION_NEEDED paths are ready without touching ORDER directories
+
+[TODO] Task 275: Move probation lifecycle into shared subsystem
+
+- Generalize probation creation/evaluation/promotion support so it is reusable across flow families
+
+Requirements:
+- Shared support for:
+  - probation state
+  - probation evaluator
+  - probation metrics
+  - probation policy
+  - promotion gate
+  - shadow mode
+- Family-specific schemas and thresholds must remain configurable
+
+Acceptance:
+- ORDER probation flow works through shared subsystem
+- No ORDER-specific hardcoding remains in probation core logic
+
+[TODO] Task 276: Extract Phase 5 validation into shared validation framework
+
+- Refactor validation/scoring into a family-agnostic framework with loadable policies
+
+Requirements:
+- Shared validator must support:
+  - required field checks
+  - field format checks
+  - consistency checks
+  - confidence downgrade reasons
+- Validation policy loaded by family
+- Preserve ORDER downgrade diagnostics where practical
+
+Acceptance:
+- ORDER Phase 5 runs through shared validator
+- Validator accepts family-specific policies cleanly
+
+[TODO] Task 277: Create family-specific validation policies
+
+- Externalize validation rules from code
+
+ORDER policy examples:
+- required fields by profile
+- amount/date/order number validation
+- tracking consistency checks
+
+ACTION_NEEDED policy examples:
+- required action_type/action_url/deadline rules
+- amount_due/date/target validation
+- security-sensitive handling flags
+
+Acceptance:
+- Shared validation framework can load family-specific policy files
+- ORDER validation no longer depends on embedded-only rule logic
+
+[TODO] Task 278: Extract Phase 6 decisioning into shared decision framework
+
+- Refactor the new decision engine so it becomes family-driven instead of ORDER-specific
+
+Requirements:
+- Shared decision framework must support:
+  - accept
+  - probation
+  - reject
+- Optional family-specific extensions allowed later
+- Decision policy loaded by family
+- Preserve existing ORDER trust boundary behavior
+
+Acceptance:
+- ORDER Phase 6 runs through shared decision framework
+- Framework is ready for ACTION_NEEDED-specific policy differences
+
+[TODO] Task 279: Create family-specific decision policy packs
+
+- Externalize trust/action thresholds by flow family
+
+ORDER examples:
+- high/medium/low thresholds
+- probation restrictions
+- downstream action eligibility
+
+ACTION_NEEDED examples:
+- standard accept/probation/reject policy
+- optional sensitive-action handling flags
+- persistence and reminder restrictions
+
+Acceptance:
+- Decision framework loads family policy packs successfully
+- ORDER policy remains equivalent to current behavior
+
+[TODO] Task 280: Extract Phase 7 persistence and action gating into shared framework
+
+- Generalize persistence gate, action gate, and action routing interfaces
+
+Requirements:
+- Shared framework handles:
+  - persistence gating
+  - trust level tagging
+  - action authorization
+  - action intent routing interface
+- Family-specific action routes loaded separately
+- Keep ORDER action behavior unchanged
+
+Acceptance:
+- ORDER Phase 7 runs through shared framework
+- ACTION_NEEDED can later define its own action intents without duplicating the framework
+
+[TODO] Task 281: Create family-specific action routing policies
+
+- Externalize action routing rules by flow family
+
+ORDER examples:
+- store_order_record
+- update_order_status
+- attach_tracking_reference
+- user_notification
+
+ACTION_NEEDED examples:
+- store_action_record
+- user_notification
+- queue_reminder
+- mark_high_priority
+- mark_for_manual_review
+
+Acceptance:
+- Shared action router can load family-specific action policies
+- ORDER action intents remain stable after migration
+
+[TODO] Task 282: Extract shared report builder for all flow families
+
+- Move report assembly into one shared diagnostics/report module
+
+Requirements:
+- Preserve existing per-phase reporting structure:
+  - status
+  - diagnostics
+  - decision
+  - persistence
+  - actions
+- Add flow_family field to reports
+- Keep ad hoc report compatibility for ORDER
+
+Acceptance:
+- ORDER reports are generated through shared builder
+- Reports remain readable and comparable across flow families
+
+[TODO] Task 283: Convert ORDER flow into a thin family-specific runner on top of shared core
+
+- Refactor ORDER pipeline into orchestration only
+
+Requirements:
+- ORDER runner should:
+  - declare flow_family = order
+  - call shared phases in order
+  - load ORDER family configs/policies/templates
+  - return ORDER-specific output schema
+- Remove embedded phase logic that now lives in shared core
+
+Acceptance:
+- ORDER flow becomes a thin wrapper around shared core
+- Existing ORDER test cases continue to pass
+
+[TODO] Task 284: Add ACTION_NEEDED flow skeleton using shared core
+
+- Create initial ACTION_NEEDED runner that uses the same shared framework
+
+Requirements:
+- Declare flow_family = action_needed
+- Use shared phases:
+  - normalize
+  - scrub
+  - detect profile
+  - template execution/probation
+  - validation
+  - decision
+  - persistence/action gating
+- Stub family-specific output schema if needed
+
+Acceptance:
+- ACTION_NEEDED flow skeleton exists and can run through the shared core with placeholder configs
+- No duplicate phase implementation is introduced
+
+[TODO] Task 284: Add ACTION_NEEDED flow skeleton using shared core
+
+- Create initial ACTION_NEEDED runner that uses the same shared framework
+
+Requirements:
+- Declare flow_family = action_needed
+- Use shared phases:
+  - normalize
+  - scrub
+  - detect profile
+  - template execution/probation
+  - validation
+  - decision
+  - persistence/action gating
+- Stub family-specific output schema if needed
+
+Acceptance:
+- ACTION_NEEDED flow skeleton exists and can run through the shared core with placeholder configs
+- No duplicate phase implementation is introduced
+
+[TODO] Task 286: Document shared-core vs family-specific architecture
+
+- Create architecture doc for the split
+
+Must cover:
+- what is shared core
+- what is flow-family-specific
+- config directory layout
+- template directory layout
+- probation reuse model
+- how ORDER uses the new framework
+- how ACTION_NEEDED will plug in
+
+Acceptance:
+- Documentation clearly explains the split
+- Future implementation work can follow the doc without guessing

@@ -76,6 +76,64 @@ def build_unresolved_phase4():
     return GmailOrderPhase4Extractor().extract(phase3)
 
 
+def build_unknown_phase2_payload() -> GmailPhase2ScrubbedEmail:
+    return GmailPhase2ScrubbedEmail(
+        phase1_reference=GmailPhase1Reference(
+            schema_version="gmail.phase1.normalized.v1",
+            provider="gmail",
+            message_id="phase2-msg-unknown",
+            thread_id="phase2-thread-unknown",
+            provider_message_id="phase2-msg-unknown",
+            provider_thread_id="phase2-thread-unknown",
+            rfc_message_id="<phase2-msg-unknown@example.com>",
+            subject="Your Tickets | Meow Wolf - Las Vegas | Keep This Email",
+            sender_name="Meow Wolf - Las Vegas",
+            sender_email="no-reply@meowwolf.com",
+            sender_domain="meowwolf.com",
+            selected_body_type="html",
+            selected_body_source="parsed_mime_html_part",
+            selected_body_selection_path="quality_comparison",
+            handoff_ready=True,
+            fetch_status="success",
+            mime_parse_status="success",
+            validation_status="success",
+        ),
+        message_id="phase2-msg-unknown",
+        thread_id="phase2-thread-unknown",
+        provider_message_id="phase2-msg-unknown",
+        provider_thread_id="phase2-thread-unknown",
+        rfc_message_id="<phase2-msg-unknown@example.com>",
+        subject="Your Tickets | Meow Wolf - Las Vegas | Keep This Email",
+        sender_name="Meow Wolf - Las Vegas",
+        sender_email="no-reply@meowwolf.com",
+        sender_domain="meowwolf.com",
+        selected_body_type="html",
+        selected_body_source="parsed_mime_html_part",
+        selected_body_selection_path="quality_comparison",
+        scrubbed_text=(
+            "Your Tickets\n"
+            "Admission Details\n"
+            "Experience Date: April 12, 2026\n"
+            "Venue: Meow Wolf Las Vegas\n"
+            "Ticket Holder: Dan Hajduk\n"
+        ),
+        normalized_lines=[
+            "Your Tickets",
+            "Admission Details",
+            "Experience Date: April 12, 2026",
+            "Venue: Meow Wolf Las Vegas",
+            "Ticket Holder: Dan Hajduk",
+        ],
+        scrub_status="partial",
+        transactional_quality="partial",
+    )
+
+
+def build_unknown_failed_phase4():
+    phase3 = GmailOrderPhase3ProfileDetector().detect(build_unknown_phase2_payload())
+    return GmailOrderPhase4Extractor().extract(phase3)
+
+
 @pytest.mark.asyncio
 async def test_order_pipeline_creates_probation_template_for_unresolved_profile(tmp_path):
     store = ProbationStore(
@@ -120,6 +178,51 @@ async def test_order_pipeline_creates_probation_template_for_unresolved_profile(
     )
     assert state is not None
     assert state.sample_count == 1
+
+
+@pytest.mark.asyncio
+async def test_order_pipeline_creates_probation_template_for_failed_unknown_profile(tmp_path):
+    store = ProbationStore(
+        templates_dir=tmp_path / "probation",
+        state_dir=tmp_path / "probation_state",
+    )
+    seen = {}
+
+    async def fake_generate(request):
+        seen["request"] = request
+        payload = {
+            "schema_version": "order-phase4-template.v1",
+            "template_id": request.template_id,
+            "profile_id": request.profile_id,
+            "template_version": request.template_version,
+            "enabled": True,
+            "match": {"vendor_identity": request.vendor_identity},
+            "extract": {},
+            "required_fields": [],
+            "confidence_rules": {"high_requires": []},
+            "post_process": {},
+        }
+        path = store.save_template_payload(request.template_id, payload)
+        return {"ok": True, "template_id": request.template_id, "file_path": str(path)}
+
+    pipeline = OrderFlowPipeline(
+        probation_store=store,
+        generate_probation_template=fake_generate,
+        ai_calls_enabled=lambda: True,
+        order_checks_enabled=lambda: True,
+    )
+
+    result = await pipeline.attach_probation_template(build_unknown_failed_phase4())
+
+    assert seen["request"].profile_id == "generic_order_confirmation"
+    assert seen["request"].vendor_identity == "meowwolf"
+    assert any(item.startswith("probation_template:created:") for item in result.template_diagnostics)
+    state = store.find_state(
+        profile_id="generic_order_confirmation",
+        vendor_identity="meowwolf",
+        status="probation",
+    )
+    assert state is not None
 
 
 @pytest.mark.asyncio

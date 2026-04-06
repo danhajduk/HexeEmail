@@ -18,6 +18,8 @@ from email_node.patterns.probation_policy import ProbationPromotionPolicy
 from email_node.patterns.probation_promotion import ProbationPromotionManager
 from email_node.patterns.probation_state import ProbationTemplateState
 from email_node.patterns.probation_store import ProbationStore
+from email_node.shared_pipeline_core import SharedEmailPipelineCore
+from email_node.shared_pipeline_core.pipeline import SharedEmailPipelineHooks
 from email_node.patterns.template_promotion_service import TemplatePromotionService
 from logging_utils import get_logger
 from providers.gmail.order_phase2 import GmailOrderPhase2Scrubber
@@ -69,67 +71,58 @@ class OrderFlowPipeline:
         self.order_record_service = order_record_service or OrderRecordService(runtime_dir)
         self.user_notification_handler = user_notification_handler or UserNotificationHandler()
         self.tracking_monitor_handler = tracking_monitor_handler or TrackingMonitorHandler()
+        self.shared_core = SharedEmailPipelineCore(
+            flow_family="order",
+            hooks=SharedEmailPipelineHooks(
+                scrub=self.phase2_scrubber.scrub,
+                detect_profile=self.phase3_detector.detect,
+                extract_template=self.phase4_extractor.extract,
+                attach_probation_template=self.attach_probation_template,
+                run_probation_shadow_mode=self._run_probation_shadow_mode,
+                decide=self.decision_engine.decide,
+                persist=lambda decision, phase4: self.output_handler.persist(decision=decision, phase4=phase4),
+                authorize_actions=lambda decision, phase4: self.action_gate.authorize(decision=decision, phase4=phase4),
+                route_actions=lambda decision, authorization, phase4: self.action_router.route(
+                    decision=decision,
+                    authorization=authorization,
+                    phase4=phase4,
+                ),
+                write_order_record=lambda decision, phase4, action_routing: self.order_record_service.write_from_order_result(
+                    decision=decision,
+                    phase4=phase4,
+                    action_routing=action_routing,
+                ),
+                build_user_notification=lambda decision, action_routing, phase4: self.user_notification_handler.build_request(
+                    decision=decision,
+                    action_routing=action_routing,
+                    phase4=phase4,
+                ),
+                build_tracking_monitor=lambda decision, action_routing, phase4: self.tracking_monitor_handler.build_request(
+                    decision=decision,
+                    action_routing=action_routing,
+                    phase4=phase4,
+                ),
+            ),
+        )
 
     async def process_normalized_email(self, normalized) -> dict[str, object]:
-        phase2 = self.phase2_scrubber.scrub(normalized)
-        phase3 = self.phase3_detector.detect(phase2)
-        phase4 = self.phase4_extractor.extract(phase3)
-        phase4 = await self.attach_probation_template(phase4)
-        phase4 = self._run_probation_shadow_mode(phase4)
-        phase6 = self.decision_engine.decide(phase4)
-        phase7 = self.output_handler.persist(decision=phase6, phase4=phase4)
-        action_gate = self.action_gate.authorize(decision=phase6, phase4=phase4)
-        action_router = self.action_router.route(decision=phase6, authorization=action_gate, phase4=phase4)
-        order_record_write = self.order_record_service.write_from_order_result(
-            decision=phase6,
-            phase4=phase4,
-            action_routing=action_router,
-        )
-        user_notification = self.user_notification_handler.build_request(
-            decision=phase6,
-            action_routing=action_router,
-            phase4=phase4,
-        )
-        tracking_monitor = self.tracking_monitor_handler.build_request(
-            decision=phase6,
-            action_routing=action_router,
-            phase4=phase4,
-        )
-        phase7_result = {
-            "persisted_result": phase7.persisted,
-            "persistence_reason": phase7.blocked_reason or phase7.trust_level,
-            "actions_allowed": action_gate.actions_allowed,
-            "action_intents": list(action_router.action_intents),
-            "action_results": {
-                "order_record_write": order_record_write.model_dump(mode="json"),
-                "user_notification": user_notification.model_dump(mode="json"),
-                "tracking_monitor": tracking_monitor.model_dump(mode="json"),
-            },
-        }
-        return {
-            "phase2": phase2,
-            "phase3": phase3,
-            "phase4": phase4,
-            "phase6": phase6,
-            "phase7": phase7,
-            "action_gate": action_gate,
-            "action_router": action_router,
-            "order_record_write": order_record_write,
-            "user_notification": user_notification,
-            "tracking_monitor": tracking_monitor,
-            "phase7_result": phase7_result,
-        }
+        return await self.shared_core.process_normalized_email(normalized)
 
     async def attach_probation_template(self, phase4):
         if not self._should_attempt_probation(phase4):
             return phase4
+        probation_profile_id = self._probation_profile_id(phase4)
+        probation_vendor_identity = self._probation_vendor_identity(phase4)
         existing_state = self.probation_store.find_state(
-            profile_id=getattr(phase4, "profile_id", None),
-            vendor_identity=getattr(phase4, "vendor_identity", None),
+            profile_id=probation_profile_id,
+            vendor_identity=probation_vendor_identity,
             status="probation",
         )
         if existing_state is not None:
-            evaluation = self.probation_evaluator.evaluate(phase4.phase3_reference, template_id=existing_state.template_id)
+            evaluation = self.probation_evaluator.evaluate(
+                self._phase3_with_probation_profile(phase4, template_id=existing_state.template_id),
+                template_id=existing_state.template_id,
+            )
             updated_state = ProbationMetrics.update_state(existing_state, evaluation)
             updated_state = updated_state.model_copy(
                 update={
@@ -253,7 +246,9 @@ class OrderFlowPipeline:
                     + [f"probation_template:apply_skipped_missing_template:{template_id}"]
                 }
             )
-        working, intake_error = self.phase4_extractor.build_working_object(phase4.phase3_reference)
+        working, intake_error = self.phase4_extractor.build_working_object(
+            self._phase3_with_probation_profile(phase4, template_id=template_id)
+        )
         if working is None:
             return phase4.model_copy(
                 update={
@@ -325,13 +320,16 @@ class OrderFlowPipeline:
         if not getattr(phase4, "template_id", None):
             return phase4
         probation_state = self.probation_store.find_state(
-            profile_id=getattr(phase4, "profile_id", None),
-            vendor_identity=getattr(phase4, "vendor_identity", None),
+            profile_id=self._probation_profile_id(phase4),
+            vendor_identity=self._probation_vendor_identity(phase4),
             status="probation",
         )
         if probation_state is None:
             return phase4
-        evaluation = self.probation_evaluator.evaluate(phase4.phase3_reference, template_id=probation_state.template_id)
+        evaluation = self.probation_evaluator.evaluate(
+            self._phase3_with_probation_profile(phase4, template_id=probation_state.template_id),
+            template_id=probation_state.template_id,
+        )
         updated_state = ProbationMetrics.update_state(probation_state, evaluation)
         updated_state = self.probation_promotion.evaluate_and_apply(updated_state)
         self.probation_store.save_state(updated_state)
@@ -360,19 +358,67 @@ class OrderFlowPipeline:
 
     @staticmethod
     def _should_attempt_probation(phase4) -> bool:
-        if getattr(phase4, "extraction_status", None) != "unresolved":
+        if getattr(phase4, "extraction_status", None) not in {"unresolved", "failed"}:
             return False
-        if not getattr(phase4, "profile_id", None):
+        hook = getattr(phase4, "ai_template_hook", None)
+        if not isinstance(hook, dict):
             return False
-        if not isinstance(getattr(phase4, "ai_template_hook", None), dict):
+        if not (getattr(phase4, "profile_id", None) or hook.get("profile_id")):
             return False
         diagnostics = list(getattr(phase4, "template_diagnostics", []) or [])
-        return any(str(item).startswith("template_lookup:no_template_for_profile:") for item in diagnostics)
+        return any(
+            str(item).startswith("template_lookup:no_template_for_profile:") or str(item) == "phase3 profile_id is missing"
+            for item in diagnostics
+        )
+
+    @staticmethod
+    def _probation_profile_id(phase4) -> str | None:
+        hook = getattr(phase4, "ai_template_hook", None)
+        if isinstance(hook, dict):
+            profile_id = str(hook.get("profile_id") or "").strip()
+            if profile_id:
+                return profile_id
+        profile_id = str(getattr(phase4, "profile_id", "") or "").strip()
+        return profile_id or None
+
+    @staticmethod
+    def _probation_vendor_identity(phase4) -> str | None:
+        hook = getattr(phase4, "ai_template_hook", None)
+        if isinstance(hook, dict):
+            vendor_identity = str(hook.get("vendor_identity") or "").strip()
+            if vendor_identity:
+                return vendor_identity
+        vendor_identity = str(getattr(phase4, "vendor_identity", "") or "").strip()
+        return vendor_identity or None
+
+    def _phase3_with_probation_profile(self, phase4, *, template_id: str | None = None):
+        phase3 = phase4.phase3_reference
+        hook = getattr(phase4, "ai_template_hook", None)
+        if not isinstance(hook, dict):
+            return phase3
+        profile_id = self._probation_profile_id(phase4)
+        if not profile_id or getattr(phase3, "profile_id", None):
+            return phase3
+        profile_family = str(hook.get("profile_family") or "order").strip() or "order"
+        profile_subtype = str(hook.get("profile_subtype") or "confirmation").strip() or "confirmation"
+        diagnostics = list(getattr(phase3, "profile_diagnostics", []) or [])
+        diagnostics.append(f"probation_profile_fallback:{profile_id}")
+        if template_id:
+            diagnostics.append(f"probation_profile_template:{template_id}")
+        return phase3.model_copy(
+            update={
+                "profile_id": profile_id,
+                "profile_family": profile_family,
+                "profile_subtype": profile_subtype,
+                "profile_status": "partial",
+                "profile_diagnostics": diagnostics,
+            }
+        )
 
     @staticmethod
     def _build_shadow_comparison(phase4, evaluation) -> dict[str, object]:
         active_fields = {
-            field_name: field.value
+            field_name: (field.value if hasattr(field, "value") else field.get("value") if isinstance(field, dict) else field)
             for field_name, field in getattr(phase4, "extracted_fields", {}).items()
         }
         probation_fields = dict(evaluation.extracted_fields)
