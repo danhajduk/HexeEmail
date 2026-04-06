@@ -141,7 +141,9 @@ Current SECURITY integration:
 
 - [src/email_node/pipeline/security_flow.py](/home/dan/Projects/HexeEmail/src/email_node/pipeline/security_flow.py) now provides the initial thin shared-core runner for the `security` family
 - [src/email_node/flow_families/security/runtime.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/security/runtime.py) wires the shared scrub, profile-detection, template, decision, persistence, and action-gating layers together with placeholder family handlers
-- the SECURITY family is still an empty-shell detector at this stage, but the YAML contract, runtime paths, smoke coverage, and shared-core runner are now in place for the next taxonomy task
+- the SECURITY family now has a first-pass YAML taxonomy for security-alert, suspicious-login, password-reset, identity-verification, MFA-code, new-device-login, and generic security notice signals
+- SECURITY also carries a family-specific Phase 3 intake override so usable security scrubbed text can still be classified even when the shared scrubber marks the message failed under ORDER-biased completeness rules
+- SECURITY still needs mailbox-sampled refinement and active template coverage, but it now resolves real Phase 3 profiles instead of only failing closed
 
 Why this exists:
 
