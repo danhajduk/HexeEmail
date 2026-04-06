@@ -48,47 +48,7 @@ Standards reference:
 Do not edit above this line:
 #######################################################################
 
-[WIP] Task 259: Implement Phase 7 downstream action gate
-
-- Add a dedicated action gate that blocks or allows downstream behavior based on the Phase 6 decision
-- File: src/email_node/pipeline/order_action_gate.py
-
-Purpose:
-- Prevent weak or probationary extraction results from triggering downstream effects
-- Make action eligibility deterministic and transparent
-
-Inputs:
-- decision output from Phase 6
-- extraction result
-- profile_id
-- extracted_fields
-- confidence
-- extraction_source
-
-Required behavior:
-- If decision == accept:
-  - allow downstream actions
-- If decision == probation:
-  - block downstream actions
-- If decision == reject:
-  - block downstream actions
-
-Rules:
-- Only active-template trusted accept results may unlock downstream actions
-- Probation-template results never unlock downstream actions
-- Reject results never unlock downstream actions
-- Gate must return a structured action authorization result:
-  - actions_allowed
-  - blocked_reason
-  - decision
-  - extraction_source
-
-Acceptance:
-- Downstream action eligibility is fully determined by the action gate
-- Probation and reject results are always blocked
-- Accept results are eligible only when policy allows
-
-[TODO] Task 260: Create Phase 7 action router for ORDER outputs
+[WIP] Task 260: Create Phase 7 action router for ORDER outputs
 
 - Add an action router that maps trusted ORDER profiles to downstream action intents
 - File: src/email_node/pipeline/order_action_router.py

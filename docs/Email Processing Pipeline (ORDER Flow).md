@@ -123,6 +123,16 @@ Status: `[DONE]`
 16. Probation results may be written as partial output.
 17. Reject results do not persist trusted structured output.
 
+---
+
+### Phase 7B — Downstream Action Gate
+
+Status: `[DONE]`
+
+18. Evaluate whether downstream actions are allowed from the Phase 6 decision.
+19. Accepted active-template results may unlock actions.
+20. Probation and reject results remain blocked.
+
 #### Unknown Profile
 
 Status: `[PARTIAL]`
