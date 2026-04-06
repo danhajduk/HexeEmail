@@ -47,8 +47,6 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[TODO] Task 324: Create family-specific AI template-creation prompts if a shared prompt is not viable
-[TODO] Task 325: Document the prompt strategy for multi-family AI template generation
 [TODO] Task 326: Audit HexeEmail scheduled tasks against the 2026-04-05 background-tasks-and-internal-scheduler standard and document the repo-specific compliance gaps
 [TODO] Task 327: Create an explicit scheduler task registry with stable task identity, task kind, schedule name, schedule detail, enabled state, and owner mapping for all recurring work
 [TODO] Task 328: Add mandatory baseline recurring tasks for heartbeat, telemetry, and operational MQTT health with explicit ownership, persisted state, and operator visibility

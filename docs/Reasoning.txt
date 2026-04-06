@@ -265,3 +265,15 @@ Chosen fix: Add one shared prompt artifact with family-specific schema-version a
 What changed: Added `runtime/prompts/prompt.email.family_pattern_template_creation.json`, updated `src/email_node/patterns/pattern_generation_client.py` to route ORDER, SHIPMENT, ACTION_REQUIRED, FINANCIAL, INVOICE, and SECURITY to the shared prompt, updated `tests/test_pattern_generation_client.py`, updated `docs/family-template-prompt-strategy.md`, removed Task 323 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
 Verification: JSON parse check for the new prompt passed. `python -m py_compile src/email_node/patterns/pattern_generation_client.py tests/test_pattern_generation_client.py` passed. `PYTHONPATH=src ./.venv/bin/python -m pytest tests/test_pattern_generation_client.py tests/test_pattern_generation_request.py -q` passed.
 ###########
+Task #324
+Step objective: Create family-specific AI template-creation prompts if a shared prompt is not viable.
+Chosen fix: Mark the conditional task as not needed because Task 322 concluded the shared contract was viable and Task 323 implemented it.
+What changed: Removed Task 324 from `docs/New_task.txt` and recorded the conditional no-op completion in `docs/completed.txt`.
+Verification: Shared prompt decision and implementation already verified in Tasks 322 and 323.
+###########
+Task #325
+Step objective: Document the prompt strategy for multi-family AI template generation.
+Chosen fix: Use the new prompt-strategy doc as the canonical decision record, then update the main pattern-generation doc so the live shared prompt artifact, supported labels, and legacy prompt status are visible from the primary operator/developer entrypoint.
+What changed: Updated `docs/pattern-generation.md`, removed Task 325 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: Documentation review completed against `docs/family-template-prompt-strategy.md`, `docs/pattern-generation.md`, and the live prompt artifact `runtime/prompts/prompt.email.family_pattern_template_creation.json`.
+###########

@@ -19,7 +19,7 @@ Key modules:
 - [pattern_generation_response.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/pattern_generation_response.py)
   Strict Phase 4 template response contract.
 - [pattern_generation_client.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/pattern_generation_client.py)
-  AI-node direct-execution client for `prompt.email.order_pattern_template_creation`.
+  AI-node direct-execution client for the shared family template-generation prompt.
 - [pattern_generation_pipeline.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/pattern_generation_pipeline.py)
   JSON parsing, normalization, and schema validation layer.
 - [pattern_generation_writer.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/pattern_generation_writer.py)
@@ -29,7 +29,11 @@ Key modules:
 
 ## Runtime prompt
 
-Current AI prompt definitions used by this flow are:
+Current AI prompt definition used by this flow is:
+
+- [runtime/prompts/prompt.email.family_pattern_template_creation.json](/home/dan/Projects/HexeEmail/runtime/prompts/prompt.email.family_pattern_template_creation.json)
+
+Legacy prompt artifacts still present in the repo for compatibility/reference:
 
 - [runtime/prompts/prompt.email.order_pattern_template_creation.json](/home/dan/Projects/HexeEmail/runtime/prompts/prompt.email.order_pattern_template_creation.json)
 - [runtime/prompts/prompt.email.action_required_pattern_template_creation.json](/home/dan/Projects/HexeEmail/runtime/prompts/prompt.email.action_required_pattern_template_creation.json)
@@ -38,13 +42,20 @@ The client sends it to the AI node through:
 
 - `POST /api/execution/direct`
 
-The client selects the prompt from `expected_label` and currently supports:
+The client selects the shared prompt from `expected_label` and currently supports:
 
 - `ORDER`
 - `SHIPMENT`
 - `ACTION_REQUIRED`
+- `FINANCIAL`
+- `INVOICE`
+- `SECURITY`
 
-Each prompt expects a structured extraction-style task family and returns one Phase 4 template JSON object.
+The shared prompt expects a structured extraction-style task family and returns one Phase 4 template JSON object whose `schema_version` must match the selected family.
+
+Prompt-strategy detail lives in:
+
+- [family-template-prompt-strategy.md](/home/dan/Projects/HexeEmail/docs/family-template-prompt-strategy.md)
 
 ## Request contract
 
@@ -92,7 +103,7 @@ Current response validation is strict:
 
 - extra top-level keys are rejected
 - `template_version` must be `v1`
-- `schema_version` must be non-empty and match the selected family prompt's output schema
+- `schema_version` must be non-empty and match the selected family schema
 - `extract` rules are validated against the supported method set already used by the order-template registry
 
 ## API route
