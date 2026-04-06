@@ -1324,12 +1324,14 @@ class NodeService:
 
     def _record_heartbeat(self) -> None:
         self.notifications.record_heartbeat()
+        self.background_tasks.record_heartbeat_event()
 
     def _handle_notification_result(self, result: NodeNotificationResult) -> None:
         self.notifications.handle_notification_result(result)
 
     def _handle_mqtt_connected(self) -> None:
         self.notifications.handle_mqtt_connected()
+        self.background_tasks.record_mqtt_connected()
 
     def _invalidate_capability_state(self) -> None:
         self.state.capability_declaration_status = "pending"

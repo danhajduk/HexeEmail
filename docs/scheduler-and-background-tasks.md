@@ -19,6 +19,25 @@ The registry is now the source of truth for stable task identity, task kind, own
 
 ## Recurring Tasks
 
+### Baseline Runtime Tasks
+
+- `heartbeat`
+  - owner: `MQTTManager` heartbeat loop with state recorded by `BackgroundTaskManager`
+  - schedule: `interval_seconds`
+  - purpose: publish MQTT presence heartbeats and keep node freshness visible to operators
+- `telemetry`
+  - owner: `BackgroundTaskManager.telemetry_loop()`
+  - schedule: every 60 seconds
+  - purpose: refresh baseline runtime telemetry state for operator-facing scheduler visibility
+- `operational_mqtt_health`
+  - owner: `BackgroundTaskManager.mqtt_health_loop()`
+  - schedule:
+    - every 10 seconds during startup and degraded windows
+    - every 5 minutes while stable
+  - purpose: persist operator-visible MQTT health state on the standard baseline cadence
+
+These baseline tasks now publish structured per-task state under `runtime_task_state.scheduler_task_states`, which is the first persisted scheduler-task-state boundary ahead of the broader standardization work.
+
 ### Finalize Polling Loop
 
 - Owner: `BackgroundTaskManager.ensure_finalize_polling()` and `poll_finalize_loop()`
@@ -148,6 +167,7 @@ The Gmail fetch scheduler currently owns three recurring windows:
 
 Stored in [state.json](/home/dan/Projects/HexeEmail/runtime/state.json):
 
+- `runtime_task_state.scheduler_task_states`
 - `gmail_fetch_scheduler_state`
 - `gmail_last_hour_pipeline_state`
 - `gmail_hourly_batch_classification_slot_key`

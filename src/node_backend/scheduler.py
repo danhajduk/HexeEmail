@@ -39,6 +39,8 @@ class BackgroundTaskManager:
     def __init__(self, service: Any) -> None:
         self.service = service
         self.finalize_polling_task: asyncio.Task | None = None
+        self.telemetry_task: asyncio.Task | None = None
+        self.mqtt_health_task: asyncio.Task | None = None
         self.gmail_status_task: asyncio.Task | None = None
         self.gmail_fetch_task: asyncio.Task | None = None
 
@@ -73,6 +75,73 @@ class BackgroundTaskManager:
             "last_error_at": None,
             "last_error": None,
         }
+
+    @staticmethod
+    def default_scheduler_task_state() -> dict[str, object]:
+        return {
+            "status": "idle",
+            "enabled": False,
+            "detail": "Task has not started yet.",
+            "last_started_at": None,
+            "last_completed_at": None,
+            "last_success_at": None,
+            "last_failure_at": None,
+            "next_run_at": None,
+            "last_error": None,
+        }
+
+    def scheduler_task_states(self) -> dict[str, dict[str, object]]:
+        runtime_state = self.service.runtime.runtime_task_state()
+        persisted = runtime_state.get("scheduler_task_states")
+        if not isinstance(persisted, dict):
+            return {}
+        normalized: dict[str, dict[str, object]] = {}
+        for task_id, payload in persisted.items():
+            if isinstance(task_id, str) and isinstance(payload, dict):
+                state = dict(self.default_scheduler_task_state())
+                state.update(payload)
+                normalized[task_id] = state
+        return normalized
+
+    def scheduler_task_state(self, task_id: str) -> dict[str, object]:
+        state = dict(self.default_scheduler_task_state())
+        state.update(self.scheduler_task_states().get(task_id, {}))
+        return state
+
+    def save_scheduler_task_state(self, task_id: str, **updates: object) -> dict[str, object]:
+        all_states = self.scheduler_task_states()
+        state = dict(self.default_scheduler_task_state())
+        state.update(all_states.get(task_id, {}))
+        state.update(updates)
+        all_states[task_id] = state
+        self.service.runtime.save_runtime_task_state(scheduler_task_states=all_states, updated_at=self.service.runtime.utc_iso_now())
+        return state
+
+    def record_heartbeat_event(self) -> None:
+        now = datetime.now(UTC).replace(tzinfo=None)
+        self.save_scheduler_task_state(
+            "heartbeat",
+            status="running",
+            enabled=bool(self.service.state.trust_state == "trusted" and self.service.state.node_id),
+            detail="MQTT presence heartbeat is publishing on the configured cadence.",
+            last_started_at=now.isoformat(),
+            last_completed_at=now.isoformat(),
+            last_success_at=now.isoformat(),
+            next_run_at=(now + timedelta(seconds=self.service.config.mqtt_heartbeat_seconds)).isoformat(),
+            last_error=None,
+        )
+
+    def record_mqtt_connected(self) -> None:
+        now = datetime.now(UTC).replace(tzinfo=None)
+        self.save_scheduler_task_state(
+            "heartbeat",
+            status="running",
+            enabled=bool(self.service.state.trust_state == "trusted" and self.service.state.node_id),
+            detail="MQTT connection is online and heartbeat publishing is enabled.",
+            last_started_at=(self.scheduler_task_state("heartbeat").get("last_started_at") or now.isoformat()),
+            next_run_at=(now + timedelta(seconds=self.service.config.mqtt_heartbeat_seconds)).isoformat(),
+            last_error=None,
+        )
 
     def gmail_fetch_scheduler_state(self) -> dict[str, object]:
         state = dict(self.default_gmail_fetch_scheduler_state())
@@ -228,6 +297,7 @@ class BackgroundTaskManager:
     def schedule_templates(cls) -> dict[str, ScheduleTemplate]:
         return {
             "interval_seconds": ScheduleTemplate("interval_seconds", "Fixed interval in seconds", lambda now: None),
+            "every_10_seconds": ScheduleTemplate("every_10_seconds", "Every 10 seconds", lambda now: now + timedelta(seconds=10)),
             "daily": ScheduleTemplate("daily", "Every day at 00:01", lambda now: cls.next_daily_run(now, hour=0, minute=1)),
             "weekly": ScheduleTemplate("weekly", "Monday 00:01", lambda now: cls.next_weekly_run(now, weekday=0, hour=0, minute=1)),
             "4_times_a_day": ScheduleTemplate("4_times_a_day", "00:00, 06:00, 12:00, 18:00", cls.next_today_window_run),
@@ -295,6 +365,33 @@ class BackgroundTaskManager:
     @classmethod
     def task_registry(cls) -> tuple[ScheduledTaskDefinition, ...]:
         return (
+            ScheduledTaskDefinition(
+                task_id="heartbeat",
+                title="Heartbeat",
+                kind="node_local_recurring_work",
+                owner="mqtt_manager",
+                schedule_name="interval_seconds",
+                detail="Publishes MQTT presence heartbeats for node liveness and freshness tracking.",
+                enabled_resolver=lambda manager: bool(manager.service.state.trust_state == "trusted" and manager.service.state.node_id),
+            ),
+            ScheduledTaskDefinition(
+                task_id="telemetry",
+                title="Telemetry",
+                kind="node_local_recurring_work",
+                owner="background_task_manager",
+                schedule_name="interval_seconds",
+                detail="Refreshes baseline runtime telemetry state for operator-visible scheduler status.",
+                enabled_resolver=lambda manager: True,
+            ),
+            ScheduledTaskDefinition(
+                task_id="operational_mqtt_health",
+                title="Operational MQTT Health",
+                kind="node_local_recurring_work",
+                owner="background_task_manager",
+                schedule_name="every_10_seconds",
+                detail="Monitors operational MQTT freshness and health on the standard baseline cadence.",
+                enabled_resolver=lambda manager: True,
+            ),
             ScheduledTaskDefinition(
                 task_id="onboarding_finalize_polling",
                 title="Onboarding Finalize Polling",
@@ -375,6 +472,10 @@ class BackgroundTaskManager:
 
     def scheduled_tasks_snapshot(self) -> list[dict[str, object]]:
         local_now = datetime.now().astimezone()
+        heartbeat_state = self.scheduler_task_state("heartbeat")
+        telemetry_state = self.scheduler_task_state("telemetry")
+        mqtt_health_state = self.scheduler_task_state("operational_mqtt_health")
+        mqtt_health = self.service._mqtt_health_snapshot()
         fetch_schedule_state = None
         gmail_adapter = self.service.provider_registry.get_provider("gmail")
         if hasattr(gmail_adapter, "fetch_schedule_state"):
@@ -394,6 +495,56 @@ class BackgroundTaskManager:
         runtime_authorize_status = "active" if runtime_authorize_ready else "pending"
 
         return [
+            self.scheduled_task_entry(
+                task_id="heartbeat",
+                title="Heartbeat",
+                group="runtime",
+                kind="node_local_recurring_work",
+                owner="mqtt_manager",
+                schedule_name="interval_seconds",
+                status=str(heartbeat_state.get("status") or ("running" if self.service.mqtt_manager.status.state == "connected" else "inactive")),
+                enabled=bool(heartbeat_state.get("enabled")),
+                last_execution_at=heartbeat_state.get("last_success_at"),
+                next_execution_at=heartbeat_state.get("next_run_at"),
+                last_reason=None,
+                detail=str(heartbeat_state.get("detail") or "Publishes MQTT presence heartbeats for node liveness and freshness tracking."),
+                schedule_detail=f"Every {self.service.config.mqtt_heartbeat_seconds:g} seconds",
+            ),
+            self.scheduled_task_entry(
+                task_id="telemetry",
+                title="Telemetry",
+                group="runtime",
+                kind="node_local_recurring_work",
+                owner="background_task_manager",
+                schedule_name="interval_seconds",
+                status=str(telemetry_state.get("status") or "idle"),
+                enabled=bool(telemetry_state.get("enabled")),
+                last_execution_at=telemetry_state.get("last_success_at") or telemetry_state.get("last_started_at"),
+                next_execution_at=telemetry_state.get("next_run_at"),
+                last_reason=None,
+                detail=str(telemetry_state.get("detail") or "Refreshes baseline runtime telemetry state for operator-visible scheduler status."),
+                schedule_detail="Every 60 seconds",
+            ),
+            self.scheduled_task_entry(
+                task_id="operational_mqtt_health",
+                title="Operational MQTT Health",
+                group="runtime",
+                kind="node_local_recurring_work",
+                owner="background_task_manager",
+                schedule_name="every_10_seconds",
+                status=str(mqtt_health_state.get("status") or "idle"),
+                enabled=bool(mqtt_health_state.get("enabled")),
+                last_execution_at=mqtt_health_state.get("last_success_at") or mqtt_health_state.get("last_started_at"),
+                next_execution_at=mqtt_health_state.get("next_run_at"),
+                last_reason=None,
+                detail=str(
+                    mqtt_health_state.get("detail")
+                    or f"MQTT health is {mqtt_health.health_status} with freshness {mqtt_health.status_freshness_state}."
+                ),
+                schedule_detail=(
+                    "Every 10 seconds while degraded or during recovery windows; every 5 minutes while stable."
+                ),
+            ),
             self.scheduled_task_entry(
                 task_id="onboarding_finalize_polling",
                 title="Onboarding Finalize Polling",
@@ -553,6 +704,8 @@ class BackgroundTaskManager:
         ]
 
     async def startup(self) -> None:
+        self.ensure_telemetry_polling()
+        self.ensure_mqtt_health_polling()
         if self.service.config.gmail_status_poll_on_startup:
             self.ensure_gmail_status_polling()
         if self.service.config.gmail_fetch_poll_on_startup:
@@ -560,6 +713,8 @@ class BackgroundTaskManager:
 
     async def shutdown(self) -> None:
         await self._cancel_task(self.finalize_polling_task)
+        await self._cancel_task(self.telemetry_task)
+        await self._cancel_task(self.mqtt_health_task)
         await self._cancel_task(self.gmail_status_task)
         await self._cancel_task(self.gmail_fetch_task)
 
@@ -577,6 +732,95 @@ class BackgroundTaskManager:
     def ensure_finalize_polling(self) -> None:
         if self.finalize_polling_task is None or self.finalize_polling_task.done():
             self.finalize_polling_task = asyncio.create_task(self.poll_finalize_loop())
+
+    def ensure_telemetry_polling(self) -> None:
+        if self.telemetry_task is None or self.telemetry_task.done():
+            now = datetime.now(UTC).replace(tzinfo=None)
+            self.save_scheduler_task_state(
+                "telemetry",
+                status="running",
+                enabled=True,
+                detail="Telemetry loop is starting.",
+                last_started_at=now.isoformat(),
+                next_run_at=(now + timedelta(seconds=60)).isoformat(),
+                last_error=None,
+            )
+            self.telemetry_task = asyncio.create_task(self.telemetry_loop())
+
+    def ensure_mqtt_health_polling(self) -> None:
+        if self.mqtt_health_task is None or self.mqtt_health_task.done():
+            now = datetime.now(UTC).replace(tzinfo=None)
+            self.save_scheduler_task_state(
+                "operational_mqtt_health",
+                status="running",
+                enabled=True,
+                detail="Operational MQTT health loop is starting.",
+                last_started_at=now.isoformat(),
+                next_run_at=(now + timedelta(seconds=self.mqtt_health_poll_interval_seconds())).isoformat(),
+                last_error=None,
+            )
+            self.mqtt_health_task = asyncio.create_task(self.mqtt_health_loop())
+
+    async def telemetry_loop(self) -> None:
+        while True:
+            now = datetime.now(UTC).replace(tzinfo=None)
+            self.save_scheduler_task_state(
+                "telemetry",
+                status="running",
+                enabled=True,
+                detail=(
+                    f"Runtime telemetry refreshed; trust={self.service.state.trust_state}, "
+                    f"readiness={self.service.state.operational_readiness}, mqtt={self.service.mqtt_manager.status.state}."
+                ),
+                last_started_at=now.isoformat(),
+                last_completed_at=now.isoformat(),
+                last_success_at=now.isoformat(),
+                next_run_at=(now + timedelta(seconds=60)).isoformat(),
+                last_error=None,
+            )
+            await asyncio.sleep(60)
+
+    def mqtt_health_poll_interval_seconds(self) -> int:
+        now = datetime.now(UTC).replace(tzinfo=None)
+        created_at = self.service.state.created_at.replace(tzinfo=None) if self.service.state.created_at.tzinfo else self.service.state.created_at
+        startup_age_s = max(0, int((now - created_at).total_seconds()))
+        health = self.service._mqtt_health_snapshot()
+        if startup_age_s < 300:
+            return 10
+        if self.service.state.trust_state != "trusted":
+            return 10
+        if not self.service.state.operational_readiness:
+            return 10
+        if health.health_status != "connected" or health.status_freshness_state != "fresh":
+            return 10
+        return 300
+
+    async def mqtt_health_loop(self) -> None:
+        while True:
+            now = datetime.now(UTC).replace(tzinfo=None)
+            health = self.service._mqtt_health_snapshot()
+            interval_seconds = self.mqtt_health_poll_interval_seconds()
+            status = "running"
+            if health.health_status == "offline":
+                status = "failing"
+            elif health.health_status != "connected" or health.status_freshness_state != "fresh":
+                status = "degraded"
+            self.save_scheduler_task_state(
+                "operational_mqtt_health",
+                status=status,
+                enabled=True,
+                detail=(
+                    f"MQTT health={health.health_status}; freshness={health.status_freshness_state}; "
+                    f"last_report_at={health.last_status_report_at.isoformat() if health.last_status_report_at is not None else 'none'}."
+                ),
+                last_started_at=now.isoformat(),
+                last_completed_at=now.isoformat(),
+                last_success_at=now.isoformat() if status == "running" else self.scheduler_task_state("operational_mqtt_health").get("last_success_at"),
+                last_failure_at=now.isoformat() if status == "failing" else self.scheduler_task_state("operational_mqtt_health").get("last_failure_at"),
+                next_run_at=(now + timedelta(seconds=interval_seconds)).isoformat(),
+                last_error=(None if status == "running" else f"MQTT health is {health.health_status} / {health.status_freshness_state}"),
+            )
+            await asyncio.sleep(interval_seconds)
 
     async def poll_finalize_loop(self) -> None:
         while self.service.state.onboarding_session_id:

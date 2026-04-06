@@ -289,3 +289,9 @@ Chosen fix: Add a first-class scheduler task registry in `BackgroundTaskManager`
 What changed: Updated `src/node_backend/scheduler.py`, `tests/test_ui_api.py`, and `docs/scheduler-and-background-tasks.md`, removed Task 327 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
 Verification: `python -m py_compile src/node_backend/scheduler.py tests/test_ui_api.py` passed. `PYTHONPATH=src ./.venv/bin/python -m pytest tests/test_ui_api.py -k 'scheduled_tasks or task_registry' -q` passed.
 ###########
+Task #328
+Step objective: Add mandatory baseline recurring tasks for heartbeat, telemetry, and operational MQTT health with explicit ownership, persisted state, and operator visibility.
+Chosen fix: Model the three baseline tasks explicitly in `BackgroundTaskManager`, add lightweight persisted scheduler task state for them, hook heartbeat updates into the existing MQTT callbacks, and expose the new tasks through the bootstrap scheduled-task snapshot and docs.
+What changed: Updated `src/node_backend/scheduler.py`, `src/service.py`, `tests/test_ui_api.py`, and `docs/scheduler-and-background-tasks.md`, removed Task 328 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: `python -m py_compile src/node_backend/scheduler.py src/service.py tests/test_ui_api.py` passed. `PYTHONPATH=src ./.venv/bin/python -m pytest tests/test_ui_api.py -k 'scheduled_tasks or task_registry' -q` passed.
+###########

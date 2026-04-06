@@ -2135,6 +2135,9 @@ async def test_ui_bootstrap_exposes_scheduled_tasks(config, core_client_factory)
     assert response.status_code == 200
     body = response.json()
     task_ids = {item["task_id"] for item in body["scheduled_tasks"]}
+    assert "heartbeat" in task_ids
+    assert "telemetry" in task_ids
+    assert "operational_mqtt_health" in task_ids
     assert "onboarding_finalize_polling" in task_ids
     assert "gmail_status_polling" in task_ids
     assert "gmail_fetch_yesterday" in task_ids
@@ -2145,6 +2148,7 @@ async def test_ui_bootstrap_exposes_scheduled_tasks(config, core_client_factory)
     assert "runtime_monthly_resolve_authorize" in task_ids
     legend_names = {item["name"] for item in body["scheduled_task_legend"]}
     assert "daily" in legend_names
+    assert "every_10_seconds" in legend_names
     assert "weekly" in legend_names
     assert "monthly" in legend_names
     assert "on_start" in legend_names
@@ -2152,6 +2156,8 @@ async def test_ui_bootstrap_exposes_scheduled_tasks(config, core_client_factory)
     assert weekly_legend["detail"] == "Monday 00:01"
     interval_legend = next(item for item in body["scheduled_task_legend"] if item["name"] == "interval_seconds")
     assert interval_legend["detail"] == "Fixed interval in seconds"
+    ten_second_legend = next(item for item in body["scheduled_task_legend"] if item["name"] == "every_10_seconds")
+    assert ten_second_legend["detail"] == "Every 10 seconds"
     monthly_legend = next(item for item in body["scheduled_task_legend"] if item["name"] == "monthly")
     assert monthly_legend["detail"] == "First day of each month at 00:01"
     on_start_legend = next(item for item in body["scheduled_task_legend"] if item["name"] == "on_start")
@@ -2168,6 +2174,24 @@ async def test_ui_bootstrap_exposes_scheduled_tasks(config, core_client_factory)
     assert prompt_sync_next.weekday() == 0
     assert prompt_sync_next.hour == 0
     assert prompt_sync_next.minute == 1
+    telemetry = next(item for item in body["scheduled_tasks"] if item["task_id"] == "telemetry")
+    assert telemetry["kind"] == "node_local_recurring_work"
+    assert telemetry["owner"] == "background_task_manager"
+    assert telemetry["enabled"] is True
+    assert telemetry["last_execution_at"] is not None
+    assert telemetry["next_execution_at"] is not None
+    heartbeat = next(item for item in body["scheduled_tasks"] if item["task_id"] == "heartbeat")
+    assert heartbeat["kind"] == "node_local_recurring_work"
+    assert heartbeat["owner"] == "mqtt_manager"
+    assert heartbeat["enabled"] is False
+    assert heartbeat["schedule_name"] == "interval_seconds"
+    mqtt_health = next(item for item in body["scheduled_tasks"] if item["task_id"] == "operational_mqtt_health")
+    assert mqtt_health["kind"] == "node_local_recurring_work"
+    assert mqtt_health["owner"] == "background_task_manager"
+    assert mqtt_health["enabled"] is True
+    assert mqtt_health["schedule_name"] == "every_10_seconds"
+    assert mqtt_health["last_execution_at"] is not None
+    assert mqtt_health["next_execution_at"] is not None
     monthly_runtime = next(item for item in body["scheduled_tasks"] if item["task_id"] == "runtime_monthly_resolve_authorize")
     assert monthly_runtime["kind"] == "core_leased_recurring_work"
     assert monthly_runtime["owner"] == "background_task_manager"
@@ -2182,6 +2206,9 @@ async def test_ui_bootstrap_exposes_scheduled_tasks(config, core_client_factory)
 def test_background_task_manager_exposes_explicit_task_registry():
     registry = BackgroundTaskManager.task_registry()
     task_ids = {item.task_id for item in registry}
+    assert "heartbeat" in task_ids
+    assert "telemetry" in task_ids
+    assert "operational_mqtt_health" in task_ids
     assert "onboarding_finalize_polling" in task_ids
     assert "gmail_status_polling" in task_ids
     assert "gmail_fetch_yesterday" in task_ids
@@ -2195,6 +2222,9 @@ def test_background_task_manager_exposes_explicit_task_registry():
     assert monthly_authorize.kind == "core_leased_recurring_work"
     assert monthly_authorize.owner == "background_task_manager"
     assert monthly_authorize.schedule_name == "monthly"
+    heartbeat = next(item for item in registry if item.task_id == "heartbeat")
+    assert heartbeat.owner == "mqtt_manager"
+    assert heartbeat.schedule_name == "interval_seconds"
 
 
 @pytest.mark.asyncio
