@@ -45,10 +45,31 @@ Current operator-visible runtime surfaces include:
 - services status/restart APIs
 - frontend dashboard and setup flow
 - runtime settings now gate AI-node calls and provider calls separately
+- scheduled task snapshot rows with:
+  - `kind`
+  - `owner`
+  - `schedule_label`
+  - `last_started_at`
+  - `last_completed_at`
+  - `last_success_at`
+  - `last_failure_at`
+  - `last_error`
 
 ## Runtime notes
 
 Scheduler and background-task ownership is now centered in [scheduler.py](/home/dan/Projects/HexeEmail/src/node_backend/scheduler.py), with provider-specific runtime execution routed through [providers.py](/home/dan/Projects/HexeEmail/src/node_backend/providers.py).
+
+The standardized scheduler model now includes:
+
+- an explicit task registry in [scheduler.py](/home/dan/Projects/HexeEmail/src/node_backend/scheduler.py)
+- baseline node-local recurring tasks for `heartbeat`, `telemetry`, and `operational_mqtt_health`
+- persisted per-task scheduler state under `runtime_task_state.scheduler_task_states`
+- trust/readiness gating before provider-affecting recurring work begins
+- operator-facing scheduled-task metadata aligned with the current Node scheduler standard
+
+The dedicated scheduler reference for this repo is:
+
+- [scheduler-and-background-tasks.md](/home/dan/Projects/HexeEmail/docs/scheduler-and-background-tasks.md)
 
 ## Outbound boundaries
 

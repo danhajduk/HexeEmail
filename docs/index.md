@@ -7,6 +7,7 @@ Core operator paths:
 - [operations.md](/home/dan/Projects/HexeEmail/docs/operations.md)
 - [configuration.md](/home/dan/Projects/HexeEmail/docs/configuration.md)
 - [runtime.md](/home/dan/Projects/HexeEmail/docs/runtime.md)
+- [scheduler-and-background-tasks.md](/home/dan/Projects/HexeEmail/docs/scheduler-and-background-tasks.md)
 - [runtime-path-ownership.md](/home/dan/Projects/HexeEmail/docs/runtime-path-ownership.md)
 - [security-and-sensitive-state.md](/home/dan/Projects/HexeEmail/docs/security-and-sensitive-state.md)
 - [api-map.md](/home/dan/Projects/HexeEmail/docs/api-map.md)

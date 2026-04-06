@@ -47,8 +47,6 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[TODO] Task 337: Add scheduler regression coverage for task registry loading, task-state persistence, baseline recurring tasks, startup/shutdown behavior, and API/UI scheduled-task rendering
-[TODO] Task 338: Update scheduler and runtime docs to describe the standardized scheduled-task model, baseline tasks, ownership boundaries, and readiness interaction
 [TODO] Task 339: Create a comprehensive flow-family architecture document covering the end-to-end shared pipeline model, per-phase responsibilities, shared-core boundaries, and family-specific extension points
 [TODO] Task 340: Document the ORDER family in detail, including profile detection, template execution, probation flow, decisioning, persistence, and downstream action behavior
 [TODO] Task 341: Document the ACTION_REQUIRED family in detail, including taxonomy, profile detection, template strategy, fallback behavior, and downstream action behavior

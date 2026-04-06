@@ -343,3 +343,15 @@ Chosen fix: Update the scheduler status tone mapping in the frontend to use warn
 What changed: Updated `frontend/src/App.jsx`, `frontend/src/styles.css`, `frontend/src/features/dashboard/dashboard.test.jsx`, and `docs/scheduler-and-background-tasks.md`, removed Task 336 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
 Verification: `npm --prefix frontend test -- --run src/features/dashboard/dashboard.test.jsx` passed. `python -m py_compile src/node_backend/scheduler.py src/service.py tests/test_ui_api.py` passed. `PYTHONPATH=src ./.venv/bin/python -m pytest tests/test_ui_api.py -k 'scheduled_tasks or task_registry or defers_provider_loops' -q` passed.
 ###########
+Task #337
+Step objective: Add scheduler regression coverage for task registry loading, task-state persistence, baseline recurring tasks, startup/shutdown behavior, and API/UI scheduled-task rendering.
+Chosen fix: Add a focused scheduler-standard backend regression file for legend ordering, startup state initialization, and shutdown state transitions, while keeping the scheduled-task bootstrap/API assertions in `tests/test_ui_api.py` and the rendering checks in the dashboard frontend test.
+What changed: Added `tests/test_scheduler_standard.py`, updated `tests/test_ui_api.py`, and used the existing dashboard rendering test as the UI side of the scheduler regression surface, removed Task 337 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: `python -m py_compile tests/test_scheduler_standard.py src/node_backend/scheduler.py src/node_backend/governance.py src/service.py tests/test_ui_api.py` passed. `PYTHONPATH=src ./.venv/bin/python -m pytest tests/test_scheduler_standard.py tests/test_ui_api.py -k 'scheduled_tasks or task_registry or defers_provider_loops or scheduler' -q` passed. `npm --prefix frontend test -- --run src/features/dashboard/dashboard.test.jsx` passed.
+###########
+Task #338
+Step objective: Update scheduler and runtime docs to describe the standardized scheduled-task model, baseline tasks, ownership boundaries, and readiness interaction.
+Chosen fix: Expand the scheduler reference doc with the final operator rules, then update the repo-level runtime doc and docs index so the standardized scheduler model is documented from both the scheduler-specific and runtime-overview entrypoints.
+What changed: Updated `docs/scheduler-and-background-tasks.md`, `docs/runtime.md`, and `docs/index.md`, removed Task 338 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: Documentation review completed against `docs/scheduler-and-background-tasks.md`, `docs/runtime.md`, `docs/index.md`, and the live scheduler implementation in `src/node_backend/scheduler.py`.
+###########
