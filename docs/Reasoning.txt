@@ -403,3 +403,9 @@ Chosen fix: Link the new family references from the docs index, runtime doc, sha
 What changed: Updated `docs/index.md`, `docs/runtime.md`, `docs/shared-email-pipeline-core.md`, and `docs/Email Processing Pipeline (ORDER Flow).md`, removed Task 346 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
 Verification: Documentation review completed against the updated entrypoint docs and the newly added family reference set.
 ###########
+Task #347
+Step objective: Send a completion user notification over MQTT using the Core-documented user-notification format after the scheduled-task and flow-family work is finished.
+Chosen fix: Publish one node-scoped `kind=event` notification request to `hexe/nodes/<node_id>/notify/request` with `targets.external=[\"ha\"]`, then wait briefly on the paired `notify/result` topic so the queue closeout records whether Core confirmed the proxy request.
+What changed: Published the completion notification request for node `node-69ecb9b651bb77b4`, removed Task 347 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: MQTT publish command completed successfully. No `notify/result` message arrived during the wait window, so completion is recorded as sent but not Core-confirmed.
+###########

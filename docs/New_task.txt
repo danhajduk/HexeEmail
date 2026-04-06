@@ -47,4 +47,3 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[WIP] Task 347: Send a completion user notification over MQTT using the Core-documented user-notification format after the scheduled-task and flow-family work is finished
