@@ -62,11 +62,20 @@ def test_order_decision_engine_rejects_hard_validation_failure():
 
     result = OrderDecisionEngine().decide(phase4)
 
-    assert result.decision == "reject"
-    assert result.allow_persist_structured_result is False
-    assert result.allow_downstream_actions is False
+    assert result.decision == "review_needed"
+    assert result.allow_persist_structured_result is True
+    assert result.allow_downstream_actions is True
     assert result.requires_manual_review is True
     assert result.decision_reason == "hard_validation_failure"
+
+
+def test_order_decision_engine_marks_unresolved_result_as_review_needed():
+    result = OrderDecisionEngine().decide(build_unresolved_phase4())
+
+    assert result.decision == "review_needed"
+    assert result.decision_reason == "no_structured_extraction"
+    assert result.allow_persist_structured_result is True
+    assert result.allow_downstream_actions is True
 
 
 def test_order_decision_engine_keeps_probation_results_non_actionable():

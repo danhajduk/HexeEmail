@@ -41,15 +41,17 @@ class SharedActionGate:
     @staticmethod
     def is_allowed(*, decision: SharedDecisionResult, phase4) -> bool:
         return bool(
-            decision.decision == "accept"
+            decision.decision in {"accept", "review_needed"}
             and decision.allow_downstream_actions
-            and decision.extraction_source == "active"
+            and (decision.decision == "review_needed" or decision.extraction_source == "active")
         )
 
     @staticmethod
     def blocked_reason(*, decision: SharedDecisionResult, phase4) -> str:
         if decision.decision == "probation":
             return "decision_probation"
+        if decision.decision == "review_needed":
+            return f"decision_review_needed:{decision.decision_reason}"
         if decision.decision == "reject":
             return f"decision_reject:{decision.decision_reason}"
         if decision.extraction_source != "active":

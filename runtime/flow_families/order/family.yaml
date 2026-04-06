@@ -243,6 +243,9 @@ action_routing_policy:
   decision_intents:
     accept:
       - user_notification
+    review_needed:
+      - user_notification
+      - mark_for_manual_review
   diagnostic_token_intents:
     important_inconsistency:
       - mark_for_manual_review

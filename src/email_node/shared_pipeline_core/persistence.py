@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from email_node.shared_pipeline_core.decision import SharedDecisionResult
 
 
-SharedPersistedTrustLevel = Literal["trusted", "partial"]
+SharedPersistedTrustLevel = Literal["trusted", "partial", "review_needed"]
 
 
 class SharedStructuredOutputRecord(BaseModel):
@@ -49,6 +49,7 @@ class SharedOutputPersistenceHandler:
         self.base_dir = self.runtime_dir / "flow_families" / self.flow_family / "outputs"
         self.trusted_dir = self.base_dir / "trusted"
         self.partial_dir = self.base_dir / "partial"
+        self.review_needed_dir = self.base_dir / "review_needed"
 
     def persist(self, *, decision: SharedDecisionResult, phase4) -> SharedOutputPersistenceResult:
         diagnostics = list(decision.diagnostics)
@@ -60,14 +61,21 @@ class SharedOutputPersistenceHandler:
                 diagnostics=diagnostics + [blocked_reason],
             )
 
-        trust_level: SharedPersistedTrustLevel = "trusted" if decision.decision == "accept" else "partial"
+        if decision.decision == "accept":
+            trust_level: SharedPersistedTrustLevel = "trusted"
+            output_dir = self.trusted_dir
+        elif decision.decision == "review_needed":
+            trust_level = "review_needed"
+            output_dir = self.review_needed_dir
+        else:
+            trust_level = "partial"
+            output_dir = self.partial_dir
         record = self.build_record(
             decision=decision,
             phase4=phase4,
             persisted_at=datetime.now(UTC),
             trust_level=trust_level,
         )
-        output_dir = self.trusted_dir if trust_level == "trusted" else self.partial_dir
         output_dir.mkdir(parents=True, exist_ok=True)
         path = output_dir / self.record_filename(phase4)
         path.write_text(json.dumps(record.model_dump(mode="json"), indent=2), encoding="utf-8")

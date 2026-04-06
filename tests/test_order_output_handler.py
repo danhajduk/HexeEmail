@@ -73,24 +73,27 @@ def test_order_output_handler_persists_probation_record_as_partial(tmp_path: Pat
     assert payload["decision"] == "probation"
 
 
-def test_order_output_handler_blocks_reject_persistence(tmp_path: Path):
+def test_order_output_handler_persists_review_needed_record(tmp_path: Path):
     handler = OrderOutputHandler(runtime_dir=tmp_path / "runtime")
     phase4 = build_unresolved_phase4()
     decision = OrderDecisionResult(
-        decision="reject",
+        decision="review_needed",
         decision_reason="no_structured_extraction",
-        allow_persist_structured_result=False,
-        allow_downstream_actions=False,
+        allow_persist_structured_result=True,
+        allow_downstream_actions=True,
         requires_manual_review=True,
         confidence=0.0,
         confidence_level="low",
         extraction_source="active",
         profile_id=None,
-        diagnostics=["decision:reject"],
+        diagnostics=["decision:review_needed"],
     )
 
     result = handler.persist(decision=decision, phase4=phase4)
 
-    assert result.persisted is False
-    assert result.record_path is None
-    assert result.blocked_reason == "decision_blocked:no_structured_extraction"
+    assert result.persisted is True
+    assert result.trust_level == "review_needed"
+    assert result.record_path is not None
+    payload = json.loads(Path(result.record_path).read_text())
+    assert payload["trust_level"] == "review_needed"
+    assert payload["decision"] == "review_needed"

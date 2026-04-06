@@ -122,7 +122,8 @@ Status: `[DONE]`
 14. Persist structured ORDER output only when allowed by Phase 6.
 15. Accepted results are written as trusted output.
 16. Probation results may be written as partial output.
-17. Reject results do not persist trusted structured output.
+17. Review-needed results are written to the review-needed output bucket for operator follow-up.
+18. Reject results do not persist trusted structured output.
 
 ---
 
@@ -130,9 +131,10 @@ Status: `[DONE]`
 
 Status: `[DONE]`
 
-18. Evaluate whether downstream actions are allowed from the Phase 6 decision.
-19. Accepted active-template results may unlock actions.
-20. Probation and reject results remain blocked.
+19. Evaluate whether downstream actions are allowed from the Phase 6 decision.
+20. Accepted active-template results may unlock actions.
+21. Review-needed results may unlock review-facing actions only.
+22. Probation and reject results remain blocked.
 
 ---
 
@@ -140,10 +142,10 @@ Status: `[DONE]`
 
 Status: `[DONE]`
 
-21. Build action intents from accepted ORDER results.
-22. Routing is profile-aware and field-aware.
-23. The current ORDER action-intent rules are loaded from the ORDER family action policy pack.
-24. Blocked results produce an empty action intent list.
+23. Build action intents from accepted and review-needed ORDER results.
+24. Routing is profile-aware and field-aware.
+25. The current ORDER action-intent rules are loaded from the ORDER family action policy pack.
+26. Blocked results produce an empty action intent list.
 
 ---
 
@@ -151,9 +153,9 @@ Status: `[DONE]`
 
 Status: `[DONE]`
 
-24. Accepted ORDER results may create or update local order records.
-25. Matching prefers stable identities like order number, tracking number, then source message.
-26. Probation results do not overwrite trusted order records.
+27. Accepted ORDER results may create or update local order records.
+28. Matching prefers stable identities like order number, tracking number, then source message.
+29. Probation results do not overwrite trusted order records.
 
 ---
 
@@ -161,23 +163,25 @@ Status: `[DONE]`
 
 Status: `[DONE]`
 
-27. Accepted ORDER results may produce normalized user notification requests.
-28. Notification content is derived from trusted extracted fields and profile type.
-29. Probation and reject results do not generate notification requests.
+30. Accepted ORDER results may produce normalized user notification requests.
+31. Review-needed ORDER results may also produce normalized review-needed notification requests.
+32. Notification content is derived from trusted extracted fields and profile type, or from the review-needed fallback contract.
+33. Probation and reject results do not generate notification requests.
 
 ### Reporting
 
 Status: `[DONE]`
 
-30. Ad hoc ORDER reports are now assembled through the shared report builder.
-31. Reports include `flow_family` and a shared summary block for status, diagnostics, decision, persistence, and actions.
-32. ORDER keeps the current readable markdown report layout for operators.
+34. Ad hoc ORDER reports are now assembled through the shared report builder.
+35. Reports include `flow_family` and a shared summary block for status, diagnostics, decision, persistence, and actions.
+36. Review-needed persistence is rendered explicitly in the shared Phase 7 status summary.
+37. ORDER keeps the current readable markdown report layout for operators.
 
 ### Runner Architecture
 
 Status: `[DONE]`
 
-33. `OrderFlowPipeline` is now a thin ORDER-specific runner.
+38. `OrderFlowPipeline` is now a thin ORDER-specific runner.
 34. Shared phase orchestration stays in the shared core.
 35. ORDER family wiring and probation behavior now live in the ORDER family runtime module.
 
@@ -234,7 +238,7 @@ Status: `[DONE]`
 
 Outputs:
 
-* `decision` = `accept | probation | reject` `[DONE]`
+* `decision` = `accept | probation | review_needed | reject` `[DONE]`
 * `decision_reason` `[DONE]`
 * `allow_persist_structured_result` `[DONE]`
 * `allow_downstream_actions` `[DONE]`
@@ -253,8 +257,9 @@ Outputs:
 
 25. If confidence LOW on an active template: `[DONE]`
 
-* reject
-* log for review
+* mark as `review_needed`
+* persist for review
+* queue review-facing actions only
 
 26. If the extraction came from a probation template: `[DONE]`
 
@@ -262,7 +267,7 @@ Outputs:
 * allow structured persistence when fields were extracted
 * never allow downstream actions
 
-27. Any hard validation failure forces reject regardless of confidence. `[DONE]`
+27. Any hard validation failure forces `review_needed` regardless of confidence. `[DONE]`
 
 ---
 

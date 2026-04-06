@@ -6,7 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
-SharedDecision = Literal["accept", "probation", "reject"]
+SharedDecision = Literal["accept", "probation", "review_needed", "reject"]
 SharedExtractionSource = Literal["active", "probation"]
 
 
@@ -50,16 +50,16 @@ class SharedDecisionEngine:
 
         if hard_validation_failure:
             return SharedDecisionResult(
-                decision="reject",
+                decision="review_needed",
                 decision_reason="hard_validation_failure",
-                allow_persist_structured_result=False,
-                allow_downstream_actions=False,
+                allow_persist_structured_result=True,
+                allow_downstream_actions=True,
                 requires_manual_review=True,
                 confidence=confidence,
                 confidence_level=confidence_level,
                 extraction_source=extraction_source,
                 profile_id=profile_id,
-                diagnostics=diagnostics + ["decision:reject", "decision_reason:hard_validation_failure"],
+                diagnostics=diagnostics + ["decision:review_needed", "decision_reason:hard_validation_failure"],
             )
 
         if extraction_source == "probation":
@@ -78,16 +78,16 @@ class SharedDecisionEngine:
 
         if extraction_status in {"failed", "unresolved"} or not has_structured_result:
             return SharedDecisionResult(
-                decision="reject",
+                decision="review_needed",
                 decision_reason="no_structured_extraction",
-                allow_persist_structured_result=False,
-                allow_downstream_actions=False,
+                allow_persist_structured_result=True,
+                allow_downstream_actions=True,
                 requires_manual_review=True,
                 confidence=confidence,
                 confidence_level=confidence_level,
                 extraction_source=extraction_source,
                 profile_id=profile_id,
-                diagnostics=diagnostics + ["decision:reject", "decision_reason:no_structured_extraction"],
+                diagnostics=diagnostics + ["decision:review_needed", "decision_reason:no_structured_extraction"],
             )
 
         if confidence >= self.policy.high_confidence_threshold:
@@ -119,16 +119,16 @@ class SharedDecisionEngine:
             )
 
         return SharedDecisionResult(
-            decision="reject",
+            decision="review_needed",
             decision_reason="active_low_confidence",
-            allow_persist_structured_result=False,
-            allow_downstream_actions=False,
+            allow_persist_structured_result=True,
+            allow_downstream_actions=True,
             requires_manual_review=True,
             confidence=confidence,
             confidence_level=confidence_level,
             extraction_source=extraction_source,
             profile_id=profile_id,
-            diagnostics=diagnostics + ["decision:reject", "decision_reason:active_low_confidence"],
+            diagnostics=diagnostics + ["decision:review_needed", "decision_reason:active_low_confidence"],
         )
 
     @staticmethod

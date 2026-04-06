@@ -75,8 +75,9 @@ def test_action_required_flow_skeleton_runs_through_shared_core(tmp_path):
     assert result["phase2"].scrub_status in {"success", "partial", "failed"}
     assert result["phase3"].profile_status in {"success", "partial", "failed"}
     assert result["phase4"].extraction_status in {"unresolved", "failed"}
-    assert result["phase6"].decision == "reject"
-    assert result["phase7"].persisted is False
+    assert result["phase6"].decision == "review_needed"
+    assert result["phase7"].persisted is True
+    assert result["phase7"].trust_level == "review_needed"
 
 
 def test_action_required_detector_matches_payment_method_update():

@@ -67,6 +67,30 @@ def test_shared_persistence_handler_blocks_reject_results(tmp_path):
     assert result.blocked_reason == "decision_blocked:no_structured_extraction"
 
 
+def test_shared_persistence_handler_persists_review_needed_record(tmp_path):
+    phase4 = build_unresolved_phase4()
+    decision = SharedDecisionResult(
+        decision="review_needed",
+        decision_reason="no_structured_extraction",
+        allow_persist_structured_result=True,
+        allow_downstream_actions=True,
+        requires_manual_review=True,
+        confidence=0.0,
+        confidence_level="low",
+        extraction_source="active",
+        profile_id=None,
+        diagnostics=["decision:review_needed"],
+    )
+
+    result = SharedOutputPersistenceHandler(flow_family="demo", runtime_dir=tmp_path / "runtime").persist(
+        decision=decision,
+        phase4=phase4,
+    )
+
+    assert result.persisted is True
+    assert result.trust_level == "review_needed"
+
+
 def test_shared_persistence_handler_persists_partial_record(tmp_path):
     phase4 = build_unresolved_phase4().model_copy(
         update={

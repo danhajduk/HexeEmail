@@ -301,6 +301,9 @@ action_routing_policy:
       - user_notification
     probation:
       - mark_for_manual_review
+    review_needed:
+      - user_notification
+      - mark_for_manual_review
   diagnostic_token_intents:
     important_inconsistency:
       - mark_high_priority

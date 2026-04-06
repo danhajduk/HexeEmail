@@ -96,3 +96,42 @@ def test_shared_report_builder_markdown_keeps_order_report_shape():
     assert "## Status" in markdown
     assert "## Phase 7" in markdown
     assert "## Actions" in markdown
+
+
+def test_shared_report_builder_renders_review_needed_phase7_status():
+    builder = SharedFlowReportBuilder()
+
+    payload = builder.build_payload(
+        ran_at="2026-04-06T08:00:00+00:00",
+        label="action_required",
+        account_id="primary",
+        message_id="demo-msg-review",
+        normalized=build_phase2_payload().phase1_reference,
+        flow_result={
+            "flow_family": "action_required",
+            "flow_config": type("Config", (), {"output_schema_family": "action_required"})(),
+            "phase2": build_phase2_payload(),
+            "phase3": build_unresolved_phase4().phase3_reference,
+            "phase4": build_unresolved_phase4(),
+            "phase6": {"decision": "review_needed", "decision_reason": "no_structured_extraction"},
+            "phase7": {
+                "persisted": True,
+                "trust_level": "review_needed",
+                "blocked_reason": None,
+                "record_path": "runtime/flow_families/action_required/outputs/review_needed/demo-msg-review.json",
+                "diagnostics": ["phase7_persisted:review_needed:demo-msg-review"],
+            },
+            "phase7_result": {"persisted_result": True},
+            "action_gate": {"actions_allowed": True, "diagnostics": ["action_gate:allowed"]},
+            "action_router": {
+                "action_intents": ["user_notification", "mark_for_manual_review"],
+                "diagnostics": ["action_router:intents:user_notification,mark_for_manual_review"],
+            },
+            "order_record_write": {"queued": False},
+            "user_notification": {"queued": True},
+            "tracking_monitor": {"queued": False},
+        },
+    )
+
+    assert payload["report_summary"]["status"]["phase7"] == "persisted:review_needed"
+    assert payload["report_summary"]["decision"]["decision"] == "review_needed"

@@ -36,6 +36,15 @@ It currently owns:
   - [decision_packs.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/decision_packs.py)
   - [action_packs.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/action_packs.py)
 
+Shared terminal outcomes currently supported across flow families:
+
+- `accept`
+- `probation`
+- `review_needed`
+- `reject`
+
+`review_needed` is the shared fallback for flows that should not silently disappear on failure. It persists under the family review-needed output bucket and can still surface review-facing intents such as user notification and manual-review markers.
+
 ## Flow-Family-Specific Modules
 
 Flow-family modules live under:
@@ -164,6 +173,7 @@ Current skeleton behavior:
 - can reuse existing probation templates, evaluate them, and apply them back as low-confidence partial results
 - uses placeholder downstream action results
 - proves that a second family can execute through the same shared orchestration path
+- unresolved or hard-validation outcomes now use the shared `review_needed` contract rather than only failing closed as plain rejects
 
 Current limitations:
 

@@ -47,10 +47,6 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[TODO] Task 300: Mark failed family flows as review_needed for user review
-[TODO] Task 301: Add shared review_needed decision/result contract across flow families
-[TODO] Task 302: Surface review_needed state in persisted outputs, reports, and notifications
-[TODO] Task 303: Add tests and docs for cross-family review_needed fallback behavior
 [TODO] Task 304: Create FINANCIAL flow family skeleton on shared core
 [TODO] Task 305: Define FINANCIAL YAML taxonomy, heuristics, validation, decision, and action routing
 [TODO] Task 306: Add FINANCIAL runtime/report path wiring and smoke coverage

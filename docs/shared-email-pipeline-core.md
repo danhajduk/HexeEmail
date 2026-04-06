@@ -19,6 +19,13 @@ Current scope:
 - YAML-backed declarative family config with Python fallback-compatible loaders
 - flow-specific logic remains injected as hooks
 
+Shared terminal decisions now available through the common Phase 6 contract:
+
+- `accept`: trusted active-template result, persisted and action-eligible
+- `probation`: low-trust result, persisted as partial and blocked from downstream actions
+- `review_needed`: family flow could not complete safely, but the result should still be persisted and surfaced for operator or user review
+- `reject`: hard stop with no persisted structured result
+
 Current flow families:
 
 - `order`
@@ -83,12 +90,14 @@ Current ORDER integration:
 - ACTION_REQUIRED now has its own placeholder action policy pack in [src/email_node/flow_families/action_required/action_routing.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_required/action_routing.py)
 - [scripts/run_order_flow_ad_hoc.py](/home/dan/Projects/HexeEmail/scripts/run_order_flow_ad_hoc.py) now builds JSON and Markdown reports through [src/email_node/shared_pipeline_core/reporting.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/reporting.py), which adds a shared report summary block and explicit `flow_family`
 - [src/email_node/pipeline/order_flow.py](/home/dan/Projects/HexeEmail/src/email_node/pipeline/order_flow.py) is now a thin ORDER runner that delegates the actual family wiring and probation behavior to [src/email_node/flow_families/order/runtime.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/order/runtime.py)
+- unresolved or hard-validation ORDER results now map to `review_needed` instead of being dropped as plain rejects, so they can persist under the review-needed bucket and queue manual-review-facing intents
 
 Current ACTION_REQUIRED integration:
 
 - [src/email_node/pipeline/action_required_flow.py](/home/dan/Projects/HexeEmail/src/email_node/pipeline/action_required_flow.py) now provides an initial thin shared-core runner for the `action_required` family
 - [src/email_node/flow_families/action_required/runtime.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_required/runtime.py) wires the shared scrub, profile-detection, template, probation, decision, persistence, and action-gating layers together with placeholder downstream action handlers
 - the ACTION_REQUIRED family now has unresolved-template AI handoff, probation-state reuse, and low-confidence probation fallback behavior, but it still does not have active template coverage or family-owned downstream actions
+- unresolved ACTION_REQUIRED results now also use the shared `review_needed` decision so they can persist and surface manual-review signals consistently with ORDER
 - [src/email_node/patterns/probation_evaluator.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation_evaluator.py), [src/email_node/patterns/probation_metrics.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation_metrics.py), [src/email_node/patterns/probation_policy.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation_policy.py), and [src/email_node/patterns/probation_promotion.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/probation_promotion.py) now thinly wrap the shared probation subsystem in [src/email_node/shared_pipeline_core/probation.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/probation.py)
 - ORDER still owns its current route-selection policy and downstream action handlers
 

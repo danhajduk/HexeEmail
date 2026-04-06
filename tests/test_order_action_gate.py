@@ -48,23 +48,23 @@ def test_order_action_gate_blocks_probation_results():
     assert result.blocked_reason == "decision_probation"
 
 
-def test_order_action_gate_blocks_reject_results():
+def test_order_action_gate_allows_review_needed_results():
     gate = OrderActionGate()
     phase4 = build_unresolved_phase4()
     decision = OrderDecisionResult(
-        decision="reject",
+        decision="review_needed",
         decision_reason="no_structured_extraction",
-        allow_persist_structured_result=False,
-        allow_downstream_actions=False,
+        allow_persist_structured_result=True,
+        allow_downstream_actions=True,
         requires_manual_review=True,
         confidence=0.0,
         confidence_level="low",
         extraction_source="active",
         profile_id=None,
-        diagnostics=["decision:reject"],
+        diagnostics=["decision:review_needed"],
     )
 
     result = gate.authorize(decision=decision, phase4=phase4)
 
-    assert result.actions_allowed is False
-    assert result.blocked_reason == "decision_reject:no_structured_extraction"
+    assert result.actions_allowed is True
+    assert result.blocked_reason is None

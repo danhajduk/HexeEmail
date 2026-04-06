@@ -86,3 +86,27 @@ def test_user_notification_handler_blocks_probation_results():
 
     assert result.queued is False
     assert result.blocked_reason == "decision:probation"
+
+
+def test_user_notification_handler_builds_review_needed_message():
+    handler = UserNotificationHandler()
+    decision = OrderDecisionResult(
+        decision="review_needed",
+        decision_reason="no_structured_extraction",
+        allow_persist_structured_result=True,
+        allow_downstream_actions=True,
+        requires_manual_review=True,
+        confidence=0.0,
+        confidence_level="low",
+        extraction_source="active",
+        profile_id="generic_order_confirmation",
+        diagnostics=["decision:review_needed"],
+    )
+    routing = OrderActionRoutingResult(action_intents=["user_notification"], diagnostics=[])
+
+    result = handler.build_request(decision=decision, action_routing=routing, phase4=build_unresolved_phase4())
+
+    assert result.queued is True
+    assert result.title == "Email review needed"
+    assert "review" in (result.message or "").lower()
+    assert (result.dedupe_key or "").startswith("email-user-notification:")
