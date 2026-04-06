@@ -9,6 +9,7 @@ from email_node.pipeline.order_decision_engine import OrderDecisionEngine, Order
 from email_node.pipeline.order_flow import OrderFlowPipeline
 from email_node.pipeline.order_output_handler import OrderOutputHandler, OrderOutputPersistenceResult, OrderStructuredOutputRecord
 from email_node.pipeline.security_flow import SecurityFlowPipeline
+from email_node.pipeline.shipment_flow import ShipmentFlowPipeline
 
 __all__ = [
     "OrderActionAuthorizationResult",
@@ -26,4 +27,5 @@ __all__ = [
     "OrderOutputPersistenceResult",
     "OrderStructuredOutputRecord",
     "SecurityFlowPipeline",
+    "ShipmentFlowPipeline",
 ]

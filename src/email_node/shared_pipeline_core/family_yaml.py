@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 import yaml
 
 
-FlowFamilyYamlName = Literal["order", "action_required", "financial", "invoice", "security"]
+FlowFamilyYamlName = Literal["order", "action_required", "financial", "invoice", "security", "shipment"]
 
 
 class FamilyRuntimePathsConfig(BaseModel):
@@ -151,7 +151,7 @@ def parse_yaml_family_reference(reference: str) -> FlowFamilyYamlName:
     family_name = reference.removeprefix("yaml://").strip()
     if family_name == "action_needed":
         return "action_required"
-    if family_name not in {"order", "action_required", "financial", "invoice", "security"}:
+    if family_name not in {"order", "action_required", "financial", "invoice", "security", "shipment"}:
         raise ValueError(f"Unsupported YAML family reference: {reference}")
     return family_name  # type: ignore[return-value]
 
@@ -274,7 +274,7 @@ def _resolve_relative_runtime_path(raw_value: str, *, runtime_dir: Path | None =
 def _canonicalize_yaml_flow_family(flow_family: FlowFamilyYamlName | str) -> FlowFamilyYamlName:
     if flow_family == "action_needed":
         return "action_required"
-    if flow_family in {"order", "action_required", "financial", "invoice", "security"}:
+    if flow_family in {"order", "action_required", "financial", "invoice", "security", "shipment"}:
         return flow_family  # type: ignore[return-value]
     raise ValueError(f"Unsupported flow family: {flow_family}")
 

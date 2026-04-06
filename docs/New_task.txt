@@ -47,7 +47,6 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[TODO] Task 313: Create SHIPMENT flow family skeleton on shared core
 [TODO] Task 314: Define SHIPMENT YAML taxonomy, heuristics, validation, decision, and action routing
 [TODO] Task 315: Add SHIPMENT runtime/report path wiring and smoke coverage
 [TODO] Task 316: Document the multi-family rollout plan for ORDER, ACTION_REQUIRED, FINANCIAL, INVOICE, SECURITY, and SHIPMENT

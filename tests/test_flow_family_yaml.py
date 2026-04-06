@@ -150,17 +150,20 @@ def test_repo_yaml_definitions_load_for_both_families():
     financial_definition = load_flow_family_yaml_definition("financial")
     invoice_definition = load_flow_family_yaml_definition("invoice")
     security_definition = load_flow_family_yaml_definition("security")
+    shipment_definition = load_flow_family_yaml_definition("shipment")
 
     assert order_definition.flow_family == "order"
     assert action_required_definition.flow_family == "action_required"
     assert financial_definition.flow_family == "financial"
     assert invoice_definition.flow_family == "invoice"
     assert security_definition.flow_family == "security"
+    assert shipment_definition.flow_family == "shipment"
     assert order_definition.profiles.rules_override_path == "order_profile_rules.json"
     assert action_required_definition.runtime_paths.template_dir == "flow_families/action_required/templates"
     assert financial_definition.runtime_paths.template_dir == "flow_families/financial/templates"
     assert invoice_definition.runtime_paths.template_dir == "flow_families/invoice/templates"
     assert security_definition.runtime_paths.template_dir == "flow_families/security/templates"
+    assert shipment_definition.runtime_paths.template_dir == "flow_families/shipment/templates"
 
 
 def test_flow_family_yaml_definition_rejects_unknown_keys():

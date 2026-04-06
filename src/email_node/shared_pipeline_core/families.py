@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Literal
 
 
-FlowFamily = Literal["order", "action_required", "financial", "invoice", "security"]
+FlowFamily = Literal["order", "action_required", "financial", "invoice", "security", "shipment"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -124,12 +124,29 @@ def get_flow_family_config(flow_family: FlowFamily | str, *, runtime_dir: Path |
             output_dir=base_runtime_dir / "flow_families" / "security" / "outputs",
             reports_dir=base_runtime_dir / "flow_families" / "security" / "reports",
         )
+    if canonical_flow_family == "shipment":
+        return FlowFamilyConfig(
+            flow_family="shipment",
+            scrub_heuristic_pack="email_node.flow_families.shipment.heuristics",
+            profile_detector_pack="email_node.flow_families.shipment.profiles",
+            template_dir=base_runtime_dir / "flow_families" / "shipment" / "templates",
+            probation_template_dir=base_runtime_dir / "flow_families" / "shipment" / "probation" / "templates",
+            probation_state_dir=base_runtime_dir / "flow_families" / "shipment" / "probation" / "state",
+            probation_evaluations_dir=base_runtime_dir / "flow_families" / "shipment" / "probation" / "evaluations",
+            probation_shadow_dir=base_runtime_dir / "flow_families" / "shipment" / "probation" / "shadow",
+            validation_policy="email_node.flow_families.shipment.validation",
+            decision_policy="email_node.flow_families.shipment.decision",
+            action_router_policy="email_node.flow_families.shipment.action_routing",
+            output_schema_family="shipment",
+            output_dir=base_runtime_dir / "flow_families" / "shipment" / "outputs",
+            reports_dir=base_runtime_dir / "flow_families" / "shipment" / "reports",
+        )
     raise ValueError(f"Unsupported flow family: {flow_family}")
 
 
 def _canonicalize_flow_family(flow_family: FlowFamily | str) -> FlowFamily:
     if flow_family == "action_needed":
         return "action_required"
-    if flow_family in {"order", "action_required", "financial", "invoice", "security"}:
+    if flow_family in {"order", "action_required", "financial", "invoice", "security", "shipment"}:
         return flow_family
     raise ValueError(f"Unsupported flow family: {flow_family}")
