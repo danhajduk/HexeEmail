@@ -17,6 +17,7 @@ Core operator paths:
 Implementation and architecture references:
 
 - [email-node-architecture.md](/home/dan/Projects/HexeEmail/docs/email-node-architecture.md)
+- [shared-flow-family-architecture.md](/home/dan/Projects/HexeEmail/docs/shared-flow-family-architecture.md)
 - [core-compatibility.md](/home/dan/Projects/HexeEmail/docs/core-compatibility.md)
 - [gmail-oauth-setup-guide.md](/home/dan/Projects/HexeEmail/docs/gmail-oauth-setup-guide.md)
 
