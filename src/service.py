@@ -1682,8 +1682,9 @@ class NodeService:
         pipeline_result = await self.order_pipeline.process_normalized_email(normalized)
         phase4 = pipeline_result["phase4"]
         phase6 = pipeline_result["phase6"]
+        phase7_result = pipeline_result.get("phase7_result") or {}
         LOGGER.info(
-            "ORDER Phase 2-6 pipeline completed",
+            "ORDER Phase 2-7 pipeline completed",
             extra={
                 "event_data": {
                     "account_id": account_id,
@@ -1699,6 +1700,11 @@ class NodeService:
                     "phase6_allow_persist": phase6.allow_persist_structured_result,
                     "phase6_allow_actions": phase6.allow_downstream_actions,
                     "phase6_requires_manual_review": phase6.requires_manual_review,
+                    "phase7_persisted_result": phase7_result.get("persisted_result"),
+                    "phase7_persistence_reason": phase7_result.get("persistence_reason"),
+                    "phase7_actions_allowed": phase7_result.get("actions_allowed"),
+                    "phase7_action_intents": phase7_result.get("action_intents"),
+                    "phase7_action_results": phase7_result.get("action_results"),
                 }
             },
         )

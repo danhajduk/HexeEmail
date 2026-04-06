@@ -4,6 +4,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Awaitable, Callable
 
+from email_node.actions.tracking_monitor_handler import TrackingMonitorHandler
+from email_node.actions.user_notification_handler import UserNotificationHandler
 from email_node.orders.order_record_service import OrderRecordService
 from email_node.pipeline.order_action_gate import OrderActionGate
 from email_node.pipeline.order_action_router import OrderActionRouter
@@ -44,6 +46,8 @@ class OrderFlowPipeline:
         action_gate: OrderActionGate | None = None,
         action_router: OrderActionRouter | None = None,
         order_record_service: OrderRecordService | None = None,
+        user_notification_handler: UserNotificationHandler | None = None,
+        tracking_monitor_handler: TrackingMonitorHandler | None = None,
         runtime_dir: Path | None = None,
     ) -> None:
         self.phase2_scrubber = phase2_scrubber or GmailOrderPhase2Scrubber()
@@ -63,6 +67,8 @@ class OrderFlowPipeline:
         self.action_gate = action_gate or OrderActionGate()
         self.action_router = action_router or OrderActionRouter()
         self.order_record_service = order_record_service or OrderRecordService(runtime_dir)
+        self.user_notification_handler = user_notification_handler or UserNotificationHandler()
+        self.tracking_monitor_handler = tracking_monitor_handler or TrackingMonitorHandler()
 
     async def process_normalized_email(self, normalized) -> dict[str, object]:
         phase2 = self.phase2_scrubber.scrub(normalized)
@@ -79,6 +85,27 @@ class OrderFlowPipeline:
             phase4=phase4,
             action_routing=action_router,
         )
+        user_notification = self.user_notification_handler.build_request(
+            decision=phase6,
+            action_routing=action_router,
+            phase4=phase4,
+        )
+        tracking_monitor = self.tracking_monitor_handler.build_request(
+            decision=phase6,
+            action_routing=action_router,
+            phase4=phase4,
+        )
+        phase7_result = {
+            "persisted_result": phase7.persisted,
+            "persistence_reason": phase7.blocked_reason or phase7.trust_level,
+            "actions_allowed": action_gate.actions_allowed,
+            "action_intents": list(action_router.action_intents),
+            "action_results": {
+                "order_record_write": order_record_write.model_dump(mode="json"),
+                "user_notification": user_notification.model_dump(mode="json"),
+                "tracking_monitor": tracking_monitor.model_dump(mode="json"),
+            },
+        }
         return {
             "phase2": phase2,
             "phase3": phase3,
@@ -88,6 +115,9 @@ class OrderFlowPipeline:
             "action_gate": action_gate,
             "action_router": action_router,
             "order_record_write": order_record_write,
+            "user_notification": user_notification,
+            "tracking_monitor": tracking_monitor,
+            "phase7_result": phase7_result,
         }
 
     async def attach_probation_template(self, phase4):

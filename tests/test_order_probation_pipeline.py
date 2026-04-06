@@ -329,6 +329,8 @@ async def test_order_pipeline_returns_phase6_decision_for_probation_result(tmp_p
     assert result["action_router"].action_intents == []
     assert result["order_record_write"].written is False
     assert result["order_record_write"].blocked_reason == "decision:probation"
+    assert result["user_notification"].queued is False
+    assert result["user_notification"].blocked_reason == "decision:probation"
     state = store.load_state(template_id)
     assert state is not None
     assert state.status == "probation"

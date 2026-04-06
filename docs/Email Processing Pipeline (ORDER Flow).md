@@ -153,6 +153,16 @@ Status: `[DONE]`
 25. Matching prefers stable identities like order number, tracking number, then source message.
 26. Probation results do not overwrite trusted order records.
 
+---
+
+### Phase 7E — User Notification Handler
+
+Status: `[DONE]`
+
+27. Accepted ORDER results may produce normalized user notification requests.
+28. Notification content is derived from trusted extracted fields and profile type.
+29. Probation and reject results do not generate notification requests.
+
 #### Unknown Profile
 
 Status: `[PARTIAL]`
