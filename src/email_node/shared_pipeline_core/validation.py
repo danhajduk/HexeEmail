@@ -17,6 +17,29 @@ class SharedValidationPolicy:
     required_field_confidence_weight: float = 0.6
     valid_field_confidence_weight: float = 0.4
 
+    @classmethod
+    def from_mapping(cls, payload: dict[str, object]) -> SharedValidationPolicy:
+        allowed_keys = {
+            "url_field_suffixes",
+            "identifier_fields",
+            "identifier_min_length",
+            "success_threshold",
+            "partial_threshold",
+            "required_field_confidence_weight",
+            "valid_field_confidence_weight",
+        }
+        normalized: dict[str, object] = {}
+        for key, value in payload.items():
+            if key not in allowed_keys:
+                continue
+            if key in {"url_field_suffixes", "identifier_fields"} and isinstance(value, (list, tuple)):
+                normalized[key] = tuple(str(item) for item in value)
+            elif key == "identifier_min_length" and isinstance(value, (int, float)):
+                normalized[key] = int(value)
+            elif key in {"success_threshold", "partial_threshold", "required_field_confidence_weight", "valid_field_confidence_weight"} and isinstance(value, (int, float)):
+                normalized[key] = float(value)
+        return cls(**normalized)
+
     def validate_fields(
         self,
         extracted_fields: dict[str, GmailPhase4ExtractedField],

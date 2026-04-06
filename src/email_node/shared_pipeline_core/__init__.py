@@ -17,6 +17,7 @@ from email_node.shared_pipeline_core.profile_packs import SharedProfileDefinitio
 from email_node.shared_pipeline_core.scrub_engine import SharedScrubEngine, SharedScrubHeuristicPack, load_scrub_heuristic_pack
 from email_node.shared_pipeline_core.template_engine import SharedTemplateExecutionEngine, SharedTemplateRegistry
 from email_node.shared_pipeline_core.validation import SharedValidationPolicy
+from email_node.shared_pipeline_core.validation_packs import load_validation_policy
 
 __all__ = [
     "FlowFamilyConfig",
@@ -37,6 +38,7 @@ __all__ = [
     "SharedTemplateExecutionEngine",
     "SharedTemplateRegistry",
     "SharedValidationPolicy",
+    "load_validation_policy",
     "get_flow_family_config",
     "load_profile_definition_pack",
     "load_scrub_heuristic_pack",

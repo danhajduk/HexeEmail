@@ -47,24 +47,6 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[TODO] Task 277: Create family-specific validation policies
-
-- Externalize validation rules from code
-
-ORDER policy examples:
-- required fields by profile
-- amount/date/order number validation
-- tracking consistency checks
-
-ACTION_NEEDED policy examples:
-- required action_type/action_url/deadline rules
-- amount_due/date/target validation
-- security-sensitive handling flags
-
-Acceptance:
-- Shared validation framework can load family-specific policy files
-- ORDER validation no longer depends on embedded-only rule logic
-
 [TODO] Task 278: Extract Phase 6 decisioning into shared decision framework
 
 - Refactor the new decision engine so it becomes family-driven instead of ORDER-specific

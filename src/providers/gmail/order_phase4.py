@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 
+from email_node.shared_pipeline_core import get_flow_family_config, load_validation_policy
 from email_node.shared_pipeline_core.template_engine import SharedTemplateExecutionEngine
 from providers.gmail.models import (
     GmailPhase1DiagnosticItem,
@@ -15,10 +16,12 @@ EXTRACTOR_VERSION = "order-phase4-template-extractor.v1"
 
 class GmailOrderPhase4Extractor(SharedTemplateExecutionEngine):
     def __init__(self, registry: GmailOrderTemplateRegistry | None = None) -> None:
+        flow_config = get_flow_family_config("order")
         super().__init__(
             registry=registry or GmailOrderTemplateRegistry(),
             extractor_version=EXTRACTOR_VERSION,
             template_schema_version=TEMPLATE_SCHEMA_VERSION,
+            validation_policy=load_validation_policy(flow_config.validation_policy),
         )
 
     def build_ai_template_hook(self, phase3: GmailPhase3DetectedEmail) -> dict[str, object]:
