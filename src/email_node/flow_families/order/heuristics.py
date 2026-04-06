@@ -1,65 +1,37 @@
 from __future__ import annotations
 
-import re
+from email_node.shared_pipeline_core.family_yaml import (
+    build_scrub_heuristic_pack_from_yaml,
+    load_flow_family_yaml_definition,
+)
 
 
-IGNORE_LINE_PATTERNS = [
-    re.compile(r"^\s*view (this )?(email|message) in your browser\s*$", re.IGNORECASE),
-    re.compile(r"^\s*manage (preferences|email preferences)\s*$", re.IGNORECASE),
-    re.compile(r"^\s*unsubscribe\s*$", re.IGNORECASE),
-    re.compile(r"^\s*download the amazon app\s*$", re.IGNORECASE),
-]
+def _heuristic_pack():
+    definition = load_flow_family_yaml_definition("order")
+    return build_scrub_heuristic_pack_from_yaml(definition)
 
-STOP_MARKER_PATTERNS = [
-    re.compile(r"^\s*privacy notice\s*$", re.IGNORECASE),
-    re.compile(r"^\s*conditions of use\s*$", re.IGNORECASE),
-    re.compile(r"^\s*terms and conditions\s*$", re.IGNORECASE),
-]
 
-CHROME_LINE_PATTERNS = [
-    re.compile(r"^\s*your orders\s*$", re.IGNORECASE),
-    re.compile(r"^\s*your account\s*$", re.IGNORECASE),
-    re.compile(r"^\s*buy again\s*$", re.IGNORECASE),
-    re.compile(r"^\s*shop now\s*$", re.IGNORECASE),
-]
+HEURISTIC_PACK = _heuristic_pack()
+IGNORE_LINE_PATTERNS = HEURISTIC_PACK.ignore_line_patterns
+STOP_MARKER_PATTERNS = HEURISTIC_PACK.stop_marker_patterns
+CHROME_LINE_PATTERNS = HEURISTIC_PACK.chrome_line_patterns
+FOOTER_CUTOFF_PATTERNS = HEURISTIC_PACK.footer_cutoff_patterns
+IMPORTANT_LINK_PATTERNS = HEURISTIC_PACK.important_link_patterns
+TRACKING_HOST_PATTERNS = HEURISTIC_PACK.tracking_host_patterns
+FILLER_ENTITY_PATTERNS = HEURISTIC_PACK.filler_entity_patterns
+TRANSACTIONAL_ANCHOR_PATTERNS = HEURISTIC_PACK.transactional_anchor_patterns
+PROMO_MARKER_PATTERNS = HEURISTIC_PACK.promo_marker_patterns
 
-FOOTER_CUTOFF_PATTERNS = [
-    re.compile(r"copyright\s+\d{4}", re.IGNORECASE),
-    re.compile(r"privacy notice", re.IGNORECASE),
-    re.compile(r"conditions of use", re.IGNORECASE),
-    re.compile(r"tax (invoice|disclosure|information)", re.IGNORECASE),
-    re.compile(r"license|legal", re.IGNORECASE),
-]
 
-IMPORTANT_LINK_PATTERNS = {
-    "tracking_action": re.compile(r"track|shipment|package", re.IGNORECASE),
-    "order_action": re.compile(r"view or edit order|order details|your-orders|order|purchase", re.IGNORECASE),
-    "account": re.compile(r"activate|account|sign in|signin", re.IGNORECASE),
-    "document_action": re.compile(r"invoice|receipt|document|pdf", re.IGNORECASE),
-}
-
-TRACKING_HOST_PATTERNS = [
-    re.compile(r"amazon-adsystem|doubleclick|google-analytics", re.IGNORECASE),
-    re.compile(r"/open|/track|/pixel", re.IGNORECASE),
-]
-
-FILLER_ENTITY_PATTERNS = [
-    re.compile(r"(?:&zwnj;|&nbsp;|&#8199;|&shy;|\u200c|\u00a0){3,}", re.IGNORECASE),
-]
-
-TRANSACTIONAL_ANCHOR_PATTERNS = [
-    re.compile(r"thanks for your order", re.IGNORECASE),
-    re.compile(r"\border\s*#", re.IGNORECASE),
-    re.compile(r"arriving", re.IGNORECASE),
-    re.compile(r"quantity", re.IGNORECASE),
-    re.compile(r"grand total", re.IGNORECASE),
-    re.compile(r"view or edit order", re.IGNORECASE),
-]
-
-PROMO_MARKER_PATTERNS = [
-    re.compile(r"\b\d+%\s+off\b", re.IGNORECASE),
-    re.compile(r"deals? for you", re.IGNORECASE),
-    re.compile(r"recommended for you", re.IGNORECASE),
-    re.compile(r"buy again", re.IGNORECASE),
-    re.compile(r"shop similar", re.IGNORECASE),
+__all__ = [
+    "CHROME_LINE_PATTERNS",
+    "FILLER_ENTITY_PATTERNS",
+    "FOOTER_CUTOFF_PATTERNS",
+    "HEURISTIC_PACK",
+    "IGNORE_LINE_PATTERNS",
+    "IMPORTANT_LINK_PATTERNS",
+    "PROMO_MARKER_PATTERNS",
+    "STOP_MARKER_PATTERNS",
+    "TRACKING_HOST_PATTERNS",
+    "TRANSACTIONAL_ANCHOR_PATTERNS",
 ]

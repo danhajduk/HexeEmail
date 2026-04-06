@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import json
+from collections.abc import Callable
 from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,9 +16,10 @@ class SharedProfileDefinitionPack:
     known_vendor_identities: dict[str, str]
     default_rules: dict[str, object]
     runtime_rules_path: Path
+    runtime_rules_loader: Callable[[], dict[str, object]] | None = None
 
     def load_rules(self) -> dict[str, object]:
-        rules = deepcopy(self.default_rules)
+        rules = deepcopy(self.runtime_rules_loader()) if self.runtime_rules_loader is not None else deepcopy(self.default_rules)
         if not self.runtime_rules_path.exists():
             return rules
         payload = json.loads(self.runtime_rules_path.read_text(encoding="utf-8"))
@@ -27,6 +29,17 @@ class SharedProfileDefinitionPack:
 
 
 def load_profile_definition_pack(pack_reference: str, *, runtime_dir: Path | None = None) -> SharedProfileDefinitionPack:
+    from email_node.shared_pipeline_core.family_yaml import (
+        build_profile_definition_pack_from_yaml,
+        is_yaml_family_reference,
+        load_flow_family_yaml_definition,
+        parse_yaml_family_reference,
+    )
+
+    if is_yaml_family_reference(pack_reference):
+        flow_family = parse_yaml_family_reference(pack_reference)
+        definition = load_flow_family_yaml_definition(flow_family, runtime_dir=runtime_dir)
+        return build_profile_definition_pack_from_yaml(definition, runtime_dir=runtime_dir)
     module = importlib.import_module(pack_reference)
     builder = getattr(module, "build_profile_definition_pack", None)
     if callable(builder):

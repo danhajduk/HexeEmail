@@ -1,0 +1,500 @@
+{
+  "$defs": {
+    "FamilyActionFieldRuleConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "required_fields": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Required Fields",
+          "type": "array"
+        },
+        "any_of_fields": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Any Of Fields",
+          "type": "array"
+        },
+        "intents": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Intents",
+          "type": "array"
+        }
+      },
+      "title": "FamilyActionFieldRuleConfig",
+      "type": "object"
+    },
+    "FamilyActionRoutingPolicyConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "profile_intents": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": "Profile Intents",
+          "type": "object"
+        },
+        "decision_intents": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": "Decision Intents",
+          "type": "object"
+        },
+        "diagnostic_token_intents": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": "Diagnostic Token Intents",
+          "type": "object"
+        },
+        "field_rules": {
+          "items": {
+            "$ref": "#/$defs/FamilyActionFieldRuleConfig"
+          },
+          "title": "Field Rules",
+          "type": "array"
+        }
+      },
+      "title": "FamilyActionRoutingPolicyConfig",
+      "type": "object"
+    },
+    "FamilyConflictIgnoreRule": {
+      "additionalProperties": false,
+      "properties": {
+        "pair": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "title": "Pair",
+          "type": "array"
+        },
+        "any_terms": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Any Terms",
+          "type": "array"
+        }
+      },
+      "required": [
+        "pair"
+      ],
+      "title": "FamilyConflictIgnoreRule",
+      "type": "object"
+    },
+    "FamilyConflictRulesConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "pairs": {
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": "Pairs",
+          "type": "array"
+        },
+        "ignore_when_any_terms_present": {
+          "items": {
+            "$ref": "#/$defs/FamilyConflictIgnoreRule"
+          },
+          "title": "Ignore When Any Terms Present",
+          "type": "array"
+        },
+        "close_competing_score_gap": {
+          "default": 2,
+          "title": "Close Competing Score Gap",
+          "type": "integer"
+        },
+        "close_competing_confidence_penalty": {
+          "default": 0.2,
+          "title": "Close Competing Confidence Penalty",
+          "type": "number"
+        },
+        "conflicting_state_penalty": {
+          "default": 0.15,
+          "title": "Conflicting State Penalty",
+          "type": "number"
+        }
+      },
+      "title": "FamilyConflictRulesConfig",
+      "type": "object"
+    },
+    "FamilyDecisionPolicyConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "high_confidence_threshold": {
+          "default": 0.85,
+          "title": "High Confidence Threshold",
+          "type": "number"
+        },
+        "medium_confidence_threshold": {
+          "default": 0.6,
+          "title": "Medium Confidence Threshold",
+          "type": "number"
+        }
+      },
+      "title": "FamilyDecisionPolicyConfig",
+      "type": "object"
+    },
+    "FamilyHeuristicsConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "ignore_line_patterns": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Ignore Line Patterns",
+          "type": "array"
+        },
+        "stop_marker_patterns": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Stop Marker Patterns",
+          "type": "array"
+        },
+        "chrome_line_patterns": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Chrome Line Patterns",
+          "type": "array"
+        },
+        "footer_cutoff_patterns": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Footer Cutoff Patterns",
+          "type": "array"
+        },
+        "important_link_patterns": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Important Link Patterns",
+          "type": "object"
+        },
+        "tracking_host_patterns": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Tracking Host Patterns",
+          "type": "array"
+        },
+        "filler_entity_patterns": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Filler Entity Patterns",
+          "type": "array"
+        },
+        "transactional_anchor_patterns": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Transactional Anchor Patterns",
+          "type": "array"
+        },
+        "promo_marker_patterns": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Promo Marker Patterns",
+          "type": "array"
+        }
+      },
+      "title": "FamilyHeuristicsConfig",
+      "type": "object"
+    },
+    "FamilyProfileRulesConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "signals": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": "Signals",
+          "type": "object"
+        },
+        "sender_domain_profiles": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Sender Domain Profiles",
+          "type": "object"
+        },
+        "weights": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Weights",
+          "type": "object"
+        },
+        "thresholds": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Thresholds",
+          "type": "object"
+        },
+        "conflicts": {
+          "$ref": "#/$defs/FamilyConflictRulesConfig"
+        }
+      },
+      "required": [
+        "schema_version",
+        "conflicts"
+      ],
+      "title": "FamilyProfileRulesConfig",
+      "type": "object"
+    },
+    "FamilyProfileTaxonomyEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "profile_family": {
+          "title": "Profile Family",
+          "type": "string"
+        },
+        "profile_subtype": {
+          "title": "Profile Subtype",
+          "type": "string"
+        },
+        "vendor_identity": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Vendor Identity"
+        }
+      },
+      "required": [
+        "profile_family",
+        "profile_subtype"
+      ],
+      "title": "FamilyProfileTaxonomyEntry",
+      "type": "object"
+    },
+    "FamilyProfilesConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "taxonomy_version": {
+          "title": "Taxonomy Version",
+          "type": "string"
+        },
+        "taxonomy": {
+          "additionalProperties": {
+            "$ref": "#/$defs/FamilyProfileTaxonomyEntry"
+          },
+          "title": "Taxonomy",
+          "type": "object"
+        },
+        "known_vendor_identities": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Known Vendor Identities",
+          "type": "object"
+        },
+        "rules_override_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rules Override Path"
+        },
+        "rules": {
+          "$ref": "#/$defs/FamilyProfileRulesConfig"
+        }
+      },
+      "required": [
+        "taxonomy_version",
+        "rules"
+      ],
+      "title": "FamilyProfilesConfig",
+      "type": "object"
+    },
+    "FamilyRuntimePathsConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "template_dir": {
+          "title": "Template Dir",
+          "type": "string"
+        },
+        "probation_template_dir": {
+          "title": "Probation Template Dir",
+          "type": "string"
+        },
+        "probation_state_dir": {
+          "title": "Probation State Dir",
+          "type": "string"
+        },
+        "probation_evaluations_dir": {
+          "title": "Probation Evaluations Dir",
+          "type": "string"
+        },
+        "probation_shadow_dir": {
+          "title": "Probation Shadow Dir",
+          "type": "string"
+        },
+        "output_dir": {
+          "title": "Output Dir",
+          "type": "string"
+        },
+        "reports_dir": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reports Dir"
+        }
+      },
+      "required": [
+        "template_dir",
+        "probation_template_dir",
+        "probation_state_dir",
+        "probation_evaluations_dir",
+        "probation_shadow_dir",
+        "output_dir"
+      ],
+      "title": "FamilyRuntimePathsConfig",
+      "type": "object"
+    },
+    "FamilyValidationPolicyConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "url_field_suffixes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Url Field Suffixes",
+          "type": "array"
+        },
+        "identifier_fields": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Identifier Fields",
+          "type": "array"
+        },
+        "identifier_min_length": {
+          "default": 1,
+          "title": "Identifier Min Length",
+          "type": "integer"
+        },
+        "success_threshold": {
+          "default": 0.85,
+          "title": "Success Threshold",
+          "type": "number"
+        },
+        "partial_threshold": {
+          "default": 0.5,
+          "title": "Partial Threshold",
+          "type": "number"
+        },
+        "required_field_confidence_weight": {
+          "default": 0.6,
+          "title": "Required Field Confidence Weight",
+          "type": "number"
+        },
+        "valid_field_confidence_weight": {
+          "default": 0.4,
+          "title": "Valid Field Confidence Weight",
+          "type": "number"
+        }
+      },
+      "title": "FamilyValidationPolicyConfig",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "flow-family-config.v1",
+      "default": "flow-family-config.v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "flow_family": {
+      "enum": [
+        "order",
+        "action_needed"
+      ],
+      "title": "Flow Family",
+      "type": "string"
+    },
+    "output_schema_family": {
+      "title": "Output Schema Family",
+      "type": "string"
+    },
+    "runtime_paths": {
+      "$ref": "#/$defs/FamilyRuntimePathsConfig"
+    },
+    "heuristics": {
+      "$ref": "#/$defs/FamilyHeuristicsConfig"
+    },
+    "profiles": {
+      "$ref": "#/$defs/FamilyProfilesConfig"
+    },
+    "validation_policy": {
+      "$ref": "#/$defs/FamilyValidationPolicyConfig"
+    },
+    "decision_policy": {
+      "$ref": "#/$defs/FamilyDecisionPolicyConfig"
+    },
+    "action_routing_policy": {
+      "$ref": "#/$defs/FamilyActionRoutingPolicyConfig"
+    }
+  },
+  "required": [
+    "flow_family",
+    "output_schema_family",
+    "runtime_paths",
+    "heuristics",
+    "profiles",
+    "validation_policy",
+    "decision_policy",
+    "action_routing_policy"
+  ],
+  "title": "FlowFamilyYamlDefinition",
+  "type": "object"
+}

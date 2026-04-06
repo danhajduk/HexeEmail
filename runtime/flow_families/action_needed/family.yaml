@@ -1,0 +1,157 @@
+schema_version: flow-family-config.v1
+flow_family: action_needed
+output_schema_family: action_needed
+runtime_paths:
+  template_dir: flow_families/action_needed/templates
+  probation_template_dir: flow_families/action_needed/probation/templates
+  probation_state_dir: flow_families/action_needed/probation/state
+  probation_evaluations_dir: flow_families/action_needed/probation/evaluations
+  probation_shadow_dir: flow_families/action_needed/probation/shadow
+  output_dir: flow_families/action_needed/outputs
+  reports_dir: flow_families/action_needed/reports
+heuristics:
+  ignore_line_patterns:
+    - ^\s*view (this )?(email|message) in your browser\s*$
+    - ^\s*manage (preferences|email preferences)\s*$
+    - ^\s*unsubscribe\s*$
+  stop_marker_patterns:
+    - ^\s*privacy policy\s*$
+    - ^\s*terms and conditions\s*$
+    - ^\s*help center\s*$
+  chrome_line_patterns:
+    - ^\s*your account\s*$
+    - ^\s*notification settings\s*$
+    - ^\s*support center\s*$
+  footer_cutoff_patterns:
+    - copyright\s+\d{4}
+    - privacy policy
+    - terms and conditions
+    - do not reply
+  important_link_patterns:
+    account: verify|confirm|sign|review|pay|resolve|reset
+    document_action: invoice|receipt|document|statement|pdf
+    other: account|sign in|signin|security
+  tracking_host_patterns:
+    - /open|/track|/pixel
+  filler_entity_patterns:
+    - (?:&zwnj;|&nbsp;|&#8199;|&shy;|\u200c|\u00a0){3,}
+  transactional_anchor_patterns:
+    - action required
+    - payment due
+    - verify your account
+    - signature required
+    - confirm your
+    - deadline
+  promo_marker_patterns:
+    - recommended for you
+    - buy again
+    - shop now
+    - new features
+profiles:
+  taxonomy_version: action-needed-phase3-taxonomy.v1
+  taxonomy:
+    payment_due:
+      profile_family: action_needed
+      profile_subtype: payment_due
+      vendor_identity:
+    subscription_payment_failed:
+      profile_family: action_needed
+      profile_subtype: subscription_payment_failed
+      vendor_identity:
+    account_verification_required:
+      profile_family: action_needed
+      profile_subtype: account_verification_required
+      vendor_identity:
+    security_alert_action_required:
+      profile_family: action_needed
+      profile_subtype: security_alert_action_required
+      vendor_identity:
+    document_signature_required:
+      profile_family: action_needed
+      profile_subtype: document_signature_required
+      vendor_identity:
+    generic_action_required:
+      profile_family: action_needed
+      profile_subtype: generic_action_required
+      vendor_identity:
+  known_vendor_identities: {}
+  rules_override_path: flow_families/action_needed/profile_rules.json
+  rules:
+    schema_version: action-needed-phase3-rules.v1
+    signals:
+      payment_due_terms:
+        - payment due
+        - invoice due
+        - amount due
+        - past due
+      subscription_payment_failed_terms:
+        - payment failed
+        - subscription payment failed
+        - billing issue
+      account_verification_terms:
+        - verify your account
+        - confirm your account
+        - verification required
+      security_alert_terms:
+        - security alert
+        - suspicious login
+        - unusual sign-in
+      document_signature_terms:
+        - signature required
+        - sign document
+        - review and sign
+      generic_action_terms:
+        - action required
+        - requires your attention
+        - respond by
+    sender_domain_profiles: {}
+    weights:
+      sender_match: 5
+      payment_due_language: 8
+      subscription_payment_failed_language: 9
+      account_verification_language: 9
+      security_alert_language: 9
+      document_signature_language: 8
+      generic_action_language: 6
+    thresholds:
+      high_score: 14
+      medium_score: 8
+      max_score: 20
+      min_confidence: 0.05
+      min_confidence_after_downgrade: 0.2
+    conflicts:
+      pairs: []
+      ignore_when_any_terms_present: []
+      close_competing_score_gap: 2
+      close_competing_confidence_penalty: 0.2
+      conflicting_state_penalty: 0.15
+validation_policy:
+  url_field_suffixes:
+    - _url
+    - _action
+  identifier_fields:
+    - action_id
+    - document_id
+  identifier_min_length: 4
+  success_threshold: 0.85
+  partial_threshold: 0.5
+  required_field_confidence_weight: 0.6
+  valid_field_confidence_weight: 0.4
+decision_policy:
+  high_confidence_threshold: 0.9
+  medium_confidence_threshold: 0.65
+action_routing_policy:
+  profile_intents: {}
+  decision_intents:
+    accept:
+      - store_action_record
+      - user_notification
+    probation:
+      - mark_for_manual_review
+  diagnostic_token_intents:
+    important_inconsistency:
+      - mark_high_priority
+      - mark_for_manual_review
+    deadline:
+      - queue_reminder
+  field_rules: []

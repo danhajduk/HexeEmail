@@ -1,0 +1,257 @@
+schema_version: flow-family-config.v1
+flow_family: order
+output_schema_family: order
+runtime_paths:
+  template_dir: flow_families/order/templates
+  probation_template_dir: flow_families/order/probation/templates
+  probation_state_dir: flow_families/order/probation/state
+  probation_evaluations_dir: flow_families/order/probation/evaluations
+  probation_shadow_dir: flow_families/order/probation/shadow
+  output_dir: order_outputs
+  reports_dir: order_flow_logs/ad_hoc_reports
+heuristics:
+  ignore_line_patterns:
+    - ^\s*view (this )?(email|message) in your browser\s*$
+    - ^\s*manage (preferences|email preferences)\s*$
+    - ^\s*unsubscribe\s*$
+    - ^\s*download the amazon app\s*$
+  stop_marker_patterns:
+    - ^\s*privacy notice\s*$
+    - ^\s*conditions of use\s*$
+    - ^\s*terms and conditions\s*$
+  chrome_line_patterns:
+    - ^\s*your orders\s*$
+    - ^\s*your account\s*$
+    - ^\s*buy again\s*$
+    - ^\s*shop now\s*$
+  footer_cutoff_patterns:
+    - copyright\s+\d{4}
+    - privacy notice
+    - conditions of use
+    - tax (invoice|disclosure|information)
+    - license|legal
+  important_link_patterns:
+    tracking_action: track|shipment|package
+    order_action: view or edit order|order details|your-orders|order|purchase
+    account: activate|account|sign in|signin
+    document_action: invoice|receipt|document|pdf
+  tracking_host_patterns:
+    - amazon-adsystem|doubleclick|google-analytics
+    - /open|/track|/pixel
+  filler_entity_patterns:
+    - (?:&zwnj;|&nbsp;|&#8199;|&shy;|\u200c|\u00a0){3,}
+  transactional_anchor_patterns:
+    - thanks for your order
+    - \border\s*#
+    - arriving
+    - quantity
+    - grand total
+    - view or edit order
+  promo_marker_patterns:
+    - \b\d+%\s+off\b
+    - deals? for you
+    - recommended for you
+    - buy again
+    - shop similar
+profiles:
+  taxonomy_version: order-phase3-taxonomy.v2
+  taxonomy:
+    amazon_order_confirmation:
+      profile_family: order
+      profile_subtype: confirmation
+      vendor_identity: amazon
+    amazon_order_status_update:
+      profile_family: order
+      profile_subtype: status_update
+      vendor_identity: amazon
+    amazon_order_cancellation:
+      profile_family: order
+      profile_subtype: cancellation
+      vendor_identity: amazon
+    pickup_ready_notification:
+      profile_family: order
+      profile_subtype: pickup_ready
+      vendor_identity:
+    curbside_pickup_order:
+      profile_family: order
+      profile_subtype: curbside_ready
+      vendor_identity:
+    reservation_confirmation:
+      profile_family: order
+      profile_subtype: reservation_confirmed
+      vendor_identity:
+    upcoming_order_notice:
+      profile_family: order
+      profile_subtype: upcoming_order
+      vendor_identity:
+    generic_order_confirmation:
+      profile_family: order
+      profile_subtype: confirmation
+      vendor_identity:
+    generic_order_status_update:
+      profile_family: order
+      profile_subtype: status_update
+      vendor_identity:
+    generic_order_cancellation:
+      profile_family: order
+      profile_subtype: cancellation
+      vendor_identity:
+    ride_receipt:
+      profile_family: order
+      profile_subtype: ride_receipt
+      vendor_identity:
+    ride_cancellation:
+      profile_family: order
+      profile_subtype: ride_cancellation
+      vendor_identity:
+  known_vendor_identities:
+    amazon.com: amazon
+    dutchie.com: dutchie
+    walmart.com: walmart
+    recreation.gov: recreation_gov
+    edenredbenefits.com: edenred_benefits
+  rules_override_path: order_profile_rules.json
+  rules:
+    schema_version: order-phase3-rules.v1
+    signals:
+      amazon_confirmation_subject_terms:
+        - "ordered:"
+      amazon_status_subject_terms:
+        - "shipped:"
+        - "delivered:"
+        - arriving
+        - item cancelled
+      pickup_ready_terms:
+        - ready for pickup
+        - order is ready for pickup
+      curbside_terms:
+        - curbside pickup
+        - curbside
+      reservation_terms:
+        - reservation confirmation
+        - reservation details
+        - your reservation details
+      upcoming_subject_terms:
+        - upcoming
+      upcoming_text_terms:
+        - pending order
+      confirmation_terms:
+        - order confirmation
+        - thanks for your order
+        - thank you for your order
+      status_terms:
+        - shipped
+        - delivered
+        - arriving
+        - out for delivery
+      cancellation_terms:
+        - cancel
+        - cancelled
+        - cancellation
+      ride_terms:
+        - ride receipt
+        - your ride
+        - trip distance
+        - trip duration
+        - drop-off
+        - "pickup:"
+        - fare
+      ride_cancellation_terms:
+        - ride receipt
+        - your ride
+        - trip distance
+        - trip duration
+      transactional_terms:
+        - grand total
+        - quantity
+        - view or edit order
+        - reservation
+      ride_transactional_terms:
+        - trip total
+        - drop-off
+        - "pickup:"
+        - refund
+    sender_domain_profiles:
+      dutchie.com: pickup_ready_notification
+      walmart.com: curbside_pickup_order
+      recreation.gov: reservation_confirmation
+      edenredbenefits.com: upcoming_order_notice
+    weights:
+      sender_match: 5
+      amazon_vendor_profile: 5
+      confirmation_subject: 4
+      status_language: 4
+      pickup_language: 6
+      curbside_language: 7
+      reservation_language: 7
+      upcoming_language: 7
+      cancellation_language: 7
+      ride_language: 8
+      ride_cancellation_language: 10
+      order_identifier_present: 2
+      transactional_fields_present: 1
+      ride_transactional_fields: 2
+    thresholds:
+      high_score: 14
+      medium_score: 8
+      max_score: 20
+      min_confidence: 0.05
+      min_confidence_after_downgrade: 0.2
+    conflicts:
+      pairs:
+        - [cancel, pickup]
+        - [reservation, curbside]
+      ignore_when_any_terms_present:
+        - pair: [cancel, pickup]
+          any_terms:
+            - ride receipt
+            - your ride
+            - trip distance
+            - trip duration
+            - drop-off
+            - "pickup:"
+            - fare
+      close_competing_score_gap: 2
+      close_competing_confidence_penalty: 0.2
+      conflicting_state_penalty: 0.15
+validation_policy:
+  url_field_suffixes:
+    - _url
+  identifier_fields:
+    - order_number
+    - tracking_number
+  identifier_min_length: 6
+  success_threshold: 0.85
+  partial_threshold: 0.5
+  required_field_confidence_weight: 0.6
+  valid_field_confidence_weight: 0.4
+decision_policy:
+  high_confidence_threshold: 0.85
+  medium_confidence_threshold: 0.6
+action_routing_policy:
+  profile_intents:
+    reservation_confirmation:
+      - store_order_record
+    amazon_order_confirmation:
+      - store_order_record
+    generic_order_confirmation:
+      - store_order_record
+    amazon_order_status_update:
+      - update_order_record
+    generic_order_status_update:
+      - update_order_record
+  decision_intents:
+    accept:
+      - user_notification
+  diagnostic_token_intents:
+    important_inconsistency:
+      - mark_for_manual_review
+  field_rules:
+    - required_fields:
+        - tracking_number
+      any_of_fields:
+        - carrier
+        - order_number
+      intents:
+        - attach_tracking_reference
+        - queue_tracking_monitor

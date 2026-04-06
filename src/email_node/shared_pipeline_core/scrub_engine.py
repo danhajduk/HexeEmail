@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import importlib
 import re
-from dataclasses import dataclass
 from datetime import datetime
 from types import ModuleType
 from urllib.parse import parse_qs, unquote, urlparse
 
+from email_node.shared_pipeline_core.scrub_types import SharedScrubHeuristicPack
 from providers.gmail.models import (
     GmailPhase1DiagnosticItem,
     GmailPhase1NormalizedEmail,
@@ -31,21 +31,18 @@ TOTAL_PATTERN = re.compile(r"\b(grand total|order total|total)\b", re.IGNORECASE
 PRICE_PATTERN = re.compile(r"(?:(?:usd|\$)\s*\d|\d+(?:\.\d{2})?\s*(?:usd|\$))", re.IGNORECASE)
 ACTION_LINK_PATTERN = re.compile(r"\b(view or edit order|order details|track package|track your package)\b", re.IGNORECASE)
 
-
-@dataclass(frozen=True, slots=True)
-class SharedScrubHeuristicPack:
-    ignore_line_patterns: list[re.Pattern[str]]
-    stop_marker_patterns: list[re.Pattern[str]]
-    chrome_line_patterns: list[re.Pattern[str]]
-    footer_cutoff_patterns: list[re.Pattern[str]]
-    important_link_patterns: dict[str, re.Pattern[str]]
-    tracking_host_patterns: list[re.Pattern[str]]
-    filler_entity_patterns: list[re.Pattern[str]]
-    transactional_anchor_patterns: list[re.Pattern[str]]
-    promo_marker_patterns: list[re.Pattern[str]]
-
-
 def load_scrub_heuristic_pack(module_path: str) -> SharedScrubHeuristicPack:
+    from email_node.shared_pipeline_core.family_yaml import (
+        build_scrub_heuristic_pack_from_yaml,
+        is_yaml_family_reference,
+        load_flow_family_yaml_definition,
+        parse_yaml_family_reference,
+    )
+
+    if is_yaml_family_reference(module_path):
+        flow_family = parse_yaml_family_reference(module_path)
+        definition = load_flow_family_yaml_definition(flow_family)
+        return build_scrub_heuristic_pack_from_yaml(definition)
     module: ModuleType = importlib.import_module(module_path)
     return SharedScrubHeuristicPack(
         ignore_line_patterns=list(module.IGNORE_LINE_PATTERNS),

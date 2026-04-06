@@ -1,13 +1,18 @@
 from __future__ import annotations
 
 from email_node.shared_pipeline_core.decision import SharedDecisionPolicy
-
-
-DECISION_POLICY = SharedDecisionPolicy(
-    high_confidence_threshold=0.9,
-    medium_confidence_threshold=0.65,
+from email_node.shared_pipeline_core.family_yaml import (
+    build_decision_policy_from_yaml,
+    load_flow_family_yaml_definition,
 )
 
 
 def build_decision_policy() -> SharedDecisionPolicy:
-    return DECISION_POLICY
+    definition = load_flow_family_yaml_definition("action_needed")
+    return build_decision_policy_from_yaml(definition)
+
+
+DECISION_POLICY = build_decision_policy()
+
+
+__all__ = ["DECISION_POLICY", "build_decision_policy"]

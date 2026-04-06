@@ -1,19 +1,18 @@
 from __future__ import annotations
 
 from email_node.shared_pipeline_core.actions import SharedActionRoutingPolicy
-
-
-ACTION_ROUTING_POLICY = SharedActionRoutingPolicy(
-    decision_intents={
-        "accept": ("store_action_record", "user_notification"),
-        "probation": ("mark_for_manual_review",),
-    },
-    diagnostic_token_intents={
-        "important_inconsistency": ("mark_high_priority", "mark_for_manual_review"),
-        "deadline": ("queue_reminder",),
-    },
+from email_node.shared_pipeline_core.family_yaml import (
+    build_action_routing_policy_from_yaml,
+    load_flow_family_yaml_definition,
 )
 
 
 def build_action_routing_policy() -> SharedActionRoutingPolicy:
-    return ACTION_ROUTING_POLICY
+    definition = load_flow_family_yaml_definition("action_needed")
+    return build_action_routing_policy_from_yaml(definition)
+
+
+ACTION_ROUTING_POLICY = build_action_routing_policy()
+
+
+__all__ = ["ACTION_ROUTING_POLICY", "build_action_routing_policy"]

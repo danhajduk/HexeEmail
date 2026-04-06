@@ -1,59 +1,37 @@
 from __future__ import annotations
 
-import re
+from email_node.shared_pipeline_core.family_yaml import (
+    build_scrub_heuristic_pack_from_yaml,
+    load_flow_family_yaml_definition,
+)
 
 
-IGNORE_LINE_PATTERNS = [
-    re.compile(r"^\s*view (this )?(email|message) in your browser\s*$", re.IGNORECASE),
-    re.compile(r"^\s*manage (preferences|email preferences)\s*$", re.IGNORECASE),
-    re.compile(r"^\s*unsubscribe\s*$", re.IGNORECASE),
-]
+def _heuristic_pack():
+    definition = load_flow_family_yaml_definition("action_needed")
+    return build_scrub_heuristic_pack_from_yaml(definition)
 
-STOP_MARKER_PATTERNS = [
-    re.compile(r"^\s*privacy policy\s*$", re.IGNORECASE),
-    re.compile(r"^\s*terms and conditions\s*$", re.IGNORECASE),
-    re.compile(r"^\s*help center\s*$", re.IGNORECASE),
-]
 
-CHROME_LINE_PATTERNS = [
-    re.compile(r"^\s*your account\s*$", re.IGNORECASE),
-    re.compile(r"^\s*notification settings\s*$", re.IGNORECASE),
-    re.compile(r"^\s*support center\s*$", re.IGNORECASE),
-]
+HEURISTIC_PACK = _heuristic_pack()
+IGNORE_LINE_PATTERNS = HEURISTIC_PACK.ignore_line_patterns
+STOP_MARKER_PATTERNS = HEURISTIC_PACK.stop_marker_patterns
+CHROME_LINE_PATTERNS = HEURISTIC_PACK.chrome_line_patterns
+FOOTER_CUTOFF_PATTERNS = HEURISTIC_PACK.footer_cutoff_patterns
+IMPORTANT_LINK_PATTERNS = HEURISTIC_PACK.important_link_patterns
+TRACKING_HOST_PATTERNS = HEURISTIC_PACK.tracking_host_patterns
+FILLER_ENTITY_PATTERNS = HEURISTIC_PACK.filler_entity_patterns
+TRANSACTIONAL_ANCHOR_PATTERNS = HEURISTIC_PACK.transactional_anchor_patterns
+PROMO_MARKER_PATTERNS = HEURISTIC_PACK.promo_marker_patterns
 
-FOOTER_CUTOFF_PATTERNS = [
-    re.compile(r"copyright\s+\d{4}", re.IGNORECASE),
-    re.compile(r"privacy policy", re.IGNORECASE),
-    re.compile(r"terms and conditions", re.IGNORECASE),
-    re.compile(r"do not reply", re.IGNORECASE),
-]
 
-IMPORTANT_LINK_PATTERNS = {
-    "account": re.compile(r"verify|confirm|sign|review|pay|resolve|reset", re.IGNORECASE),
-    "document_action": re.compile(r"invoice|receipt|document|statement|pdf", re.IGNORECASE),
-    "other": re.compile(r"account|sign in|signin|security", re.IGNORECASE),
-}
-
-TRACKING_HOST_PATTERNS = [
-    re.compile(r"/open|/track|/pixel", re.IGNORECASE),
-]
-
-FILLER_ENTITY_PATTERNS = [
-    re.compile(r"(?:&zwnj;|&nbsp;|&#8199;|&shy;|\u200c|\u00a0){3,}", re.IGNORECASE),
-]
-
-TRANSACTIONAL_ANCHOR_PATTERNS = [
-    re.compile(r"action required", re.IGNORECASE),
-    re.compile(r"payment due", re.IGNORECASE),
-    re.compile(r"verify your account", re.IGNORECASE),
-    re.compile(r"signature required", re.IGNORECASE),
-    re.compile(r"confirm your", re.IGNORECASE),
-    re.compile(r"deadline", re.IGNORECASE),
-]
-
-PROMO_MARKER_PATTERNS = [
-    re.compile(r"recommended for you", re.IGNORECASE),
-    re.compile(r"buy again", re.IGNORECASE),
-    re.compile(r"shop now", re.IGNORECASE),
-    re.compile(r"new features", re.IGNORECASE),
+__all__ = [
+    "CHROME_LINE_PATTERNS",
+    "FILLER_ENTITY_PATTERNS",
+    "FOOTER_CUTOFF_PATTERNS",
+    "HEURISTIC_PACK",
+    "IGNORE_LINE_PATTERNS",
+    "IMPORTANT_LINK_PATTERNS",
+    "PROMO_MARKER_PATTERNS",
+    "STOP_MARKER_PATTERNS",
+    "TRACKING_HOST_PATTERNS",
+    "TRANSACTIONAL_ANCHOR_PATTERNS",
 ]
