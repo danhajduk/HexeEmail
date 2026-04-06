@@ -133,6 +133,16 @@ Status: `[DONE]`
 19. Accepted active-template results may unlock actions.
 20. Probation and reject results remain blocked.
 
+---
+
+### Phase 7C — Action Routing
+
+Status: `[DONE]`
+
+21. Build action intents from accepted ORDER results.
+22. Routing is profile-aware and field-aware.
+23. Blocked results produce an empty action intent list.
+
 #### Unknown Profile
 
 Status: `[PARTIAL]`

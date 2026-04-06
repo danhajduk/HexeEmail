@@ -326,6 +326,7 @@ async def test_order_pipeline_returns_phase6_decision_for_probation_result(tmp_p
     assert result["phase7"].trust_level == "partial"
     assert result["action_gate"].actions_allowed is False
     assert result["action_gate"].blocked_reason == "decision_probation"
+    assert result["action_router"].action_intents == []
     state = store.load_state(template_id)
     assert state is not None
     assert state.status == "probation"

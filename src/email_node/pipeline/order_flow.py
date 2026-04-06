@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Awaitable, Callable
 
 from email_node.pipeline.order_action_gate import OrderActionGate
+from email_node.pipeline.order_action_router import OrderActionRouter
 from email_node.pipeline.order_decision_engine import OrderDecisionEngine
 from email_node.pipeline.order_output_handler import OrderOutputHandler
 from email_node.patterns import PatternGenerationRequest, build_order_ai_template_request
@@ -40,6 +41,7 @@ class OrderFlowPipeline:
         decision_engine: OrderDecisionEngine | None = None,
         output_handler: OrderOutputHandler | None = None,
         action_gate: OrderActionGate | None = None,
+        action_router: OrderActionRouter | None = None,
         runtime_dir: Path | None = None,
     ) -> None:
         self.phase2_scrubber = phase2_scrubber or GmailOrderPhase2Scrubber()
@@ -57,6 +59,7 @@ class OrderFlowPipeline:
         self.decision_engine = decision_engine or OrderDecisionEngine()
         self.output_handler = output_handler or OrderOutputHandler(runtime_dir)
         self.action_gate = action_gate or OrderActionGate()
+        self.action_router = action_router or OrderActionRouter()
 
     async def process_normalized_email(self, normalized) -> dict[str, object]:
         phase2 = self.phase2_scrubber.scrub(normalized)
@@ -67,6 +70,7 @@ class OrderFlowPipeline:
         phase6 = self.decision_engine.decide(phase4)
         phase7 = self.output_handler.persist(decision=phase6, phase4=phase4)
         action_gate = self.action_gate.authorize(decision=phase6, phase4=phase4)
+        action_router = self.action_router.route(decision=phase6, authorization=action_gate, phase4=phase4)
         return {
             "phase2": phase2,
             "phase3": phase3,
@@ -74,6 +78,7 @@ class OrderFlowPipeline:
             "phase6": phase6,
             "phase7": phase7,
             "action_gate": action_gate,
+            "action_router": action_router,
         }
 
     async def attach_probation_template(self, phase4):
