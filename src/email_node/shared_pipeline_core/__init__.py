@@ -8,10 +8,15 @@ from email_node.shared_pipeline_core.probation import (
     SharedProbationPromotionPolicy,
     build_probation_shadow_comparison,
 )
+from email_node.shared_pipeline_core.probation_models import (
+    SharedProbationEvaluationResult,
+    SharedProbationTemplateState,
+)
 from email_node.shared_pipeline_core.profile_detector import SharedProfileDetectorEngine
 from email_node.shared_pipeline_core.profile_packs import SharedProfileDefinitionPack, load_profile_definition_pack
 from email_node.shared_pipeline_core.scrub_engine import SharedScrubEngine, SharedScrubHeuristicPack, load_scrub_heuristic_pack
 from email_node.shared_pipeline_core.template_engine import SharedTemplateExecutionEngine, SharedTemplateRegistry
+from email_node.shared_pipeline_core.validation import SharedValidationPolicy
 
 __all__ = [
     "FlowFamilyConfig",
@@ -19,9 +24,11 @@ __all__ = [
     "SharedEmailPipelineCore",
     "SharedProfileDefinitionPack",
     "SharedProbationEvaluator",
+    "SharedProbationEvaluationResult",
     "SharedProbationMetrics",
     "SharedProbationPromotionManager",
     "SharedProbationPromotionPolicy",
+    "SharedProbationTemplateState",
     "SharedPhase1NormalizeRequest",
     "SharedProfileDetectorEngine",
     "SharedScrubEngine",
@@ -29,6 +36,7 @@ __all__ = [
     "build_probation_shadow_comparison",
     "SharedTemplateExecutionEngine",
     "SharedTemplateRegistry",
+    "SharedValidationPolicy",
     "get_flow_family_config",
     "load_profile_definition_pack",
     "load_scrub_heuristic_pack",

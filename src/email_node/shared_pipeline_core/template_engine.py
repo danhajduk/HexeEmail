@@ -4,7 +4,6 @@ import json
 import re
 from datetime import datetime
 from pathlib import Path
-from urllib.parse import urlparse
 
 from providers.gmail.models import (
     GmailPhase1DiagnosticItem,
@@ -16,6 +15,7 @@ from providers.gmail.models import (
     GmailPhase4TemplateCandidate,
     GmailPhase4WorkingEmail,
 )
+from email_node.shared_pipeline_core.validation import SharedValidationPolicy
 
 
 class SharedTemplateRegistry:
@@ -123,10 +123,12 @@ class SharedTemplateExecutionEngine:
         registry: SharedTemplateRegistry,
         extractor_version: str,
         template_schema_version: str,
+        validation_policy: SharedValidationPolicy | None = None,
     ) -> None:
         self.registry = registry
         self.extractor_version = extractor_version
         self.template_schema_version = template_schema_version
+        self.validation_policy = validation_policy or SharedValidationPolicy()
 
     def extract(self, phase3: GmailPhase3DetectedEmail) -> GmailPhase4ExtractedEmail:
         working, intake_error = self.build_working_object(phase3)
@@ -351,39 +353,11 @@ class SharedTemplateExecutionEngine:
         *,
         required_fields: object,
     ) -> tuple[dict[str, GmailPhase4ExtractedField], list[str]]:
-        required = [str(item) for item in required_fields or []]
-        diagnostics: list[str] = []
-        updated = dict(extracted_fields)
-        for field_name in required:
-            field = updated.get(field_name)
-            if field is None or self._is_missing_value(field.value):
-                diagnostics.append(f"missing_required:{field_name}")
-                updated[field_name] = GmailPhase4ExtractedField(
-                    field_name=field_name,
-                    value=None,
-                    is_valid=False,
-                    is_required=True,
-                    diagnostics=["required_field_missing"],
-                )
-                continue
-            updated[field_name] = field.model_copy(update={"is_required": True})
-        for field_name, field in list(updated.items()):
-            value = field.value
-            field_diags = list(field.diagnostics)
-            is_valid = field.is_valid
-            if field_name.endswith("_url") and isinstance(value, str):
-                parsed = urlparse(value)
-                if not parsed.scheme or not parsed.netloc:
-                    is_valid = False
-                    field_diags.append("invalid_url_shape")
-                    diagnostics.append(f"invalid_field:{field_name}")
-            if field_name in {"order_number", "tracking_number"} and isinstance(value, str):
-                if len(re.sub(r"[^A-Z0-9-]", "", value.upper())) < 6:
-                    is_valid = False
-                    field_diags.append("value_too_short")
-                    diagnostics.append(f"invalid_field:{field_name}")
-            updated[field_name] = field.model_copy(update={"is_valid": is_valid, "diagnostics": field_diags})
-        return updated, diagnostics
+        return self.validation_policy.validate_fields(
+            extracted_fields,
+            required_fields=required_fields,
+            is_missing_value=self._is_missing_value,
+        )
 
     def score_extraction_confidence(
         self,
@@ -391,28 +365,11 @@ class SharedTemplateExecutionEngine:
         *,
         required_fields: object,
     ) -> tuple[float, str, list[str], str]:
-        required = [str(item) for item in required_fields or []]
-        diagnostics: list[str] = []
-        present_required = sum(
-            1 for name in required if name in extracted_fields and not self._is_missing_value(extracted_fields[name].value)
+        return self.validation_policy.score_extraction_confidence(
+            extracted_fields,
+            required_fields=required_fields,
+            is_missing_value=self._is_missing_value,
         )
-        total_required = len(required)
-        valid_fields = sum(1 for field in extracted_fields.values() if field.is_valid and not self._is_missing_value(field.value))
-        total_fields = max(1, len(extracted_fields))
-        confidence = 0.0
-        if total_required:
-            confidence += 0.6 * (present_required / total_required)
-        confidence += 0.4 * (valid_fields / total_fields)
-        confidence = round(min(1.0, confidence), 2)
-        if total_required and present_required < total_required:
-            diagnostics.append("confidence_downgrade:missing_required_fields")
-        if valid_fields < total_fields:
-            diagnostics.append("confidence_downgrade:invalid_optional_fields")
-        if confidence >= 0.85:
-            return confidence, "high", diagnostics, "success"
-        if confidence >= 0.5:
-            return confidence, "medium", diagnostics, "partial"
-        return confidence, "low", diagnostics, "partial"
 
     def build_ai_template_hook(self, phase3: GmailPhase3DetectedEmail) -> dict[str, object] | None:
         return None

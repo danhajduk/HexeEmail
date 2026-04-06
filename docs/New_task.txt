@@ -47,23 +47,6 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[TODO] Task 276: Extract Phase 5 validation into shared validation framework
-
-- Refactor validation/scoring into a family-agnostic framework with loadable policies
-
-Requirements:
-- Shared validator must support:
-  - required field checks
-  - field format checks
-  - consistency checks
-  - confidence downgrade reasons
-- Validation policy loaded by family
-- Preserve ORDER downgrade diagnostics where practical
-
-Acceptance:
-- ORDER Phase 5 runs through shared validator
-- Validator accepts family-specific policies cleanly
-
 [TODO] Task 277: Create family-specific validation policies
 
 - Externalize validation rules from code

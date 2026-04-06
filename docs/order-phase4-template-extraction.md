@@ -12,6 +12,8 @@ Current Phase 4 responsibilities:
 - validate required fields, record field-level diagnostics, and compute extraction confidence
 - emit unresolved results with an `ai_template_hook` package when no template exists
 
+The field-validation and confidence policy layer now lives in [src/email_node/shared_pipeline_core/validation.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/validation.py), while ORDER continues to use the same required-field and format checks as before.
+
 The runtime ORDER orchestration now consumes unresolved known-profile Phase 4 results and can create a probation template artifact through the pattern-generation flow while keeping the extractor itself deterministic and side-effect free.
 
 The initial template set now lives in [runtime/flow_families/order/templates](/home/dan/Projects/HexeEmail/runtime/flow_families/order/templates) and currently covers:
