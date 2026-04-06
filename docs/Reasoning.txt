@@ -277,3 +277,9 @@ Chosen fix: Use the new prompt-strategy doc as the canonical decision record, th
 What changed: Updated `docs/pattern-generation.md`, removed Task 325 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
 Verification: Documentation review completed against `docs/family-template-prompt-strategy.md`, `docs/pattern-generation.md`, and the live prompt artifact `runtime/prompts/prompt.email.family_pattern_template_creation.json`.
 ###########
+Task #326
+Step objective: Audit HexeEmail scheduled tasks against the 2026-04-05 background-tasks-and-internal-scheduler standard and document the repo-specific compliance gaps.
+Chosen fix: Compare the new scheduler standard against the live scheduler owner, current scheduled-task snapshot, current UI columns, and current scheduler docs, then capture the resulting compliance gaps in one repo-specific audit document that maps directly to Tasks 327 through 338.
+What changed: Added `docs/scheduler-standard-gap-audit.md`, removed Task 326 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: Audit review completed against `/home/dan/Projects/Hexe/docs/standards/Node/background-tasks-and-internal-scheduler-standard.md`, `src/node_backend/scheduler.py`, `frontend/src/features/dashboard/ScheduledTasksSection.jsx`, and `docs/scheduler-and-background-tasks.md`.
+###########
