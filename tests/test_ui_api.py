@@ -2174,6 +2174,13 @@ async def test_ui_bootstrap_exposes_scheduled_tasks(config, core_client_factory)
     assert prompt_sync_next.weekday() == 0
     assert prompt_sync_next.hour == 0
     assert prompt_sync_next.minute == 1
+    scheduler_states = body["runtime_task_state"]["scheduler_task_states"]
+    assert "heartbeat" in scheduler_states
+    assert "telemetry" in scheduler_states
+    assert "operational_mqtt_health" in scheduler_states
+    assert "runtime_prompt_sync_weekly" in scheduler_states
+    assert scheduler_states["telemetry"]["last_started_at"] is not None
+    assert "last_success_at" in scheduler_states["runtime_prompt_sync_weekly"]
     telemetry = next(item for item in body["scheduled_tasks"] if item["task_id"] == "telemetry")
     assert telemetry["kind"] == "node_local_recurring_work"
     assert telemetry["owner"] == "background_task_manager"

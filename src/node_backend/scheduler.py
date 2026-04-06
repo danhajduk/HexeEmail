@@ -117,6 +117,106 @@ class BackgroundTaskManager:
         self.service.runtime.save_runtime_task_state(scheduler_task_states=all_states, updated_at=self.service.runtime.utc_iso_now())
         return state
 
+    @classmethod
+    def task_definition(cls, task_id: str) -> ScheduledTaskDefinition | None:
+        for definition in cls.task_registry():
+            if definition.task_id == task_id:
+                return definition
+        return None
+
+    @classmethod
+    def task_next_run_at(cls, task_id: str, now: datetime) -> str | None:
+        definition = cls.task_definition(task_id)
+        if definition is None:
+            return None
+        next_run = cls.schedule_template_next_run(definition.schedule_name, now.astimezone())
+        return next_run.isoformat() if next_run is not None else None
+
+    def ensure_registry_task_state(self, task_id: str, *, detail: str | None = None) -> dict[str, object]:
+        definition = self.task_definition(task_id)
+        if definition is None:
+            return self.scheduler_task_state(task_id)
+        current = self.scheduler_task_state(task_id)
+        enabled = bool(definition.enabled_resolver(self))
+        now = datetime.now(UTC).replace(tzinfo=None)
+        if current.get("detail") == self.default_scheduler_task_state()["detail"]:
+            current["detail"] = detail or definition.detail
+        if current.get("status") == "idle" and not enabled:
+            current["status"] = "inactive"
+        current["enabled"] = enabled
+        current["next_run_at"] = current.get("next_run_at") or self.task_next_run_at(task_id, now)
+        return self.save_scheduler_task_state(task_id, **current)
+
+    def mark_task_running(self, task_id: str, *, detail: str, next_run_at: str | None = None) -> dict[str, object]:
+        definition = self.task_definition(task_id)
+        enabled = bool(definition.enabled_resolver(self)) if definition is not None else True
+        now = datetime.now(UTC).replace(tzinfo=None)
+        return self.save_scheduler_task_state(
+            task_id,
+            status="running",
+            enabled=enabled,
+            detail=detail,
+            last_started_at=now.isoformat(),
+            next_run_at=next_run_at,
+            last_error=None,
+        )
+
+    def mark_task_success(
+        self,
+        task_id: str,
+        *,
+        detail: str,
+        next_run_at: str | None = None,
+        completed_at: datetime | None = None,
+    ) -> dict[str, object]:
+        definition = self.task_definition(task_id)
+        enabled = bool(definition.enabled_resolver(self)) if definition is not None else True
+        finished = (completed_at or datetime.now(UTC).replace(tzinfo=None)).isoformat()
+        return self.save_scheduler_task_state(
+            task_id,
+            status="idle",
+            enabled=enabled,
+            detail=detail,
+            last_completed_at=finished,
+            last_success_at=finished,
+            next_run_at=next_run_at,
+            last_error=None,
+        )
+
+    def mark_task_failure(
+        self,
+        task_id: str,
+        *,
+        detail: str,
+        error: str,
+        next_run_at: str | None = None,
+        failed_at: datetime | None = None,
+    ) -> dict[str, object]:
+        definition = self.task_definition(task_id)
+        enabled = bool(definition.enabled_resolver(self)) if definition is not None else True
+        finished = (failed_at or datetime.now(UTC).replace(tzinfo=None)).isoformat()
+        return self.save_scheduler_task_state(
+            task_id,
+            status="failing",
+            enabled=enabled,
+            detail=detail,
+            last_completed_at=finished,
+            last_failure_at=finished,
+            next_run_at=next_run_at,
+            last_error=error,
+        )
+
+    def mark_task_idle(self, task_id: str, *, detail: str, next_run_at: str | None = None) -> dict[str, object]:
+        definition = self.task_definition(task_id)
+        enabled = bool(definition.enabled_resolver(self)) if definition is not None else True
+        return self.save_scheduler_task_state(
+            task_id,
+            status="idle" if enabled else "inactive",
+            enabled=enabled,
+            detail=detail,
+            next_run_at=next_run_at,
+        )
+
     def record_heartbeat_event(self) -> None:
         now = datetime.now(UTC).replace(tzinfo=None)
         self.save_scheduler_task_state(
@@ -704,6 +804,8 @@ class BackgroundTaskManager:
         ]
 
     async def startup(self) -> None:
+        for definition in self.task_registry():
+            self.ensure_registry_task_state(definition.task_id)
         self.ensure_telemetry_polling()
         self.ensure_mqtt_health_polling()
         if self.service.config.gmail_status_poll_on_startup:
@@ -731,6 +833,7 @@ class BackgroundTaskManager:
 
     def ensure_finalize_polling(self) -> None:
         if self.finalize_polling_task is None or self.finalize_polling_task.done():
+            self.mark_task_running("onboarding_finalize_polling", detail="Onboarding finalize polling loop is running.")
             self.finalize_polling_task = asyncio.create_task(self.poll_finalize_loop())
 
     def ensure_telemetry_polling(self) -> None:
@@ -825,6 +928,7 @@ class BackgroundTaskManager:
     async def poll_finalize_loop(self) -> None:
         while self.service.state.onboarding_session_id:
             correlation_id = str(uuid.uuid4())
+            self.mark_task_running("onboarding_finalize_polling", detail="Polling Core for onboarding finalize status.")
             finalize = await self.service.core_client.finalize_onboarding(
                 self.service.effective_core_base_url() or "",
                 self.service.state.onboarding_session_id,
@@ -832,12 +936,25 @@ class BackgroundTaskManager:
                 correlation_id,
             )
             self.service._apply_finalize_result(finalize)
+            self.mark_task_success(
+                "onboarding_finalize_polling",
+                detail=f"Last finalize poll returned onboarding status {finalize.onboarding_status}.",
+            )
             if finalize.onboarding_status in TERMINAL_ONBOARDING_STATES:
+                self.mark_task_idle(
+                    "onboarding_finalize_polling",
+                    detail=f"Finalize polling stopped because onboarding status is {finalize.onboarding_status}.",
+                )
                 return
             await asyncio.sleep(self.service.config.onboarding_poll_interval_seconds)
 
     def ensure_gmail_status_polling(self) -> None:
         if self.gmail_status_task is None or self.gmail_status_task.done():
+            self.mark_task_running(
+                "gmail_status_polling",
+                detail="Gmail status polling loop is running.",
+                next_run_at=(datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=self.service.config.gmail_status_poll_interval_seconds)).isoformat(),
+            )
             GMAIL_POLL_LOGGER.info(
                 "Gmail status polling loop starting",
                 extra={"event_data": {"interval_seconds": self.service.config.gmail_status_poll_interval_seconds}},
@@ -862,6 +979,12 @@ class BackgroundTaskManager:
             try:
                 await self.refresh_gmail_status()
             except Exception as exc:
+                self.mark_task_failure(
+                    "gmail_status_polling",
+                    detail="Gmail status polling loop failed.",
+                    error=str(exc),
+                    next_run_at=(datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=self.service.config.gmail_status_poll_interval_seconds)).isoformat(),
+                )
                 GMAIL_POLL_LOGGER.error(
                     "Gmail status polling loop failed",
                     extra={"event_data": {"detail": str(exc)}},
@@ -873,6 +996,11 @@ class BackgroundTaskManager:
         accounts = await gmail_adapter.list_accounts()
         eligible_accounts = [account for account in accounts if account.status in {"connected", "token_exchanged", "degraded"}]
         if not self.service._runtime_provider_calls_enabled():
+            self.mark_task_idle(
+                "gmail_status_polling",
+                detail="Gmail status polling is paused because provider calls are disabled.",
+                next_run_at=(datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=self.service.config.gmail_status_poll_interval_seconds)).isoformat(),
+            )
             GMAIL_POLL_LOGGER.info(
                 "Gmail status polling pass skipped because provider calls are disabled",
                 extra={"event_data": {"account_count": len(accounts)}},
@@ -881,6 +1009,11 @@ class BackgroundTaskManager:
         GMAIL_POLL_LOGGER.info(
             "Gmail status polling pass started",
             extra={"event_data": {"account_count": len(accounts), "eligible_account_count": len(eligible_accounts)}},
+        )
+        self.mark_task_running(
+            "gmail_status_polling",
+            detail=f"Refreshing Gmail mailbox status for {len(eligible_accounts)} eligible account(s).",
+            next_run_at=(datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=self.service.config.gmail_status_poll_interval_seconds)).isoformat(),
         )
         for account in accounts:
             if account.status in {"connected", "token_exchanged", "degraded"}:
@@ -897,6 +1030,11 @@ class BackgroundTaskManager:
                         }
                     },
                 )
+        self.mark_task_success(
+            "gmail_status_polling",
+            detail=f"Gmail status polling refreshed {len(eligible_accounts)} eligible account(s).",
+            next_run_at=(datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=self.service.config.gmail_status_poll_interval_seconds)).isoformat(),
+        )
 
     async def gmail_fetch_loop(self) -> None:
         while True:
@@ -935,6 +1073,8 @@ class BackgroundTaskManager:
                 "warning",
                 "Gmail fetch scheduling is paused because the Gmail provider is disabled.",
             )
+            for task_id in ("gmail_fetch_yesterday", "gmail_fetch_today", "gmail_fetch_last_hour"):
+                self.mark_task_idle(task_id, detail="Gmail fetch scheduling is paused because Gmail is disabled.")
             self.save_gmail_fetch_scheduler_state(
                 status="idle",
                 detail="Gmail fetch scheduler is idle because Gmail is disabled.",
@@ -947,6 +1087,8 @@ class BackgroundTaskManager:
                 "warning",
                 "Gmail fetch scheduling is paused because provider calls are disabled.",
             )
+            for task_id in ("gmail_fetch_yesterday", "gmail_fetch_today", "gmail_fetch_last_hour"):
+                self.mark_task_idle(task_id, detail="Gmail fetch scheduling is paused because provider calls are disabled.")
             self.save_gmail_fetch_scheduler_state(
                 status="idle",
                 detail="Gmail fetch scheduler is idle because provider calls are disabled.",
@@ -961,6 +1103,8 @@ class BackgroundTaskManager:
                 "warning",
                 "Gmail fetch scheduling is paused because no eligible Gmail account is connected.",
             )
+            for task_id in ("gmail_fetch_yesterday", "gmail_fetch_today", "gmail_fetch_last_hour"):
+                self.mark_task_idle(task_id, detail="Gmail fetch scheduling is paused because no eligible Gmail account is connected.")
             self.save_gmail_fetch_scheduler_state(
                 status="idle",
                 detail="Gmail fetch scheduler is idle because no eligible Gmail account is connected.",
@@ -983,10 +1127,27 @@ class BackgroundTaskManager:
             last_checked_at=checked_at,
             last_due_windows=[{"window": window, "slot_key": slot_key} for window, slot_key in due_windows],
         )
+        for task_id, schedule_name in (
+            ("gmail_fetch_yesterday", "daily"),
+            ("gmail_fetch_today", "4_times_a_day"),
+            ("gmail_fetch_last_hour", "every_5_minutes"),
+        ):
+            self.mark_task_idle(
+                task_id,
+                detail="Waiting for the next due fetch window.",
+                next_run_at=self.schedule_template_next_run(schedule_name, now).isoformat(),
+            )
         self.service.notifications.set_gmail_fetch_notification_state("healthy", "Gmail fetch scheduling is running normally.")
         for account in eligible_accounts:
             for window, slot_key in due_windows:
+                task_id = f"gmail_fetch_{window}"
                 attempt_at = datetime.now(UTC).isoformat()
+                schedule_name = "daily" if window == "yesterday" else "4_times_a_day" if window == "today" else "every_5_minutes"
+                self.mark_task_running(
+                    task_id,
+                    detail=f"Scheduled Gmail fetch running for {window} on account {account.account_id}.",
+                    next_run_at=self.schedule_template_next_run(schedule_name, now).isoformat(),
+                )
                 LOGGER.info(
                     "Scheduled Gmail fetch attempt",
                     extra={"event_data": {"account_id": account.account_id, "window": window, "slot_key": slot_key}},
@@ -1005,6 +1166,11 @@ class BackgroundTaskManager:
                     last_success_at=success_at,
                     last_error=None,
                     last_error_at=None,
+                )
+                self.mark_task_success(
+                    task_id,
+                    detail=f"Scheduled Gmail fetch completed for {window}.",
+                    next_run_at=self.schedule_template_next_run(schedule_name, now).isoformat(),
                 )
                 LOGGER.info(
                     "Scheduled Gmail fetch completed",
@@ -1058,6 +1224,11 @@ class BackgroundTaskManager:
         if slot_key is None or self.service.state.gmail_hourly_batch_classification_slot_key == slot_key:
             return
         try:
+            self.mark_task_running(
+                "gmail_hourly_batch_classification",
+                detail=f"Scheduled hourly Gmail batch classification is running for slot {slot_key}.",
+                next_run_at=self.schedule_template_next_run("hourly", now).isoformat(),
+            )
             LOGGER.info("Scheduled hourly Gmail batch classification starting", extra={"event_data": {"slot_key": slot_key}})
             await self.service.runtime_execute_email_classifier_batch(
                 RuntimePromptExecutionRequestInput(target_api_base_url="http://127.0.0.1:9002")
@@ -1065,8 +1236,19 @@ class BackgroundTaskManager:
             self.service.state.gmail_hourly_batch_classification_slot_key = slot_key
             self.service.state.gmail_hourly_batch_classification_last_run_at = datetime.now().astimezone()
             self.service.state_store.save(self.service.state)
+            self.mark_task_success(
+                "gmail_hourly_batch_classification",
+                detail=f"Scheduled hourly Gmail batch classification completed for slot {slot_key}.",
+                next_run_at=self.schedule_template_next_run("hourly", now).isoformat(),
+            )
             LOGGER.info("Scheduled hourly Gmail batch classification completed", extra={"event_data": {"slot_key": slot_key}})
         except Exception as exc:
+            self.mark_task_failure(
+                "gmail_hourly_batch_classification",
+                detail=f"Scheduled hourly Gmail batch classification failed for slot {slot_key}.",
+                error=str(exc),
+                next_run_at=self.schedule_template_next_run("hourly", now).isoformat(),
+            )
             LOGGER.error(
                 "Scheduled hourly Gmail batch classification failed",
                 extra={"event_data": {"slot_key": slot_key, "detail": str(exc)}},

@@ -2544,14 +2544,27 @@ class NodeService:
     async def _run_weekly_prompt_sync_if_due(self) -> None:
         target_api_base_url = self.state.runtime_prompt_sync_target_api_base_url
         if not target_api_base_url:
+            self.background_tasks.mark_task_idle(
+                "runtime_prompt_sync_weekly",
+                detail="Waiting for a prompt sync target to be configured from the Runtime page.",
+            )
             return
         if not self._runtime_ai_calls_enabled():
+            self.background_tasks.mark_task_idle(
+                "runtime_prompt_sync_weekly",
+                detail="Scheduled weekly prompt sync is paused because AI calls are disabled.",
+            )
             LOGGER.info("Scheduled weekly prompt sync skipped because AI calls are disabled")
             return
         now = datetime.now().astimezone()
         slot_key = self._prompt_sync_weekly_slot_key(now)
         if self.state.runtime_prompt_sync_weekly_slot_key == slot_key:
             return
+        self.background_tasks.mark_task_running(
+            "runtime_prompt_sync_weekly",
+            detail=f"Scheduled weekly prompt sync is running for slot {slot_key}.",
+            next_run_at=self._next_weekly_run(now).isoformat(),
+        )
         await self._sync_runtime_prompts(
             target_api_base_url=target_api_base_url,
             review_due_migration=False,
@@ -2562,14 +2575,28 @@ class NodeService:
         self.state.runtime_prompt_sync_weekly_slot_key = slot_key
         self.state.runtime_prompt_sync_last_scheduled_at = datetime.now().astimezone()
         self.state_store.save(self.state)
+        self.background_tasks.mark_task_success(
+            "runtime_prompt_sync_weekly",
+            detail=f"Scheduled weekly prompt sync completed for slot {slot_key}.",
+            next_run_at=self._next_weekly_run(now).isoformat(),
+        )
 
     async def _run_due_monthly_runtime_authorize(self, now: datetime) -> None:
         slot_key = self._runtime_monthly_authorize_slot_key(now)
         if slot_key is None or self.state.runtime_monthly_authorize_slot_key == slot_key:
             return
         if self.state.trust_state != "trusted" or not self.state.node_id or not self.effective_core_base_url():
+            self.background_tasks.mark_task_idle(
+                "runtime_monthly_resolve_authorize",
+                detail="Waiting for a trusted Core connection before monthly runtime authorization can run.",
+            )
             return
         try:
+            self.background_tasks.mark_task_running(
+                "runtime_monthly_resolve_authorize",
+                detail=f"Scheduled monthly Core resolve and authorize is running for slot {slot_key}.",
+                next_run_at=self._next_monthly_run(now).isoformat(),
+            )
             LOGGER.info(
                 "Scheduled monthly Core resolve and authorize starting",
                 extra={"event_data": {"slot_key": slot_key}},
@@ -2614,11 +2641,22 @@ class NodeService:
             self.state.runtime_monthly_authorize_slot_key = slot_key
             self.state.runtime_monthly_authorize_last_run_at = datetime.now().astimezone()
             self.state_store.save(self.state)
+            self.background_tasks.mark_task_success(
+                "runtime_monthly_resolve_authorize",
+                detail=f"Scheduled monthly Core resolve and authorize completed for slot {slot_key}.",
+                next_run_at=self._next_monthly_run(now).isoformat(),
+            )
             LOGGER.info(
                 "Scheduled monthly Core resolve and authorize completed",
                 extra={"event_data": {"slot_key": slot_key, "service_id": selected_service_id}},
             )
         except Exception as exc:
+            self.background_tasks.mark_task_failure(
+                "runtime_monthly_resolve_authorize",
+                detail=f"Scheduled monthly Core resolve and authorize failed for slot {slot_key}.",
+                error=str(exc),
+                next_run_at=self._next_monthly_run(now).isoformat(),
+            )
             LOGGER.error(
                 "Scheduled monthly Core resolve and authorize failed",
                 extra={"event_data": {"slot_key": slot_key, "detail": str(exc)}},

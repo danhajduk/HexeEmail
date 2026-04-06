@@ -38,6 +38,27 @@ The registry is now the source of truth for stable task identity, task kind, own
 
 These baseline tasks now publish structured per-task state under `runtime_task_state.scheduler_task_states`, which is the first persisted scheduler-task-state boundary ahead of the broader standardization work.
 
+That same structured state boundary now also tracks the other modeled recurring tasks in the registry, including:
+
+- onboarding finalize polling
+- Gmail status polling
+- Gmail fetch windows
+- hourly batch classification
+- weekly prompt sync
+- monthly Core resolve/authorize
+
+Each entry persists the standardized fields:
+
+- `status`
+- `enabled`
+- `detail`
+- `last_started_at`
+- `last_completed_at`
+- `last_success_at`
+- `last_failure_at`
+- `next_run_at`
+- `last_error`
+
 ### Finalize Polling Loop
 
 - Owner: `BackgroundTaskManager.ensure_finalize_polling()` and `poll_finalize_loop()`
