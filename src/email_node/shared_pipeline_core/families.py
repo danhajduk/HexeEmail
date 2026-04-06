@@ -34,7 +34,7 @@ def get_flow_family_config(flow_family: FlowFamily, *, runtime_dir: Path | None 
             probation_state_dir=base_runtime_dir / "flow_families" / "order" / "probation" / "state",
             validation_policy="email_node.flow_families.order.validation",
             decision_policy="email_node.flow_families.order.decision",
-            action_router_policy="email_node.pipeline.order_action_router",
+            action_router_policy="email_node.flow_families.order.action_routing",
             output_schema_family="order",
         )
     if flow_family == "action_needed":
@@ -47,7 +47,7 @@ def get_flow_family_config(flow_family: FlowFamily, *, runtime_dir: Path | None 
             probation_state_dir=base_runtime_dir / "flow_families" / "action_needed" / "probation_state",
             validation_policy="email_node.flow_families.action_needed.validation",
             decision_policy="email_node.flow_families.action_needed.decision",
-            action_router_policy="runtime/flow_families/action_needed/action_router_policy.json",
+            action_router_policy="email_node.flow_families.action_needed.action_routing",
             output_schema_family="action_needed",
         )
     raise ValueError(f"Unsupported flow family: {flow_family}")

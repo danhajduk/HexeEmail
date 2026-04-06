@@ -3,11 +3,15 @@ from email_node.shared_pipeline_core.phase1 import SharedEmailPhase1Interface, S
 from email_node.shared_pipeline_core.pipeline import SharedEmailPipelineCore
 from email_node.shared_pipeline_core.actions import (
     SharedActionAuthorizationResult,
+    SharedActionFieldRule,
     SharedActionGate,
     SharedActionIntent,
     SharedActionRouter,
+    SharedActionRoutingPolicy,
     SharedActionRoutingResult,
+    SharedPolicyActionRouter,
 )
+from email_node.shared_pipeline_core.action_packs import load_action_routing_policy
 from email_node.shared_pipeline_core.decision import SharedDecisionEngine, SharedDecisionPolicy, SharedDecisionResult
 from email_node.shared_pipeline_core.decision_packs import load_decision_policy
 from email_node.shared_pipeline_core.persistence import (
@@ -37,10 +41,13 @@ from email_node.shared_pipeline_core.validation_packs import load_validation_pol
 __all__ = [
     "FlowFamilyConfig",
     "SharedActionAuthorizationResult",
+    "SharedActionFieldRule",
     "SharedActionGate",
     "SharedActionIntent",
     "SharedActionRouter",
+    "SharedActionRoutingPolicy",
     "SharedActionRoutingResult",
+    "SharedPolicyActionRouter",
     "SharedEmailPhase1Interface",
     "SharedEmailPipelineCore",
     "SharedDecisionEngine",
@@ -66,6 +73,7 @@ __all__ = [
     "SharedTemplateExecutionEngine",
     "SharedTemplateRegistry",
     "SharedValidationPolicy",
+    "load_action_routing_policy",
     "load_validation_policy",
     "get_flow_family_config",
     "load_profile_definition_pack",

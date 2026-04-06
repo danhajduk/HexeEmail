@@ -64,7 +64,7 @@ Acceptance:
 - ORDER Phase 7 runs through shared framework
 - ACTION_NEEDED can later define its own action intents without duplicating the framework
 
-[WIP] Task 281: Create family-specific action routing policies
+[DONE] Task 281: Create family-specific action routing policies
 
 - Externalize action routing rules by flow family
 
@@ -85,7 +85,7 @@ Acceptance:
 - Shared action router can load family-specific action policies
 - ORDER action intents remain stable after migration
 
-[TODO] Task 282: Extract shared report builder for all flow families
+[WIP] Task 282: Extract shared report builder for all flow families
 
 - Move report assembly into one shared diagnostics/report module
 

@@ -142,7 +142,8 @@ Status: `[DONE]`
 
 21. Build action intents from accepted ORDER results.
 22. Routing is profile-aware and field-aware.
-23. Blocked results produce an empty action intent list.
+23. The current ORDER action-intent rules are loaded from the ORDER family action policy pack.
+24. Blocked results produce an empty action intent list.
 
 ---
 

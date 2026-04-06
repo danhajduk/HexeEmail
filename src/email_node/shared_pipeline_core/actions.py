@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -94,3 +95,61 @@ class SharedActionRouter:
         phase4,
     ) -> list[SharedActionIntent]:
         raise NotImplementedError
+
+
+@dataclass(frozen=True, slots=True)
+class SharedActionFieldRule:
+    required_fields: tuple[str, ...]
+    any_of_fields: tuple[str, ...] = ()
+    intents: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class SharedActionRoutingPolicy:
+    profile_intents: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    decision_intents: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    diagnostic_token_intents: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    field_rules: tuple[SharedActionFieldRule, ...] = ()
+
+
+class SharedPolicyActionRouter(SharedActionRouter):
+    def __init__(self, *, policy: SharedActionRoutingPolicy | None = None) -> None:
+        self.policy = policy or SharedActionRoutingPolicy()
+
+    def resolve_action_intents(
+        self,
+        *,
+        decision: SharedDecisionResult,
+        authorization: SharedActionAuthorizationResult,
+        phase4,
+    ) -> list[SharedActionIntent]:
+        diagnostics = list(decision.diagnostics) + list(authorization.diagnostics)
+        profile_id = str(getattr(phase4, "profile_id", "") or "")
+        extracted_fields = getattr(phase4, "extracted_fields", {}) or {}
+
+        intents: list[SharedActionIntent] = []
+        intents.extend(self.policy.profile_intents.get(profile_id, ()))
+
+        for rule in self.policy.field_rules:
+            if not all(self._field_value(extracted_fields, field_name) for field_name in rule.required_fields):
+                continue
+            if rule.any_of_fields and not any(self._field_value(extracted_fields, field_name) for field_name in rule.any_of_fields):
+                continue
+            intents.extend(rule.intents)
+
+        intents.extend(self.policy.decision_intents.get(decision.decision, ()))
+
+        for token, token_intents in self.policy.diagnostic_token_intents.items():
+            if any(token in item for item in diagnostics):
+                intents.extend(token_intents)
+        return intents
+
+    @staticmethod
+    def _field_value(extracted_fields: dict[str, object], field_name: str) -> str | None:
+        value = extracted_fields.get(field_name)
+        if hasattr(value, "value"):
+            value = getattr(value, "value")
+        elif isinstance(value, dict):
+            value = value.get("value")
+        normalized = str(value or "").strip()
+        return normalized or None
