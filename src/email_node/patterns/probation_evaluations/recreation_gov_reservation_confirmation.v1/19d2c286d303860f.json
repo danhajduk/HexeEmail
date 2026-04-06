@@ -1,0 +1,30 @@
+{
+  "template_id": "recreation_gov_reservation_confirmation.v1",
+  "message_id": "19d2c286d303860f",
+  "profile_id": "reservation_confirmation",
+  "matched": true,
+  "extraction_succeeded": true,
+  "required_fields_present": false,
+  "missing_required_fields": [
+    "order_number",
+    "item_name",
+    "quantity",
+    "total"
+  ],
+  "high_requires_present": false,
+  "missing_high_requires": [
+    "order_number",
+    "total"
+  ],
+  "extracted_fields": {
+    "order_number": null,
+    "order_action_url": null,
+    "item_name": null,
+    "quantity": null,
+    "total": null
+  },
+  "confidence_score": 0.0,
+  "hard_failure": false,
+  "failure_reason": "missing_required:order_number,missing_required:item_name,missing_required:quantity,missing_required:total",
+  "evaluated_at": "2026-04-06T00:56:37.695817Z"
+}

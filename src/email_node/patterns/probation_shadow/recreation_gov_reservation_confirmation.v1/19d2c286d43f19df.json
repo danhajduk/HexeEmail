@@ -1,0 +1,15 @@
+{
+  "message_id": "19d2c286d43f19df",
+  "active_template_id": "recreation_gov_reservation_confirmation.v1",
+  "probation_template_id": "recreation_gov_reservation_confirmation.v1",
+  "profile_id": "reservation_confirmation",
+  "required_field_differences": [
+    "item_name",
+    "quantity",
+    "total"
+  ],
+  "high_requires_differences": [
+    "total"
+  ],
+  "extraction_variance": {}
+}

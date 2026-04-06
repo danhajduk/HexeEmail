@@ -1,0 +1,19 @@
+{
+  "template_id": "recreation_gov_reservation_confirmation.v1",
+  "profile_id": "reservation_confirmation",
+  "template_version": "v1",
+  "status": "probation",
+  "created_at": "2026-04-05T23:33:24.301095Z",
+  "updated_at": "2026-04-06T00:57:57.727853Z",
+  "sample_count": 19,
+  "success_count": 0,
+  "failure_count": 18,
+  "hard_failure_count": 0,
+  "required_field_success_rate": 0.0,
+  "high_requires_success_rate": 0.0,
+  "last_generation_attempt_at": "2026-04-06T00:57:57.726872Z",
+  "last_generation_result": "skipped_existing_probation",
+  "last_evaluated_at": "2026-04-06T00:57:57.727853Z",
+  "promotion_eligible": false,
+  "promotion_reason": "Needs refinement before promotion."
+}

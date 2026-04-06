@@ -23,4 +23,13 @@ Current sample-grounded profile coverage includes:
 - Walmart curbside pickup messages
 - Recreation.gov reservation confirmations
 - Edenred upcoming-order notices
+- ride receipts and ride cancellations
 - generic order confirmation, status-update, and cancellation fallbacks
+
+The runtime rules file is organized into:
+
+- `signals`: keyword lists used to generate and score candidates
+- `sender_domain_profiles`: deterministic sender-domain to profile hints
+- `weights`: integer score adjustments for candidate ranking
+- `thresholds`: confidence score cutoffs and clamp values
+- `conflicts`: downgrade pairs and ignore overrides

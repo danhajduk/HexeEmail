@@ -1,0 +1,61 @@
+{
+  "schema_version": "order-phase4-template.v1",
+  "template_id": "recreation_gov_reservation_confirmation.v1",
+  "profile_id": "reservation_confirmation",
+  "template_version": "v1",
+  "enabled": true,
+  "match": {
+    "vendor_identity": "recreation_gov"
+  },
+  "extract": {
+    "order_number": {
+      "method": "regex",
+      "transforms": [
+        "trim"
+      ],
+      "pattern": "(?m)^\\s*(\\d{10})\\s*$"
+    },
+    "order_action_url": {
+      "method": "link_by_label",
+      "transforms": [
+        "normalize_url"
+      ],
+      "label": "My Reservations"
+    },
+    "item_name": {
+      "method": "line_after",
+      "transforms": [
+        "trim",
+        "collapse_spaces"
+      ],
+      "marker": "Valid Through: Apr 5, 2026"
+    },
+    "quantity": {
+      "method": "regex",
+      "transforms": [
+        "trim"
+      ],
+      "pattern": "(?m)^Quantity:\\s*(\\d+)\\s*Pass\\(es\\)\\s*$"
+    },
+    "total": {
+      "method": "regex",
+      "transforms": [
+        "normalize_currency"
+      ],
+      "pattern": "(?m)^Total:\\s*\\$([0-9]+(?:\\.[0-9]{2})?)\\s*$"
+    }
+  },
+  "required_fields": [
+    "order_number",
+    "item_name",
+    "quantity",
+    "total"
+  ],
+  "confidence_rules": {
+    "high_requires": [
+      "order_number",
+      "total"
+    ]
+  },
+  "post_process": {}
+}

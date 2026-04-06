@@ -1,0 +1,18 @@
+{
+  "template_id": "recreation_gov_reservation_confirmation.v1",
+  "message_id": "phase2-msg-1",
+  "profile_id": "reservation_confirmation",
+  "matched": true,
+  "extraction_succeeded": true,
+  "required_fields_present": true,
+  "missing_required_fields": [],
+  "high_requires_present": true,
+  "missing_high_requires": [],
+  "extracted_fields": {
+    "order_number": "0892885499"
+  },
+  "confidence_score": 1.0,
+  "hard_failure": false,
+  "failure_reason": null,
+  "evaluated_at": "2026-04-06T00:50:06.062702Z"
+}

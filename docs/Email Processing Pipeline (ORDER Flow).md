@@ -91,6 +91,8 @@ Status: `[DONE]`
 9. Example profiles:
 
    * `amazon_order_confirmation` `[DONE]`
+   * `ride_cancellation` `[DONE]`
+   * `ride_receipt` `[DONE]`
    * `amazon_shipping_update` `[TODO]`
    * `fedex_tracking_update` `[TODO]`
    * `generic_order` `[PARTIAL]`

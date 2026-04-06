@@ -1,0 +1,9 @@
+{
+  "message_id": "phase2-msg-1",
+  "active_template_id": "recreation_gov_reservation_confirmation.v1",
+  "probation_template_id": "recreation_gov_reservation_confirmation.v1",
+  "profile_id": "reservation_confirmation",
+  "required_field_differences": [],
+  "high_requires_differences": [],
+  "extraction_variance": {}
+}
