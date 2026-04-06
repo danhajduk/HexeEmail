@@ -165,7 +165,7 @@ ACTION_REQUIRED now has the same probation storage, evaluation, promotion, unres
 
 FINANCIAL now uses the shared skeleton plus a first-pass YAML taxonomy. It has family-owned YAML, runtime paths, smoke-tested shared-core wiring, and initial detector coverage for statement-ready, payment-due, payment-received, refund, balance-alert, tax-document, and generic financial update cases. It still does not have active template behavior or mailbox-sampled refinement yet.
 
-INVOICE currently uses the shared skeleton shape. It has family-owned YAML, runtime paths, placeholder handlers, and a smoke-tested shared-core runner, but it does not yet have mailbox-derived taxonomy or active template behavior.
+INVOICE now uses the shared skeleton plus a first-pass YAML taxonomy. It has family-owned YAML, runtime paths, smoke-tested shared-core wiring, and initial detector coverage for invoice-ready, invoice-due, receipt-issued, payment-confirmed, overdue-billing, and generic invoice update cases. It also has a family-specific Phase 3 intake override for usable invoice scrubbed text. It still does not have active template behavior or mailbox-sampled refinement yet.
 
 ## How ORDER Uses The Framework
 

@@ -126,7 +126,9 @@ Current INVOICE integration:
 
 - [src/email_node/pipeline/invoice_flow.py](/home/dan/Projects/HexeEmail/src/email_node/pipeline/invoice_flow.py) now provides the initial thin shared-core runner for the `invoice` family
 - [src/email_node/flow_families/invoice/runtime.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/invoice/runtime.py) wires the shared scrub, profile-detection, template, decision, persistence, and action-gating layers together with placeholder family handlers
-- the INVOICE family is still an empty-shell detector at this stage, but the YAML contract, runtime paths, smoke coverage, and shared-core runner are now in place for the next taxonomy task
+- the INVOICE family now has a first-pass YAML taxonomy for invoice-ready, invoice-due, receipt-issued, payment-confirmed, overdue-billing, and generic invoice update signals
+- INVOICE also carries a family-specific Phase 3 intake override so usable invoice scrubbed text can still be classified even when the shared scrubber marks the message failed under ORDER-biased completeness rules
+- INVOICE still needs mailbox-sampled refinement and active template coverage, but it now resolves real Phase 3 profiles instead of only failing closed
 
 Why this exists:
 
