@@ -253,3 +253,9 @@ Chosen fix: Keep the raw JSON and Markdown artifacts under each family runtime d
 What changed: Added `docs/family-mailbox-sample-analysis.md`, linked it from `docs/multi-family-rollout-plan.md`, removed Task 321 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
 Verification: Artifact-backed doc review completed against the sampled family JSON and Markdown files under `runtime/flow_families/*/analysis/`.
 ###########
+Task #322
+Step objective: Evaluate whether one generic family template-creation prompt can cover multi-family AI template generation.
+Chosen fix: Compare the current ORDER and ACTION_REQUIRED prompt contracts, the shared request/response models, and the sampled-family findings to decide whether family differences live in the outer prompt mechanics or in family-owned guidance blocks.
+What changed: Added `docs/family-template-prompt-strategy.md`, recorded that the shared prompt contract is viable for the current family set, removed Task 322 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: Contract review completed against `runtime/prompts/prompt.email.order_pattern_template_creation.json`, `runtime/prompts/prompt.email.action_required_pattern_template_creation.json`, `src/email_node/patterns/pattern_generation_request.py`, and `src/email_node/patterns/pattern_generation_response.py`.
+###########
