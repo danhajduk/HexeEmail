@@ -103,7 +103,7 @@ Acceptance:
 - ORDER reports are generated through shared builder
 - Reports remain readable and comparable across flow families
 
-[WIP] Task 283: Convert ORDER flow into a thin family-specific runner on top of shared core
+[DONE] Task 283: Convert ORDER flow into a thin family-specific runner on top of shared core
 
 - Refactor ORDER pipeline into orchestration only
 
@@ -119,7 +119,7 @@ Acceptance:
 - ORDER flow becomes a thin wrapper around shared core
 - Existing ORDER test cases continue to pass
 
-[TODO] Task 284: Add ACTION_NEEDED flow skeleton using shared core
+[WIP] Task 284: Add ACTION_NEEDED flow skeleton using shared core
 
 - Create initial ACTION_NEEDED runner that uses the same shared framework
 

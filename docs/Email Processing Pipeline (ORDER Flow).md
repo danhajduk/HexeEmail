@@ -173,6 +173,14 @@ Status: `[DONE]`
 31. Reports include `flow_family` and a shared summary block for status, diagnostics, decision, persistence, and actions.
 32. ORDER keeps the current readable markdown report layout for operators.
 
+### Runner Architecture
+
+Status: `[DONE]`
+
+33. `OrderFlowPipeline` is now a thin ORDER-specific runner.
+34. Shared phase orchestration stays in the shared core.
+35. ORDER family wiring and probation behavior now live in the ORDER family runtime module.
+
 #### Unknown Profile
 
 Status: `[PARTIAL]`
