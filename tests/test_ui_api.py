@@ -2173,6 +2173,10 @@ async def test_ui_bootstrap_exposes_scheduled_tasks(config, core_client_factory)
     assert "on_start" in legend_names
     weekly_legend = next(item for item in body["scheduled_task_legend"] if item["name"] == "weekly")
     assert weekly_legend["detail"] == "Monday 00:01"
+    legend_order = [item["name"] for item in body["scheduled_task_legend"]]
+    assert legend_order.index("every_10_seconds") < legend_order.index("every_5_minutes")
+    assert legend_order.index("every_5_minutes") < legend_order.index("hourly")
+    assert legend_order[-1] == "interval_seconds"
     interval_legend = next(item for item in body["scheduled_task_legend"] if item["name"] == "interval_seconds")
     assert interval_legend["detail"] == "Fixed interval in seconds"
     ten_second_legend = next(item for item in body["scheduled_task_legend"] if item["name"] == "every_10_seconds")

@@ -465,6 +465,24 @@ class BackgroundTaskManager:
             return None
         return template.next_run_resolver(now)
 
+    @staticmethod
+    def schedule_template_sort_key(name: str) -> tuple[int, str]:
+        order = {
+            "every_10_seconds": 10,
+            "every_5_minutes": 20,
+            "hourly": 30,
+            "4_times_a_day": 40,
+            "daily": 50,
+            "every_other_day": 60,
+            "twice_a_week": 70,
+            "weekly": 80,
+            "bi_weekly": 90,
+            "monthly": 100,
+            "on_start": 110,
+            "interval_seconds": 999,
+        }
+        return (order.get(name, 500), name)
+
     @classmethod
     def scheduled_task_entry(
         cls,
@@ -515,7 +533,10 @@ class BackgroundTaskManager:
 
     @classmethod
     def scheduled_task_legend(cls) -> list[dict[str, str]]:
-        return [{"name": template.name, "detail": template.detail} for template in cls.schedule_templates().values()]
+        return [
+            {"name": template.name, "detail": template.detail}
+            for template in sorted(cls.schedule_templates().values(), key=lambda item: cls.schedule_template_sort_key(item.name))
+        ]
 
     @classmethod
     def task_registry(cls) -> tuple[ScheduledTaskDefinition, ...]:

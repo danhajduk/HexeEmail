@@ -435,17 +435,37 @@ function buildGmailWindowSettings(fetchSchedule) {
 }
 
 const FALLBACK_SCHEDULED_TASK_LEGEND = [
-  { name: "daily", detail: "Every day at 00:01" },
-  { name: "weekly", detail: "Monday 00:01" },
-  { name: "4_times_a_day", detail: "00:00, 06:00, 12:00, 18:00" },
+  { name: "every_10_seconds", detail: "Every 10 seconds" },
   { name: "every_5_minutes", detail: "00:05, 00:10, 00:15, ..." },
   { name: "hourly", detail: "Hourly at :00" },
-  { name: "bi_weekly", detail: "Every 2 weeks" },
-  { name: "monthly", detail: "Monthly" },
+  { name: "4_times_a_day", detail: "00:00, 06:00, 12:00, 18:00" },
+  { name: "daily", detail: "Every day at 00:01" },
   { name: "every_other_day", detail: "Every other day" },
   { name: "twice_a_week", detail: "Twice a week" },
+  { name: "weekly", detail: "Monday 00:01" },
+  { name: "bi_weekly", detail: "Every 2 weeks" },
+  { name: "monthly", detail: "Monthly" },
   { name: "on_start", detail: "Runs once after full operational readiness" },
+  { name: "interval_seconds", detail: "Fixed interval in seconds" },
 ];
+
+function scheduledTaskLegendSortKey(name) {
+  const order = {
+    every_10_seconds: 10,
+    every_5_minutes: 20,
+    hourly: 30,
+    "4_times_a_day": 40,
+    daily: 50,
+    every_other_day: 60,
+    twice_a_week: 70,
+    weekly: 80,
+    bi_weekly: 90,
+    monthly: 100,
+    on_start: 110,
+    interval_seconds: 999,
+  };
+  return order[name] ?? 500;
+}
 
 function deriveScheduledTaskSchedule(task) {
   const scheduleName = task?.schedule_name;
@@ -479,13 +499,16 @@ function deriveScheduledTaskSchedule(task) {
 }
 
 function scheduledTaskStatusTone(value) {
-  if (value === "active") {
-    return "success";
+  if (value === "running") {
+    return "success-strong";
   }
-  if (value === "pending") {
+  if (value === "failing") {
+    return "danger";
+  }
+  if (value === "idle" || value === "stopped" || value === "inactive") {
     return "warning";
   }
-  return "neutral";
+  return "success";
 }
 
 function schedulerStatusTone(value) {
@@ -2437,9 +2460,17 @@ export function App() {
     }
     return String(left?.title || left?.task_id || "").localeCompare(String(right?.title || right?.task_id || ""));
   });
-  const scheduledTaskLegend = Array.isArray(bootstrap?.scheduled_task_legend) && bootstrap.scheduled_task_legend.length
-    ? bootstrap.scheduled_task_legend
-    : FALLBACK_SCHEDULED_TASK_LEGEND;
+  const scheduledTaskLegend = (
+    Array.isArray(bootstrap?.scheduled_task_legend) && bootstrap.scheduled_task_legend.length
+      ? [...bootstrap.scheduled_task_legend]
+      : [...FALLBACK_SCHEDULED_TASK_LEGEND]
+  ).sort((left, right) => {
+    const keyDiff = scheduledTaskLegendSortKey(left?.name) - scheduledTaskLegendSortKey(right?.name);
+    if (keyDiff !== 0) {
+      return keyDiff;
+    }
+    return String(left?.name || "").localeCompare(String(right?.name || ""));
+  });
   const trackedOrders = Array.isArray(bootstrap?.tracked_orders) ? bootstrap.tracked_orders : [];
   const trackedOrdersSorted = [...trackedOrders].sort((left, right) => {
     const leftTime = trackedOrderSortTime(left);

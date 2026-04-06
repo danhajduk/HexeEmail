@@ -240,6 +240,28 @@ The Scheduled Tasks UI now uses scheduler `kind` as the primary operator-facing 
 
 The task owner is shown alongside that kind label so operators can distinguish runtime-owned loops from provider-owned or Core-leased work without reading raw ids.
 
+The schedule legend is now normalized from shortest to longest cadence:
+
+- `every_10_seconds`
+- `every_5_minutes`
+- `hourly`
+- `4_times_a_day`
+- `daily`
+- `every_other_day`
+- `twice_a_week`
+- `weekly`
+- `bi_weekly`
+- `monthly`
+- `on_start`
+- `interval_seconds` last when present
+
+Scheduled-task status colors now follow the standard:
+
+- `idle`, `inactive`, and `stopped`: orange
+- `failing`: red
+- `running`: darker green
+- all other scheduler task states: green
+
 ## Current Boundary
 
 `NodeService` remains the compatibility façade. The actual recurring-work owner is [scheduler.py](/home/dan/Projects/HexeEmail/src/node_backend/scheduler.py), and provider-specific execution of Gmail fetches and last-hour processing lives in [providers.py](/home/dan/Projects/HexeEmail/src/node_backend/providers.py).

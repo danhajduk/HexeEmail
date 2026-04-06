@@ -148,9 +148,9 @@ describe("dashboard feature sections", () => {
     );
     const scheduledHtml = render(
       <ScheduledTasksSection
-        scheduledTasksSorted={[{ task_id: "task-1", title: "Fetch", kind: "provider_recurring_work", owner: "background_task_manager", schedule_name: "daily", schedule_label: "Every day", schedule_detail: "00:01", status: "active", last_success_at: "now", last_failure_at: null, last_error: null, next_execution_at: "later", detail: "ok" }]}
-        scheduledTaskLegend={[{ name: "daily", detail: "Every day" }]}
-        scheduledTaskStatusTone={() => "success"}
+        scheduledTasksSorted={[{ task_id: "task-1", title: "Fetch", kind: "provider_recurring_work", owner: "background_task_manager", schedule_name: "daily", schedule_label: "Every day", schedule_detail: "00:01", status: "running", last_success_at: "now", last_failure_at: null, last_error: null, next_execution_at: "later", detail: "ok" }]}
+        scheduledTaskLegend={[{ name: "every_10_seconds", detail: "Every 10 seconds" }, { name: "interval_seconds", detail: "Fixed interval in seconds" }]}
+        scheduledTaskStatusTone={(value) => (value === "running" ? "success-strong" : "warning")}
         formatScheduleTimestamp={(value) => value}
         formatRelativeTime={() => "just now"}
       />,
@@ -174,6 +174,9 @@ describe("dashboard feature sections", () => {
     expect(scheduledHtml).toContain("Last Success");
     expect(scheduledHtml).toContain("Last Failure");
     expect(scheduledHtml).toContain("Last Error");
+    expect(scheduledHtml).toContain("tone-success-strong");
+    expect(scheduledHtml).toContain("every_10_seconds");
+    expect(scheduledHtml).toContain("interval_seconds");
     expect(scheduledHtml).toContain("Provider");
     expect(scheduledHtml).toContain("background_task_manager");
     expect(ordersHtml).toContain("Tracked Orders");
