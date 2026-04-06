@@ -2204,6 +2204,8 @@ async def test_ui_bootstrap_exposes_scheduled_tasks(config, core_client_factory)
     assert telemetry["kind"] == "node_local_recurring_work"
     assert telemetry["owner"] == "background_task_manager"
     assert telemetry["enabled"] is True
+    assert telemetry["schedule_label"] == "Every 60 seconds"
+    assert telemetry["last_started_at"] is not None
     assert telemetry["last_execution_at"] is not None
     assert telemetry["next_execution_at"] is not None
     heartbeat = next(item for item in body["scheduled_tasks"] if item["task_id"] == "heartbeat")
@@ -2211,17 +2213,21 @@ async def test_ui_bootstrap_exposes_scheduled_tasks(config, core_client_factory)
     assert heartbeat["owner"] == "mqtt_manager"
     assert heartbeat["enabled"] is False
     assert heartbeat["schedule_name"] == "interval_seconds"
+    assert heartbeat["last_failure_at"] is None
+    assert heartbeat["last_error"] is None
     mqtt_health = next(item for item in body["scheduled_tasks"] if item["task_id"] == "operational_mqtt_health")
     assert mqtt_health["kind"] == "node_local_recurring_work"
     assert mqtt_health["owner"] == "background_task_manager"
     assert mqtt_health["enabled"] is True
     assert mqtt_health["schedule_name"] == "every_10_seconds"
+    assert mqtt_health["schedule_label"].startswith("Every 10 seconds")
     assert mqtt_health["last_execution_at"] is not None
     assert mqtt_health["next_execution_at"] is not None
     monthly_runtime = next(item for item in body["scheduled_tasks"] if item["task_id"] == "runtime_monthly_resolve_authorize")
     assert monthly_runtime["kind"] == "core_leased_recurring_work"
     assert monthly_runtime["owner"] == "background_task_manager"
     assert monthly_runtime["enabled"] is False
+    assert monthly_runtime["last_success_at"] is None or monthly_runtime["last_success_at"] == monthly_runtime["last_execution_at"]
     assert monthly_runtime["last_slot_key"] is not None
     assert monthly_runtime["last_execution_at"] is not None
     assert monthly_runtime["schedule_name"] == "monthly"

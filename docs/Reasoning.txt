@@ -319,3 +319,9 @@ Chosen fix: Gate provider-affecting recurring tasks behind trusted operational r
 What changed: Updated `src/node_backend/scheduler.py`, `src/node_backend/governance.py`, `tests/test_ui_api.py`, and `docs/scheduler-and-background-tasks.md`, removed Task 332 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
 Verification: `python -m py_compile src/node_backend/scheduler.py src/node_backend/governance.py tests/test_ui_api.py` passed. `PYTHONPATH=src ./.venv/bin/python -m pytest tests/test_ui_api.py -k 'scheduled_tasks or task_registry or defers_provider_loops' -q` passed.
 ###########
+Task #333
+Step objective: Update the scheduled task API/bootstrap payloads to expose the standard task fields and friendly schedule labels needed by the operator UI.
+Chosen fix: Extend each scheduled-task payload row with the structured scheduler-state fields (`last_started_at`, `last_completed_at`, `last_success_at`, `last_failure_at`, `last_error`) plus a friendly `schedule_label`, while keeping the older compatibility fields in place for the transition.
+What changed: Updated `src/node_backend/scheduler.py`, `src/service.py`, and `tests/test_ui_api.py`, removed Task 333 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: `python -m py_compile src/node_backend/scheduler.py src/service.py tests/test_ui_api.py` passed. `PYTHONPATH=src ./.venv/bin/python -m pytest tests/test_ui_api.py -k 'scheduled_tasks or task_registry or defers_provider_loops' -q` passed.
+###########
