@@ -276,3 +276,4 @@ Task 267: Define flow family abstraction for pipeline execution - Completed on 0
 Task 268: Extract Phase 1 normalization into shared core interface - Completed on 04/05/2026 23:56
 Task 269: Extract Phase 2 scrubber into shared engine with heuristic pack loading - Completed on 04/06/2026 00:05
 Task 270: Create flow-family heuristic config directories - Completed on 04/06/2026 00:09
+Task 271: Extract Phase 3 profile detection into shared detector engine - Completed on 04/06/2026 00:17

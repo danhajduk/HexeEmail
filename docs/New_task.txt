@@ -47,25 +47,6 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[TODO] Task 271: Extract Phase 3 profile detection into shared detector engine
-
-- Move current ORDER profile detection mechanics into a shared detection engine
-
-Requirements:
-- Shared engine must support:
-  - sender/domain markers
-  - subject markers
-  - scrubbed body markers
-  - weighted scoring
-  - confidence output
-  - diagnostics
-- Flow-family-specific profile definitions must be loaded externally
-- Keep ORDER profile detection behavior functionally equivalent
-
-Acceptance:
-- ORDER profile detection runs through shared engine
-- Engine can later load ACTION_NEEDED profile definitions
-
 [TODO] Task 272: Create family-specific profile definition packs
 
 - Externalize profile taxonomy and detection rules from code

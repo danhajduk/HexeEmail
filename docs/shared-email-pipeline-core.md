@@ -7,6 +7,7 @@ Current scope:
 - shared Phase 1 normalization interface
 - shared orchestration for Phase 2 through Phase 7
 - shared Phase 2 scrub engine with loaded heuristic packs
+- shared Phase 3 profile detector engine with external taxonomy and rules inputs
 - flow-family identity carried with the pipeline result
 - family config loaded from one shared entry point
 - flow-specific logic remains injected as hooks
@@ -42,7 +43,8 @@ Current ORDER integration:
 - [src/service.py](/home/dan/Projects/HexeEmail/src/service.py) now calls Phase 1 through [src/email_node/shared_pipeline_core/phase1.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/phase1.py)
 - [src/email_node/pipeline/order_flow.py](/home/dan/Projects/HexeEmail/src/email_node/pipeline/order_flow.py) now delegates phase orchestration to [src/email_node/shared_pipeline_core/pipeline.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/pipeline.py)
 - [src/providers/gmail/order_phase2.py](/home/dan/Projects/HexeEmail/src/providers/gmail/order_phase2.py) now uses [src/email_node/shared_pipeline_core/scrub_engine.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/scrub_engine.py) with the ORDER heuristic pack from [src/providers/gmail/order_scrubber_rules.py](/home/dan/Projects/HexeEmail/src/providers/gmail/order_scrubber_rules.py)
-- ORDER still owns its current scrubber, profile detector, template extraction, probation lifecycle, decisioning, persistence, and action handlers
+- [src/providers/gmail/order_phase3.py](/home/dan/Projects/HexeEmail/src/providers/gmail/order_phase3.py) now delegates profile detection mechanics to [src/email_node/shared_pipeline_core/profile_detector.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/profile_detector.py) while continuing to supply ORDER-specific taxonomy and rules
+- ORDER still owns its current template extraction, probation lifecycle, decisioning, persistence, and action handlers
 
 Why this exists:
 
@@ -53,5 +55,6 @@ Why this exists:
 Not migrated yet:
 
 - external heuristic packs
+- family-specific profile packs
 - shared validation/decision/action policy packs
 - ACTION_NEEDED runner
