@@ -25,7 +25,7 @@ def build_request() -> PatternGenerationRequest:
 
 def build_prompt_definition() -> dict[str, object]:
     return {
-        "prompt_id": "prompt.email.order_pattern_template_creation",
+        "prompt_id": "prompt.email.family_pattern_template_creation",
         "service_id": "node-email",
         "task_family": "task.structured_extraction",
         "version": "v1.0",
@@ -66,7 +66,7 @@ async def test_pattern_generation_client_calls_ai_node_and_returns_parsed_json(t
     result = await client.generate_pattern(build_request())
 
     assert seen["url"] == "http://127.0.0.1:9002/api/execution/direct"
-    assert seen["body"]["prompt_id"] == "prompt.email.order_pattern_template_creation"
+    assert seen["body"]["prompt_id"] == "prompt.email.family_pattern_template_creation"
     assert seen["body"]["inputs"]["template_id"] == "amazon_order_confirmation.v1"
     assert result == {"template_id": "amazon_order_confirmation.v1"}
 
@@ -137,13 +137,13 @@ async def test_pattern_generation_client_raises_after_retry_exhausted(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_pattern_generation_client_selects_action_required_prompt_from_expected_label(tmp_path):
-    prompt_path = tmp_path / "action_required_prompt.json"
+async def test_pattern_generation_client_selects_family_prompt_from_expected_label(tmp_path):
+    prompt_path = tmp_path / "family_prompt.json"
     prompt_path.write_text(
         json.dumps(
             {
                 **build_prompt_definition(),
-                "prompt_id": "prompt.email.action_required_pattern_template_creation",
+                "prompt_id": "prompt.email.family_pattern_template_creation",
             }
         ),
         encoding="utf-8",
@@ -174,5 +174,39 @@ async def test_pattern_generation_client_selects_action_required_prompt_from_exp
         )
     )
 
-    assert seen["body"]["prompt_id"] == "prompt.email.action_required_pattern_template_creation"
+    assert seen["body"]["prompt_id"] == "prompt.email.family_pattern_template_creation"
     assert result == {"template_id": "site_issue_action_required.v1"}
+
+
+@pytest.mark.asyncio
+async def test_pattern_generation_client_selects_family_prompt_for_financial_label(tmp_path):
+    prompt_path = tmp_path / "family_prompt.json"
+    prompt_path.write_text(json.dumps(build_prompt_definition()), encoding="utf-8")
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["body"] = json.loads(request.read().decode("utf-8"))
+        return httpx.Response(200, json={"status": "completed", "output": "{\"template_id\":\"statement_ready.v1\"}"})
+
+    client = PatternGenerationClient(
+        target_api_base_url="http://127.0.0.1:9002",
+        prompt_definition_path=prompt_path,
+        transport=httpx.MockTransport(handler),
+    )
+
+    result = await client.generate_pattern(
+        PatternGenerationRequest(
+            template_id="statement_ready.v1",
+            profile_id="statement_ready",
+            vendor_identity="capital_one",
+            expected_label="FINANCIAL",
+            from_name="Capital One",
+            from_email="alerts@capitalone.com",
+            subject="Your statement is ready",
+            received_at="2026-04-06T13:00:00Z",
+            body_text="Your statement is ready to view online.",
+        )
+    )
+
+    assert seen["body"]["prompt_id"] == "prompt.email.family_pattern_template_creation"
+    assert result == {"template_id": "statement_ready.v1"}

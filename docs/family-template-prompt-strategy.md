@@ -108,6 +108,10 @@ Use one shared prompt contract:
 
 - `prompt.email.family_pattern_template_creation`
 
+Implemented prompt artifact:
+
+- [prompt.email.family_pattern_template_creation.json](/home/dan/Projects/HexeEmail/runtime/prompts/prompt.email.family_pattern_template_creation.json)
+
 And feed it family-owned inputs for:
 
 - `template_schema_version`

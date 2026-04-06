@@ -22,11 +22,14 @@ LOGGER = get_logger(__name__)
 
 
 class PatternGenerationClient:
-    PROMPT_ID = "prompt.email.order_pattern_template_creation"
+    PROMPT_ID = "prompt.email.family_pattern_template_creation"
     PROMPT_ID_BY_LABEL = {
-        "ORDER": "prompt.email.order_pattern_template_creation",
-        "SHIPMENT": "prompt.email.order_pattern_template_creation",
-        "ACTION_REQUIRED": "prompt.email.action_required_pattern_template_creation",
+        "ORDER": "prompt.email.family_pattern_template_creation",
+        "SHIPMENT": "prompt.email.family_pattern_template_creation",
+        "ACTION_REQUIRED": "prompt.email.family_pattern_template_creation",
+        "FINANCIAL": "prompt.email.family_pattern_template_creation",
+        "INVOICE": "prompt.email.family_pattern_template_creation",
+        "SECURITY": "prompt.email.family_pattern_template_creation",
     }
 
     def __init__(

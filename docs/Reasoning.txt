@@ -259,3 +259,9 @@ Chosen fix: Compare the current ORDER and ACTION_REQUIRED prompt contracts, the 
 What changed: Added `docs/family-template-prompt-strategy.md`, recorded that the shared prompt contract is viable for the current family set, removed Task 322 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
 Verification: Contract review completed against `runtime/prompts/prompt.email.order_pattern_template_creation.json`, `runtime/prompts/prompt.email.action_required_pattern_template_creation.json`, `src/email_node/patterns/pattern_generation_request.py`, and `src/email_node/patterns/pattern_generation_response.py`.
 ###########
+Task #323
+Step objective: Define a generic family template-creation prompt contract if the shared prompt is viable.
+Chosen fix: Add one shared prompt artifact with family-specific schema-version and field-guidance rules inside the prompt body, then route all supported labels to that prompt through the existing client instead of introducing a bigger request-model refactor right now.
+What changed: Added `runtime/prompts/prompt.email.family_pattern_template_creation.json`, updated `src/email_node/patterns/pattern_generation_client.py` to route ORDER, SHIPMENT, ACTION_REQUIRED, FINANCIAL, INVOICE, and SECURITY to the shared prompt, updated `tests/test_pattern_generation_client.py`, updated `docs/family-template-prompt-strategy.md`, removed Task 323 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: JSON parse check for the new prompt passed. `python -m py_compile src/email_node/patterns/pattern_generation_client.py tests/test_pattern_generation_client.py` passed. `PYTHONPATH=src ./.venv/bin/python -m pytest tests/test_pattern_generation_client.py tests/test_pattern_generation_request.py -q` passed.
+###########

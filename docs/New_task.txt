@@ -47,7 +47,6 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[TODO] Task 323: Define a generic family template-creation prompt contract if the shared prompt is viable
 [TODO] Task 324: Create family-specific AI template-creation prompts if a shared prompt is not viable
 [TODO] Task 325: Document the prompt strategy for multi-family AI template generation
 [TODO] Task 326: Audit HexeEmail scheduled tasks against the 2026-04-05 background-tasks-and-internal-scheduler standard and document the repo-specific compliance gaps
