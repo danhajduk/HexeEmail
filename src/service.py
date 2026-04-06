@@ -1695,8 +1695,10 @@ class NodeService:
                     "phase4_diagnostics": phase4.template_diagnostics,
                     "phase6_decision": phase6.decision,
                     "phase6_reason": phase6.decision_reason,
+                    "phase6_extraction_source": phase6.extraction_source,
                     "phase6_allow_persist": phase6.allow_persist_structured_result,
                     "phase6_allow_actions": phase6.allow_downstream_actions,
+                    "phase6_requires_manual_review": phase6.requires_manual_review,
                 }
             },
         )

@@ -6,6 +6,7 @@ import time
 import tracemalloc
 from pathlib import Path
 
+from email_node.pipeline.order_decision_engine import OrderDecisionEngine
 from providers.gmail.adapter import GmailProviderAdapter
 from providers.gmail.order_flow import GmailOrderPhase1Processor
 from providers.gmail.order_phase2 import GmailOrderPhase2Scrubber
@@ -40,6 +41,7 @@ async def main() -> None:
     phase2 = GmailOrderPhase2Scrubber()
     phase3 = GmailOrderPhase3ProfileDetector()
     phase4 = GmailOrderPhase4Extractor()
+    phase6 = OrderDecisionEngine()
 
     per_message_rows: list[dict[str, object]] = []
     phase1_times: list[float] = []
@@ -74,6 +76,7 @@ async def main() -> None:
         phase4_start = time.perf_counter()
         extracted = phase4.extract(profiled)
         phase4_ms = _ms(time.perf_counter() - phase4_start)
+        decision = phase6.decide(extracted)
 
         total_ms = _ms(time.perf_counter() - total_wall_start)
         cpu_ms = _ms(time.process_time() - total_cpu_start)
@@ -116,6 +119,12 @@ async def main() -> None:
                 "phase4_status": extracted.extraction_status,
                 "phase4_profile_id": extracted.profile_id,
                 "phase4_template_id": extracted.template_id,
+                "phase6_decision": decision.decision,
+                "phase6_reason": decision.decision_reason,
+                "phase6_allow_persist_structured_result": decision.allow_persist_structured_result,
+                "phase6_allow_downstream_actions": decision.allow_downstream_actions,
+                "phase6_requires_manual_review": decision.requires_manual_review,
+                "phase6_extraction_source": decision.extraction_source,
             }
         )
 
@@ -158,14 +167,14 @@ async def main() -> None:
         "",
         "## Per Message",
         "",
-        "| Message ID | Subject | P1 ms | P2 ms | P3 ms | P4 ms | Total ms | CPU ms | Peak KiB | P4 Status | Template |",
-        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |",
+        "| Message ID | Subject | P1 ms | P2 ms | P3 ms | P4 ms | Total ms | CPU ms | Peak KiB | P4 Status | P6 Decision | Template |",
+        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |",
     ]
     for row in per_message_rows:
         lines.append(
             f"| `{row['message_id']}` | {row['subject']} | `{row['phase1_ms']}` | `{row['phase2_ms']}` | "
             f"`{row['phase3_ms']}` | `{row['phase4_ms']}` | `{row['total_ms']}` | `{row['cpu_ms']}` | "
-            f"`{row['peak_python_alloc_kib']}` | `{row['phase4_status']}` | `{row['phase4_template_id'] or 'n/a'}` |"
+            f"`{row['peak_python_alloc_kib']}` | `{row['phase4_status']}` | `{row['phase6_decision']}` | `{row['phase4_template_id'] or 'n/a'}` |"
         )
     (output_dir / "benchmark_report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
