@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Awaitable, Callable
 
+from email_node.pipeline.order_decision_engine import OrderDecisionEngine
 from email_node.patterns import PatternGenerationRequest, build_order_ai_template_request
 from email_node.patterns.probation_evaluator import ProbationEvaluator
 from email_node.patterns.probation_metrics import ProbationMetrics
@@ -33,6 +34,7 @@ class OrderFlowPipeline:
         generate_probation_template: Callable[[PatternGenerationRequest], Awaitable[dict[str, object]]] | None = None,
         ai_calls_enabled: Callable[[], bool] | None = None,
         order_checks_enabled: Callable[[], bool] | None = None,
+        decision_engine: OrderDecisionEngine | None = None,
     ) -> None:
         self.phase2_scrubber = phase2_scrubber or GmailOrderPhase2Scrubber()
         self.phase3_detector = phase3_detector or GmailOrderPhase3ProfileDetector()
@@ -46,6 +48,7 @@ class OrderFlowPipeline:
         self.generate_probation_template = generate_probation_template
         self.ai_calls_enabled = ai_calls_enabled or (lambda: True)
         self.order_checks_enabled = order_checks_enabled or (lambda: True)
+        self.decision_engine = decision_engine or OrderDecisionEngine()
 
     async def process_normalized_email(self, normalized) -> dict[str, object]:
         phase2 = self.phase2_scrubber.scrub(normalized)
@@ -53,10 +56,12 @@ class OrderFlowPipeline:
         phase4 = self.phase4_extractor.extract(phase3)
         phase4 = await self.attach_probation_template(phase4)
         phase4 = self._run_probation_shadow_mode(phase4)
+        phase6 = self.decision_engine.decide(phase4)
         return {
             "phase2": phase2,
             "phase3": phase3,
             "phase4": phase4,
+            "phase6": phase6,
         }
 
     async def attach_probation_template(self, phase4):

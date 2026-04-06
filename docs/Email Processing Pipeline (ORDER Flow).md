@@ -156,22 +156,41 @@ Status: `[PARTIAL]`
 
 ### Phase 6 — Decision
 
-Status: `[PARTIAL]`
+Status: `[DONE]`
 
-22. If confidence HIGH: `[PARTIAL]`
+22. Run a dedicated decision layer after validation/confidence scoring. `[DONE]`
+
+Outputs:
+
+* `decision` = `accept | probation | reject` `[DONE]`
+* `decision_reason` `[DONE]`
+* `allow_persist_structured_result` `[DONE]`
+* `allow_downstream_actions` `[DONE]`
+* `requires_manual_review` `[DONE]`
+
+23. If confidence HIGH on an active template: `[DONE]`
 
 * persist structured data
 * trigger downstream actions
 
-23. If confidence MEDIUM: `[PARTIAL]`
+24. If confidence MEDIUM on an active template: `[DONE]`
 
-* optional AI fallback extraction `[PARTIAL]`
-* mark as probation `[DONE]`
+* persist structured data
+* mark as probation
+* block downstream actions
 
-24. If confidence LOW: `[TODO]`
+25. If confidence LOW on an active template: `[DONE]`
 
 * reject
 * log for review
+
+26. If the extraction came from a probation template: `[DONE]`
+
+* treat the result as `probation`
+* allow structured persistence when fields were extracted
+* never allow downstream actions
+
+27. Any hard validation failure forces reject regardless of confidence. `[DONE]`
 
 ---
 

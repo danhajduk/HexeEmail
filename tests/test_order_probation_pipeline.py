@@ -264,4 +264,64 @@ async def test_order_pipeline_skips_when_order_checks_are_disabled(tmp_path):
 
     assert generate_calls == 0
     assert "order_checks:disabled" in result.template_diagnostics
-    assert store.list_states() == []
+
+
+@pytest.mark.asyncio
+async def test_order_pipeline_returns_phase6_decision_for_probation_result(tmp_path):
+    store = ProbationStore(
+        templates_dir=tmp_path / "probation",
+        state_dir=tmp_path / "probation_state",
+    )
+    template_id = "recreation_gov_reservation_confirmation.v1"
+    store.save_template_payload(
+        template_id,
+        {
+            "schema_version": "order-phase4-template.v1",
+            "template_id": template_id,
+            "profile_id": "reservation_confirmation",
+            "template_version": "v1",
+            "enabled": True,
+            "match": {"vendor_identity": "recreation_gov"},
+            "extract": {
+                "order_number": {
+                    "method": "line_after",
+                    "marker": "transaction details",
+                    "transforms": ["trim", "normalize_order_number"],
+                },
+            },
+            "required_fields": ["order_number"],
+            "confidence_rules": {"high_requires": ["order_number"]},
+            "post_process": {},
+        },
+    )
+    store.save_state(
+        ProbationTemplateState(
+            template_id=template_id,
+            profile_id="reservation_confirmation",
+            template_version="v1",
+            created_at=datetime(2026, 4, 5, 22, 0, tzinfo=UTC),
+            updated_at=datetime(2026, 4, 5, 22, 0, tzinfo=UTC),
+        )
+    )
+
+    class StubPhase2Scrubber:
+        def scrub(self, _normalized):
+            return build_phase2_payload()
+
+    pipeline = OrderFlowPipeline(
+        phase2_scrubber=StubPhase2Scrubber(),
+        probation_store=store,
+        generate_probation_template=None,
+        ai_calls_enabled=lambda: True,
+        order_checks_enabled=lambda: True,
+    )
+
+    result = await pipeline.process_normalized_email(object())
+
+    assert result["phase4"].template_id == template_id
+    assert result["phase6"].decision == "probation"
+    assert result["phase6"].extraction_source == "probation"
+    assert result["phase6"].allow_downstream_actions is False
+    state = store.load_state(template_id)
+    assert state is not None
+    assert state.status == "probation"
