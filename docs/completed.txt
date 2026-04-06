@@ -291,3 +291,11 @@ Task 282: Extract shared report builder for all flow families - Completed on 04/
 Task 283: Convert ORDER flow into a thin family-specific runner on top of shared core - Completed on 04/06/2026 01:33
 Task 284: Add ACTION_NEEDED flow skeleton using shared core - Completed on 04/06/2026 01:44
 Task 286: Document shared-core vs family-specific architecture - Completed on 04/06/2026 01:50
+Task 287: Define shared YAML schema for flow-family configuration - Completed on 04/06/2026 01:29
+Task 288: Add shared YAML loader with Python fallback compatibility - Completed on 04/06/2026 01:29
+Task 289: Migrate ORDER family metadata and policy packs to YAML - Completed on 04/06/2026 01:29
+Task 290: Migrate ACTION_NEEDED family metadata and policy packs to YAML - Completed on 04/06/2026 01:29
+Task 291: Normalize runtime family directory layout in YAML - Completed on 04/06/2026 01:29
+Task 292: Remove legacy Python family policy packs after YAML cutover - Completed on 04/06/2026 01:29
+Task 293: Add regression tests for YAML-backed family loading - Completed on 04/06/2026 01:29
+Task 294: Document YAML flow-family configuration model - Completed on 04/06/2026 01:29

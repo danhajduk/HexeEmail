@@ -16,6 +16,7 @@ Current scope:
 - shared diagnostics and report builder
 - flow-family identity carried with the pipeline result
 - family config loaded from one shared entry point
+- YAML-backed declarative family config with Python fallback-compatible loaders
 - flow-specific logic remains injected as hooks
 
 Current flow families:
@@ -39,26 +40,31 @@ Current family config responsibilities:
 - decision policy reference
 - action router policy reference
 - output schema family
+- family-owned report and output paths
 
-Current heuristic packs:
+Current declarative family config:
 
-- ORDER: [src/email_node/flow_families/order/heuristics.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/order/heuristics.py)
-- ACTION_NEEDED: [src/email_node/flow_families/action_needed/heuristics.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_needed/heuristics.py)
+- ORDER: [runtime/flow_families/order/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/order/family.yaml)
+- ACTION_NEEDED: [runtime/flow_families/action_needed/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/action_needed/family.yaml)
 
-Current profile packs:
+Schema:
 
-- ORDER: [src/email_node/flow_families/order/profiles.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/order/profiles.py)
-- ACTION_NEEDED: [src/email_node/flow_families/action_needed/profiles.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_needed/profiles.py)
+- [flow-family-config.schema.json](/home/dan/Projects/HexeEmail/docs/schemas/flow-family-config.schema.json)
 
-Current validation packs:
+Current family wrapper modules:
 
-- ORDER: [src/email_node/flow_families/order/validation.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/order/validation.py)
-- ACTION_NEEDED: [src/email_node/flow_families/action_needed/validation.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_needed/validation.py)
+- ORDER:
+  - [src/email_node/flow_families/order/heuristics.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/order/heuristics.py)
+  - [src/email_node/flow_families/order/profiles.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/order/profiles.py)
+  - [src/email_node/flow_families/order/validation.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/order/validation.py)
+  - [src/email_node/flow_families/order/decision.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/order/decision.py)
+- ACTION_NEEDED:
+  - [src/email_node/flow_families/action_needed/heuristics.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_needed/heuristics.py)
+  - [src/email_node/flow_families/action_needed/profiles.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_needed/profiles.py)
+  - [src/email_node/flow_families/action_needed/validation.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_needed/validation.py)
+  - [src/email_node/flow_families/action_needed/decision.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_needed/decision.py)
 
-Current decision packs:
-
-- ORDER: [src/email_node/flow_families/order/decision.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/order/decision.py)
-- ACTION_NEEDED: [src/email_node/flow_families/action_needed/decision.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_needed/decision.py)
+Those modules are now thin YAML-backed adapters rather than the source of truth for declarative family data.
 
 Current ORDER integration:
 
@@ -94,7 +100,5 @@ Why this exists:
 
 Not migrated yet:
 
-- external heuristic packs
-- family-specific profile packs
-- family-specific template packs
-- shared-core vs family-specific architecture doc
+- active template coverage for ACTION_NEEDED
+- non-ORDER probation generation behavior

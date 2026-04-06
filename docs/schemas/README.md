@@ -44,6 +44,9 @@ The current schema set covers:
 - [gmail-order-template.schema.json](/home/dan/Projects/HexeEmail/docs/schemas/gmail-order-template.schema.json)
   Contract for the JSON templates stored under `runtime/flow_families/order/templates/`.
 
+- [flow-family-config.schema.json](/home/dan/Projects/HexeEmail/docs/schemas/flow-family-config.schema.json)
+  Schema for YAML-backed flow-family configuration files under `runtime/flow_families/*/family.yaml`.
+
 - [pattern-generation-request.schema.json](/home/dan/Projects/HexeEmail/docs/schemas/pattern-generation-request.schema.json)
   Request contract for node-local pattern generation.
 
