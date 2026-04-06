@@ -47,24 +47,6 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[TODO] Task 269: Extract Phase 2 scrubber into shared engine with heuristic pack loading
-
-- Refactor the current scrub logic into one engine that loads heuristics by flow family
-
-Requirements:
-- Shared engine handles:
-  - block filtering
-  - noise removal
-  - line preservation
-  - link extraction
-  - signal scoring
-- Heuristic pack must be loaded by flow family
-- Keep output contract stable enough for current ORDER flow
-
-Acceptance:
-- ORDER scrub behavior still works through shared engine
-- Engine no longer hardcodes ORDER-only assumptions
-
 [TODO] Task 270: Create flow-family heuristic config directories
 
 - Add external heuristic packs for shared scrub engine
@@ -84,6 +66,8 @@ ACTION_NEEDED pack should cover:
 Acceptance:
 - Heuristic packs exist for both flow families
 - Shared scrub engine can load either pack
+
+[STOP HERE]
 
 [TODO] Task 271: Extract Phase 3 profile detection into shared detector engine
 
