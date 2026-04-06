@@ -320,3 +320,4 @@ Task 312: Add SECURITY runtime/report path wiring and smoke coverage - Completed
 Task 313: Create SHIPMENT flow family skeleton on shared core - Completed on 04/06/2026 02:37
 Task 314: Define SHIPMENT YAML taxonomy, heuristics, validation, decision, and action routing - Completed on 04/06/2026 02:37
 Task 315: Add SHIPMENT runtime/report path wiring and smoke coverage - Completed on 04/06/2026 02:37
+Task 316: Document the multi-family rollout plan for ORDER, ACTION_REQUIRED, FINANCIAL, INVOICE, SECURITY, and SHIPMENT - Completed on 04/06/2026 03:03

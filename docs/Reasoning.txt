@@ -217,3 +217,9 @@ Chosen fix: Add a single end-to-end oriented test file that exercises the real c
 What changed: Added `tests/test_pattern_generation.py` covering valid generation flow, invalid JSON response failure, schema validation failure, and file write success.
 Verification: `python -m py_compile tests/test_pattern_generation.py` passed.
 ###########
+Task #316
+Step objective: Document the multi-family rollout plan for ORDER, ACTION_REQUIRED, FINANCIAL, INVOICE, SECURITY, and SHIPMENT.
+Chosen fix: Add one rollout-focused doc that captures family maturity, readiness gaps, rollout order, and the mailbox-sampling dependency, then link it from the shared architecture document so it stays discoverable.
+What changed: Added `docs/multi-family-rollout-plan.md`, linked it from `docs/shared-flow-family-architecture.md`, removed Task 316 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: `python -m py_compile src/email_node/shared_pipeline_core/families.py` passed.
+###########

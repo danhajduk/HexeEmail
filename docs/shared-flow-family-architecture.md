@@ -2,6 +2,10 @@
 
 This document describes the current split between the shared email pipeline core and the flow-family-specific modules that plug into it.
 
+Rollout sequencing and readiness gaps across the currently supported families are tracked in:
+
+- [multi-family-rollout-plan.md](/home/dan/Projects/HexeEmail/docs/multi-family-rollout-plan.md)
+
 ## Goal
 
 The migration target is a pipeline where:
