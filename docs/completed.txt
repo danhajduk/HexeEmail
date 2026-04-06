@@ -325,3 +325,4 @@ Task 317: Sample 20-30 FINANCIAL emails from the Gmail DB and derive taxonomy in
 Task 318: Sample 20-30 INVOICE emails from the Gmail DB and derive taxonomy inputs from scrubbed content - Completed on 04/06/2026 03:10
 Task 319: Sample 20-30 SECURITY emails from the Gmail DB and derive taxonomy inputs from scrubbed content - Completed on 04/06/2026 03:10
 Task 320: Sample 20-30 SHIPMENT emails from the Gmail DB and derive taxonomy inputs from scrubbed content - Completed on 04/06/2026 03:11
+Task 321: Add sampled-family analysis artifacts and notes for FINANCIAL, INVOICE, SECURITY, and SHIPMENT - Completed on 04/06/2026 03:11

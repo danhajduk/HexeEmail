@@ -247,3 +247,9 @@ Chosen fix: Reuse the mailbox-sampling script one more time for the SHIPMENT lab
 What changed: Generated `runtime/flow_families/shipment/analysis/shipment_mailbox_sample.json`, generated `runtime/flow_families/shipment/analysis/shipment_mailbox_sample.md`, removed Task 320 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
 Verification: `PYTHONPATH=src ./.venv/bin/python scripts/sample_flow_family_mailbox.py shipment --limit 30` passed.
 ###########
+Task #321
+Step objective: Add sampled-family analysis artifacts and notes for FINANCIAL, INVOICE, SECURITY, and SHIPMENT.
+Chosen fix: Keep the raw JSON and Markdown artifacts under each family runtime directory, then add one doc-level synthesis that compares the four families and turns the repeated domains, phrases, misses, and likely taxonomy additions into explicit guidance for the next tuning tasks.
+What changed: Added `docs/family-mailbox-sample-analysis.md`, linked it from `docs/multi-family-rollout-plan.md`, removed Task 321 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: Artifact-backed doc review completed against the sampled family JSON and Markdown files under `runtime/flow_families/*/analysis/`.
+###########

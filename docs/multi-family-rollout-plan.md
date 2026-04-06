@@ -247,6 +247,10 @@ These sample artifacts should become the basis for:
 - decision-policy tuning
 - future family-specific AI template-generation prompts if a shared prompt is not viable
 
+Current cross-family sample synthesis:
+
+- [family-mailbox-sample-analysis.md](/home/dan/Projects/HexeEmail/docs/family-mailbox-sample-analysis.md)
+
 ## Prompt Strategy Dependency
 
 The next major shared dependency is AI template generation.
