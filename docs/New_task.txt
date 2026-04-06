@@ -47,28 +47,6 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[TODO] Task 270: Create flow-family heuristic config directories
-
-- Add external heuristic packs for shared scrub engine
-
-ORDER pack should cover:
-- transactional/order signal
-- totals/items/tracking/order ids
-- common boilerplate removal
-
-ACTION_NEEDED pack should cover:
-- deadlines
-- imperative language
-- due/payment/verify/sign/confirm wording
-- action URLs
-- warning/consequence language
-
-Acceptance:
-- Heuristic packs exist for both flow families
-- Shared scrub engine can load either pack
-
-[STOP HERE]
-
 [TODO] Task 271: Extract Phase 3 profile detection into shared detector engine
 
 - Move current ORDER profile detection mechanics into a shared detection engine

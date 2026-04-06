@@ -32,6 +32,11 @@ Current family config responsibilities:
 - action router policy reference
 - output schema family
 
+Current heuristic packs:
+
+- ORDER: [src/email_node/flow_families/order/heuristics.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/order/heuristics.py)
+- ACTION_NEEDED: [src/email_node/flow_families/action_needed/heuristics.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_needed/heuristics.py)
+
 Current ORDER integration:
 
 - [src/service.py](/home/dan/Projects/HexeEmail/src/service.py) now calls Phase 1 through [src/email_node/shared_pipeline_core/phase1.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/phase1.py)

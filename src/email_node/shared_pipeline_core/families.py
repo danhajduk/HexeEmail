@@ -27,7 +27,7 @@ def get_flow_family_config(flow_family: FlowFamily, *, runtime_dir: Path | None 
     if flow_family == "order":
         return FlowFamilyConfig(
             flow_family="order",
-            scrub_heuristic_pack="providers.gmail.order_scrubber_rules",
+            scrub_heuristic_pack="email_node.flow_families.order.heuristics",
             profile_detector_pack="runtime/order_profile_rules.json",
             template_dir=base_runtime_dir / "order_templates",
             probation_template_dir=Path("src/email_node/patterns/probation"),
@@ -40,7 +40,7 @@ def get_flow_family_config(flow_family: FlowFamily, *, runtime_dir: Path | None 
     if flow_family == "action_needed":
         return FlowFamilyConfig(
             flow_family="action_needed",
-            scrub_heuristic_pack="runtime/flow_families/action_needed/heuristics",
+            scrub_heuristic_pack="email_node.flow_families.action_needed.heuristics",
             profile_detector_pack="runtime/flow_families/action_needed/profile_rules.json",
             template_dir=base_runtime_dir / "action_needed_templates",
             probation_template_dir=base_runtime_dir / "flow_families" / "action_needed" / "probation_templates",
