@@ -128,6 +128,25 @@ This keeps:
 
 while still preserving family-specific extraction semantics.
 
+## Practical Guardrails
+
+In practice, the shared prompt works best when the prompt and the client enforce the same narrow contract.
+
+Current guardrails are:
+
+- `match` is limited to `vendor_identity`
+- extract rules must be explicit objects with `method`
+- transform arrays must use `transforms`
+- the client performs narrow normalization for common model drift before schema validation
+
+Current client-side repairs:
+
+- strip extra `match` keys such as `from_email`, `from_email_domain`, `subject_contains`, and `subject_contains_any`
+- rewrite singular `transform` into `transforms`
+- unwrap text-wrapped JSON responses
+
+This lets the prompt remain strict without forcing the node to reject every otherwise-usable response for small naming drift.
+
 ## Constraints
 
 The shared prompt is only safe if:
@@ -138,6 +157,23 @@ The shared prompt is only safe if:
 - the prompt is strict about not inventing unsupported fields or methods
 
 If a future family needs a fundamentally different Phase 4 contract, that family should get its own prompt instead of stretching the shared prompt too far.
+
+## Expected Failure Cases
+
+A shared prompt should not be judged only by whether it can produce a template for every message.
+
+Healthy failure cases include:
+
+- mailbox digests that are family-labeled but not good reusable template sources
+- messages that are too weak, too broad, or too presentation-specific for deterministic extraction
+- samples whose best interpretation would require family-specific schema elements we do not currently support
+
+That means a mixed live result such as:
+
+- strong family-specific transactional samples succeeding
+- weaker digest-style or non-template-fit samples failing
+
+is often the correct operational behavior, not a prompt defect.
 
 ## Decision
 

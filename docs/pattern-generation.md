@@ -57,6 +57,13 @@ Prompt-strategy detail lives in:
 
 - [family-template-prompt-strategy.md](/home/dan/Projects/HexeEmail/docs/family-template-prompt-strategy.md)
 
+Current prompt hardening expectations:
+
+- `match` may contain only `vendor_identity`
+- extract rules must use explicit `method` plus method-specific fields
+- transform arrays must use the key `transforms`
+- the prompt should not emit shorthand rule objects such as `{ "line_contains": "..." }`
+
 ## Request contract
 
 The pattern generation request includes:
@@ -105,6 +112,42 @@ Current response validation is strict:
 - `template_version` must be `v1`
 - `schema_version` must be non-empty and match the selected family schema
 - `extract` rules are validated against the supported method set already used by the order-template registry
+- `match` only accepts `vendor_identity`
+- extract rules must declare `method`
+- extract transforms must use `transforms`, not `transform`
+
+## Client normalization safeguards
+
+The node keeps the response schema strict, but the AI client now repairs a small set of recurring model drift before schema validation in:
+
+- [pattern_generation_client.py](/home/dan/Projects/HexeEmail/src/email_node/patterns/pattern_generation_client.py)
+
+Current normalization behavior:
+
+- if `output` is wrapped as `{ "text": "{...json...}" }`, the client unwraps and parses the inner JSON object
+- if `match` contains extra keys, the client strips them and keeps only `vendor_identity`
+- if an extract rule uses singular `transform`, the client rewrites it to `transforms`
+- if singular `transform` is a string, the client converts it into a one-item `transforms` array
+
+Important boundary:
+
+- this normalization is intentionally narrow
+- it does not accept arbitrary schema drift
+- unsupported top-level keys, unsupported methods, or malformed extract rule shapes still fail validation
+
+## Live validation expectations
+
+Shared prompt generation is expected to succeed for strong, family-shaped samples that can be represented as deterministic Phase 4 templates.
+
+It is also acceptable for weak or schema-awkward samples to fail.
+
+Examples of acceptable failure:
+
+- digest-style shipment summaries that do not map cleanly to a deterministic shipment event template
+- samples that encourage the model to emit shorthand extract syntax instead of the strict template envelope
+- messages that are labeled into a family but are poor candidates for reusable Phase 4 extraction
+
+So prompt-generation failure is not always a bug. In some cases it is the correct outcome for a non-template-fit sample.
 
 ## API route
 

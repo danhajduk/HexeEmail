@@ -127,6 +127,34 @@ class PatternGenerationClient:
             raise PatternGenerationParseError("AI response JSON must decode to an object")
         return parsed
 
+    @staticmethod
+    def _normalize_pattern_payload(payload: dict[str, object]) -> dict[str, object]:
+        normalized = dict(payload)
+
+        raw_match = normalized.get("match")
+        if isinstance(raw_match, dict):
+            vendor_identity = raw_match.get("vendor_identity")
+            normalized["match"] = {"vendor_identity": vendor_identity} if isinstance(vendor_identity, str) else {}
+
+        raw_extract = normalized.get("extract")
+        if isinstance(raw_extract, dict):
+            normalized_extract: dict[str, object] = {}
+            for field_name, rule in raw_extract.items():
+                if not isinstance(field_name, str) or not isinstance(rule, dict):
+                    normalized_extract[field_name] = rule
+                    continue
+                normalized_rule = dict(rule)
+                if "transform" in normalized_rule and "transforms" not in normalized_rule:
+                    raw_transform = normalized_rule.pop("transform")
+                    if isinstance(raw_transform, list):
+                        normalized_rule["transforms"] = raw_transform
+                    elif isinstance(raw_transform, str):
+                        normalized_rule["transforms"] = [raw_transform]
+                normalized_extract[field_name] = normalized_rule
+            normalized["extract"] = normalized_extract
+
+        return normalized
+
     async def _execute_once(self, request_body: dict[str, object]) -> dict[str, object]:
         safe_inputs = request_body.get("inputs", {})
         LOGGER.info(
@@ -167,7 +195,7 @@ class PatternGenerationClient:
                 }
             },
         )
-        return self._parse_json_only_output(output)
+        return self._normalize_pattern_payload(self._parse_json_only_output(output))
 
     async def generate_pattern(self, request: PatternGenerationRequest) -> dict[str, object]:
         request_body = self.build_request_body(request)

@@ -210,3 +210,43 @@ async def test_pattern_generation_client_selects_family_prompt_for_financial_lab
 
     assert seen["body"]["prompt_id"] == "prompt.email.family_pattern_template_creation"
     assert result == {"template_id": "statement_ready.v1"}
+
+
+@pytest.mark.asyncio
+async def test_pattern_generation_client_normalizes_singular_transform_and_match_keys(tmp_path):
+    prompt_path = tmp_path / "prompt.json"
+    prompt_path.write_text(json.dumps(build_prompt_definition()), encoding="utf-8")
+
+    client = PatternGenerationClient(
+        target_api_base_url="http://127.0.0.1:9002",
+        prompt_definition_path=prompt_path,
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                200,
+                json={
+                    "status": "completed",
+                    "output": {
+                        "template_id": "normalized.v1",
+                        "match": {
+                            "vendor_identity": "amazon",
+                            "from_email": "auto-confirm@amazon.com",
+                            "subject_contains": "Your Amazon order",
+                        },
+                        "extract": {
+                            "total": {
+                                "method": "regex",
+                                "pattern": "\\$([0-9]+\\.[0-9]{2})",
+                                "transform": "normalize_currency",
+                            }
+                        },
+                    },
+                },
+            )
+        ),
+    )
+
+    result = await client.generate_pattern(build_request())
+
+    assert result["match"] == {"vendor_identity": "amazon"}
+    assert result["extract"]["total"]["transforms"] == ["normalize_currency"]
+    assert "transform" not in result["extract"]["total"]
