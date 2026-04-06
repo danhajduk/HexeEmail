@@ -32,6 +32,7 @@ Current flow families:
 - `action_required`
 - `financial`
 - `invoice`
+- `security`
 
 Shared family entry point:
 
@@ -57,6 +58,7 @@ Current declarative family config:
 - ACTION_REQUIRED: [runtime/flow_families/action_required/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/action_required/family.yaml)
 - FINANCIAL: [runtime/flow_families/financial/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/financial/family.yaml)
 - INVOICE: [runtime/flow_families/invoice/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/invoice/family.yaml)
+- SECURITY: [runtime/flow_families/security/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/security/family.yaml)
 
 Schema:
 
@@ -84,6 +86,11 @@ Current family wrapper modules:
   - [src/email_node/flow_families/invoice/profiles.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/invoice/profiles.py)
   - [src/email_node/flow_families/invoice/validation.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/invoice/validation.py)
   - [src/email_node/flow_families/invoice/decision.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/invoice/decision.py)
+- SECURITY:
+  - [src/email_node/flow_families/security/heuristics.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/security/heuristics.py)
+  - [src/email_node/flow_families/security/profiles.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/security/profiles.py)
+  - [src/email_node/flow_families/security/validation.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/security/validation.py)
+  - [src/email_node/flow_families/security/decision.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/security/decision.py)
 
 Those modules are now thin YAML-backed adapters rather than the source of truth for declarative family data.
 
@@ -129,6 +136,12 @@ Current INVOICE integration:
 - the INVOICE family now has a first-pass YAML taxonomy for invoice-ready, invoice-due, receipt-issued, payment-confirmed, overdue-billing, and generic invoice update signals
 - INVOICE also carries a family-specific Phase 3 intake override so usable invoice scrubbed text can still be classified even when the shared scrubber marks the message failed under ORDER-biased completeness rules
 - INVOICE still needs mailbox-sampled refinement and active template coverage, but it now resolves real Phase 3 profiles instead of only failing closed
+
+Current SECURITY integration:
+
+- [src/email_node/pipeline/security_flow.py](/home/dan/Projects/HexeEmail/src/email_node/pipeline/security_flow.py) now provides the initial thin shared-core runner for the `security` family
+- [src/email_node/flow_families/security/runtime.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/security/runtime.py) wires the shared scrub, profile-detection, template, decision, persistence, and action-gating layers together with placeholder family handlers
+- the SECURITY family is still an empty-shell detector at this stage, but the YAML contract, runtime paths, smoke coverage, and shared-core runner are now in place for the next taxonomy task
 
 Why this exists:
 

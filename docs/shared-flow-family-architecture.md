@@ -53,6 +53,7 @@ Flow-family modules live under:
 - [src/email_node/flow_families/action_required](/home/dan/Projects/HexeEmail/src/email_node/flow_families/action_required)
 - [src/email_node/flow_families/financial](/home/dan/Projects/HexeEmail/src/email_node/flow_families/financial)
 - [src/email_node/flow_families/invoice](/home/dan/Projects/HexeEmail/src/email_node/flow_families/invoice)
+- [src/email_node/flow_families/security](/home/dan/Projects/HexeEmail/src/email_node/flow_families/security)
 
 Each family is responsible for:
 
@@ -73,6 +74,7 @@ Current runtime-owned family config layout:
 - [runtime/flow_families/action_required/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/action_required/family.yaml)
 - [runtime/flow_families/financial/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/financial/family.yaml)
 - [runtime/flow_families/invoice/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/invoice/family.yaml)
+- [runtime/flow_families/security/family.yaml](/home/dan/Projects/HexeEmail/runtime/flow_families/security/family.yaml)
 - ORDER Phase 3 override compatibility file:
   - [runtime/order_profile_rules.json](/home/dan/Projects/HexeEmail/runtime/order_profile_rules.json)
 
@@ -102,6 +104,12 @@ Current code-owned family config layout:
   - [src/email_node/flow_families/invoice/validation.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/invoice/validation.py)
   - [src/email_node/flow_families/invoice/decision.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/invoice/decision.py)
   - [src/email_node/flow_families/invoice/action_routing.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/invoice/action_routing.py)
+- thin SECURITY wrappers:
+  - [src/email_node/flow_families/security/heuristics.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/security/heuristics.py)
+  - [src/email_node/flow_families/security/profiles.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/security/profiles.py)
+  - [src/email_node/flow_families/security/validation.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/security/validation.py)
+  - [src/email_node/flow_families/security/decision.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/security/decision.py)
+  - [src/email_node/flow_families/security/action_routing.py](/home/dan/Projects/HexeEmail/src/email_node/flow_families/security/action_routing.py)
 
 ## Template Directory Layout
 
@@ -139,6 +147,14 @@ Current INVOICE template root from family config:
 - [runtime/flow_families/invoice/probation/evaluations](/home/dan/Projects/HexeEmail/runtime/flow_families/invoice/probation/evaluations)
 - [runtime/flow_families/invoice/probation/shadow](/home/dan/Projects/HexeEmail/runtime/flow_families/invoice/probation/shadow)
 
+Current SECURITY template root from family config:
+
+- [runtime/flow_families/security/templates](/home/dan/Projects/HexeEmail/runtime/flow_families/security/templates)
+- [runtime/flow_families/security/probation/templates](/home/dan/Projects/HexeEmail/runtime/flow_families/security/probation/templates)
+- [runtime/flow_families/security/probation/state](/home/dan/Projects/HexeEmail/runtime/flow_families/security/probation/state)
+- [runtime/flow_families/security/probation/evaluations](/home/dan/Projects/HexeEmail/runtime/flow_families/security/probation/evaluations)
+- [runtime/flow_families/security/probation/shadow](/home/dan/Projects/HexeEmail/runtime/flow_families/security/probation/shadow)
+
 ## Probation Reuse Model
 
 Probation lifecycle is shared, but family-owned at the storage and policy edges.
@@ -166,6 +182,8 @@ ACTION_REQUIRED now has the same probation storage, evaluation, promotion, unres
 FINANCIAL now uses the shared skeleton plus a first-pass YAML taxonomy. It has family-owned YAML, runtime paths, smoke-tested shared-core wiring, and initial detector coverage for statement-ready, payment-due, payment-received, refund, balance-alert, tax-document, and generic financial update cases. It still does not have active template behavior or mailbox-sampled refinement yet.
 
 INVOICE now uses the shared skeleton plus a first-pass YAML taxonomy. It has family-owned YAML, runtime paths, smoke-tested shared-core wiring, and initial detector coverage for invoice-ready, invoice-due, receipt-issued, payment-confirmed, overdue-billing, and generic invoice update cases. It also has a family-specific Phase 3 intake override for usable invoice scrubbed text. It still does not have active template behavior or mailbox-sampled refinement yet.
+
+SECURITY currently uses the shared skeleton shape. It has family-owned YAML, runtime paths, placeholder handlers, and a smoke-tested shared-core runner, but it does not yet have mailbox-derived taxonomy or active template behavior.
 
 ## How ORDER Uses The Framework
 

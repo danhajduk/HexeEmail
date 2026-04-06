@@ -47,7 +47,6 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[TODO] Task 310: Create SECURITY flow family skeleton on shared core
 [TODO] Task 311: Define SECURITY YAML taxonomy, heuristics, validation, decision, and action routing
 [TODO] Task 312: Add SECURITY runtime/report path wiring and smoke coverage
 [TODO] Task 313: Create SHIPMENT flow family skeleton on shared core

@@ -459,7 +459,8 @@
         "order",
         "action_required",
         "financial",
-        "invoice"
+        "invoice",
+        "security"
       ],
       "title": "Flow Family",
       "type": "string"
