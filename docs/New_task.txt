@@ -47,25 +47,6 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[TODO] Task 273: Extract Phase 4 template execution into shared template engine
-
-- Convert current ORDER pattern execution runtime into a family-agnostic template engine
-
-Requirements:
-- Shared engine must support:
-  - template loading
-  - field extractors
-  - transforms
-  - required field checks
-  - confidence rules
-  - diagnostics
-- Engine must load templates from family-specific directories
-- Keep current ORDER extraction behavior intact
-
-Acceptance:
-- ORDER templates execute through shared engine
-- Engine is ready for ACTION_NEEDED templates later
-
 [TODO] Task 274: Split active and probation template storage by flow family
 
 - Refactor template lookup/storage paths so multiple families can coexist cleanly

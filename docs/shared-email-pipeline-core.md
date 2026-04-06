@@ -8,6 +8,7 @@ Current scope:
 - shared orchestration for Phase 2 through Phase 7
 - shared Phase 2 scrub engine with loaded heuristic packs
 - shared Phase 3 profile detector engine with external taxonomy and rules inputs
+- shared Phase 4 template registry and execution engine
 - flow-family identity carried with the pipeline result
 - family config loaded from one shared entry point
 - flow-specific logic remains injected as hooks
@@ -49,7 +50,9 @@ Current ORDER integration:
 - [src/email_node/pipeline/order_flow.py](/home/dan/Projects/HexeEmail/src/email_node/pipeline/order_flow.py) now delegates phase orchestration to [src/email_node/shared_pipeline_core/pipeline.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/pipeline.py)
 - [src/providers/gmail/order_phase2.py](/home/dan/Projects/HexeEmail/src/providers/gmail/order_phase2.py) now uses [src/email_node/shared_pipeline_core/scrub_engine.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/scrub_engine.py) with the ORDER heuristic pack from [src/providers/gmail/order_scrubber_rules.py](/home/dan/Projects/HexeEmail/src/providers/gmail/order_scrubber_rules.py)
 - [src/providers/gmail/order_phase3.py](/home/dan/Projects/HexeEmail/src/providers/gmail/order_phase3.py) now delegates profile detection mechanics to [src/email_node/shared_pipeline_core/profile_detector.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/profile_detector.py) while continuing to supply ORDER-specific taxonomy and rules
-- ORDER still owns its current template extraction, probation lifecycle, decisioning, persistence, and action handlers
+- [src/providers/gmail/order_template_registry.py](/home/dan/Projects/HexeEmail/src/providers/gmail/order_template_registry.py) now delegates template loading, lookup, and schema validation to [src/email_node/shared_pipeline_core/template_engine.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/template_engine.py)
+- [src/providers/gmail/order_phase4.py](/home/dan/Projects/HexeEmail/src/providers/gmail/order_phase4.py) now delegates template execution, field validation, and confidence scoring to [src/email_node/shared_pipeline_core/template_engine.py](/home/dan/Projects/HexeEmail/src/email_node/shared_pipeline_core/template_engine.py) while keeping ORDER-specific AI fallback hook behavior
+- ORDER still owns its current probation lifecycle, decisioning, persistence, and action handlers
 
 Why this exists:
 
@@ -61,5 +64,6 @@ Not migrated yet:
 
 - external heuristic packs
 - family-specific profile packs
+- family-specific template packs
 - shared validation/decision/action policy packs
 - ACTION_NEEDED runner

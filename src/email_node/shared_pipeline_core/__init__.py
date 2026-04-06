@@ -4,6 +4,7 @@ from email_node.shared_pipeline_core.pipeline import SharedEmailPipelineCore
 from email_node.shared_pipeline_core.profile_detector import SharedProfileDetectorEngine
 from email_node.shared_pipeline_core.profile_packs import SharedProfileDefinitionPack, load_profile_definition_pack
 from email_node.shared_pipeline_core.scrub_engine import SharedScrubEngine, SharedScrubHeuristicPack, load_scrub_heuristic_pack
+from email_node.shared_pipeline_core.template_engine import SharedTemplateExecutionEngine, SharedTemplateRegistry
 
 __all__ = [
     "FlowFamilyConfig",
@@ -14,6 +15,8 @@ __all__ = [
     "SharedProfileDetectorEngine",
     "SharedScrubEngine",
     "SharedScrubHeuristicPack",
+    "SharedTemplateExecutionEngine",
+    "SharedTemplateRegistry",
     "get_flow_family_config",
     "load_profile_definition_pack",
     "load_scrub_heuristic_pack",
