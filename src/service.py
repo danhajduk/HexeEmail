@@ -103,6 +103,7 @@ from providers.gmail.training import normalize_email_for_classifier
 from mqtt import MQTTManager
 from providers.registry import ProviderRegistry
 from state_store import OperatorConfigStore, RuntimeStateStore, StateCorruptionError, TrustMaterialStore
+from supervisor import SupervisorApiClient
 from version import __version__
 
 
@@ -127,6 +128,7 @@ class NodeService:
         gmail_token_client: GmailTokenExchangeClient | None = None,
         capability_client: CapabilityClient | None = None,
         governance_client: GovernanceClient | None = None,
+        supervisor_client: SupervisorApiClient | None = None,
     ) -> None:
         self.config = config
         self.state_store = RuntimeStateStore(config.state_file)
@@ -144,12 +146,16 @@ class NodeService:
         self.gmail_token_client = gmail_token_client or GmailTokenExchangeClient()
         self.capability_client = capability_client or CapabilityClient()
         self.governance_client = governance_client or GovernanceClient()
+        self.supervisor_client = supervisor_client or SupervisorApiClient()
         self.capability_manifest_builder = CapabilityManifestBuilder()
         self.readiness_evaluator = OperationalReadinessEvaluator()
         self.available_task_capabilities = list(AVAILABLE_TASK_CAPABILITIES)
         self.operator_config = OperatorConfig(core_base_url=config.core_base_url, node_name=config.node_name)
         self.state = RuntimeState()
         self.trust_material: TrustMaterial | None = None
+        self._supervisor_registered = False
+        self._supervisor_last_error: str | None = None
+        self._supervisor_last_seen: str | None = None
         self.live = True
         self.ready = False
         self.startup_error: str | None = None
@@ -1404,6 +1410,128 @@ class NodeService:
     def _handle_mqtt_connected(self) -> None:
         self.notifications.handle_mqtt_connected()
         self.background_tasks.record_mqtt_connected()
+
+    def _supervisor_runtime_state_payload(self) -> dict[str, object]:
+        if self.startup_error:
+            return {
+                "runtime_state": "error",
+                "lifecycle_state": "degraded",
+                "health_status": "unhealthy",
+                "running": False,
+                "desired_state": "running",
+            }
+        if not self.ready or not self.live:
+            return {
+                "runtime_state": "stopped",
+                "lifecycle_state": "stopped",
+                "health_status": "unknown",
+                "running": False,
+                "desired_state": "running",
+            }
+        if self.state.trust_state == "trusted" and self.state.operational_readiness:
+            return {
+                "runtime_state": "running",
+                "lifecycle_state": "running",
+                "health_status": "healthy",
+                "running": True,
+                "desired_state": "running",
+            }
+        if self.state.trust_state == "trusted":
+            return {
+                "runtime_state": "running",
+                "lifecycle_state": "degraded",
+                "health_status": "unhealthy",
+                "running": True,
+                "desired_state": "running",
+            }
+        return {
+            "runtime_state": "starting",
+            "lifecycle_state": "starting",
+            "health_status": "unknown",
+            "running": True,
+            "desired_state": "running",
+        }
+
+    def _supervisor_runtime_payload(self) -> dict[str, object]:
+        node_id = str(self.state.node_id or "").strip()
+        node_name = str(self.effective_node_name() or node_id or "Hexe Email Node").strip()
+        host_id = socket.gethostname()
+        state_payload = self._supervisor_runtime_state_payload()
+        backend_state = "running" if state_payload.get("running") else "stopped"
+        api_base_url = self._advertised_api_base_url()
+        if api_base_url.endswith("/api"):
+            api_base_url = api_base_url[:-4]
+        runtime_metadata = {
+            "node_software_version": self.config.node_software_version,
+            "protocol_version": self.config.onboarding_protocol_version,
+            "paired_core_id": str(self.state.paired_core_id or "").strip() or None,
+            "core_api_endpoint": str(self.effective_core_base_url() or "").strip() or None,
+            "services": [
+                {
+                    "service_id": "backend",
+                    "service_name": "backend",
+                    "state": backend_state,
+                }
+            ],
+        }
+        return {
+            "node_id": node_id,
+            "node_name": node_name,
+            "node_type": self.config.node_type,
+            "host_id": host_id,
+            "hostname": host_id,
+            "api_base_url": api_base_url,
+            "ui_base_url": self.onboarding.advertised_ui_endpoint(),
+            **state_payload,
+            "resource_usage": {},
+            "runtime_metadata": runtime_metadata,
+        }
+
+    async def supervisor_heartbeat_once(self) -> dict | None:
+        if self.supervisor_client is None:
+            return {"status": "skipped", "reason": "supervisor_client_not_configured"}
+        payload = self._supervisor_runtime_payload()
+        node_id = str(payload.get("node_id") or "").strip()
+        if not node_id:
+            return {"status": "skipped", "reason": "missing_node_id"}
+        health = await asyncio.to_thread(self.supervisor_client.health)
+        if not isinstance(health, dict):
+            self._supervisor_registered = False
+            self._supervisor_last_error = "supervisor_unreachable"
+            return {"status": "skipped", "reason": "supervisor_unreachable"}
+        status = str(health.get("status") or "").strip().lower()
+        ready = health.get("ready")
+        if status not in {"ok", "healthy"} or (ready is not None and not bool(ready)):
+            self._supervisor_registered = False
+            self._supervisor_last_error = "supervisor_not_ready"
+            return {"status": "skipped", "reason": "supervisor_not_ready"}
+        if not self._supervisor_registered:
+            registered = await asyncio.to_thread(self.supervisor_client.register_runtime, payload)
+            if not isinstance(registered, dict):
+                self._supervisor_last_error = "supervisor_register_failed"
+                return {"status": "error", "reason": "supervisor_register_failed"}
+            self._supervisor_registered = True
+        heartbeat_payload = {
+            "node_id": payload.get("node_id"),
+            "host_id": payload.get("host_id"),
+            "hostname": payload.get("hostname"),
+            "api_base_url": payload.get("api_base_url"),
+            "ui_base_url": payload.get("ui_base_url"),
+            "runtime_state": payload.get("runtime_state"),
+            "lifecycle_state": payload.get("lifecycle_state"),
+            "health_status": payload.get("health_status"),
+            "running": payload.get("running"),
+            "resource_usage": payload.get("resource_usage", {}),
+            "runtime_metadata": payload.get("runtime_metadata", {}),
+        }
+        heartbeat = await asyncio.to_thread(self.supervisor_client.heartbeat_runtime, heartbeat_payload)
+        if not isinstance(heartbeat, dict):
+            self._supervisor_registered = False
+            self._supervisor_last_error = "supervisor_heartbeat_failed"
+            return {"status": "error", "reason": "supervisor_heartbeat_failed"}
+        self._supervisor_last_error = None
+        self._supervisor_last_seen = datetime.now(UTC).replace(tzinfo=None).isoformat()
+        return {"status": "ok", "supervisor": {"last_seen_at": self._supervisor_last_seen}}
 
     def _invalidate_capability_state(self) -> None:
         self.state.capability_declaration_status = "pending"

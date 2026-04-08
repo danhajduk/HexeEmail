@@ -41,6 +41,7 @@ class BackgroundTaskManager:
         self.finalize_polling_task: asyncio.Task | None = None
         self.telemetry_task: asyncio.Task | None = None
         self.mqtt_health_task: asyncio.Task | None = None
+        self.supervisor_heartbeat_task: asyncio.Task | None = None
         self.gmail_status_task: asyncio.Task | None = None
         self.gmail_fetch_task: asyncio.Task | None = None
 
@@ -579,6 +580,15 @@ class BackgroundTaskManager:
                 enabled_resolver=lambda manager: True,
             ),
             ScheduledTaskDefinition(
+                task_id="supervisor_heartbeat",
+                title="Supervisor Heartbeat",
+                kind="node_local_recurring_work",
+                owner="background_task_manager",
+                schedule_name="heartbeat_5_seconds",
+                detail="Registers with Supervisor and publishes runtime heartbeats on the 5-second cadence.",
+                enabled_resolver=lambda manager: True,
+            ),
+            ScheduledTaskDefinition(
                 task_id="operational_mqtt_health",
                 title="Operational MQTT Health",
                 kind="node_local_recurring_work",
@@ -861,16 +871,19 @@ class BackgroundTaskManager:
             self.ensure_registry_task_state(definition.task_id)
         self.ensure_telemetry_polling()
         self.ensure_mqtt_health_polling()
+        self.ensure_supervisor_heartbeat_polling()
         self.sync_runtime_task_gating()
 
     async def shutdown(self) -> None:
         await self._cancel_task(self.finalize_polling_task)
         await self._cancel_task(self.telemetry_task)
         await self._cancel_task(self.mqtt_health_task)
+        await self._cancel_task(self.supervisor_heartbeat_task)
         await self._cancel_task(self.gmail_status_task)
         await self._cancel_task(self.gmail_fetch_task)
         for task_id in (
             "telemetry",
+            "supervisor_heartbeat",
             "operational_mqtt_health",
             "gmail_status_polling",
             "gmail_fetch_yesterday",
@@ -943,6 +956,20 @@ class BackgroundTaskManager:
             )
             self.mqtt_health_task = asyncio.create_task(self.mqtt_health_loop())
 
+    def ensure_supervisor_heartbeat_polling(self) -> None:
+        if self.supervisor_heartbeat_task is None or self.supervisor_heartbeat_task.done():
+            now = datetime.now(UTC).replace(tzinfo=None)
+            self.save_scheduler_task_state(
+                "supervisor_heartbeat",
+                status="running",
+                enabled=True,
+                detail="Supervisor heartbeat loop is starting.",
+                last_started_at=now.isoformat(),
+                next_run_at=(now + timedelta(seconds=5)).isoformat(),
+                last_error=None,
+            )
+            self.supervisor_heartbeat_task = asyncio.create_task(self.supervisor_heartbeat_loop())
+
     async def telemetry_loop(self) -> None:
         while True:
             now = datetime.now(UTC).replace(tzinfo=None)
@@ -961,6 +988,32 @@ class BackgroundTaskManager:
                 last_error=None,
             )
             await asyncio.sleep(60)
+
+    async def supervisor_heartbeat_loop(self) -> None:
+        while True:
+            now = datetime.now(UTC).replace(tzinfo=None)
+            result = await self.service.supervisor_heartbeat_once()
+            status = "running"
+            detail = "Supervisor heartbeat published."
+            if isinstance(result, dict):
+                if result.get("status") == "skipped":
+                    detail = f"Supervisor heartbeat skipped: {result.get('reason')}"
+                elif result.get("status") == "error":
+                    status = "failing"
+                    detail = f"Supervisor heartbeat error: {result.get('reason')}"
+            self.save_scheduler_task_state(
+                "supervisor_heartbeat",
+                status=status,
+                enabled=True,
+                detail=detail,
+                last_started_at=now.isoformat(),
+                last_completed_at=now.isoformat(),
+                last_success_at=now.isoformat() if status == "running" else self.scheduler_task_state("supervisor_heartbeat").get("last_success_at"),
+                last_failure_at=now.isoformat() if status == "failing" else self.scheduler_task_state("supervisor_heartbeat").get("last_failure_at"),
+                next_run_at=(now + timedelta(seconds=5)).isoformat(),
+                last_error=None if status == "running" else str(result),
+            )
+            await asyncio.sleep(5)
 
     def mqtt_health_poll_interval_seconds(self) -> int:
         now = datetime.now(UTC).replace(tzinfo=None)
