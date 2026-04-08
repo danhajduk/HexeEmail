@@ -1467,12 +1467,15 @@ class NodeService:
             "protocol_version": self.config.onboarding_protocol_version,
             "paired_core_id": str(self.state.paired_core_id or "").strip() or None,
             "core_api_endpoint": str(self.effective_core_base_url() or "").strip() or None,
+            "boot_order": 20,
+            "node_dependencies": ["node_type:ai-node", "mqtt"],
             "services": [
                 {
                     "service_id": "backend",
                     "service_name": "backend",
                     "state": backend_state,
                     "systemd_unit": "hexe-email-node-backend.service",
+                    "boot_order": 10,
                 }
                 ,
                 {
@@ -1480,6 +1483,7 @@ class NodeService:
                     "service_name": "frontend",
                     "state": frontend_state,
                     "systemd_unit": "hexe-email-node-frontend.service",
+                    "boot_order": 20,
                 }
             ],
         }
