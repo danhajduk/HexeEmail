@@ -41,7 +41,6 @@ chmod +x \
   "$ROOT_DIR/scripts/restart-stack.sh"
 
 systemctl --user daemon-reload
-systemctl --user enable "$BACKEND_SERVICE_NAME" "$FRONTEND_SERVICE_NAME"
 systemctl --user restart "$BACKEND_SERVICE_NAME" "$FRONTEND_SERVICE_NAME"
 
 echo "Installed and started user services:"
