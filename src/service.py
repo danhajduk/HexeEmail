@@ -1458,6 +1458,7 @@ class NodeService:
         host_id = socket.gethostname()
         state_payload = self._supervisor_runtime_state_payload()
         backend_state = "running" if state_payload.get("running") else "stopped"
+        frontend_state = backend_state
         api_base_url = self._advertised_api_base_url()
         if api_base_url.endswith("/api"):
             api_base_url = api_base_url[:-4]
@@ -1471,6 +1472,12 @@ class NodeService:
                     "service_id": "backend",
                     "service_name": "backend",
                     "state": backend_state,
+                }
+                ,
+                {
+                    "service_id": "frontend",
+                    "service_name": "frontend",
+                    "state": frontend_state,
                 }
             ],
         }
