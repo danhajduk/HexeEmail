@@ -372,7 +372,32 @@ class SharedTemplateExecutionEngine:
         )
 
     def build_ai_template_hook(self, phase3: GmailPhase3DetectedEmail) -> dict[str, object] | None:
-        return None
+        phase2 = phase3.phase2_reference
+        return {
+            "sender_identity": phase3.sender_identity,
+            "vendor_identity": phase3.vendor_identity or phase3.sender_domain,
+            "profile_id": phase3.profile_id,
+            "profile_family": phase3.profile_family,
+            "profile_subtype": phase3.profile_subtype,
+            "subject": phase3.subject,
+            "scrubbed_text": phase2.scrubbed_text,
+            "normalized_lines": list(phase2.normalized_lines),
+            "extracted_links": [
+                link.model_dump() if hasattr(link, "model_dump") else dict(link)
+                for link in phase2.extracted_links
+            ],
+            "expected_output_schema": {
+                "template_id": "candidate_template_id",
+                "profile_id": phase3.profile_id,
+                "template_version": "v1",
+                "enabled": True,
+                "match": {},
+                "extract": {},
+                "required_fields": [],
+                "confidence_rules": {},
+                "post_process": {},
+            },
+        }
 
     def _execute_rule(
         self,

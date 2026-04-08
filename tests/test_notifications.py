@@ -285,6 +285,35 @@ async def test_order_email_notification_uses_order_flag(config, core_client_fact
 
 
 @pytest.mark.asyncio
+async def test_action_required_flow_toggle_skips_pipeline_execution(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    service._save_runtime_task_state(action_required_flow_enabled=False)
+
+    called = False
+
+    async def fail_if_called(normalized):
+        nonlocal called
+        called = True
+
+    async def fail_normalize(request):
+        raise AssertionError("normalize should not run when the action-required flow toggle is disabled")
+
+    service.action_required_pipeline.process_normalized_email = fail_if_called  # type: ignore[method-assign]
+    service.email_phase1.normalize = fail_normalize  # type: ignore[method-assign]
+
+    message = GmailStoredMessage(
+        account_id="primary",
+        message_id="msg-2b",
+        subject="Please review today",
+        sender="Ops <ops@example.com>",
+        received_at=datetime(2026, 4, 3, 11, 30, 0),
+    )
+    await service._run_action_required_phase1_flow(account_id="primary", message=message)
+
+    assert called is False
+
+
+@pytest.mark.asyncio
 async def test_manual_training_save_can_emit_debug_notification(config, core_client_factory):
     mqtt_manager = FakeMQTTManager()
     service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=mqtt_manager)
@@ -326,9 +355,59 @@ async def test_manual_training_save_can_emit_debug_notification(config, core_cli
     )
     result = await service.gmail_training_save_manual_classifications(payload)
 
+    for _ in range(20):
+        if mqtt_manager.notification_requests:
+            break
+        await asyncio.sleep(0)
+
     assert result["saved_count"] == 1
     assert len(mqtt_manager.notification_requests) == 1
     assert store.has_notification_label("primary", "msg-3", GmailTrainingLabel.ACTION_REQUIRED.value) is True
+
+
+@pytest.mark.asyncio
+async def test_manual_training_save_returns_before_followup_notifications_finish(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    started = asyncio.Event()
+    release = asyncio.Event()
+    observed: list[tuple[str, str]] = []
+
+    async def slow_notify(*, account_id, message_id, classification_label, confidence, source_component):
+        observed.append((message_id, source_component))
+        started.set()
+        await release.wait()
+        return True
+
+    service._notify_for_new_email_classification = slow_notify  # type: ignore[method-assign]
+
+    payload = GmailManualClassificationBatchInput(
+        items=[
+            GmailManualClassificationInput(
+                message_id="msg-async",
+                label=GmailTrainingLabel.ORDER,
+                confidence=1.0,
+            )
+        ]
+    )
+
+    adapter = service.provider_registry.get_provider("gmail")
+    original_save = adapter.save_manual_classifications
+
+    async def fake_save(account_id, batch):
+        assert account_id == "primary"
+        assert batch == payload
+        return {"saved_count": 1}
+
+    adapter.save_manual_classifications = fake_save  # type: ignore[method-assign]
+    try:
+        result = await service.gmail_training_save_manual_classifications(payload)
+        await asyncio.wait_for(started.wait(), timeout=1)
+    finally:
+        release.set()
+        adapter.save_manual_classifications = original_save  # type: ignore[method-assign]
+
+    assert result["saved_count"] == 1
+    assert observed == [("msg-async", "gmail_training_manual_classification")]
 
 
 def test_runtime_batch_summary_notification_reports_local_and_ai_counts(config, core_client_factory):

@@ -35,7 +35,18 @@ describe("dashboard feature sections", () => {
         openTraining={() => {}}
         runtimeTaskPending=""
         runRuntimeExecuteEmailClassifierBatch={() => {}}
-        runtimeTaskForm={{ ai_calls_enabled: true, provider_calls_enabled: true, user_notifications_enabled: true, classification_enabled: true, order_checks_enabled: true }}
+        runtimeTaskForm={{
+          ai_calls_enabled: true,
+          provider_calls_enabled: true,
+          user_notifications_enabled: true,
+          classification_enabled: true,
+          order_checks_enabled: true,
+          action_required_flow_enabled: true,
+          financial_flow_enabled: true,
+          invoice_flow_enabled: true,
+          shipment_flow_enabled: true,
+          security_flow_enabled: true,
+        }}
         runtimeBatchExecution={null}
         runtimeBatchProgressPercent={0}
         gmailLastHourPipelinePills={[{ key: "fetch", label: "fetch", value: "done" }]}
@@ -102,6 +113,11 @@ describe("dashboard feature sections", () => {
           user_notifications_enabled: true,
           classification_enabled: true,
           order_checks_enabled: true,
+          action_required_flow_enabled: true,
+          financial_flow_enabled: true,
+          invoice_flow_enabled: true,
+          shipment_flow_enabled: true,
+          security_flow_enabled: true,
           request_status: "idle",
           last_step: "none",
           detail: "ready",
@@ -112,6 +128,11 @@ describe("dashboard feature sections", () => {
           user_notifications_enabled: true,
           classification_enabled: true,
           order_checks_enabled: true,
+          action_required_flow_enabled: true,
+          financial_flow_enabled: true,
+          invoice_flow_enabled: true,
+          shipment_flow_enabled: true,
+          security_flow_enabled: true,
           requested_node_type: "ai",
           task_family: "task.classification",
           content_type: "email",
@@ -134,6 +155,11 @@ describe("dashboard feature sections", () => {
         updateRuntimeUserNotificationsEnabled={() => {}}
         updateRuntimeClassificationEnabled={() => {}}
         updateRuntimeOrderChecksEnabled={() => {}}
+        updateRuntimeActionRequiredFlowEnabled={() => {}}
+        updateRuntimeFinancialFlowEnabled={() => {}}
+        updateRuntimeInvoiceFlowEnabled={() => {}}
+        updateRuntimeShipmentFlowEnabled={() => {}}
+        updateRuntimeSecurityFlowEnabled={() => {}}
         runRuntimeResolveFlow={() => {}}
         runRuntimeAuthorize={() => {}}
         runRuntimeRegisterPrompt={() => {}}
@@ -149,7 +175,7 @@ describe("dashboard feature sections", () => {
     const scheduledHtml = render(
       <ScheduledTasksSection
         scheduledTasksSorted={[{ task_id: "task-1", title: "Fetch", kind: "provider_recurring_work", owner: "background_task_manager", schedule_name: "daily", schedule_label: "Every day", schedule_detail: "00:01", status: "running", last_success_at: "now", last_failure_at: null, last_error: null, next_execution_at: "later", detail: "ok" }]}
-        scheduledTaskLegend={[{ name: "every_10_seconds", detail: "Every 10 seconds" }, { name: "interval_seconds", detail: "Fixed interval in seconds" }]}
+        scheduledTaskLegend={[{ name: "heartbeat_5_seconds", detail: "Heartbeat every 5 seconds" }, { name: "every_10_seconds", detail: "Every 10 seconds" }, { name: "telemetry_60_seconds", detail: "Telemetry every 60 seconds" }, { name: "interval_seconds", detail: "Every N seconds (requires integer seconds)" }]}
         scheduledTaskStatusTone={(value) => (value === "running" ? "success-strong" : "warning")}
         formatScheduleTimestamp={(value) => value}
         formatRelativeTime={() => "just now"}
@@ -166,8 +192,14 @@ describe("dashboard feature sections", () => {
     expect(runtimeHtml).toContain("Runtime Actions");
     expect(runtimeHtml).toContain("Notify");
     expect(runtimeHtml).toContain("Analysis");
+    expect(runtimeHtml).toContain("Label Family Flows");
     expect(runtimeHtml).toContain("Clasify");
     expect(runtimeHtml).toContain("Order");
+    expect(runtimeHtml).toContain("Action");
+    expect(runtimeHtml).toContain("Financial");
+    expect(runtimeHtml).toContain("Invoice");
+    expect(runtimeHtml).toContain("Shipment");
+    expect(runtimeHtml).toContain("Security");
     expect(runtimeHtml).not.toContain("AI Node API Base URL");
     expect(runtimeHtml).not.toContain("Email Body");
     expect(scheduledHtml).toContain("Scheduled Tasks");
@@ -175,7 +207,9 @@ describe("dashboard feature sections", () => {
     expect(scheduledHtml).toContain("Last Failure");
     expect(scheduledHtml).toContain("Last Error");
     expect(scheduledHtml).toContain("tone-success-strong");
+    expect(scheduledHtml).toContain("heartbeat_5_seconds");
     expect(scheduledHtml).toContain("every_10_seconds");
+    expect(scheduledHtml).toContain("telemetry_60_seconds");
     expect(scheduledHtml).toContain("interval_seconds");
     expect(scheduledHtml).toContain("Provider");
     expect(scheduledHtml).toContain("background_task_manager");

@@ -99,6 +99,11 @@ class RuntimeTaskSettingsInput(BaseModel):
     user_notifications_enabled: bool | None = None
     classification_enabled: bool | None = None
     order_checks_enabled: bool | None = None
+    action_required_flow_enabled: bool | None = None
+    financial_flow_enabled: bool | None = None
+    invoice_flow_enabled: bool | None = None
+    shipment_flow_enabled: bool | None = None
+    security_flow_enabled: bool | None = None
 
 
 class RefreshTriggerRequest(BaseModel):

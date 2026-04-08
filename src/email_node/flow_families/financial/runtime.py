@@ -1,9 +1,17 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Awaitable, Callable
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from email_node.flow_families.shared_probation_runtime import SharedFamilyProbationRuntimeMixin
+from email_node.patterns import (
+    PatternGenerationRequest,
+    ProbationStore,
+    TemplatePromotionService,
+    build_family_ai_template_request,
+)
 from email_node.shared_pipeline_core import (
     SharedActionGate,
     SharedEmailPipelineCore,
@@ -19,6 +27,11 @@ from email_node.shared_pipeline_core import (
 )
 from email_node.shared_pipeline_core.pipeline import SharedEmailPipelineHooks
 from email_node.shared_pipeline_core.profile_detector import SharedProfileDetectorEngine
+from email_node.shared_pipeline_core.probation import (
+    SharedProbationEvaluator,
+    SharedProbationPromotionManager,
+    SharedProbationPromotionPolicy,
+)
 from email_node.shared_pipeline_core.scrub_engine import SharedScrubEngine
 from providers.gmail.models import GmailPhase3ProfileCandidate, GmailPhase3WorkingEmail
 from providers.gmail.order_template_registry import SUPPORTED_EXTRACTION_METHODS, SUPPORTED_TRANSFORMS
@@ -192,7 +205,7 @@ class GmailFinancialPhase4Extractor(SharedTemplateExecutionEngine):
         )
 
 
-class FinancialFlowRuntime:
+class FinancialFlowRuntime(SharedFamilyProbationRuntimeMixin):
     flow_family = "financial"
 
     def __init__(
@@ -201,12 +214,31 @@ class FinancialFlowRuntime:
         phase2_scrubber: GmailFinancialPhase2Scrubber | None = None,
         phase3_detector: GmailFinancialPhase3ProfileDetector | None = None,
         phase4_extractor: GmailFinancialPhase4Extractor | None = None,
+        probation_store: ProbationStore | None = None,
+        probation_evaluator: SharedProbationEvaluator | None = None,
+        probation_promotion: SharedProbationPromotionManager | None = None,
+        generate_probation_template: Callable[[PatternGenerationRequest], Awaitable[dict[str, object]]] | None = None,
+        ai_calls_enabled: Callable[[], bool] | None = None,
         runtime_dir: Path | None = None,
     ) -> None:
         self.flow_config = get_flow_family_config("financial", runtime_dir=runtime_dir)
         self.phase2_scrubber = phase2_scrubber or GmailFinancialPhase2Scrubber()
         self.phase3_detector = phase3_detector or GmailFinancialPhase3ProfileDetector(runtime_dir=runtime_dir)
         self.phase4_extractor = phase4_extractor or GmailFinancialPhase4Extractor(runtime_dir=runtime_dir)
+        self.probation_store = probation_store or ProbationStore(runtime_dir=runtime_dir, flow_family="financial")
+        self.probation_evaluator = probation_evaluator or SharedProbationEvaluator(
+            probation_store=self.probation_store,
+            extractor=self.phase4_extractor,
+        )
+        self.probation_promotion = probation_promotion or SharedProbationPromotionManager(
+            promotion_service=TemplatePromotionService(
+                probation_store=self.probation_store,
+                active_dir=self.flow_config.template_dir,
+            ),
+            policy=SharedProbationPromotionPolicy(),
+        )
+        self.generate_probation_template = generate_probation_template
+        self.ai_calls_enabled = ai_calls_enabled or (lambda: True)
         self.decision_engine = self._build_decision_engine()
         self.output_handler = SharedOutputPersistenceHandler(flow_family="financial", runtime_dir=runtime_dir)
         self.action_gate = SharedActionGate()
@@ -238,13 +270,12 @@ class FinancialFlowRuntime:
     async def process_normalized_email(self, normalized) -> dict[str, object]:
         return await self.shared_core.process_normalized_email(normalized)
 
-    @staticmethod
-    async def attach_probation_template(phase4):
-        return phase4
-
-    @staticmethod
-    def run_probation_shadow_mode(phase4):
-        return phase4
+    def _build_probation_request(self, phase4) -> PatternGenerationRequest:
+        return build_family_ai_template_request(
+            phase4,
+            expected_label="FINANCIAL",
+            fallback_template_root="financial",
+        )
 
     @staticmethod
     def write_financial_record(decision, phase4, action_routing) -> FinancialActionResult:

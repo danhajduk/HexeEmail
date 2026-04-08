@@ -15,6 +15,11 @@ export function RuntimeDashboardSection({
   updateRuntimeUserNotificationsEnabled,
   updateRuntimeClassificationEnabled,
   updateRuntimeOrderChecksEnabled,
+  updateRuntimeActionRequiredFlowEnabled,
+  updateRuntimeFinancialFlowEnabled,
+  updateRuntimeInvoiceFlowEnabled,
+  updateRuntimeShipmentFlowEnabled,
+  updateRuntimeSecurityFlowEnabled,
   runRuntimeResolveFlow,
   runRuntimeAuthorize,
   runRuntimeRegisterPrompt,
@@ -41,6 +46,11 @@ export function RuntimeDashboardSection({
           <div><dt>User Notifications</dt><dd>{runtimeTaskStatus?.user_notifications_enabled === false ? "disabled" : "enabled"}</dd></div>
           <div><dt>Clasify</dt><dd>{runtimeTaskStatus?.classification_enabled === false ? "disabled" : "enabled"}</dd></div>
           <div><dt>Check Orders</dt><dd>{runtimeTaskStatus?.order_checks_enabled === false ? "disabled" : "enabled"}</dd></div>
+          <div><dt>Action Required Flow</dt><dd>{runtimeTaskStatus?.action_required_flow_enabled === false ? "disabled" : "enabled"}</dd></div>
+          <div><dt>Financial Flow</dt><dd>{runtimeTaskStatus?.financial_flow_enabled === false ? "disabled" : "enabled"}</dd></div>
+          <div><dt>Invoice Flow</dt><dd>{runtimeTaskStatus?.invoice_flow_enabled === false ? "disabled" : "enabled"}</dd></div>
+          <div><dt>Shipment Flow</dt><dd>{runtimeTaskStatus?.shipment_flow_enabled === false ? "disabled" : "enabled"}</dd></div>
+          <div><dt>Security Flow</dt><dd>{runtimeTaskStatus?.security_flow_enabled === false ? "disabled" : "enabled"}</dd></div>
           <div><dt>Request Status</dt><dd>{runtimeTaskStatus?.request_status || "idle"}</dd></div>
           <div><dt>Last Step</dt><dd>{runtimeTaskStatus?.last_step || "none"}</dd></div>
           <div><dt>Requested Node Type</dt><dd>{runtimeTaskForm.requested_node_type}</dd></div>
@@ -141,6 +151,33 @@ export function RuntimeDashboardSection({
                     <span className="sr-only">{runtimeTaskForm.classification_enabled ? "Enabled" : "Disabled"}</span>
                   </button>
                 </label>
+                <div className="field runtime-switch-item runtime-switch-item-disabled" aria-hidden="true">
+                  <span className="runtime-switch-pill is-off">
+                    <span className="runtime-switch-led" />
+                    <span>Local</span>
+                  </span>
+                </div>
+                </div>
+              </div>
+            </div>
+            <div className="runtime-switch-group">
+              <div className="runtime-switch-group-header">Label Family Flows</div>
+              <div className="runtime-switch-card">
+                <div className="runtime-switch-grid">
+                  <label className="field runtime-switch-item">
+                  <button
+                    type="button"
+                    className={`runtime-switch-pill runtime-switch-button ${runtimeTaskForm.action_required_flow_enabled ? "is-on" : "is-off"}`}
+                    aria-pressed={runtimeTaskForm.action_required_flow_enabled}
+                    aria-label={runtimeTaskForm.action_required_flow_enabled ? "Disable action required flow" : "Enable action required flow"}
+                    disabled={runtimeTaskPending !== ""}
+                    onClick={() => updateRuntimeActionRequiredFlowEnabled(!runtimeTaskForm.action_required_flow_enabled)}
+                  >
+                    <span className="runtime-switch-led" />
+                    <span>Action</span>
+                    <span className="sr-only">{runtimeTaskForm.action_required_flow_enabled ? "Enabled" : "Disabled"}</span>
+                  </button>
+                </label>
                   <label className="field runtime-switch-item">
                   <button
                     type="button"
@@ -155,12 +192,62 @@ export function RuntimeDashboardSection({
                     <span className="sr-only">{runtimeTaskForm.order_checks_enabled ? "Enabled" : "Disabled"}</span>
                   </button>
                 </label>
-                <div className="field runtime-switch-item runtime-switch-item-disabled" aria-hidden="true">
-                  <span className="runtime-switch-pill is-off">
+                  <label className="field runtime-switch-item">
+                  <button
+                    type="button"
+                    className={`runtime-switch-pill runtime-switch-button ${runtimeTaskForm.financial_flow_enabled ? "is-on" : "is-off"}`}
+                    aria-pressed={runtimeTaskForm.financial_flow_enabled}
+                    aria-label={runtimeTaskForm.financial_flow_enabled ? "Disable financial flow" : "Enable financial flow"}
+                    disabled={runtimeTaskPending !== ""}
+                    onClick={() => updateRuntimeFinancialFlowEnabled(!runtimeTaskForm.financial_flow_enabled)}
+                  >
                     <span className="runtime-switch-led" />
-                    <span>Etc</span>
-                  </span>
-                </div>
+                    <span>Financial</span>
+                    <span className="sr-only">{runtimeTaskForm.financial_flow_enabled ? "Enabled" : "Disabled"}</span>
+                  </button>
+                </label>
+                  <label className="field runtime-switch-item">
+                  <button
+                    type="button"
+                    className={`runtime-switch-pill runtime-switch-button ${runtimeTaskForm.invoice_flow_enabled ? "is-on" : "is-off"}`}
+                    aria-pressed={runtimeTaskForm.invoice_flow_enabled}
+                    aria-label={runtimeTaskForm.invoice_flow_enabled ? "Disable invoice flow" : "Enable invoice flow"}
+                    disabled={runtimeTaskPending !== ""}
+                    onClick={() => updateRuntimeInvoiceFlowEnabled(!runtimeTaskForm.invoice_flow_enabled)}
+                  >
+                    <span className="runtime-switch-led" />
+                    <span>Invoice</span>
+                    <span className="sr-only">{runtimeTaskForm.invoice_flow_enabled ? "Enabled" : "Disabled"}</span>
+                  </button>
+                </label>
+                  <label className="field runtime-switch-item">
+                  <button
+                    type="button"
+                    className={`runtime-switch-pill runtime-switch-button ${runtimeTaskForm.shipment_flow_enabled ? "is-on" : "is-off"}`}
+                    aria-pressed={runtimeTaskForm.shipment_flow_enabled}
+                    aria-label={runtimeTaskForm.shipment_flow_enabled ? "Disable shipment flow" : "Enable shipment flow"}
+                    disabled={runtimeTaskPending !== ""}
+                    onClick={() => updateRuntimeShipmentFlowEnabled(!runtimeTaskForm.shipment_flow_enabled)}
+                  >
+                    <span className="runtime-switch-led" />
+                    <span>Shipment</span>
+                    <span className="sr-only">{runtimeTaskForm.shipment_flow_enabled ? "Enabled" : "Disabled"}</span>
+                  </button>
+                </label>
+                  <label className="field runtime-switch-item">
+                  <button
+                    type="button"
+                    className={`runtime-switch-pill runtime-switch-button ${runtimeTaskForm.security_flow_enabled ? "is-on" : "is-off"}`}
+                    aria-pressed={runtimeTaskForm.security_flow_enabled}
+                    aria-label={runtimeTaskForm.security_flow_enabled ? "Disable security flow" : "Enable security flow"}
+                    disabled={runtimeTaskPending !== ""}
+                    onClick={() => updateRuntimeSecurityFlowEnabled(!runtimeTaskForm.security_flow_enabled)}
+                  >
+                    <span className="runtime-switch-led" />
+                    <span>Security</span>
+                    <span className="sr-only">{runtimeTaskForm.security_flow_enabled ? "Enabled" : "Disabled"}</span>
+                  </button>
+                </label>
                 </div>
               </div>
             </div>

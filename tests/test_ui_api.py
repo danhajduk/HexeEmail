@@ -1314,6 +1314,28 @@ async def test_runtime_settings_can_disable_classification(config, core_client_f
 
 
 @pytest.mark.asyncio
+async def test_runtime_settings_can_disable_security_flow(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/runtime/settings",
+            json={
+                "security_flow_enabled": False,
+            },
+        )
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["runtime_task_state"]["security_flow_enabled"] is False
+    assert service.state.runtime_task_state["security_flow_enabled"] is False
+
+
+@pytest.mark.asyncio
 async def test_runtime_settings_keep_order_checks_enabled_when_classification_is_disabled(
     config,
     core_client_factory,
@@ -2166,21 +2188,29 @@ async def test_ui_bootstrap_exposes_scheduled_tasks(config, core_client_factory)
     assert "runtime_prompt_sync_weekly" in task_ids
     assert "runtime_monthly_resolve_authorize" in task_ids
     legend_names = {item["name"] for item in body["scheduled_task_legend"]}
+    assert "heartbeat_5_seconds" in legend_names
     assert "daily" in legend_names
     assert "every_10_seconds" in legend_names
+    assert "telemetry_60_seconds" in legend_names
     assert "weekly" in legend_names
     assert "monthly" in legend_names
     assert "on_start" in legend_names
     weekly_legend = next(item for item in body["scheduled_task_legend"] if item["name"] == "weekly")
     assert weekly_legend["detail"] == "Monday 00:01"
     legend_order = [item["name"] for item in body["scheduled_task_legend"]]
+    assert legend_order.index("heartbeat_5_seconds") < legend_order.index("every_10_seconds")
     assert legend_order.index("every_10_seconds") < legend_order.index("every_5_minutes")
+    assert legend_order.index("telemetry_60_seconds") < legend_order.index("every_5_minutes")
     assert legend_order.index("every_5_minutes") < legend_order.index("hourly")
     assert legend_order[-1] == "interval_seconds"
+    heartbeat_legend = next(item for item in body["scheduled_task_legend"] if item["name"] == "heartbeat_5_seconds")
+    assert heartbeat_legend["detail"] == "Heartbeat every 5 seconds"
     interval_legend = next(item for item in body["scheduled_task_legend"] if item["name"] == "interval_seconds")
-    assert interval_legend["detail"] == "Fixed interval in seconds"
+    assert interval_legend["detail"] == "Every N seconds (requires integer seconds)"
     ten_second_legend = next(item for item in body["scheduled_task_legend"] if item["name"] == "every_10_seconds")
     assert ten_second_legend["detail"] == "Every 10 seconds"
+    telemetry_legend = next(item for item in body["scheduled_task_legend"] if item["name"] == "telemetry_60_seconds")
+    assert telemetry_legend["detail"] == "Telemetry every 60 seconds"
     monthly_legend = next(item for item in body["scheduled_task_legend"] if item["name"] == "monthly")
     assert monthly_legend["detail"] == "First day of each month at 00:01"
     on_start_legend = next(item for item in body["scheduled_task_legend"] if item["name"] == "on_start")
@@ -2208,7 +2238,9 @@ async def test_ui_bootstrap_exposes_scheduled_tasks(config, core_client_factory)
     assert telemetry["kind"] == "node_local_recurring_work"
     assert telemetry["owner"] == "background_task_manager"
     assert telemetry["enabled"] is True
-    assert telemetry["schedule_label"] == "Every 60 seconds"
+    assert telemetry["status"] == "running"
+    assert telemetry["schedule_name"] == "telemetry_60_seconds"
+    assert telemetry["schedule_label"] == "Telemetry every 60 seconds"
     assert telemetry["last_started_at"] is not None
     assert telemetry["last_execution_at"] is not None
     assert telemetry["next_execution_at"] is not None
@@ -2216,13 +2248,16 @@ async def test_ui_bootstrap_exposes_scheduled_tasks(config, core_client_factory)
     assert heartbeat["kind"] == "node_local_recurring_work"
     assert heartbeat["owner"] == "mqtt_manager"
     assert heartbeat["enabled"] is False
-    assert heartbeat["schedule_name"] == "interval_seconds"
+    assert heartbeat["status"] in {"idle", "healthy", "running"}
+    assert heartbeat["schedule_name"] == "heartbeat_5_seconds"
+    assert heartbeat["schedule_label"] == "Heartbeat every 5 seconds"
     assert heartbeat["last_failure_at"] is None
     assert heartbeat["last_error"] is None
     mqtt_health = next(item for item in body["scheduled_tasks"] if item["task_id"] == "operational_mqtt_health")
     assert mqtt_health["kind"] == "node_local_recurring_work"
     assert mqtt_health["owner"] == "background_task_manager"
     assert mqtt_health["enabled"] is True
+    assert mqtt_health["status"] in {"running", "healthy", "failing"}
     assert mqtt_health["schedule_name"] == "every_10_seconds"
     assert mqtt_health["schedule_label"].startswith("Every 10 seconds")
     assert mqtt_health["last_execution_at"] is not None
@@ -2231,6 +2266,7 @@ async def test_ui_bootstrap_exposes_scheduled_tasks(config, core_client_factory)
     assert monthly_runtime["kind"] == "core_leased_recurring_work"
     assert monthly_runtime["owner"] == "background_task_manager"
     assert monthly_runtime["enabled"] is False
+    assert monthly_runtime["status"] == "idle"
     assert monthly_runtime["last_success_at"] is None or monthly_runtime["last_success_at"] == monthly_runtime["last_execution_at"]
     assert monthly_runtime["last_slot_key"] is not None
     assert monthly_runtime["last_execution_at"] is not None
@@ -2260,7 +2296,7 @@ def test_background_task_manager_exposes_explicit_task_registry():
     assert monthly_authorize.schedule_name == "monthly"
     heartbeat = next(item for item in registry if item.task_id == "heartbeat")
     assert heartbeat.owner == "mqtt_manager"
-    assert heartbeat.schedule_name == "interval_seconds"
+    assert heartbeat.schedule_name == "heartbeat_5_seconds"
 
 
 @pytest.mark.asyncio

@@ -35,7 +35,14 @@ from email_node.patterns import (
     PatternGenerationWriter,
     ProbationStore,
 )
-from email_node.pipeline import ActionRequiredFlowPipeline, OrderFlowPipeline
+from email_node.pipeline import (
+    ActionRequiredFlowPipeline,
+    FinancialFlowPipeline,
+    InvoiceFlowPipeline,
+    OrderFlowPipeline,
+    SecurityFlowPipeline,
+    ShipmentFlowPipeline,
+)
 from email_node.shared_pipeline_core import SharedEmailPhase1Interface, SharedPhase1NormalizeRequest
 from node_backend import (
     AiNodeGateway,
@@ -150,6 +157,10 @@ class NodeService:
         self.email_phase1 = SharedEmailPhase1Interface(self.gmail_order_flow)
         self.probation_store = ProbationStore(flow_family="order")
         self.action_required_probation_store = ProbationStore(flow_family="action_required")
+        self.financial_probation_store = ProbationStore(flow_family="financial")
+        self.invoice_probation_store = ProbationStore(flow_family="invoice")
+        self.shipment_probation_store = ProbationStore(flow_family="shipment")
+        self.security_probation_store = ProbationStore(flow_family="security")
         self.runtime = RuntimeManager(self)
         self.ai_gateway = AiNodeGateway(self)
         self.onboarding = OnboardingManager(self)
@@ -168,6 +179,26 @@ class NodeService:
         self.action_required_pipeline = ActionRequiredFlowPipeline(
             probation_store=self.action_required_probation_store,
             generate_probation_template=self._generate_action_required_probation_template,
+            ai_calls_enabled=self._runtime_ai_calls_enabled,
+        )
+        self.financial_pipeline = FinancialFlowPipeline(
+            probation_store=self.financial_probation_store,
+            generate_probation_template=self._generate_financial_probation_template,
+            ai_calls_enabled=self._runtime_ai_calls_enabled,
+        )
+        self.invoice_pipeline = InvoiceFlowPipeline(
+            probation_store=self.invoice_probation_store,
+            generate_probation_template=self._generate_invoice_probation_template,
+            ai_calls_enabled=self._runtime_ai_calls_enabled,
+        )
+        self.shipment_pipeline = ShipmentFlowPipeline(
+            probation_store=self.shipment_probation_store,
+            generate_probation_template=self._generate_shipment_probation_template,
+            ai_calls_enabled=self._runtime_ai_calls_enabled,
+        )
+        self.security_pipeline = SecurityFlowPipeline(
+            probation_store=self.security_probation_store,
+            generate_probation_template=self._generate_security_probation_template,
             ai_calls_enabled=self._runtime_ai_calls_enabled,
         )
 
@@ -205,6 +236,21 @@ class NodeService:
     def _runtime_order_checks_enabled(self) -> bool:
         return self.runtime.runtime_order_checks_enabled()
 
+    def _runtime_action_required_flow_enabled(self) -> bool:
+        return self.runtime.runtime_action_required_flow_enabled()
+
+    def _runtime_financial_flow_enabled(self) -> bool:
+        return self.runtime.runtime_financial_flow_enabled()
+
+    def _runtime_invoice_flow_enabled(self) -> bool:
+        return self.runtime.runtime_invoice_flow_enabled()
+
+    def _runtime_shipment_flow_enabled(self) -> bool:
+        return self.runtime.runtime_shipment_flow_enabled()
+
+    def _runtime_security_flow_enabled(self) -> bool:
+        return self.runtime.runtime_security_flow_enabled()
+
     async def generate_pattern_template(self, payload: PatternGenerationRequest) -> dict[str, object]:
         return await self._generate_pattern_template(payload, writer_base_dir=None)
 
@@ -213,6 +259,18 @@ class NodeService:
 
     async def _generate_action_required_probation_template(self, payload: PatternGenerationRequest) -> dict[str, object]:
         return await self._generate_pattern_template(payload, writer_base_dir=self.action_required_probation_store.templates_dir)
+
+    async def _generate_financial_probation_template(self, payload: PatternGenerationRequest) -> dict[str, object]:
+        return await self._generate_pattern_template(payload, writer_base_dir=self.financial_probation_store.templates_dir)
+
+    async def _generate_invoice_probation_template(self, payload: PatternGenerationRequest) -> dict[str, object]:
+        return await self._generate_pattern_template(payload, writer_base_dir=self.invoice_probation_store.templates_dir)
+
+    async def _generate_shipment_probation_template(self, payload: PatternGenerationRequest) -> dict[str, object]:
+        return await self._generate_pattern_template(payload, writer_base_dir=self.shipment_probation_store.templates_dir)
+
+    async def _generate_security_probation_template(self, payload: PatternGenerationRequest) -> dict[str, object]:
+        return await self._generate_pattern_template(payload, writer_base_dir=self.security_probation_store.templates_dir)
 
     async def _generate_pattern_template(
         self,
@@ -1613,30 +1671,26 @@ class NodeService:
         message = adapter.message_store.get_message(account_id, message_id)
         if message is None:
             return False
-        if classification_label == GmailTrainingLabel.ORDER:
+        flow_handlers = {
+            GmailTrainingLabel.ORDER: self._run_order_phase1_flow,
+            GmailTrainingLabel.ACTION_REQUIRED: self._run_action_required_phase1_flow,
+            GmailTrainingLabel.FINANCIAL: self._run_financial_phase1_flow,
+            GmailTrainingLabel.INVOICE: self._run_invoice_phase1_flow,
+            GmailTrainingLabel.SHIPMENT: self._run_shipment_phase1_flow,
+            GmailTrainingLabel.SECURITY: self._run_security_phase1_flow,
+        }
+        flow_handler = flow_handlers.get(classification_label)
+        if flow_handler is not None:
             try:
-                await self._run_order_phase1_flow(account_id=account_id, message=message)
+                await flow_handler(account_id=account_id, message=message)
             except Exception as exc:
                 LOGGER.warning(
-                    "ORDER Phase 1 flow failed during classification handling",
+                    "Label-family flow failed during classification handling",
                     extra={
                         "event_data": {
                             "account_id": account_id,
                             "message_id": message_id,
-                            "detail": str(exc),
-                        }
-                    },
-                )
-        elif classification_label == GmailTrainingLabel.ACTION_REQUIRED:
-            try:
-                await self._run_action_required_phase1_flow(account_id=account_id, message=message)
-            except Exception as exc:
-                LOGGER.warning(
-                    "ACTION_REQUIRED flow failed during classification handling",
-                    extra={
-                        "event_data": {
-                            "account_id": account_id,
-                            "message_id": message_id,
+                            "classification_label": classification_label.value,
                             "detail": str(exc),
                         }
                     },
@@ -1664,6 +1718,60 @@ class NodeService:
             adapter.message_store.mark_notification_label_sent(account_id, message_id, classification_label.value)
         return sent
 
+    def _schedule_email_classification_followups(
+        self,
+        *,
+        account_id: str,
+        items: list[tuple[str, GmailTrainingLabel, float | None, str]],
+    ) -> None:
+        if not items:
+            return
+
+        task = asyncio.create_task(
+            self._run_email_classification_followups(
+                account_id=account_id,
+                items=items,
+            )
+        )
+        task.add_done_callback(self._log_background_classification_followup_failure)
+
+    async def _run_email_classification_followups(
+        self,
+        *,
+        account_id: str,
+        items: list[tuple[str, GmailTrainingLabel, float | None, str]],
+    ) -> None:
+        for message_id, classification_label, confidence, source_component in items:
+            try:
+                await self._notify_for_new_email_classification(
+                    account_id=account_id,
+                    message_id=message_id,
+                    classification_label=classification_label,
+                    confidence=confidence,
+                    source_component=source_component,
+                )
+            except Exception as exc:
+                LOGGER.warning(
+                    "Background classification follow-up failed",
+                    extra={
+                        "event_data": {
+                            "account_id": account_id,
+                            "message_id": message_id,
+                            "classification_label": classification_label.value,
+                            "detail": str(exc),
+                        }
+                    },
+                )
+
+    def _log_background_classification_followup_failure(self, task: asyncio.Task[None]) -> None:
+        with contextlib.suppress(asyncio.CancelledError):
+            exc = task.exception()
+            if exc is not None:
+                LOGGER.warning(
+                    "Background classification follow-up task failed",
+                    extra={"event_data": {"detail": str(exc)}},
+                )
+
     def _sender_reputation_context(self, account_id: str, *, sender: str | None) -> dict[str, object] | None:
         adapter = self.provider_registry.get_provider("gmail")
         _, sender_email = parseaddr(sender or "")
@@ -1690,16 +1798,28 @@ class NodeService:
             "domain": domain_record.model_dump(mode="json") if domain_record is not None else None,
         }
 
-    async def _run_order_phase1_flow(self, *, account_id: str, message) -> None:
+    async def _run_label_family_phase1_flow(
+        self,
+        *,
+        account_id: str,
+        message,
+        family_label: str,
+        pipeline,
+        flow_enabled: bool,
+        disabled_detail: str,
+    ) -> None:
         if not self._runtime_classification_enabled():
             LOGGER.info(
-                "ORDER flow skipped because Clasify is disabled",
+                "%s flow skipped because Clasify is disabled",
+                family_label,
                 extra={"event_data": {"account_id": account_id, "message_id": message.message_id}},
             )
             return
-        if not self._runtime_order_checks_enabled():
+        if not flow_enabled:
             LOGGER.info(
-                "ORDER flow skipped because Check Orders is disabled",
+                "%s flow skipped because %s",
+                family_label,
+                disabled_detail,
                 extra={"event_data": {"account_id": account_id, "message_id": message.message_id}},
             )
             return
@@ -1711,7 +1831,8 @@ class NodeService:
             )
         )
         LOGGER.info(
-            "ORDER Phase 1 normalization completed",
+            "%s Phase 1 normalization completed",
+            family_label,
             extra={
                 "event_data": {
                     "account_id": account_id,
@@ -1722,12 +1843,13 @@ class NodeService:
                 }
             },
         )
-        pipeline_result = await self.order_pipeline.process_normalized_email(normalized)
+        pipeline_result = await pipeline.process_normalized_email(normalized)
         phase4 = pipeline_result["phase4"]
         phase6 = pipeline_result["phase6"]
         phase7_result = pipeline_result.get("phase7_result") or {}
         LOGGER.info(
-            "ORDER Phase 2-7 pipeline completed",
+            "%s Phase 2-7 pipeline completed",
+            family_label,
             extra={
                 "event_data": {
                     "account_id": account_id,
@@ -1752,53 +1874,64 @@ class NodeService:
             },
         )
 
+    async def _run_order_phase1_flow(self, *, account_id: str, message) -> None:
+        await self._run_label_family_phase1_flow(
+            account_id=account_id,
+            message=message,
+            family_label="ORDER",
+            pipeline=self.order_pipeline,
+            flow_enabled=self._runtime_order_checks_enabled(),
+            disabled_detail="Check Orders is disabled",
+        )
+
     async def _run_action_required_phase1_flow(self, *, account_id: str, message) -> None:
-        if not self._runtime_classification_enabled():
-            LOGGER.info(
-                "ACTION_REQUIRED flow skipped because Clasify is disabled",
-                extra={"event_data": {"account_id": account_id, "message_id": message.message_id}},
-            )
-            return
-        normalized = await self.email_phase1.normalize(
-            SharedPhase1NormalizeRequest(
-                fetch_full_message_payload=self.email_provider_gateway.gmail_fetch_full_message_payload,
-                account_id=account_id,
-                message_id=message.message_id,
-            )
+        await self._run_label_family_phase1_flow(
+            account_id=account_id,
+            message=message,
+            family_label="ACTION_REQUIRED",
+            pipeline=self.action_required_pipeline,
+            flow_enabled=self._runtime_action_required_flow_enabled(),
+            disabled_detail="Action Required is disabled",
         )
-        LOGGER.info(
-            "ACTION_REQUIRED Phase 1 normalization completed",
-            extra={
-                "event_data": {
-                    "account_id": account_id,
-                    "message_id": message.message_id,
-                    "fetch_status": normalized.fetch_status,
-                    "decode_status": normalized.decode_state.status,
-                    "selected_body_type": normalized.selected_body_type,
-                }
-            },
+
+    async def _run_financial_phase1_flow(self, *, account_id: str, message) -> None:
+        await self._run_label_family_phase1_flow(
+            account_id=account_id,
+            message=message,
+            family_label="FINANCIAL",
+            pipeline=self.financial_pipeline,
+            flow_enabled=self._runtime_financial_flow_enabled(),
+            disabled_detail="Financial is disabled",
         )
-        pipeline_result = await self.action_required_pipeline.process_normalized_email(normalized)
-        phase4 = pipeline_result["phase4"]
-        phase6 = pipeline_result["phase6"]
-        phase7_result = pipeline_result.get("phase7_result") or {}
-        LOGGER.info(
-            "ACTION_REQUIRED Phase 2-7 pipeline completed",
-            extra={
-                "event_data": {
-                    "account_id": account_id,
-                    "message_id": message.message_id,
-                    "phase2_status": pipeline_result["phase2"].scrub_status,
-                    "phase3_profile_id": pipeline_result["phase3"].profile_id,
-                    "phase4_status": phase4.extraction_status,
-                    "phase4_template_id": phase4.template_id,
-                    "phase4_diagnostics": phase4.template_diagnostics,
-                    "phase6_decision": phase6.decision,
-                    "phase6_reason": phase6.decision_reason,
-                    "phase7_persisted": phase7_result.get("persisted"),
-                    "phase7_record_path": phase7_result.get("record_path"),
-                }
-            },
+
+    async def _run_invoice_phase1_flow(self, *, account_id: str, message) -> None:
+        await self._run_label_family_phase1_flow(
+            account_id=account_id,
+            message=message,
+            family_label="INVOICE",
+            pipeline=self.invoice_pipeline,
+            flow_enabled=self._runtime_invoice_flow_enabled(),
+            disabled_detail="Invoice is disabled",
+        )
+
+    async def _run_shipment_phase1_flow(self, *, account_id: str, message) -> None:
+        await self._run_label_family_phase1_flow(
+            account_id=account_id,
+            message=message,
+            family_label="SHIPMENT",
+            pipeline=self.shipment_pipeline,
+            flow_enabled=self._runtime_shipment_flow_enabled(),
+            disabled_detail="Shipment is disabled",
+        )
+
+    async def _run_security_phase1_flow(self, *, account_id: str, message) -> None:
+        await self._run_label_family_phase1_flow(
+            account_id=account_id,
+            message=message,
+            family_label="SECURITY",
+            pipeline=self.security_pipeline,
+            flow_enabled=self._runtime_security_flow_enabled(),
+            disabled_detail="Security is disabled",
         )
 
     def _sender_reputation_notification_text(self, sender_reputation: dict[str, object] | None) -> str | None:
@@ -2228,12 +2361,42 @@ class NodeService:
             if payload.order_checks_enabled is None
             else bool(payload.order_checks_enabled)
         )
+        action_required_flow_enabled = (
+            current.get("action_required_flow_enabled", True)
+            if payload.action_required_flow_enabled is None
+            else bool(payload.action_required_flow_enabled)
+        )
+        financial_flow_enabled = (
+            current.get("financial_flow_enabled", True)
+            if payload.financial_flow_enabled is None
+            else bool(payload.financial_flow_enabled)
+        )
+        invoice_flow_enabled = (
+            current.get("invoice_flow_enabled", True)
+            if payload.invoice_flow_enabled is None
+            else bool(payload.invoice_flow_enabled)
+        )
+        shipment_flow_enabled = (
+            current.get("shipment_flow_enabled", True)
+            if payload.shipment_flow_enabled is None
+            else bool(payload.shipment_flow_enabled)
+        )
+        security_flow_enabled = (
+            current.get("security_flow_enabled", True)
+            if payload.security_flow_enabled is None
+            else bool(payload.security_flow_enabled)
+        )
         state = self._save_runtime_task_state(
             ai_calls_enabled=ai_calls_enabled,
             provider_calls_enabled=provider_calls_enabled,
             user_notifications_enabled=user_notifications_enabled,
             classification_enabled=classification_enabled,
             order_checks_enabled=order_checks_enabled,
+            action_required_flow_enabled=action_required_flow_enabled,
+            financial_flow_enabled=financial_flow_enabled,
+            invoice_flow_enabled=invoice_flow_enabled,
+            shipment_flow_enabled=shipment_flow_enabled,
+            security_flow_enabled=security_flow_enabled,
         )
         return {
             "ok": True,
@@ -3858,16 +4021,20 @@ class NodeService:
             raise ValueError("gmail training actions are not available")
         try:
             result = await adapter.save_manual_classifications(account_id, payload)
-            # Debug-only visibility: surface the same user notifications when Training-page
-            # manual classification saves assign action_required/order labels.
-            for item in payload.items:
-                await self._notify_for_new_email_classification(
-                    account_id=account_id,
-                    message_id=item.message_id,
-                    classification_label=item.label,
-                    confidence=1.0,
-                    source_component="gmail_training_manual_classification",
-                )
+            # Run notification side effects after the save response path so the UI
+            # does not sit on "Saving..." while follow-up classification workflows run.
+            self._schedule_email_classification_followups(
+                account_id=account_id,
+                items=[
+                    (
+                        item.message_id,
+                        item.label,
+                        1.0,
+                        "gmail_training_manual_classification",
+                    )
+                    for item in payload.items
+                ],
+            )
             return result
         except Exception as exc:
             raise ValueError(str(exc)) from exc
@@ -3929,16 +4096,18 @@ class NodeService:
             raise ValueError("gmail training actions are not available")
         try:
             result = await adapter.save_semi_auto_review(account_id, payload)
-            # Debug-only visibility: surface the same user notifications when Training-page
-            # review saves assign action_required/order labels.
-            for item in payload.items:
-                await self._notify_for_new_email_classification(
-                    account_id=account_id,
-                    message_id=item.message_id,
-                    classification_label=item.selected_label,
-                    confidence=1.0 if item.selected_label != item.predicted_label else item.predicted_confidence,
-                    source_component="gmail_training_semi_auto_review",
-                )
+            self._schedule_email_classification_followups(
+                account_id=account_id,
+                items=[
+                    (
+                        item.message_id,
+                        item.selected_label,
+                        1.0 if item.selected_label != item.predicted_label else item.predicted_confidence,
+                        "gmail_training_semi_auto_review",
+                    )
+                    for item in payload.items
+                ],
+            )
             return result
         except Exception as exc:
             raise ValueError(str(exc)) from exc

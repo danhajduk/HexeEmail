@@ -38,6 +38,11 @@ const EMPTY_RUNTIME_TASK_FORM = {
   user_notifications_enabled: true,
   classification_enabled: true,
   order_checks_enabled: true,
+  action_required_flow_enabled: true,
+  financial_flow_enabled: true,
+  invoice_flow_enabled: true,
+  shipment_flow_enabled: true,
+  security_flow_enabled: true,
   requested_node_type: "ai",
   task_family: "task.classification",
   content_type: "email",
@@ -55,6 +60,11 @@ const EMPTY_RUNTIME_TASK_STATUS = {
   user_notifications_enabled: true,
   classification_enabled: true,
   order_checks_enabled: true,
+  action_required_flow_enabled: true,
+  financial_flow_enabled: true,
+  invoice_flow_enabled: true,
+  shipment_flow_enabled: true,
+  security_flow_enabled: true,
   request_status: "idle",
   last_step: "none",
   detail: "No runtime task request has been started yet.",
@@ -505,10 +515,13 @@ function scheduledTaskStatusTone(value) {
   if (value === "failing") {
     return "danger";
   }
-  if (value === "idle" || value === "stopped" || value === "inactive") {
+  if (value === "idle" || value === "stopped") {
     return "warning";
   }
-  return "success";
+  if (value === "scheduled" || value === "healthy") {
+    return "success";
+  }
+  return "neutral";
 }
 
 function schedulerStatusTone(value) {
@@ -920,6 +933,11 @@ export function App() {
                 user_notifications_enabled: payload.runtime_task_state?.user_notifications_enabled ?? true,
                 classification_enabled: payload.runtime_task_state?.classification_enabled ?? true,
                 order_checks_enabled: payload.runtime_task_state?.order_checks_enabled ?? true,
+                action_required_flow_enabled: payload.runtime_task_state?.action_required_flow_enabled ?? true,
+                financial_flow_enabled: payload.runtime_task_state?.financial_flow_enabled ?? true,
+                invoice_flow_enabled: payload.runtime_task_state?.invoice_flow_enabled ?? true,
+                shipment_flow_enabled: payload.runtime_task_state?.shipment_flow_enabled ?? true,
+                security_flow_enabled: payload.runtime_task_state?.security_flow_enabled ?? true,
               },
         );
         setRuntimeTaskForm((current) => ({
@@ -929,6 +947,11 @@ export function App() {
           user_notifications_enabled: payload.runtime_task_state?.user_notifications_enabled ?? true,
           classification_enabled: payload.runtime_task_state?.classification_enabled ?? true,
           order_checks_enabled: payload.runtime_task_state?.order_checks_enabled ?? true,
+          action_required_flow_enabled: payload.runtime_task_state?.action_required_flow_enabled ?? true,
+          financial_flow_enabled: payload.runtime_task_state?.financial_flow_enabled ?? true,
+          invoice_flow_enabled: payload.runtime_task_state?.invoice_flow_enabled ?? true,
+          shipment_flow_enabled: payload.runtime_task_state?.shipment_flow_enabled ?? true,
+          security_flow_enabled: payload.runtime_task_state?.security_flow_enabled ?? true,
         }));
         setUiUpdatedAt(new Date().toISOString());
         setBackendReachable(true);
@@ -1373,6 +1396,161 @@ export function App() {
       setRuntimeTaskForm((current) => ({
         ...current,
         order_checks_enabled: !enabled,
+      }));
+      setRuntimeTaskError(taskError.message);
+    } finally {
+      setRuntimeTaskPending("");
+    }
+  }
+
+  async function updateRuntimeActionRequiredFlowEnabled(enabled) {
+    setRuntimeTaskPending("settings");
+    setRuntimeTaskError("");
+    setRuntimeTaskNotice("");
+    setRuntimeTaskForm((current) => ({
+      ...current,
+      action_required_flow_enabled: enabled,
+    }));
+    try {
+      const payload = await fetchJson("/api/runtime/settings", {
+        method: "POST",
+        body: JSON.stringify({
+          action_required_flow_enabled: enabled,
+        }),
+      });
+      setRuntimeTaskStatus((current) => ({
+        ...current,
+        ...(payload.runtime_task_state || {}),
+      }));
+      setRuntimeTaskNotice(enabled ? "Action Required flow enabled." : "Action Required flow disabled.");
+    } catch (taskError) {
+      setRuntimeTaskForm((current) => ({
+        ...current,
+        action_required_flow_enabled: !enabled,
+      }));
+      setRuntimeTaskError(taskError.message);
+    } finally {
+      setRuntimeTaskPending("");
+    }
+  }
+
+  async function updateRuntimeFinancialFlowEnabled(enabled) {
+    setRuntimeTaskPending("settings");
+    setRuntimeTaskError("");
+    setRuntimeTaskNotice("");
+    setRuntimeTaskForm((current) => ({
+      ...current,
+      financial_flow_enabled: enabled,
+    }));
+    try {
+      const payload = await fetchJson("/api/runtime/settings", {
+        method: "POST",
+        body: JSON.stringify({
+          financial_flow_enabled: enabled,
+        }),
+      });
+      setRuntimeTaskStatus((current) => ({
+        ...current,
+        ...(payload.runtime_task_state || {}),
+      }));
+      setRuntimeTaskNotice(enabled ? "Financial flow enabled." : "Financial flow disabled.");
+    } catch (taskError) {
+      setRuntimeTaskForm((current) => ({
+        ...current,
+        financial_flow_enabled: !enabled,
+      }));
+      setRuntimeTaskError(taskError.message);
+    } finally {
+      setRuntimeTaskPending("");
+    }
+  }
+
+  async function updateRuntimeInvoiceFlowEnabled(enabled) {
+    setRuntimeTaskPending("settings");
+    setRuntimeTaskError("");
+    setRuntimeTaskNotice("");
+    setRuntimeTaskForm((current) => ({
+      ...current,
+      invoice_flow_enabled: enabled,
+    }));
+    try {
+      const payload = await fetchJson("/api/runtime/settings", {
+        method: "POST",
+        body: JSON.stringify({
+          invoice_flow_enabled: enabled,
+        }),
+      });
+      setRuntimeTaskStatus((current) => ({
+        ...current,
+        ...(payload.runtime_task_state || {}),
+      }));
+      setRuntimeTaskNotice(enabled ? "Invoice flow enabled." : "Invoice flow disabled.");
+    } catch (taskError) {
+      setRuntimeTaskForm((current) => ({
+        ...current,
+        invoice_flow_enabled: !enabled,
+      }));
+      setRuntimeTaskError(taskError.message);
+    } finally {
+      setRuntimeTaskPending("");
+    }
+  }
+
+  async function updateRuntimeShipmentFlowEnabled(enabled) {
+    setRuntimeTaskPending("settings");
+    setRuntimeTaskError("");
+    setRuntimeTaskNotice("");
+    setRuntimeTaskForm((current) => ({
+      ...current,
+      shipment_flow_enabled: enabled,
+    }));
+    try {
+      const payload = await fetchJson("/api/runtime/settings", {
+        method: "POST",
+        body: JSON.stringify({
+          shipment_flow_enabled: enabled,
+        }),
+      });
+      setRuntimeTaskStatus((current) => ({
+        ...current,
+        ...(payload.runtime_task_state || {}),
+      }));
+      setRuntimeTaskNotice(enabled ? "Shipment flow enabled." : "Shipment flow disabled.");
+    } catch (taskError) {
+      setRuntimeTaskForm((current) => ({
+        ...current,
+        shipment_flow_enabled: !enabled,
+      }));
+      setRuntimeTaskError(taskError.message);
+    } finally {
+      setRuntimeTaskPending("");
+    }
+  }
+
+  async function updateRuntimeSecurityFlowEnabled(enabled) {
+    setRuntimeTaskPending("settings");
+    setRuntimeTaskError("");
+    setRuntimeTaskNotice("");
+    setRuntimeTaskForm((current) => ({
+      ...current,
+      security_flow_enabled: enabled,
+    }));
+    try {
+      const payload = await fetchJson("/api/runtime/settings", {
+        method: "POST",
+        body: JSON.stringify({
+          security_flow_enabled: enabled,
+        }),
+      });
+      setRuntimeTaskStatus((current) => ({
+        ...current,
+        ...(payload.runtime_task_state || {}),
+      }));
+      setRuntimeTaskNotice(enabled ? "Security flow enabled." : "Security flow disabled.");
+    } catch (taskError) {
+      setRuntimeTaskForm((current) => ({
+        ...current,
+        security_flow_enabled: !enabled,
       }));
       setRuntimeTaskError(taskError.message);
     } finally {
@@ -2856,6 +3034,11 @@ export function App() {
                   updateRuntimeUserNotificationsEnabled={updateRuntimeUserNotificationsEnabled}
                   updateRuntimeClassificationEnabled={updateRuntimeClassificationEnabled}
                   updateRuntimeOrderChecksEnabled={updateRuntimeOrderChecksEnabled}
+                  updateRuntimeActionRequiredFlowEnabled={updateRuntimeActionRequiredFlowEnabled}
+                  updateRuntimeFinancialFlowEnabled={updateRuntimeFinancialFlowEnabled}
+                  updateRuntimeInvoiceFlowEnabled={updateRuntimeInvoiceFlowEnabled}
+                  updateRuntimeShipmentFlowEnabled={updateRuntimeShipmentFlowEnabled}
+                  updateRuntimeSecurityFlowEnabled={updateRuntimeSecurityFlowEnabled}
                   runRuntimeResolveFlow={runRuntimeResolveFlow}
                   runRuntimeAuthorize={runRuntimeAuthorize}
                   runRuntimeRegisterPrompt={runRuntimeRegisterPrompt}

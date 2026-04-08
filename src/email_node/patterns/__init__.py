@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from email_node.patterns.action_required_ai_template_request_mapper import build_action_required_ai_template_request
+from email_node.patterns.family_ai_template_request_mapper import build_family_ai_template_request
 from email_node.patterns.order_ai_template_request_mapper import build_order_ai_template_request
 from email_node.patterns.pattern_generation_client import PatternGenerationClient, PatternGenerationClientError
 from email_node.patterns.pattern_generation_pipeline import PatternGenerationPipeline
@@ -28,6 +29,7 @@ __all__ = [
     "PatternGenerationWriter",
     "PatternGenerationWriterError",
     "build_action_required_ai_template_request",
+    "build_family_ai_template_request",
     "build_order_ai_template_request",
     "ProbationEvaluationResult",
     "ProbationEvaluator",

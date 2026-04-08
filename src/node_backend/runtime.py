@@ -19,6 +19,11 @@ class RuntimeManager:
             "user_notifications_enabled": True,
             "classification_enabled": True,
             "order_checks_enabled": True,
+            "action_required_flow_enabled": True,
+            "financial_flow_enabled": True,
+            "invoice_flow_enabled": True,
+            "shipment_flow_enabled": True,
+            "security_flow_enabled": True,
             "request_status": "idle",
             "last_step": "none",
             "detail": "No runtime task request has been started yet.",
@@ -69,6 +74,31 @@ class RuntimeManager:
     def runtime_order_checks_enabled(self) -> bool:
         current = self.runtime_task_state()
         value = current.get("order_checks_enabled")
+        return True if value is None else bool(value)
+
+    def runtime_action_required_flow_enabled(self) -> bool:
+        current = self.runtime_task_state()
+        value = current.get("action_required_flow_enabled")
+        return True if value is None else bool(value)
+
+    def runtime_financial_flow_enabled(self) -> bool:
+        current = self.runtime_task_state()
+        value = current.get("financial_flow_enabled")
+        return True if value is None else bool(value)
+
+    def runtime_invoice_flow_enabled(self) -> bool:
+        current = self.runtime_task_state()
+        value = current.get("invoice_flow_enabled")
+        return True if value is None else bool(value)
+
+    def runtime_shipment_flow_enabled(self) -> bool:
+        current = self.runtime_task_state()
+        value = current.get("shipment_flow_enabled")
+        return True if value is None else bool(value)
+
+    def runtime_security_flow_enabled(self) -> bool:
+        current = self.runtime_task_state()
+        value = current.get("security_flow_enabled")
         return True if value is None else bool(value)
 
     @staticmethod
