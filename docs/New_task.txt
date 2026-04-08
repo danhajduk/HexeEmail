@@ -47,3 +47,25 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
+The future-feature backlog previously tracked in this file has been moved to GitHub feature requests and the repo planning docs.
+
+Primary planning reference:
+
+- [training-and-sender-reputation-future-features.md](/home/dan/Projects/HexeEmail/docs/training-and-sender-reputation-future-features.md)
+
+Current GitHub feature-request backlog:
+
+- `#1` Manual domain semantic tag in Sender Reputation
+- `#2` Domain heuristic to boost future classification toward `financial`
+- `#3` Multi-family email pipeline future roadmap
+- `#4` Adaptive signal suggestion system for family profiles
+- `#5` Signal observation logging during pipeline execution
+- `#6` Signal aggregation engine for learned profile evidence
+- `#7` Structured signal suggestions for family profiles
+- `#8` Negative signal and conflict detection for profile learning
+- `#9` Manual review workflow for learned signal suggestions
+- `#10` Signal quality filters and noise suppression
+- `#11` Reporting for adaptive signal learning effectiveness
+- `#12` Configuration for adaptive learning behavior
+
+Add new future-feature backlog items in GitHub first, then update repo docs only when extra node-owned design detail is needed.

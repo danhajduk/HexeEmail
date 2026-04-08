@@ -26,4 +26,14 @@ Current scoring notes:
 - newsletter/marketing classifications decrease reputation
 - Spamhaus listed results strongly reduce reputation and force the `blocked` state
 
+Current gap notes:
+
+- there is currently no dedicated semantic sender/domain tag such as `probably_financial`
+- there is currently no explicit domain heuristic that boosts future classification toward `financial`
+- the current manual sender/domain controls are reputation overrides, not mail-type hints
+
+Future planning reference:
+
+- [training-and-sender-reputation-future-features.md](/home/dan/Projects/HexeEmail/docs/training-and-sender-reputation-future-features.md)
+
 This is a node-owned implementation detail and can be adjusted later as more sender-quality signals are added.

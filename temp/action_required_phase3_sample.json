@@ -1,0 +1,378 @@
+[
+  {
+    "message_id": "19d55740e539849c",
+    "subject": "Your Subscription is Expiring",
+    "sender_email": "no_reply@email.apple.com",
+    "profile_id": "subscription_expiring",
+    "confidence": 0.65,
+    "status": "partial",
+    "diagnostics": [
+      "candidate:subscription_expiring reasons=subscription_expiring_language",
+      "scored:subscription_expiring score=13 reasons=subscription_expiring_language,score:sender_match,score:subscription_expiring_language",
+      "resolved_profile:subscription_expiring score=13"
+    ]
+  },
+  {
+    "message_id": "19d521e1e27ea09d",
+    "subject": "Your Upcoming Commuter Benefits Order",
+    "sender_email": "no_reply@edenredbenefits.com",
+    "profile_id": "benefit_order_update_required",
+    "confidence": 0.65,
+    "status": "partial",
+    "diagnostics": [
+      "candidate:benefit_order_update_required reasons=benefit_order_update_language",
+      "scored:benefit_order_update_required score=13 reasons=benefit_order_update_language,score:sender_match,score:benefit_order_update_language",
+      "resolved_profile:benefit_order_update_required score=13"
+    ]
+  },
+  {
+    "message_id": "19d4eac4801ace14",
+    "subject": "Reminder: Get ready for the Genius Bar",
+    "sender_email": "noreply@email.apple.com",
+    "profile_id": "appointment_preparation_required",
+    "confidence": 0.65,
+    "status": "partial",
+    "diagnostics": [
+      "candidate:appointment_preparation_required reasons=appointment_preparation_language",
+      "scored:appointment_preparation_required score=13 reasons=appointment_preparation_language,score:sender_match,score:appointment_preparation_language",
+      "resolved_profile:appointment_preparation_required score=13"
+    ]
+  },
+  {
+    "message_id": "19d4d59092847e4f",
+    "subject": "Your card's expiring soon--confirm your mailing address",
+    "sender_email": "capitalone@notification.capitalone.com",
+    "profile_id": "payment_method_update_required",
+    "confidence": 0.5,
+    "status": "partial",
+    "diagnostics": [
+      "candidate:payment_method_update_required reasons=payment_method_update_language",
+      "candidate:benefit_expiring reasons=benefit_expiring_language",
+      "scored:payment_method_update_required score=14 reasons=payment_method_update_language,score:sender_match,score:payment_method_update_language",
+      "scored:benefit_expiring score=12 reasons=benefit_expiring_language,score:sender_match,score:benefit_expiring_language",
+      "resolved_profile:payment_method_update_required score=14",
+      "confidence_downgrade:close_competing_candidates"
+    ]
+  },
+  {
+    "message_id": "19d4c495c9838b45",
+    "subject": "New reasons prevent pages from being indexed on site hexe-ai.com",
+    "sender_email": "sc-noreply@google.com",
+    "profile_id": "site_issue_action_required",
+    "confidence": 0.7,
+    "status": "success",
+    "diagnostics": [
+      "candidate:site_issue_action_required reasons=site_issue_language",
+      "scored:site_issue_action_required score=14 reasons=site_issue_language,score:sender_match,score:site_issue_language",
+      "resolved_profile:site_issue_action_required score=14"
+    ]
+  },
+  {
+    "message_id": "19d4b6681b88f83d",
+    "subject": "Overdue Hygiene",
+    "sender_email": "no-reply@meetaxle.com",
+    "profile_id": null,
+    "confidence": 0.0,
+    "status": "failed",
+    "diagnostics": [
+      "phase2 scrub_status is failed"
+    ]
+  },
+  {
+    "message_id": "19d4a3d542bf70e8",
+    "subject": "Extended until April 4th \u2764\ufe0f",
+    "sender_email": "noreply@notify.thinkific.com",
+    "profile_id": null,
+    "confidence": 0.0,
+    "status": "failed",
+    "diagnostics": [
+      "candidate_generation:no_candidates",
+      "profile_resolution:no_ranked_candidates"
+    ]
+  },
+  {
+    "message_id": "19d4500823ad42a4",
+    "subject": "Your Rewards Voucher Expires Soon!",
+    "sender_email": "michaels@emdeals.michaels.com",
+    "profile_id": "benefit_expiring",
+    "confidence": 0.6,
+    "status": "partial",
+    "diagnostics": [
+      "candidate:benefit_expiring reasons=benefit_expiring_language",
+      "scored:benefit_expiring score=12 reasons=benefit_expiring_language,score:sender_match,score:benefit_expiring_language",
+      "resolved_profile:benefit_expiring score=12"
+    ]
+  },
+  {
+    "message_id": "19d444f5d0ae5329",
+    "subject": "Slobodan, April rent is due soon but there\u2019s good news too!",
+    "sender_email": "team@payments.getflex.com",
+    "profile_id": "application_completion_required",
+    "confidence": 0.65,
+    "status": "partial",
+    "diagnostics": [
+      "candidate:application_completion_required reasons=application_completion_language",
+      "scored:application_completion_required score=13 reasons=application_completion_language,score:sender_match,score:application_completion_language",
+      "resolved_profile:application_completion_required score=13"
+    ]
+  },
+  {
+    "message_id": "19d43d04150c62d3",
+    "subject": "re: The Engine Room (Private Invitation Reminder)",
+    "sender_email": "support@salehoo.com",
+    "profile_id": null,
+    "confidence": 0.0,
+    "status": "failed",
+    "diagnostics": [
+      "candidate_generation:no_candidates",
+      "profile_resolution:no_ranked_candidates"
+    ]
+  },
+  {
+    "message_id": "19d3f4837f1c105c",
+    "subject": "Reminder: Elevate Your Oregon Air Show Experience Today!",
+    "sender_email": "info-oregonairshow.com@shared1.ccsend.com",
+    "profile_id": null,
+    "confidence": 0.0,
+    "status": "failed",
+    "diagnostics": [
+      "candidate_generation:no_candidates",
+      "profile_resolution:no_ranked_candidates"
+    ]
+  },
+  {
+    "message_id": "19d3a6544b47b0b1",
+    "subject": "Reminder: Slobodan, your Rx is ready for pickup",
+    "sender_email": "donotreply@rxorder.walgreens.com",
+    "profile_id": "pickup_ready_action_required",
+    "confidence": 0.65,
+    "status": "partial",
+    "diagnostics": [
+      "candidate:pickup_ready_action_required reasons=pickup_ready_action_language",
+      "scored:pickup_ready_action_required score=13 reasons=pickup_ready_action_language,score:sender_match,score:pickup_ready_action_language",
+      "resolved_profile:pickup_ready_action_required score=13"
+    ]
+  },
+  {
+    "message_id": "19d34c0b22202273",
+    "subject": "A birthday gift from Afterpay",
+    "sender_email": "afterpay@nanews.e.afterpay.com",
+    "profile_id": null,
+    "confidence": 0.0,
+    "status": "failed",
+    "diagnostics": [
+      "candidate_generation:no_candidates",
+      "profile_resolution:no_ranked_candidates"
+    ]
+  },
+  {
+    "message_id": "19d302721bde1077",
+    "subject": "jessica.lynette.lohman and 7 others recently added to their stories",
+    "sender_email": "stories-recap@mail.instagram.com",
+    "profile_id": null,
+    "confidence": 0.0,
+    "status": "failed",
+    "diagnostics": [
+      "candidate_generation:no_candidates",
+      "profile_resolution:no_ranked_candidates"
+    ]
+  },
+  {
+    "message_id": "19d2fa148b5d60b0",
+    "subject": "Rent is coming due soon: Complete your Flex profile to split your rent",
+    "sender_email": "team@payments.getflex.com",
+    "profile_id": "application_completion_required",
+    "confidence": 0.65,
+    "status": "partial",
+    "diagnostics": [
+      "candidate:application_completion_required reasons=application_completion_language",
+      "scored:application_completion_required score=13 reasons=application_completion_language,score:sender_match,score:application_completion_language",
+      "resolved_profile:application_completion_required score=13"
+    ]
+  },
+  {
+    "message_id": "19d2bb9b4bc89756",
+    "subject": "Reminder: your Aftership account is scheduled for deletion",
+    "sender_email": "hello@aftership.com",
+    "profile_id": null,
+    "confidence": 0.0,
+    "status": "failed",
+    "diagnostics": [
+      "phase2 scrub_status is failed"
+    ]
+  },
+  {
+    "message_id": "19d2ad02a3599930",
+    "subject": "Reminder: Your W-2 is available",
+    "sender_email": "turbotax@em1.turbotax.intuit.com",
+    "profile_id": "document_available_action_required",
+    "confidence": 0.6,
+    "status": "partial",
+    "diagnostics": [
+      "candidate:document_available_action_required reasons=document_available_language",
+      "scored:document_available_action_required score=12 reasons=document_available_language,score:sender_match,score:document_available_language",
+      "resolved_profile:document_available_action_required score=12"
+    ]
+  },
+  {
+    "message_id": "19d25f7ca58b34a6",
+    "subject": "Reminder: Complete your Flex application to split rent",
+    "sender_email": "team@payments.getflex.com",
+    "profile_id": "application_completion_required",
+    "confidence": 0.65,
+    "status": "partial",
+    "diagnostics": [
+      "candidate:application_completion_required reasons=application_completion_language",
+      "scored:application_completion_required score=13 reasons=application_completion_language,score:sender_match,score:application_completion_language",
+      "resolved_profile:application_completion_required score=13"
+    ]
+  },
+  {
+    "message_id": "19d249cf4be5f2ba",
+    "subject": "jessica.lynette.lohman and 7 others recently added to their stories",
+    "sender_email": "stories-recap@mail.instagram.com",
+    "profile_id": null,
+    "confidence": 0.0,
+    "status": "failed",
+    "diagnostics": [
+      "candidate_generation:no_candidates",
+      "profile_resolution:no_ranked_candidates"
+    ]
+  },
+  {
+    "message_id": "19d2403bf824d405",
+    "subject": "Some or all of your Miles will expire soon",
+    "sender_email": "flyingbluecrm@service-flyingblue.com",
+    "profile_id": "benefit_expiring",
+    "confidence": 0.6,
+    "status": "partial",
+    "diagnostics": [
+      "candidate:benefit_expiring reasons=benefit_expiring_language",
+      "scored:benefit_expiring score=12 reasons=benefit_expiring_language,score:sender_match,score:benefit_expiring_language",
+      "resolved_profile:benefit_expiring score=12"
+    ]
+  },
+  {
+    "message_id": "19d222b39d79319f",
+    "subject": "Reminder: Your coupons expire in 7 days",
+    "sender_email": "visionworks@c.visionworks.com",
+    "profile_id": "benefit_expiring",
+    "confidence": 0.6,
+    "status": "partial",
+    "diagnostics": [
+      "candidate:benefit_expiring reasons=benefit_expiring_language",
+      "scored:benefit_expiring score=12 reasons=benefit_expiring_language,score:sender_match,score:benefit_expiring_language",
+      "resolved_profile:benefit_expiring score=12"
+    ]
+  },
+  {
+    "message_id": "19d20e6798d3eeb3",
+    "subject": "Ready for pickup reminder: items from order #2000146-48505219",
+    "sender_email": "help@walmart.com",
+    "profile_id": null,
+    "confidence": 0.0,
+    "status": "failed",
+    "diagnostics": [
+      "phase2 scrub_status is failed"
+    ]
+  },
+  {
+    "message_id": "19d20c7ea0224549",
+    "subject": "Your score changed, Dan. Check in to see.",
+    "sender_email": "notifications@reminder.creditkarma.com",
+    "profile_id": null,
+    "confidence": 0.0,
+    "status": "failed",
+    "diagnostics": [
+      "candidate_generation:no_candidates",
+      "profile_resolution:no_ranked_candidates"
+    ]
+  },
+  {
+    "message_id": "19d1b52fde6cce1c",
+    "subject": "Check in now for your flight to Las Vegas on March 24, 2026",
+    "sender_email": "transactions@email.alaskaair.com",
+    "profile_id": "travel_check_in_required",
+    "confidence": 0.65,
+    "status": "partial",
+    "diagnostics": [
+      "candidate:travel_check_in_required reasons=travel_check_in_language",
+      "scored:travel_check_in_required score=13 reasons=travel_check_in_language,score:sender_match,score:travel_check_in_language",
+      "resolved_profile:travel_check_in_required score=13"
+    ]
+  },
+  {
+    "message_id": "19d189c4d4ced61b",
+    "subject": "Your verification code is 264452",
+    "sender_email": "help@walmart.com",
+    "profile_id": null,
+    "confidence": 0.0,
+    "status": "failed",
+    "diagnostics": [
+      "phase2 scrub_status is failed"
+    ]
+  },
+  {
+    "message_id": "19d0ef2f0d5803e4",
+    "subject": "Your repair for Pixel Care+ claim 108862544083 is confirmed",
+    "sender_email": "googlestore-noreply@google.com",
+    "profile_id": "appointment_preparation_required",
+    "confidence": 0.65,
+    "status": "partial",
+    "diagnostics": [
+      "candidate:appointment_preparation_required reasons=appointment_preparation_language",
+      "scored:appointment_preparation_required score=13 reasons=appointment_preparation_language,score:sender_match,score:appointment_preparation_language",
+      "resolved_profile:appointment_preparation_required score=13"
+    ]
+  },
+  {
+    "message_id": "19d0bc0d17fe8cba",
+    "subject": "VCX - A day to remember",
+    "sender_email": "investments@fundrise.com",
+    "profile_id": null,
+    "confidence": 0.0,
+    "status": "failed",
+    "diagnostics": [
+      "candidate_generation:no_candidates",
+      "profile_resolution:no_ranked_candidates"
+    ]
+  },
+  {
+    "message_id": "19d08cf062e2ae3b",
+    "subject": "Slobodan, there was a problem with your TripIt submission",
+    "sender_email": "support@tripit.com",
+    "profile_id": "service_issue_action_required",
+    "confidence": 0.65,
+    "status": "partial",
+    "diagnostics": [
+      "candidate:service_issue_action_required reasons=service_issue_language",
+      "scored:service_issue_action_required score=13 reasons=service_issue_language,score:sender_match,score:service_issue_language",
+      "resolved_profile:service_issue_action_required score=13"
+    ]
+  },
+  {
+    "message_id": "19d07b21ebe15fef",
+    "subject": "Reminder: Here comes Rambo!",
+    "sender_email": "info-oregonairshow.com@shared1.ccsend.com",
+    "profile_id": null,
+    "confidence": 0.0,
+    "status": "failed",
+    "diagnostics": [
+      "candidate_generation:no_candidates",
+      "profile_resolution:no_ranked_candidates"
+    ]
+  },
+  {
+    "message_id": "19d078490170cf5b",
+    "subject": "Reminder: you can split April rent",
+    "sender_email": "team@payments.getflex.com",
+    "profile_id": "application_completion_required",
+    "confidence": 0.65,
+    "status": "partial",
+    "diagnostics": [
+      "candidate:application_completion_required reasons=application_completion_language",
+      "scored:application_completion_required score=13 reasons=application_completion_language,score:sender_match,score:application_completion_language",
+      "resolved_profile:application_completion_required score=13"
+    ]
+  }
+]

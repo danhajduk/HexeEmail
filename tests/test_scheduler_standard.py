@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from service import NodeService
+from node_backend.scheduler import BackgroundTaskManager
 from tests.helpers import FakeMQTTManager, build_core_app
 
 
@@ -10,7 +11,9 @@ def test_scheduler_legend_is_sorted_with_interval_last():
     legend = NodeService._scheduled_task_legend()
     names = [item["name"] for item in legend]
 
+    assert names.index("heartbeat_5_seconds") < names.index("every_10_seconds")
     assert names.index("every_10_seconds") < names.index("every_5_minutes")
+    assert names.index("telemetry_60_seconds") < names.index("every_5_minutes")
     assert names.index("every_5_minutes") < names.index("hourly")
     assert names.index("hourly") < names.index("daily")
     assert names[-1] == "interval_seconds"
@@ -49,3 +52,12 @@ async def test_scheduler_shutdown_marks_long_lived_tasks_stopped(config, core_cl
     assert scheduler_states["operational_mqtt_health"]["status"] == "stopped"
     assert scheduler_states["gmail_status_polling"]["status"] == "stopped"
     assert scheduler_states["gmail_fetch_last_hour"]["status"] == "stopped"
+
+
+def test_public_scheduled_task_status_normalization():
+    assert BackgroundTaskManager.scheduled_task_public_status("active") == "scheduled"
+    assert BackgroundTaskManager.scheduled_task_public_status("inactive") == "idle"
+    assert BackgroundTaskManager.scheduled_task_public_status("pending") == "idle"
+    assert BackgroundTaskManager.scheduled_task_public_status("degraded") == "failing"
+    assert BackgroundTaskManager.scheduled_task_public_status("running") == "running"
+    assert BackgroundTaskManager.scheduled_task_public_status("healthy") == "healthy"

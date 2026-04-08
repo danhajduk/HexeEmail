@@ -35,17 +35,17 @@ The scheduled-task snapshot is now built from that registry metadata as well, so
 
 - `heartbeat`
   - owner: `MQTTManager` heartbeat loop with state recorded by `BackgroundTaskManager`
-  - schedule: `interval_seconds`
+  - schedule: `heartbeat_5_seconds`
   - purpose: publish MQTT presence heartbeats and keep node freshness visible to operators
 - `telemetry`
   - owner: `BackgroundTaskManager.telemetry_loop()`
-  - schedule: every 60 seconds
+  - schedule: `telemetry_60_seconds`
   - purpose: refresh baseline runtime telemetry state for operator-facing scheduler visibility
 - `operational_mqtt_health`
   - owner: `BackgroundTaskManager.mqtt_health_loop()`
   - schedule:
-    - every 10 seconds during startup and degraded windows
-    - every 5 minutes while stable
+    - `every_10_seconds` during startup and degraded windows
+    - `every_5_minutes` while stable
   - purpose: persist operator-visible MQTT health state on the standard baseline cadence
 
 These baseline tasks now publish structured per-task state under `runtime_task_state.scheduler_task_states`, which is the first persisted scheduler-task-state boundary ahead of the broader standardization work.
@@ -242,7 +242,9 @@ The task owner is shown alongside that kind label so operators can distinguish r
 
 The schedule legend is now normalized from shortest to longest cadence:
 
+- `heartbeat_5_seconds`
 - `every_10_seconds`
+- `telemetry_60_seconds`
 - `every_5_minutes`
 - `hourly`
 - `4_times_a_day`
@@ -255,12 +257,28 @@ The schedule legend is now normalized from shortest to longest cadence:
 - `on_start`
 - `interval_seconds` last when present
 
+Public scheduled-task statuses are normalized to:
+
+- `idle`
+- `scheduled`
+- `running`
+- `healthy`
+- `failing`
+- `stopped`
+
+Normalization rules:
+
+- internal `active` is exposed as `scheduled`
+- internal `inactive` and `pending` are exposed as `idle`
+- internal `degraded` is exposed as `failing`
+- public Scheduled Tasks responses should not emit those legacy internal values
+
 Scheduled-task status colors now follow the standard:
 
-- `idle`, `inactive`, and `stopped`: orange
-- `failing`: red
+- `idle` and `stopped`: orange
+- `scheduled` and `healthy`: green
 - `running`: darker green
-- all other scheduler task states: green
+- `failing`: red
 
 ## Current Boundary
 

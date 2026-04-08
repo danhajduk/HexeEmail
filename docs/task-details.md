@@ -221,6 +221,27 @@ Original task details:
 
 ## Task 105
 Original task details:
+- document future Gmail training and sender-reputation enhancements before implementation
+- preserve the current training and sender-reputation behavior details in the planning document
+- include a status report for what exists today versus what is still missing
+- keep this as documentation-only work for future feature planning
+
+## Task 106
+Original task details:
+- document a future manual sender/domain semantic tag in Sender Reputation
+- define the first semantic tag as `probably_financial`
+- explain why this must stay separate from the existing manual reputation rating
+- describe desired storage, api, ui, explainability, and safeguard expectations
+
+## Task 107
+Original task details:
+- document a future domain heuristic that boosts future classification toward `financial`
+- keep the feature as a soft prior or review boost, not a hard rule
+- preserve manual per-message labels as the strongest signal
+- define precedence, diagnostics, risks, and safeguards before implementation
+
+## Task 105
+Original task details:
 - define modular gateway architecture for outbound integrations
 - introduce an `AiNodeGateway` as the single boundary for all outbound AI-node communication
 - introduce an `EmailProviderGateway` as the single boundary for all outbound email-provider communication
@@ -518,6 +539,109 @@ Status update behavior:
   - `status_updated_at` if present
   - `carrier` if missing and now confidently known
   - `tracking_number` if missing and confidently matched from a seller-origin email tied to the same existing order
+
+## Task 347
+Original task details:
+- send a completion user notification over MQTT after the scheduled-task and flow-family work is finished
+- use the Core-documented node notification proxy contract rather than publishing directly to bridge-owned external topics
+- publish the request on the node-scoped request topic:
+  - `hexe/nodes/<node_id>/notify/request`
+- expect the Core response on:
+  - `hexe/nodes/<node_id>/notify/result`
+- the final Home Assistant delivery topic is:
+  - `hexe-notify/ha`
+- treat `hexe-notify/ha` as the bridge-owned external destination, not the node's direct publish topic
+- do not publish directly to:
+  - `hexe-notify/ha`
+  - `hexe/notify/internal/event`
+  - any other bridge-owned or Core-internal notification topic
+
+Required request shape:
+- use the canonical node notification request JSON shape documented by Core
+- include:
+  - `request_id`
+  - `created_at`
+  - `node_id`
+  - `kind`
+  - `targets`
+  - at least one payload section such as `content`, `event`, or `data`
+- target Home Assistant through:
+  - `targets.broadcast=true`
+  - `targets.external=["ha"]`
+- use an event-style notification unless the final implementation has a stronger reason to choose popup or state
+
+Recommended completion payload:
+- `kind`: `event`
+- `content.title`: short completion title for the operator
+- `content.message`: concise message that the queued scheduled-task and flow-family work completed
+- `delivery.severity`: `success`
+- `delivery.urgency`: `notification`
+- `delivery.channels`: `["event", "external"]`
+- `delivery.ttl_seconds`: `3600`
+- `delivery.dedupe_key`: stable completion key for this delivery
+- `source.component`: implementation component responsible for the notification
+- `event.event_type`: completion event name for this task batch
+- `event.summary`: short completion summary
+- `data`: include useful non-secret completion metadata such as task range or work category
+
+Example topic usage:
+- publish:
+  - `hexe/nodes/<node_id>/notify/request`
+- subscribe/read result:
+  - `hexe/nodes/<node_id>/notify/result`
+
+Example request JSON:
+```json
+{
+  "request_id": "3b6f5b2e-7f9c-4f4d-8c95-9f72f7b41d37",
+  "created_at": "2026-04-06T20:00:00Z",
+  "node_id": "<node_id>",
+  "kind": "event",
+  "targets": {
+    "broadcast": true,
+    "external": ["ha"]
+  },
+  "delivery": {
+    "severity": "success",
+    "priority": "normal",
+    "urgency": "notification",
+    "dedupe_key": "scheduled-flow-family-complete",
+    "channels": ["event", "external"],
+    "ttl_seconds": 3600
+  },
+  "source": {
+    "component": "scheduler_flow_rollout",
+    "label": "Hexe Email Node",
+    "metadata": {
+      "node_type": "node-email"
+    }
+  },
+  "content": {
+    "title": "Hexe Email rollout complete",
+    "message": "Scheduled-task standard alignment and flow-family rollout work completed."
+  },
+  "event": {
+    "event_type": "scheduled_flow_rollout_complete",
+    "summary": "Scheduled-task and flow-family work completed",
+    "attributes": {
+      "component": "scheduler_flow_rollout"
+    }
+  },
+  "data": {
+    "work_category": "scheduler_and_flow_family_rollout"
+  }
+}
+```
+
+Implementation notes:
+- use the MQTT credentials provided by the user when this task is actually executed
+- keep credentials out of committed code, docs, logs, and responses
+- if the node already has a trusted MQTT runtime path available, prefer the existing node notification send path over ad hoc publishing code
+- capture whether Core accepted or rejected the request from the `notify/result` topic and record that in the implementation outcome
+
+Source references:
+- `/home/dan/Projects/HexeEmail/docs/Core Docs/mqtt/notifications.md`
+- `/home/dan/Projects/HexeEmail/src/node_backend/notifications.py`
 - do not overwrite good data with weak guesses
 - if there is ambiguity, skip
 

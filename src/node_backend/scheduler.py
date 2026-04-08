@@ -260,6 +260,21 @@ class BackgroundTaskManager:
             schedule_detail=schedule_detail,
         )
 
+    @staticmethod
+    def scheduled_task_public_status(value: str | None) -> str:
+        normalized = str(value or "").strip().lower()
+        if normalized == "active":
+            return "scheduled"
+        if normalized in {"inactive", "pending"}:
+            return "idle"
+        if normalized in {"completed", "success", "healthy"}:
+            return "healthy"
+        if normalized == "degraded":
+            return "failing"
+        if normalized in {"idle", "scheduled", "running", "failing", "stopped"}:
+            return normalized
+        return "idle"
+
     def record_heartbeat_event(self) -> None:
         now = datetime.now(UTC).replace(tzinfo=None)
         self.save_scheduler_task_state(
@@ -439,8 +454,9 @@ class BackgroundTaskManager:
     @classmethod
     def schedule_templates(cls) -> dict[str, ScheduleTemplate]:
         return {
-            "interval_seconds": ScheduleTemplate("interval_seconds", "Fixed interval in seconds", lambda now: None),
+            "heartbeat_5_seconds": ScheduleTemplate("heartbeat_5_seconds", "Heartbeat every 5 seconds", lambda now: now + timedelta(seconds=5)),
             "every_10_seconds": ScheduleTemplate("every_10_seconds", "Every 10 seconds", lambda now: now + timedelta(seconds=10)),
+            "telemetry_60_seconds": ScheduleTemplate("telemetry_60_seconds", "Telemetry every 60 seconds", lambda now: now + timedelta(seconds=60)),
             "daily": ScheduleTemplate("daily", "Every day at 00:01", lambda now: cls.next_daily_run(now, hour=0, minute=1)),
             "weekly": ScheduleTemplate("weekly", "Monday 00:01", lambda now: cls.next_weekly_run(now, weekday=0, hour=0, minute=1)),
             "4_times_a_day": ScheduleTemplate("4_times_a_day", "00:00, 06:00, 12:00, 18:00", cls.next_today_window_run),
@@ -451,6 +467,7 @@ class BackgroundTaskManager:
             "every_other_day": ScheduleTemplate("every_other_day", "Every other day at 00:01", lambda now: cls.next_every_other_day_run(now, hour=0, minute=1)),
             "twice_a_week": ScheduleTemplate("twice_a_week", "Monday and Thursday at 00:01", lambda now: cls.next_twice_a_week_run(now, weekdays=(0, 3), hour=0, minute=1)),
             "on_start": ScheduleTemplate("on_start", "Runs once after full operational readiness", lambda now: None),
+            "interval_seconds": ScheduleTemplate("interval_seconds", "Every N seconds (requires integer seconds)", lambda now: None),
         }
 
     @classmethod
@@ -468,7 +485,9 @@ class BackgroundTaskManager:
     @staticmethod
     def schedule_template_sort_key(name: str) -> tuple[int, str]:
         order = {
+            "heartbeat_5_seconds": 5,
             "every_10_seconds": 10,
+            "telemetry_60_seconds": 15,
             "every_5_minutes": 20,
             "hourly": 30,
             "4_times_a_day": 40,
@@ -546,7 +565,7 @@ class BackgroundTaskManager:
                 title="Heartbeat",
                 kind="node_local_recurring_work",
                 owner="mqtt_manager",
-                schedule_name="interval_seconds",
+                schedule_name="heartbeat_5_seconds",
                 detail="Publishes MQTT presence heartbeats for node liveness and freshness tracking.",
                 enabled_resolver=lambda manager: bool(manager.service.state.trust_state == "trusted" and manager.service.state.node_id),
             ),
@@ -555,7 +574,7 @@ class BackgroundTaskManager:
                 title="Telemetry",
                 kind="node_local_recurring_work",
                 owner="background_task_manager",
-                schedule_name="interval_seconds",
+                schedule_name="telemetry_60_seconds",
                 detail="Refreshes baseline runtime telemetry state for operator-visible scheduler status.",
                 enabled_resolver=lambda manager: True,
             ),
@@ -658,45 +677,47 @@ class BackgroundTaskManager:
             fetch_schedule_state = gmail_adapter.fetch_schedule_store.load_state()
         scheduler_state = self.gmail_fetch_scheduler_state()
         fetch_loop_active = bool(scheduler_state.get("loop_active"))
-        fetch_loop_status = "active" if fetch_loop_active else "inactive"
+        fetch_loop_status = "scheduled" if fetch_loop_active else "idle"
         finalize_active = bool(self.finalize_polling_task is not None and not self.finalize_polling_task.done())
         gmail_status_active = bool(self.gmail_status_task is not None and not self.gmail_status_task.done())
         prompt_sync_configured = bool(self.service.state.runtime_prompt_sync_target_api_base_url)
-        prompt_sync_status = "active" if (fetch_loop_active and prompt_sync_configured) else "pending" if prompt_sync_configured else "inactive"
+        prompt_sync_status = "scheduled" if (fetch_loop_active and prompt_sync_configured) else "idle"
         runtime_authorize_ready = bool(
             self.service.state.trust_state == "trusted"
             and self.service.state.node_id
             and self.service.effective_core_base_url()
         )
-        runtime_authorize_status = "active" if runtime_authorize_ready else "pending"
+        runtime_authorize_status = "scheduled" if runtime_authorize_ready else "idle"
 
         return [
             self.scheduled_task_entry_from_registry(
                 "heartbeat",
                 group="runtime",
-                status=str(heartbeat_state.get("status") or ("running" if self.service.mqtt_manager.status.state == "connected" else "inactive")),
+                status=self.scheduled_task_public_status(
+                    heartbeat_state.get("status") or ("healthy" if self.service.mqtt_manager.status.state == "connected" else "idle")
+                ),
                 last_execution_at=heartbeat_state.get("last_success_at"),
                 next_execution_at=heartbeat_state.get("next_run_at"),
                 last_reason=None,
                 detail=str(heartbeat_state.get("detail") or "Publishes MQTT presence heartbeats for node liveness and freshness tracking."),
-                schedule_detail=f"Every {self.service.config.mqtt_heartbeat_seconds:g} seconds",
+                schedule_detail="Heartbeat every 5 seconds",
                 enabled=bool(heartbeat_state.get("enabled")),
             ),
             self.scheduled_task_entry_from_registry(
                 "telemetry",
                 group="runtime",
-                status=str(telemetry_state.get("status") or "idle"),
+                status=self.scheduled_task_public_status(telemetry_state.get("status") or "idle"),
                 last_execution_at=telemetry_state.get("last_success_at") or telemetry_state.get("last_started_at"),
                 next_execution_at=telemetry_state.get("next_run_at"),
                 last_reason=None,
                 detail=str(telemetry_state.get("detail") or "Refreshes baseline runtime telemetry state for operator-visible scheduler status."),
-                schedule_detail="Every 60 seconds",
+                schedule_detail="Telemetry every 60 seconds",
                 enabled=bool(telemetry_state.get("enabled")),
             ),
             self.scheduled_task_entry_from_registry(
                 "operational_mqtt_health",
                 group="runtime",
-                status=str(mqtt_health_state.get("status") or "idle"),
+                status=self.scheduled_task_public_status(mqtt_health_state.get("status") or "idle"),
                 last_execution_at=mqtt_health_state.get("last_success_at") or mqtt_health_state.get("last_started_at"),
                 next_execution_at=mqtt_health_state.get("next_run_at"),
                 last_reason=None,
@@ -712,7 +733,7 @@ class BackgroundTaskManager:
             self.scheduled_task_entry_from_registry(
                 "onboarding_finalize_polling",
                 group="runtime",
-                status="active" if finalize_active else "inactive",
+                status="running" if finalize_active else "idle",
                 last_execution_at=(self.service.state.last_poll_at.isoformat() if self.service.state.last_poll_at is not None else None),
                 next_execution_at=None,
                 last_reason=self.service.state.last_finalize_status,
@@ -723,7 +744,7 @@ class BackgroundTaskManager:
             self.scheduled_task_entry_from_registry(
                 "gmail_status_polling",
                 group="gmail",
-                status="active" if gmail_status_active else "inactive",
+                status="scheduled" if gmail_status_active else "idle",
                 last_execution_at=None,
                 next_execution_at=None,
                 last_reason=None,

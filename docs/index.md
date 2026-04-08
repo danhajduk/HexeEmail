@@ -18,6 +18,7 @@ Core operator paths:
 Implementation and architecture references:
 
 - [email-node-architecture.md](/home/dan/Projects/HexeEmail/docs/email-node-architecture.md)
+- [training-and-sender-reputation-future-features.md](/home/dan/Projects/HexeEmail/docs/training-and-sender-reputation-future-features.md)
 - [shared-flow-family-architecture.md](/home/dan/Projects/HexeEmail/docs/shared-flow-family-architecture.md)
 - [shared-email-pipeline-core.md](/home/dan/Projects/HexeEmail/docs/shared-email-pipeline-core.md)
 - [order-family-reference.md](/home/dan/Projects/HexeEmail/docs/order-family-reference.md)

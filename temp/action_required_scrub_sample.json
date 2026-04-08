@@ -1,0 +1,752 @@
+[
+  {
+    "message_id": "19d55740e539849c",
+    "subject": "Your Subscription is Expiring",
+    "sender_email": "no_reply@email.apple.com",
+    "sender_domain": "email.apple.com",
+    "scrub_status": "partial",
+    "scrubbed_text_preview": "Subscription Expiring",
+    "normalized_lines": [
+      "Subscription Expiring"
+    ],
+    "links": []
+  },
+  {
+    "message_id": "19d521e1e27ea09d",
+    "subject": "Your Upcoming Commuter Benefits Order",
+    "sender_email": "no_reply@edenredbenefits.com",
+    "sender_domain": "edenredbenefits.com",
+    "scrub_status": "partial",
+    "scrubbed_text_preview": "May 2026's Transit Pending Order Details\nYour Upcoming Commuter Benefits Order\nDear Slobodan,\nThis is a reminder that you have a pending May 2026 Transit order. You will have until April 10, 2026 to make any changes. Any changes made after April 10, 2026 will apply to the June 2026 benefit month.\nNote: If you are ordering a Long Island Railroad or Metro North Railroad product, the last date you can change your order is the 4th of the month.\nProduct\nQty\nPrice\nCommuter Benefits Prepaid Mastercard\u00ae\n$20.00\nEstimated Subsidy Amount:\n($10.00)\nTotal Estimated Cost:\n$10.00\nFor more details on your pending order, or to make changes, visit your commuter benefits portal.\nThank you,\nCustomer Support\nCom",
+    "normalized_lines": [
+      "May 2026's Transit Pending Order Details",
+      "Your Upcoming Commuter Benefits Order",
+      "Dear Slobodan,",
+      "This is a reminder that you have a pending May 2026 Transit order. You will have until April 10, 2026 to make any changes. Any changes made after April 10, 2026 will apply to the June 2026 benefit month.",
+      "Note: If you are ordering a Long Island Railroad or Metro North Railroad product, the last date you can change your order is the 4th of the month.",
+      "Product",
+      "Qty",
+      "Price",
+      "Commuter Benefits Prepaid Mastercard\u00ae",
+      "$20.00",
+      "Estimated Subsidy Amount:",
+      "($10.00)",
+      "Total Estimated Cost:",
+      "$10.00",
+      "For more details on your pending order, or to make changes, visit your commuter benefits portal.",
+      "Thank you,",
+      "Customer Support",
+      "Commuter Benefits",
+      "866-808-5214",
+      "The Commuter Benefits Prepaid Mastercard is issued by The Bancorp Bank, N.A., pursuant to license by Mastercard International Incorporated and may not be used everywhere Debit Mastercard is accepted. The Bancorp Bank, N.A.; Member FDIC. Mastercard and the circles design are registered trademarks of Mastercard International Incorporated."
+    ],
+    "links": [
+      "\u200b",
+      "http://1vv8.mj.am/lnk/AUsAAJQcXRYAAAAAAAAAAMpAhq4AAYC7prEAAAAAAAHgGwBpz2PeZ4gxItieQTGnr6Xbv0e7FQABy7Y/0/H6seyMyjaR6oIj0bsSHWnA/aHR0cDovLzF2djgubWouYW0v?b=3"
+    ]
+  },
+  {
+    "message_id": "19d4eac4801ace14",
+    "subject": "Reminder: Get ready for the Genius Bar",
+    "sender_email": "noreply@email.apple.com",
+    "sender_domain": "email.apple.com",
+    "scrub_status": "partial",
+    "scrubbed_text_preview": "Review the steps below and check in with a Specialist when you arrive.\nFor convenience and a quicker check-in, add your appointment to Apple Wallet in your iOS device. Or show this code to a Specialist.\nYour appointment is right around the corner.\nThursday, April 2, 2026\n11:05 AM\nAdd to Calendar\nSame-day repairs subject to parts availability\nApple Washington Square\n9585 SW Washington Square Rd\nTigard,Oregon\nGet directions, view store details, and read store specific health and safety information\niPhone\nCase ID: 102858461186\nManage my reservations\nBe prepared for your appointment\nKnow your Apple Account and password\nYou need to know your Apple Account password at the time of your appointment ",
+    "normalized_lines": [
+      "Review the steps below and check in with a Specialist when you arrive.",
+      "For convenience and a quicker check-in, add your appointment to Apple Wallet in your iOS device. Or show this code to a Specialist.",
+      "Your appointment is right around the corner.",
+      "Thursday, April 2, 2026",
+      "11:05 AM",
+      "Add to Calendar",
+      "Same-day repairs subject to parts availability",
+      "Apple Washington Square",
+      "9585 SW Washington Square Rd",
+      "Tigard,Oregon",
+      "Get directions, view store details, and read store specific health and safety information",
+      "iPhone",
+      "Case ID: 102858461186",
+      "Manage my reservations",
+      "Be prepared for your appointment",
+      "Know your Apple Account and password",
+      "You need to know your Apple Account password at the time of your appointment to disable Find My.",
+      "Verify My Apple Account and Password",
+      "Back up your data",
+      "Your iPhone data may be erased during service. Please make sure you back up your data either on your computer or using iCloud.*"
+    ],
+    "links": [
+      "Verify My Apple Account and Password",
+      "Get directions, view store details, and read store specific health and safety information",
+      "Learn how to update your iOS"
+    ]
+  },
+  {
+    "message_id": "19d4d59092847e4f",
+    "subject": "Your card's expiring soon--confirm your mailing address",
+    "sender_email": "capitalone@notification.capitalone.com",
+    "sender_domain": "notification.capitalone.com",
+    "scrub_status": "partial",
+    "scrubbed_text_preview": "*Primary account holder and any additional cardholder cards all have the same expiration date. Weve sent this notification to all customers on this account with a valid email address.\nThe site may be unavailable during normal maintenance or due to unforeseen circumstances.\nVisit Capital One or Sign in to your account\nhttps://click-notification.capitalone.com/f/a/Nks7OfvM65Jy-Tp87wAlAQ~~/AAAAARA~/w_ulHjQl8FCaNhHF9VjIE_mNRDJ07fwJB0KW65AWXPD5Y5curUHMwE1x9eLD6WUizQ0lzbQX-UggkgX-F-yBwTt_kN5DzMGxNmazWpS6_XJPvKMg7Nd0OW9jjH9afT3z",
+    "normalized_lines": [
+      "*Primary account holder and any additional cardholder cards all have the same expiration date. Weve sent this notification to all customers on this account with a valid email address.",
+      "The site may be unavailable during normal maintenance or due to unforeseen circumstances.",
+      "Visit Capital One or Sign in to your account",
+      "https://click-notification.capitalone.com/f/a/Nks7OfvM65Jy-Tp87wAlAQ~~/AAAAARA~/w_ulHjQl8FCaNhHF9VjIE_mNRDJ07fwJB0KW65AWXPD5Y5curUHMwE1x9eLD6WUizQ0lzbQX-UggkgX-F-yBwTt_kN5DzMGxNmazWpS6_XJPvKMg7Nd0OW9jjH9afT3z"
+    ],
+    "links": [
+      "Visit Capital One or Sign in to your account",
+      "Sign in",
+      "To contact us, visit www.capitalone.com/help-center/contact-us.",
+      "Help prevent fraud",
+      "Update my address",
+      "Contact us"
+    ]
+  },
+  {
+    "message_id": "19d4c495c9838b45",
+    "subject": "New reasons prevent pages from being indexed on site hexe-ai.com",
+    "sender_email": "sc-noreply@google.com",
+    "sender_domain": "google.com",
+    "scrub_status": "partial",
+    "scrubbed_text_preview": "**Open indexing report**:\nhttps://c.gle/ADMV5J-24vFCBqDT3tezV_w5CaeosoiyFQqWkrTmdpT2kYFvcuZDrHgY6l9Pqfqsyinvjpmehja1bH6kIGuBHx9GeEXSuiM890YbS9f0jPoBXo7idzwXiF2Q2cLp3U5EwFGtmj-nGVJX5_NSdh0IEp7FPCIC6YUne44eJtl5K_P5r2-pqY5u7mEyuN5adWplY3T_i25rtfOTMU7LFHvB_5ETLRosmHX31yooXyp_Kbx3PgYUPT-_HwO12zNKrrA1jnHYL8QvRmZmbPUmwEqa8M_TBlcNL6likXTMUmY1UU0tTxjH27It5pNsJ7zaSkd5DZLOfzuY2ZmvzTp70uMgVMM",
+    "normalized_lines": [
+      "**Open indexing report**:",
+      "https://c.gle/ADMV5J-24vFCBqDT3tezV_w5CaeosoiyFQqWkrTmdpT2kYFvcuZDrHgY6l9Pqfqsyinvjpmehja1bH6kIGuBHx9GeEXSuiM890YbS9f0jPoBXo7idzwXiF2Q2cLp3U5EwFGtmj-nGVJX5_NSdh0IEp7FPCIC6YUne44eJtl5K_P5r2-pqY5u7mEyuN5adWplY3T_i25rtfOTMU7LFHvB_5ETLRosmHX31yooXyp_Kbx3PgYUPT-_HwO12zNKrrA1jnHYL8QvRmZmbPUmwEqa8M_TBlcNL6likXTMUmY1UU0tTxjH27It5pNsJ7zaSkd5DZLOfzuY2ZmvzTp70uMgVMM"
+    ],
+    "links": [
+      "**Open indexing report**:",
+      "Open indexing report",
+      "add partners",
+      "unsubscribe",
+      "https://c.gle/ADMV5J-24vFCBqDT3tezV_w5CaeosoiyFQqWkrTmdpT2kYFvcuZDrHgY6l9Pqfqsyinvjpmehja1bH6kIGuBHx9GeEXSuiM890YbS9f0jPoBXo7idzwXiF2Q2cLp3U5EwFGtmj-nGVJX5_NSdh0IEp7FPCIC6YUne44eJtl5K_P5r2-pqY5u7mEyuN5adWplY3T_i25rtfOTMU7LFHvB_5ETLRosmHX31yooXyp_Kbx3PgYUPT-_HwO12zNKrrA1jnHYL8QvRmZmbPUmwEqa8M_TBlcNL6likXTMUmY1UU0tTxjH27It5pNsJ7zaSkd5DZLOfzuY2ZmvzTp70uMgVMM"
+    ]
+  },
+  {
+    "message_id": "19d4b6681b88f83d",
+    "subject": "Overdue Hygiene",
+    "sender_email": "no-reply@meetaxle.com",
+    "sender_domain": "meetaxle.com",
+    "scrub_status": "failed",
+    "scrubbed_text_preview": "Action Required\nHi MAYA HAJDUK,\nHello! A friendly reminder from Acorn Dentistry for Kids. Its time for MAYA to come in for their regular checkup and cleaning!\nAppointments are filling up fast, please click the link to schedule your child, or give our clinic a call at (503) 874-4560.\nhttps://app.meetaxle.com/HygieneScheduling.aspx?FormId=10009A2A20048A566972A76552\nSincerely,\nHillsboro\nSchedule Appointment\n434 S. 1st Ave. Hillsboro, Oregon 97123\nClick here to opt out of all email\ncommunications.",
+    "normalized_lines": [
+      "Action Required",
+      "Hi MAYA HAJDUK,",
+      "Hello! A friendly reminder from Acorn Dentistry for Kids. Its time for MAYA to come in for their regular checkup and cleaning!",
+      "Appointments are filling up fast, please click the link to schedule your child, or give our clinic a call at (503) 874-4560.",
+      "https://app.meetaxle.com/HygieneScheduling.aspx?FormId=10009A2A20048A566972A76552",
+      "Sincerely,",
+      "Hillsboro",
+      "Schedule Appointment",
+      "434 S. 1st Ave. Hillsboro, Oregon 97123",
+      "Click here to opt out of all email",
+      "communications."
+    ],
+    "links": [
+      "Appointments are filling up fast, please click the link to schedule your child, or give our clinic a call at (503) 874-4560 .",
+      "Schedule Appointment",
+      "Click here",
+      "https://app.meetaxle.com/HygieneScheduling.aspx?FormId=10009A2A20048A566972A76552"
+    ]
+  },
+  {
+    "message_id": "19d4a3d542bf70e8",
+    "subject": "Extended until April 4th \u2764\ufe0f",
+    "sender_email": "noreply@notify.thinkific.com",
+    "sender_domain": "notify.thinkific.com",
+    "scrub_status": "partial",
+    "scrubbed_text_preview": "Hi Dan, due to the overwhelming number of requests received to extend the current pricing, we have decided to give it a few more days.\nThe current pricing of $199 or 12 payments of $19 will be extended until April 4th at midnight. Enroll now to lock in the current price and gain lifetime access to our courses and all future updates.\nEnroll today at: https://shibariacademy.com\nOn April 5th prices will go up to $399 or 12 payments of $39.\nHave fun tying!\nEve from Shibari Academy\nReply STOP to stop receiving all emails",
+    "normalized_lines": [
+      "Hi Dan, due to the overwhelming number of requests received to extend the current pricing, we have decided to give it a few more days.",
+      "The current pricing of $199 or 12 payments of $19 will be extended until April 4th at midnight. Enroll now to lock in the current price and gain lifetime access to our courses and all future updates.",
+      "Enroll today at: https://shibariacademy.com",
+      "On April 5th prices will go up to $399 or 12 payments of $39.",
+      "Have fun tying!",
+      "Eve from Shibari Academy",
+      "Reply STOP to stop receiving all emails"
+    ],
+    "links": [
+      "Shibari Academy",
+      "Enroll now",
+      "https://shibariacademy.com"
+    ]
+  },
+  {
+    "message_id": "19d4500823ad42a4",
+    "subject": "Your Rewards Voucher Expires Soon!",
+    "sender_email": "michaels@emdeals.michaels.com",
+    "sender_domain": "emdeals.michaels.com",
+    "scrub_status": "partial",
+    "scrubbed_text_preview": "Rewards and Rewards vouchers have no cash value. Rewards cannot be earned on purchases of clearance merchandise. Rewards cannot be earned, and vouchers cannot be redeemed, on shipping, tax, purchase of Gift Cards and Extended Warranties, on items sold and shipped by third-party sellers on MakerPlace by Michaels, or purchases on michaelsphotogifts.com, enterprise.michaels.com, education.michaels.com.\nDon't miss a thing! Add Michaels michaels\ufeff@\ufeffemdeals\ufeff.\ufeffmichaels\ufeff.\ufeffcom to your address book.\n*Important Stuff We Have to Tell You About Affirm\nPayment options through Affirm are subject to an eligibility check and are provided by these lending partners: affirm.com/lenders. CA residents: Loans by Af",
+    "normalized_lines": [
+      "Rewards and Rewards vouchers have no cash value. Rewards cannot be earned on purchases of clearance merchandise. Rewards cannot be earned, and vouchers cannot be redeemed, on shipping, tax, purchase of Gift Cards and Extended Warranties, on items sold and shipped by third-party sellers on MakerPlace by Michaels, or purchases on michaelsphotogifts.com, enterprise.michaels.com, education.michaels.com.",
+      "Don't miss a thing! Add Michaels michaels\ufeff@\ufeffemdeals\ufeff.\ufeffmichaels\ufeff.\ufeffcom to your address book.",
+      "*Important Stuff We Have to Tell You About Affirm",
+      "Payment options through Affirm are subject to an eligibility check and are provided by these lending partners: affirm.com/lenders. CA residents: Loans by Affirm Loan Services, LLC are made or arranged pursuant to a California Finance Lenders Law license.",
+      "Important Stuff We Have to Tell You About Rewards",
+      "REWARDS:",
+      "Members will earn 3% in Rewards unless a member qualifies to earn (a) 6% in Rewards by having spent at least $300, or (b) 9% in Rewards by having spent at least $1000, in each case on eligible purchases over the past 12 months. Eligibility for higher earning levels is updated once a month.",
+      "Rewards are calculated based on actual amount paid, less applicable taxes. Valid only on purchases made in U.S. stores and online at Michaels.com. Limit $150 in total Rewards earned per day."
+    ],
+    "links": [
+      "michaels.com/rewards/terms",
+      "affirm.com/lenders",
+      "View in Browser",
+      "Privacy Policy",
+      "Find a Store",
+      "Unsubscribe"
+    ]
+  },
+  {
+    "message_id": "19d444f5d0ae5329",
+    "subject": "Slobodan, April rent is due soon but there\u2019s good news too!",
+    "sender_email": "team@payments.getflex.com",
+    "sender_domain": "payments.getflex.com",
+    "scrub_status": "partial",
+    "scrubbed_text_preview": "Hi Slobodan,\nYoure only steps away from paying rent on your schedule! It looks like you created an account with Flex but didn't finish your application. With Flex Rent you can pay part of your rent when it's due and the rest later in the month.\nClick here to see your new option.\nYou still have time to split your April rent if you set up your account by 5pm ET on April 4th.\nFlex Rent helps you pay your rent on time, manage your cash flow, and build your credit history with every on-time rent payment.\nSincerely,\nThe Flex Team\nSee your new option\n2026 Flexible Finance Brokering, Inc., 228 Park Ave S #75995 New York, NY 10003-1502",
+    "normalized_lines": [
+      "Hi Slobodan,",
+      "Youre only steps away from paying rent on your schedule! It looks like you created an account with Flex but didn't finish your application. With Flex Rent you can pay part of your rent when it's due and the rest later in the month.",
+      "Click here to see your new option.",
+      "You still have time to split your April rent if you set up your account by 5pm ET on April 4th.",
+      "Flex Rent helps you pay your rent on time, manage your cash flow, and build your credit history with every on-time rent payment.",
+      "Sincerely,",
+      "The Flex Team",
+      "See your new option",
+      "2026 Flexible Finance Brokering, Inc., 228 Park Ave S #75995 New York, NY 10003-1502"
+    ],
+    "links": [
+      "See your new option",
+      "Terms & Conditions",
+      "Privacy Policy",
+      "Unsubscribe",
+      "Licenses",
+      "here"
+    ]
+  },
+  {
+    "message_id": "19d43d04150c62d3",
+    "subject": "re: The Engine Room (Private Invitation Reminder)",
+    "sender_email": "support@salehoo.com",
+    "sender_domain": "salehoo.com",
+    "scrub_status": "partial",
+    "scrubbed_text_preview": "You're invited as a founding member, Dan",
+    "normalized_lines": [
+      "You're invited as a founding member, Dan"
+    ],
+    "links": []
+  },
+  {
+    "message_id": "19d3f4837f1c105c",
+    "subject": "Reminder: Elevate Your Oregon Air Show Experience Today!",
+    "sender_email": "info-oregonairshow.com@shared1.ccsend.com",
+    "sender_domain": "shared1.ccsend.com",
+    "scrub_status": "partial",
+    "scrubbed_text_preview": "Imagine watching the Air Show from a shaded lounge with a cold drink in hand.\nNo crowds searching for space. No standing in\nlong lines.\nJust a comfortable seat, great food, and a front row view as the jets roar overhead.\nThat\u2019s the President's Club experience.\nEnjoy chef-catered lunch, snacks throughout the day, premium beverages, private restrooms, and the most comfortable vantage point on the flightline.\nIt\u2019s the Oregon International Air Show in Hillsboro - elevated.\nTake it all in. Let the show come to you.\nSHOP PRESIDENT'S CLUB TICKETS\nOREGONAIRSHOW.COM\nOregon Air Show | 3355 NE Cornell Rd. | Hillsboro, OR 97124 US\nUnsubscribe | Update Profile | Constant Contact Data Notice",
+    "normalized_lines": [
+      "Imagine watching the Air Show from a shaded lounge with a cold drink in hand.",
+      "No crowds searching for space. No standing in",
+      "long lines.",
+      "Just a comfortable seat, great food, and a front row view as the jets roar overhead.",
+      "That\u2019s the President's Club experience.",
+      "Enjoy chef-catered lunch, snacks throughout the day, premium beverages, private restrooms, and the most comfortable vantage point on the flightline.",
+      "It\u2019s the Oregon International Air Show in Hillsboro - elevated.",
+      "Take it all in. Let the show come to you.",
+      "SHOP PRESIDENT'S CLUB TICKETS",
+      "OREGONAIRSHOW.COM",
+      "Oregon Air Show | 3355 NE Cornell Rd. | Hillsboro, OR 97124 US",
+      "Unsubscribe | Update Profile | Constant Contact Data Notice"
+    ],
+    "links": [
+      "SHOP PRESIDENT'S CLUB TICKETS",
+      "Constant Contact Data Notice",
+      "OREGONAIRSHOW.COM",
+      "Update Profile",
+      "Unsubscribe",
+      "https://biyhszgbb.cc.rs6.net/tn.jsp?f1crsyyzkBgFBA_Iog3mguaUDgH7OVnOH3XegS2yVXGwSM3XscXLr_5yvASBmmVJjRj68Okkxs38IR4Npp9AFsOr7eB_93Id30QwHfN5jHp52PovfkMpQ-sGTUmJWY6wkZXHmOYicao2PGZyCIiiUDyrZ5U0C8YyCmVCDQU_4mgxoP9ptYEMw73LQZqwISAZmlfVOIBY-a3SmsH2GKKBmhAKaIa6R_5ua2ZsFzCMbwvOMiDnDCAIkKHr1J3OEfef81AOdEn1V8Ljb63PFFO9aCdiLuBNU_VTTlGtDs5zaXUSlS4k2rJfZ4B1jVYiYULEY2zixB4E22E8w=&c=cmhhwwYS0KhvNyWu0ISfbVTVmo9yfIDwIu2qDWu6HO60gHbMHSH4KA=&ch=sGAMzRWWGkN3OpwEeuiccB2AL4RsLJzbvv389n8gCKfq_k9wQ7XP-Q="
+    ]
+  },
+  {
+    "message_id": "19d3a6544b47b0b1",
+    "subject": "Reminder: Slobodan, your Rx is ready for pickup",
+    "sender_email": "donotreply@rxorder.walgreens.com",
+    "sender_domain": "rxorder.walgreens.com",
+    "scrub_status": "partial",
+    "scrubbed_text_preview": "Slobodan, your Rx is ready for pickup.\nSame Day Delivery: Same Day Prescription Delivery is available for eligible prescriptions. Most prescription orders, placed 2 hours prior to pharmacy closure and no later than 7pm, are available for same day home delivery. Please note that while most prescriptions are expected to be delivered same day, some prescriptions may not be eligible for delivery due to prescription type, delivery address, holidays, weather, or other delivery constraints. Certain health plans do not cover, or participate in, Same Day Rx Delivery. Check with your health plan for further details. Other restrictions may apply.\nOrder contacts |\nRx# XXX1152-XXXXX\nQty: 3\nShow details\nP",
+    "normalized_lines": [
+      "Slobodan, your Rx is ready for pickup.",
+      "Same Day Delivery: Same Day Prescription Delivery is available for eligible prescriptions. Most prescription orders, placed 2 hours prior to pharmacy closure and no later than 7pm, are available for same day home delivery. Please note that while most prescriptions are expected to be delivered same day, some prescriptions may not be eligible for delivery due to prescription type, delivery address, holidays, weather, or other delivery constraints. Certain health plans do not cover, or participate in, Same Day Rx Delivery. Check with your health plan for further details. Other restrictions may apply.",
+      "Order contacts |",
+      "Rx# XXX1152-XXXXX",
+      "Qty: 3",
+      "Show details",
+      "Price:",
+      "$0",
+      "Sign in or create an account \u203a",
+      "Refill prescriptions |",
+      "Print photos |",
+      "Download App",
+      "Shop vitamins |",
+      "Shop beauty |",
+      "Find a store"
+    ],
+    "links": [
+      "Sign in or create an account \u203a",
+      "Notice of Privacy Practices",
+      "Online Privacy & Security",
+      "Communication Preferences",
+      "Refill prescriptions",
+      "Order contacts"
+    ]
+  },
+  {
+    "message_id": "19d34c0b22202273",
+    "subject": "A birthday gift from Afterpay",
+    "sender_email": "afterpay@nanews.e.afterpay.com",
+    "sender_domain": "nanews.e.afterpay.com",
+    "scrub_status": "partial",
+    "scrubbed_text_preview": "*Nift gifts are designed to make it easy for people to discover and try something new. Nift gifts are non-transferable, for use by named gift recipient only, and are not valid for cash. Nift gifts may only be redeemed at participating Nift-member businesses, at the business location selected, for the goods and services listed, once per party or per visit, and before it expires. Depending on what you choose to purchase, taxes, and shipping fees, you may need to cover some additional costs. Gifts may not be combined with promotions or sales, or used toward gratuity. By selecting a gift, you agree to receive email reminders and surveys from Nift and the selected Nift member business. If you sel",
+    "normalized_lines": [
+      "*Nift gifts are designed to make it easy for people to discover and try something new. Nift gifts are non-transferable, for use by named gift recipient only, and are not valid for cash. Nift gifts may only be redeemed at participating Nift-member businesses, at the business location selected, for the goods and services listed, once per party or per visit, and before it expires. Depending on what you choose to purchase, taxes, and shipping fees, you may need to cover some additional costs. Gifts may not be combined with promotions or sales, or used toward gratuity. By selecting a gift, you agree to receive email reminders and surveys from Nift and the selected Nift member business. If you select a gift valued at less than $30, Nift will email your remaining balance for use in selecting a second gift. You may also receive additional Nift cards as a reward for being a great customer."
+    ],
+    "links": [
+      "Happy birthday! Here's to another year of getting what you need with Afterpay. Enjoy your gift on wine, clothing, food delivery, and\u00a0more.",
+      "Get your Nift gift at: www.GoNift.com Gift Code: TM2DK8 Gift Value: $30 Expires: Apr 27, 2026",
+      "Heres a $30* birthday\u00a0gift, Slobodan!",
+      "Terms of Service",
+      "Claim your gift",
+      "Afterpay\u00a0terms"
+    ]
+  },
+  {
+    "message_id": "19d302721bde1077",
+    "subject": "jessica.lynette.lohman and 7 others recently added to their stories",
+    "sender_email": "stories-recap@mail.instagram.com",
+    "sender_domain": "mail.instagram.com",
+    "scrub_status": "partial",
+    "scrubbed_text_preview": "Catch up on stories\nOne of the stories expires in less than 24 hours.\nView Stories\njessica.lynette.lohman\nchromegirls2\ntopoffpdx\ndaretaylorofficial\npdxdreamgirl\nbarista.gia\nbarista.ly_\nvictoriaryanreels\nYou have 1 notification you may not have seen.\nThis message was sent to dan.hajduk@gmail.com. If you don't want to receive these emails from Instagram in the future, please unsubscribe.\nMeta Platforms, Inc., Attention: Community Support, 1 Meta Way, Menlo Park, CA 94025\nTo help keep your profile secure, please dont forward this email. Learn more",
+    "normalized_lines": [
+      "Catch up on stories",
+      "One of the stories expires in less than 24 hours.",
+      "View Stories",
+      "jessica.lynette.lohman",
+      "chromegirls2",
+      "topoffpdx",
+      "daretaylorofficial",
+      "pdxdreamgirl",
+      "barista.gia",
+      "barista.ly_",
+      "victoriaryanreels",
+      "You have 1 notification you may not have seen.",
+      "This message was sent to dan.hajduk@gmail.com. If you don't want to receive these emails from Instagram in the future, please unsubscribe.",
+      "Meta Platforms, Inc., Attention: Community Support, 1 Meta Way, Menlo Park, CA 94025",
+      "To help keep your profile secure, please dont forward this email. Learn more"
+    ],
+    "links": [
+      "jessica.lynette.lohman",
+      "daretaylorofficial",
+      "victoriaryanreels",
+      "View\u00a0Stories",
+      "chromegirls2",
+      "pdxdreamgirl"
+    ]
+  },
+  {
+    "message_id": "19d2fa148b5d60b0",
+    "subject": "Rent is coming due soon: Complete your Flex profile to split your rent",
+    "sender_email": "team@payments.getflex.com",
+    "sender_domain": "payments.getflex.com",
+    "scrub_status": "partial",
+    "scrubbed_text_preview": "*Subject to approval. Terms apply.",
+    "normalized_lines": [
+      "*Subject to approval. Terms apply."
+    ],
+    "links": [
+      "See your new option",
+      "Terms & Conditions",
+      "Privacy Policy",
+      "Unsubscribe",
+      "Licenses",
+      "here"
+    ]
+  },
+  {
+    "message_id": "19d2bb9b4bc89756",
+    "subject": "Reminder: your Aftership account is scheduled for deletion",
+    "sender_email": "hello@aftership.com",
+    "sender_domain": "aftership.com",
+    "scrub_status": "failed",
+    "scrubbed_text_preview": "",
+    "normalized_lines": [],
+    "links": []
+  },
+  {
+    "message_id": "19d2ad02a3599930",
+    "subject": "Reminder: Your W-2 is available",
+    "sender_email": "turbotax@em1.turbotax.intuit.com",
+    "sender_domain": "em1.turbotax.intuit.com",
+    "scrub_status": "partial",
+    "scrubbed_text_preview": "W-2s are availableupload yours now\nSign in\nYour W-2 is readyupload it now\nKnow exactly what to expect this year. Upload your docs and get a preview of your tax outcome today.\nAdd your W-2\nAdd your W-2 in seconds\nChoose from 3 easy ways to enter your documents now.\nSnap a photo\nUpload a PDF file\nEnter your employer's EIN\nWe're looking out for you\nWell never ask for personal information in an email. When you click on a link, the address should always contain intuit.com/.\nClick here to see TurboTax product guarantees, disclaimers and other important information.\nThis email was sent to: dan.hajduk@gmail.com\nDid you receive this email in error? Find out why.\nUpdate your email preferences or unsub",
+    "normalized_lines": [
+      "W-2s are availableupload yours now",
+      "Sign in",
+      "Your W-2 is readyupload it now",
+      "Know exactly what to expect this year. Upload your docs and get a preview of your tax outcome today.",
+      "Add your W-2",
+      "Add your W-2 in seconds",
+      "Choose from 3 easy ways to enter your documents now.",
+      "Snap a photo",
+      "Upload a PDF file",
+      "Enter your employer's EIN",
+      "We're looking out for you",
+      "Well never ask for personal information in an email. When you click on a link, the address should always contain intuit.com/.",
+      "Click here to see TurboTax product guarantees, disclaimers and other important information.",
+      "This email was sent to: dan.hajduk@gmail.com",
+      "Did you receive this email in error? Find out why.",
+      "Update your email preferences or unsubscribe here.",
+      "\u00a92026 Intuit Inc. All rights reserved. Trademark.",
+      "Customer Communications, 2800 E. Commerce Center Place, Tucson, AZ 85706",
+      "65171-005"
+    ],
+    "links": [
+      "Sign in",
+      "Add your W-2",
+      "Add your W-2",
+      "Find out why",
+      "Click here",
+      "Trademark"
+    ]
+  },
+  {
+    "message_id": "19d25f7ca58b34a6",
+    "subject": "Reminder: Complete your Flex application to split rent",
+    "sender_email": "team@payments.getflex.com",
+    "sender_domain": "payments.getflex.com",
+    "scrub_status": "partial",
+    "scrubbed_text_preview": "Hi Slobodan,\nStart April with a new option to pay rent!\nIt looks like you created an account with Flex but are not yet taking advantage of flexible rent payments.\nSee your new option here.\nFlex Rent helps you align your biggest expense with your budget, so you can manage your cash flow and build your credit history at the same time.\nSincerely,\nThe Flex Team\nSee your new option\n2026 Flexible Finance Brokering, Inc., 228 Park Ave S #75995 New York, NY 10003-1502",
+    "normalized_lines": [
+      "Hi Slobodan,",
+      "Start April with a new option to pay rent!",
+      "It looks like you created an account with Flex but are not yet taking advantage of flexible rent payments.",
+      "See your new option here.",
+      "Flex Rent helps you align your biggest expense with your budget, so you can manage your cash flow and build your credit history at the same time.",
+      "Sincerely,",
+      "The Flex Team",
+      "See your new option",
+      "2026 Flexible Finance Brokering, Inc., 228 Park Ave S #75995 New York, NY 10003-1502"
+    ],
+    "links": [
+      "See your new option",
+      "Terms & Conditions",
+      "Privacy Policy",
+      "Unsubscribe",
+      "Licenses",
+      "here"
+    ]
+  },
+  {
+    "message_id": "19d249cf4be5f2ba",
+    "subject": "jessica.lynette.lohman and 7 others recently added to their stories",
+    "sender_email": "stories-recap@mail.instagram.com",
+    "sender_domain": "mail.instagram.com",
+    "scrub_status": "partial",
+    "scrubbed_text_preview": "Catch up on stories\nOne of the stories expires in less than 24 hours.\nView Stories\njessica.lynette.lohman\nchromegirls2\ntopoffpdx\ndaretaylorofficial\npdxdreamgirl\nbarista.gia\nvictoriaryanreels\nchromegirlsbaristasreels_\nYou have 1 notification you may not have seen.\nThis message was sent to dan.hajduk@gmail.com. If you don't want to receive these emails from Instagram in the future, please unsubscribe.\nMeta Platforms, Inc., Attention: Community Support, 1 Meta Way, Menlo Park, CA 94025\nTo help keep your profile secure, please dont forward this email. Learn more",
+    "normalized_lines": [
+      "Catch up on stories",
+      "One of the stories expires in less than 24 hours.",
+      "View Stories",
+      "jessica.lynette.lohman",
+      "chromegirls2",
+      "topoffpdx",
+      "daretaylorofficial",
+      "pdxdreamgirl",
+      "barista.gia",
+      "victoriaryanreels",
+      "chromegirlsbaristasreels_",
+      "You have 1 notification you may not have seen.",
+      "This message was sent to dan.hajduk@gmail.com. If you don't want to receive these emails from Instagram in the future, please unsubscribe.",
+      "Meta Platforms, Inc., Attention: Community Support, 1 Meta Way, Menlo Park, CA 94025",
+      "To help keep your profile secure, please dont forward this email. Learn more"
+    ],
+    "links": [
+      "chromegirlsbaristasreels_",
+      "jessica.lynette.lohman",
+      "daretaylorofficial",
+      "victoriaryanreels",
+      "View\u00a0Stories",
+      "chromegirls2"
+    ]
+  },
+  {
+    "message_id": "19d2403bf824d405",
+    "subject": "Some or all of your Miles will expire soon",
+    "sender_email": "flyingbluecrm@service-flyingblue.com",
+    "sender_domain": "service-flyingblue.com",
+    "scrub_status": "partial",
+    "scrubbed_text_preview": "View online\nSee how to extend their validity",
+    "normalized_lines": [
+      "View online",
+      "See how to extend their validity"
+    ],
+    "links": [
+      "View online"
+    ]
+  },
+  {
+    "message_id": "19d222b39d79319f",
+    "subject": "Reminder: Your coupons expire in 7 days",
+    "sender_email": "visionworks@c.visionworks.com",
+    "sender_domain": "c.visionworks.com",
+    "scrub_status": "partial",
+    "scrubbed_text_preview": "Schedule Eye Exam\nWE'RE ON A MISSION TO SIMPLIFY EYE CARE.\nGlasses\nSunglasses\nContacts\nWe Accept Thousands of Insurance Plans\n100-Day Guarantee\nSee Now, Pay Later with Affirm\nNEED HELP?\nCall us at 1.800.784.7427 or Chat with Us\nProfessional services performed by Pacific Eye Group, P.C., Independent Doctors of Optometry. All doctors licensed in the state of Oregon.\nTanasbourne Town Center, 11170 NE Evergreen Pkwy, Beaverton, OR, 97006-7451\n50% Off Second Pair - Use your vision insurance and get 50% off a second pair of prescription glasses or prescription sunglasses. Savings are off full List Price of a complete pair, frames and lenses. List Prices are the non-discounted prices at which we of",
+    "normalized_lines": [
+      "Schedule Eye Exam",
+      "WE'RE ON A MISSION TO SIMPLIFY EYE CARE.",
+      "Glasses",
+      "Sunglasses",
+      "Contacts",
+      "We Accept Thousands of Insurance Plans",
+      "100-Day Guarantee",
+      "See Now, Pay Later with Affirm",
+      "NEED HELP?",
+      "Call us at 1.800.784.7427 or Chat with Us",
+      "Professional services performed by Pacific Eye Group, P.C., Independent Doctors of Optometry. All doctors licensed in the state of Oregon.",
+      "Tanasbourne Town Center, 11170 NE Evergreen Pkwy, Beaverton, OR, 97006-7451",
+      "50% Off Second Pair - Use your vision insurance and get 50% off a second pair of prescription glasses or prescription sunglasses. Savings are off full List Price of a complete pair, frames and lenses. List Prices are the non-discounted prices at which we offer the frames/lenses in stores or online; however, we may not have sold the frames and lenses at those prices. Offer available in-store only. The offer cannot be combined with any other offer. Offer good on multiple complete pairs when purchased at the same time. Additional restrictions may apply. Offer expires 3/31/2026.",
+      "Buy One Get One Free - Cannot be combined with insurance benefits or any other discount. Buy one pair of glasses (frames & lenses) and get a second pair free. First pair at List Price; second pair of equal or lesser value free. List Prices are the non-discounted prices at which we offer the frames/lenses in stores or online; however, we may not have sold the frames and lenses at those prices. Additional restrictions may apply. Offer expires 5/2/26."
+    ],
+    "links": [
+      "See Now, Pay Later with Affirm",
+      "We Accept Thousands of Insurance Plans",
+      "Schedule Eye Exam",
+      "100-Day Guarantee",
+      "Privacy Policy",
+      "Chat with Us"
+    ]
+  },
+  {
+    "message_id": "19d20e6798d3eeb3",
+    "subject": "Ready for pickup reminder: items from order #2000146-48505219",
+    "sender_email": "help@walmart.com",
+    "sender_domain": "walmart.com",
+    "scrub_status": "failed",
+    "scrubbed_text_preview": "",
+    "normalized_lines": [],
+    "links": []
+  },
+  {
+    "message_id": "19d20c7ea0224549",
+    "subject": "Your score changed, Dan. Check in to see.",
+    "sender_email": "notifications@reminder.creditkarma.com",
+    "sender_domain": "reminder.creditkarma.com",
+    "scrub_status": "partial",
+    "scrubbed_text_preview": "Hey Dan, your new scores are ready.*\nCheck my score\n*Based on your credit report information from TransUnion as reported on 02/22/2026 and 03/24/2026.\nChecking your score regularly is a great way to help keep your finances healthy. Keep up the great work!\nThis is a promotional email.\nTo manage your email preferences, please go to notification preferences.\nUnsubscribe from all emails\nUnsubscribe from all emails primarily about reminder and updates\nCredit Karma, LLC, P.O. Box 30963, Oakland, CA 94604 Copyright \u00a9 2008-2026 Credit Karma, LLC. All Rights Reserved. Any third party trademarks referenced are the property of their respective owners.\nNote: Never share your online banking or Credit Kar",
+    "normalized_lines": [
+      "Hey Dan, your new scores are ready.*",
+      "Check my score",
+      "*Based on your credit report information from TransUnion as reported on 02/22/2026 and 03/24/2026.",
+      "Checking your score regularly is a great way to help keep your finances healthy. Keep up the great work!",
+      "This is a promotional email.",
+      "To manage your email preferences, please go to notification preferences.",
+      "Unsubscribe from all emails",
+      "Unsubscribe from all emails primarily about reminder and updates",
+      "Credit Karma, LLC, P.O. Box 30963, Oakland, CA 94604 Copyright \u00a9 2008-2026 Credit Karma, LLC. All Rights Reserved. Any third party trademarks referenced are the property of their respective owners.",
+      "Note: Never share your online banking or Credit Karma passwords with anyone, including us!",
+      "Privacy Statement | Terms",
+      "of Service"
+    ],
+    "links": [
+      "Hey Dan, your new scores are ready.* *Based on your credit report information from TransUnion as reported on 02/22/2026 and 03/24/2026.",
+      "Unsubscribe from all emails primarily about reminder and updates",
+      "Terms\n                              of Service",
+      "Unsubscribe from all emails",
+      "notification preferences",
+      "Privacy Statement"
+    ]
+  },
+  {
+    "message_id": "19d1b52fde6cce1c",
+    "subject": "Check in now for your flight to Las Vegas on March 24, 2026",
+    "sender_email": "transactions@email.alaskaair.com",
+    "sender_domain": "email.alaskaair.com",
+    "scrub_status": "partial",
+    "scrubbed_text_preview": "Hi, Slobodan\nSign in\nIt\u2019s go time.\nIt's time to check in for your flight. Use the Alaska app for smooth sailing and we'll see you soon!\nConfirmation code:\nOQGLKU\nCheck in\nYour trip details\n627\nSeat\n31F\n7:30 AM\nPDX\nPortland, OR\n9:46 AM\nLAS\nLas Vegas\nDeparture\n3/24/2026\nArrival\nTo view trip details or make changes, click here.\nGet ready to fly through the airport.\nUse the Alaska app\nWith the app in hand, you can now check in for your flight and get your mobile boarding pass, before setting foot in the airport.\nNot checking bags?\nWhen you arrive at the airport, head straight to security with your mobile boarding pass.\nBags to check?\nGet $5 off your first checked bag fee when you prepay on the a",
+    "normalized_lines": [
+      "Hi, Slobodan",
+      "Sign in",
+      "It\u2019s go time.",
+      "It's time to check in for your flight. Use the Alaska app for smooth sailing and we'll see you soon!",
+      "Confirmation code:",
+      "OQGLKU",
+      "Check in",
+      "Your trip details",
+      "627",
+      "Seat",
+      "31F",
+      "7:30 AM",
+      "PDX",
+      "Portland, OR",
+      "9:46 AM",
+      "LAS",
+      "Las Vegas",
+      "Departure",
+      "3/24/2026",
+      "Arrival"
+    ],
+    "links": [
+      "Sign in",
+      "See airport guides",
+      "our help center",
+      "privacy policy",
+      "Get the app",
+      "View in web"
+    ]
+  },
+  {
+    "message_id": "19d189c4d4ced61b",
+    "subject": "Your verification code is 264452",
+    "sender_email": "help@walmart.com",
+    "sender_domain": "walmart.com",
+    "scrub_status": "failed",
+    "scrubbed_text_preview": "",
+    "normalized_lines": [],
+    "links": []
+  },
+  {
+    "message_id": "19d0ef2f0d5803e4",
+    "subject": "Your repair for Pixel Care+ claim 108862544083 is confirmed",
+    "sender_email": "googlestore-noreply@google.com",
+    "sender_domain": "google.com",
+    "scrub_status": "partial",
+    "scrubbed_text_preview": "Your repair is confirmed\nAccount | Order history | Contact us | Terms of Sale | Terms of Service\nHi Dan Hajduk,\nYouve chosen a walk-in repair for Claim #108862544083 on 3/20/26. Come by anytime during opening hours at your convenience.\nNext Steps\nCall before you go\nCall your selected repair location to confirm parts are available\nBack up your device\nBack up your device to avoid losing your data\nRemove accessories and SIM card\nRemove all accessories from your device (for example: chargers, cases, and watch bands) and take out your SIM card if applicable\nSecure your device\nTurn on repair mode to protect your apps and personal data like photos and contacts from being accessed by others\nSummary\n",
+    "normalized_lines": [
+      "Your repair is confirmed",
+      "Account | Order history | Contact us | Terms of Sale | Terms of Service",
+      "Hi Dan Hajduk,",
+      "Youve chosen a walk-in repair for Claim #108862544083 on 3/20/26. Come by anytime during opening hours at your convenience.",
+      "Next Steps",
+      "Call before you go",
+      "Call your selected repair location to confirm parts are available",
+      "Back up your device",
+      "Back up your device to avoid losing your data",
+      "Remove accessories and SIM card",
+      "Remove all accessories from your device (for example: chargers, cases, and watch bands) and take out your SIM card if applicable",
+      "Secure your device",
+      "Turn on repair mode to protect your apps and personal data like photos and contacts from being accessed by others",
+      "Summary",
+      "View claim",
+      "Claim filed date",
+      "March 20, 2026",
+      "Claim ID",
+      "108862544083",
+      "Your repair store"
+    ],
+    "links": [
+      "Contact us",
+      "Order history",
+      "Find a convenient location",
+      "uBreakiFix by Asurion",
+      "Back up your device",
+      "Turn on repair mode"
+    ]
+  },
+  {
+    "message_id": "19d0bc0d17fe8cba",
+    "subject": "VCX - A day to remember",
+    "sender_email": "investments@fundrise.com",
+    "sender_domain": "fundrise.com",
+    "scrub_status": "partial",
+    "scrubbed_text_preview": "Fundrise A reminder that success will be measured in years.",
+    "normalized_lines": [
+      "Fundrise A reminder that success will be measured in years."
+    ],
+    "links": [
+      "https://links.fundrise.com/s/c/ec4oB_4ay9ruf32Em8npcJTZZ0MOhux8UtSQGHyTO1BUTKCAxuq84ZmeqGYcM3Zjh5WwhuI13GpyJUkepKbnuJGxLfStvhvPurcDDLVkuD-oZZFaLlaJr3g_NGd_oGjxnFGkfrbcwLfdZu6kWfP0Uo1OIinkOh4cR0BayI-PWTLQcWxVS7LM6YTOx9pbSFihlPRRnkIFee5SJaYHWcsLtVyp8fak55njeM-sLTkpW4Ieu5mJbXRS5OrgkD6pAq6kUGDIrSTUbsT_AjiEjcD-3F640RRsW_aQvyaBTZy17Lg1Qn2asw_TjKa55sdKJZ7IeW-RlbUnyldfmEcAOg1xwu_TFWpWj5GrwOedImNN3WoPu9bzMBQCwTyOHv_BJqxec4Q-DKA19EKrEOa9Fsj8iQj80QZ1MUXyiQ7Ir5-9zzqgR_CvEvSDaKVx-3y-LCy_xLl5N8DGf2YXSeGx1sLx1mb6LcOlbn9ioP17hI34Vg1d-iSRlkIEqva13PIGX6ZX5THahdIj7I6hbjpdFRlVxh8mo0Bue-r2KFpFhSub5aCIpfLXgHMs2YOztkRKoicD3mxC9G0MbRMP74_uBWbiLe721yMOZgfu971ru1ls5-4r6KQdDnD8thyY5QWgGZFfDy_UHUVKJH8Z477b3KzBfgCC461Md9sDzz_SJ0STjPhkHbJ7-vfyNC_Q26A_Cg/WygkQpG75O_ojhJOpqUOAIRupvLsmpcn/19",
+      "11 Dupont Circle NW, 9th Floor, Washington, DC 20036",
+      "Edit Notification Preferences",
+      "Terms of Service",
+      "Full Disclosure",
+      "fundrise.com/oc"
+    ]
+  },
+  {
+    "message_id": "19d08cf062e2ae3b",
+    "subject": "Slobodan, there was a problem with your TripIt submission",
+    "sender_email": "support@tripit.com",
+    "sender_domain": "tripit.com",
+    "scrub_status": "partial",
+    "scrubbed_text_preview": "Please review your TripIt submission.\nReview Now\nWe received your email (Subject line: \"Fwd: Confirming your cancellation\") and placed it as a Note in your Unfiled Items.\nPlease visit our help page to see why TripIt might be unable to import your confirmation email.\nHappy travels,\nTripIt\n601 108th Ave NE, Suite 1000, Bellevue, WA 98004\n\u00a9 2006-2026, Concur Technologies, Inc. All rights reserved. TripIt \u00ae is a registered trademark of Concur Technologies, Inc.\nOther trademarks held by their respective owners.\nUnsubscribe |",
+    "normalized_lines": [
+      "Please review your TripIt submission.",
+      "Review Now",
+      "We received your email (Subject line: \"Fwd: Confirming your cancellation\") and placed it as a Note in your Unfiled Items.",
+      "Please visit our help page to see why TripIt might be unable to import your confirmation email.",
+      "Happy travels,",
+      "TripIt",
+      "601 108th Ave NE, Suite 1000, Bellevue, WA 98004",
+      "\u00a9 2006-2026, Concur Technologies, Inc. All rights reserved. TripIt \u00ae is a registered trademark of Concur Technologies, Inc.",
+      "Other trademarks held by their respective owners.",
+      "Unsubscribe |"
+    ],
+    "links": [
+      "Review Now",
+      "Privacy Policy",
+      "Unsubscribe",
+      "Help Center",
+      "help page",
+      "https://www.tripit.com"
+    ]
+  },
+  {
+    "message_id": "19d07b21ebe15fef",
+    "subject": "Reminder: Here comes Rambo!",
+    "sender_email": "info-oregonairshow.com@shared1.ccsend.com",
+    "sender_domain": "shared1.ccsend.com",
+    "scrub_status": "partial",
+    "scrubbed_text_preview": "Maj. Sean \"Rambo\" Loughlin's passion for flight was sparked as a child, spending afternoons with his grandmother watching airplanes soar into the sky.\nAnd now, years later, Rambo is Commander and Pilot of the USAF F-35A Lightning II Demo Team, flying the most modern aircraft in the military!\nThe Oregon International Air Show has launched countless aviation dreams. And this year, Rambo will ignite that spark once again.\nBe there with us for his OREGON DEBUT, as inspiration pulsates overhead at Hillsboro Airport!\nJOIN THE FUN\nOREGONAIRSHOW.COM\nOregon Air Show | 3355 NE Cornell Rd. | Hillsboro, OR 97124 US\nUnsubscribe | Update Profile | Constant Contact Data Notice",
+    "normalized_lines": [
+      "Maj. Sean \"Rambo\" Loughlin's passion for flight was sparked as a child, spending afternoons with his grandmother watching airplanes soar into the sky.",
+      "And now, years later, Rambo is Commander and Pilot of the USAF F-35A Lightning II Demo Team, flying the most modern aircraft in the military!",
+      "The Oregon International Air Show has launched countless aviation dreams. And this year, Rambo will ignite that spark once again.",
+      "Be there with us for his OREGON DEBUT, as inspiration pulsates overhead at Hillsboro Airport!",
+      "JOIN THE FUN",
+      "OREGONAIRSHOW.COM",
+      "Oregon Air Show | 3355 NE Cornell Rd. | Hillsboro, OR 97124 US",
+      "Unsubscribe | Update Profile | Constant Contact Data Notice"
+    ],
+    "links": [
+      "Constant Contact Data Notice",
+      "OREGONAIRSHOW.COM",
+      "Update Profile",
+      "JOIN THE FUN",
+      "Unsubscribe",
+      "https://biyhszgbb.cc.rs6.net/tn.jsp?f1gAxhMyQnG1oADHv7IT79_3YMT4JGvqWf_ILDAmz31GZanPNKYX_Dvi0lpelqDB6SXJCCeRMKAphZLcrDyNX7A5vyl-tIkZqsSMBgYhPd-AybUJ7PexlmGP93-BG4N4nGtSBx28CKqlgVDfCu0jlr6X-AMArOl4Tz6DFQEio491lVIdhqnPu5eheDS8oX-BKKxqJoH8ORGGSr2anuy6rx2EuzimMqZmP7AuZcNAjWnDU1tWdKnqX_Eu48UfC6TuGB5V4lAwdjG6u4rZoksPGFhnQ9QxLOZM3pUEasl-SPl2-JIFghbUkDwlKlzXULnaZ1fi2mg7UBX9BxhU4hxTUCXd9XbpNpgU4Y6NptCBQf21Ise98omAImHQ=&c=gHEmIkMYqyqNNQmoaEk48oj_zHSm0YEpJCDEnEbsVAIaUb4T-kbg_Q=&ch=McGeMo9rIbWJhk0A7L9y457WCuZ3mI-1qsrZQ7LyFCtji1_os8ULig="
+    ]
+  },
+  {
+    "message_id": "19d078490170cf5b",
+    "subject": "Reminder: you can split April rent",
+    "sender_email": "team@payments.getflex.com",
+    "sender_domain": "payments.getflex.com",
+    "scrub_status": "partial",
+    "scrubbed_text_preview": "Start April with a new option to pay rent!\nHi Slobodan,\nYou can split your rent into two payments, giving you more flexibility in managing your finances while staying on track with your financial goals. We even saved your progress to make it easier for you to complete your application.\nClick here to see your new option.\nLess stress, more flexibility. Flex Rent helps you keep more cash in your account throughout the month and build your credit with every on-time rent payment.\nBest regards,\nThe Flex Team\nSee your new option\n2026 Flexible Finance Brokering, Inc., 228 Park Ave S #75995 New York, NY 10003-1502",
+    "normalized_lines": [
+      "Start April with a new option to pay rent!",
+      "Hi Slobodan,",
+      "You can split your rent into two payments, giving you more flexibility in managing your finances while staying on track with your financial goals. We even saved your progress to make it easier for you to complete your application.",
+      "Click here to see your new option.",
+      "Less stress, more flexibility. Flex Rent helps you keep more cash in your account throughout the month and build your credit with every on-time rent payment.",
+      "Best regards,",
+      "The Flex Team",
+      "See your new option",
+      "2026 Flexible Finance Brokering, Inc., 228 Park Ave S #75995 New York, NY 10003-1502"
+    ],
+    "links": [
+      "See your new option",
+      "Terms & Conditions",
+      "Privacy Policy",
+      "Unsubscribe",
+      "Licenses",
+      "here"
+    ]
+  }
+]
