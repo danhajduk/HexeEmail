@@ -1472,12 +1472,14 @@ class NodeService:
                     "service_id": "backend",
                     "service_name": "backend",
                     "state": backend_state,
+                    "systemd_unit": "hexe-email-node-backend.service",
                 }
                 ,
                 {
                     "service_id": "frontend",
                     "service_name": "frontend",
                     "state": frontend_state,
+                    "systemd_unit": "hexe-email-node-frontend.service",
                 }
             ],
         }
