@@ -2722,7 +2722,7 @@ export function App() {
   if (view === "provider") {
     return (
       <div className="shell">
-        <ProviderSetupPage
+        <GmailSetupPage
           bootstrap={bootstrap}
           providerConfig={providerConfig}
           providerStatus={providerStatus}
