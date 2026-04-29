@@ -256,6 +256,7 @@ describe("dashboard feature sections", () => {
         onSelectActionItem={() => {}}
         onRefreshActionItems={() => {}}
         onApplyActionItemRuleFeedback={() => {}}
+        onRerunActionItemProcessing={() => {}}
         formatScheduleTimestamp={(value) => value || "-"}
       />,
     );
@@ -320,5 +321,6 @@ describe("dashboard feature sections", () => {
     expect(actionHtml).toContain("Rule Feedback");
     expect(actionHtml).toContain("Save Sender Rule");
     expect(actionHtml).toContain("Never Domain");
+    expect(actionHtml).toContain("Rerun Processing");
   });
 });

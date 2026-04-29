@@ -161,6 +161,7 @@ Current implemented Action Required item routes:
 - `POST /api/actions/{item_id}/rule-feedback`
 - `POST /api/actions/{item_id}/notify`
 - `POST /api/actions/{item_id}/regenerate-ai-decision`
+- `POST /api/actions/{item_id}/rerun-processing`
 
 Gmail-specific aliases:
 
@@ -173,12 +174,14 @@ Gmail-specific aliases:
 - `POST /api/gmail/action-items/{item_id}/rule-feedback`
 - `POST /api/gmail/action-items/{item_id}/notify`
 - `POST /api/gmail/action-items/{item_id}/regenerate-ai-decision`
+- `POST /api/gmail/action-items/{item_id}/rerun-processing`
 
 Notes:
 
 - `/api/actions` is the dashboard-friendly canonical workspace API.
 - `/api/gmail/action-items` aliases exist for provider-scoped integrations and compatibility.
 - Rule feedback writes through to Gmail sender/domain label override settings exposed by `/api/gmail/rules`.
+- Rerun processing uses the source message's existing classification label and reruns family extraction plus AI decision refresh without changing that label.
 
 ## Callback and compatibility endpoints
 

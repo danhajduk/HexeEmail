@@ -465,7 +465,7 @@ List data shown:
 
 Detail panels:
 
-- `Operator Actions`: mark done, accept, needs review, ignore, open action URL, send notification, regenerate AI decision, snooze/remind, reclassify, save notes, and save sender/domain rule feedback.
+- `Operator Actions`: mark done, accept, needs review, ignore, open action URL, send notification, regenerate AI decision, rerun processing with the existing label, snooze/remind, reclassify, save notes, and save sender/domain rule feedback.
 - `Mail`: message headers, Gmail labels, plain text body, sanitized HTML preview, and Gmail message link.
 - `Extracted Data`: profile, template, action URL, due time, review reasons, extracted fields, diagnostics, and raw flow output JSON.
 - `AI Decision`: primary label, recommended action, risk notes, deadline/calendar signals, recommended actions, and raw decision JSON.

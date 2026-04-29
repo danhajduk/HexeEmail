@@ -228,10 +228,13 @@ Dashboard-friendly API:
 - `POST /api/actions/{item_id}/rule-feedback`
 - `POST /api/actions/{item_id}/notify`
 - `POST /api/actions/{item_id}/regenerate-ai-decision`
+- `POST /api/actions/{item_id}/rerun-processing`
 
 Provider-scoped aliases are available under `/api/gmail/action-items`.
 
 Rule feedback writes enabled sender/domain label overrides into the Gmail runtime rule settings exposed by `/api/gmail/rules`. Non-`action_required` rule feedback marks the current action item ignored because future matching mail should no longer remain in the Action Required queue.
+
+`rerun-processing` keeps the source message's current classification label, reruns the Action Required family flow, forces a fresh AI action decision, and syncs the selected item from the new flow output.
 
 ## Runtime Switch Interaction
 

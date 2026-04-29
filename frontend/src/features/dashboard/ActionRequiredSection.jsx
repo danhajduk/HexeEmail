@@ -55,6 +55,7 @@ export function ActionRequiredSection({
   onReclassifyActionItem,
   onApplyActionItemRuleFeedback,
   onRegenerateActionItemAiDecision,
+  onRerunActionItemProcessing,
   onNotifyActionItem,
   formatScheduleTimestamp,
 }) {
@@ -206,6 +207,7 @@ export function ActionRequiredSection({
               onReclassifyActionItem={onReclassifyActionItem}
               onApplyActionItemRuleFeedback={onApplyActionItemRuleFeedback}
               onRegenerateActionItemAiDecision={onRegenerateActionItemAiDecision}
+              onRerunActionItemProcessing={onRerunActionItemProcessing}
               onNotifyActionItem={onNotifyActionItem}
             />
             <MailReviewPanel item={selectedDetail} formatScheduleTimestamp={formatScheduleTimestamp} />
@@ -227,6 +229,7 @@ function OperatorActionsPanel({
   onReclassifyActionItem,
   onApplyActionItemRuleFeedback,
   onRegenerateActionItemAiDecision,
+  onRerunActionItemProcessing,
   onNotifyActionItem,
 }) {
   const [operatorNote, setOperatorNote] = useState(item.operator_note || "");
@@ -300,6 +303,14 @@ function OperatorActionsPanel({
           onClick={() => onRegenerateActionItemAiDecision(item.item_id)}
         >
           Regenerate AI
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          disabled={disabled}
+          onClick={() => onRerunActionItemProcessing(item.item_id)}
+        >
+          Rerun Processing
         </button>
       </div>
 

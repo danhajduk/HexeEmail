@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -27,6 +28,8 @@ def _seed_action_item(service: NodeService) -> str:
                 label_ids=["INBOX"],
                 received_at=received_at,
                 raw_payload='{"body":"Please sign this document."}',
+                local_label=GmailTrainingLabel.ACTION_REQUIRED.value,
+                local_label_confidence=0.82,
             )
         ]
     )
@@ -297,3 +300,52 @@ async def test_action_required_api_regenerates_ai_decision(config):
     body = response.json()
     assert body["ai_decision_payload"]["summary"] == "Fresh decision."
     assert body["source_message"]["message_id"] == "msg-action-1"
+
+
+@pytest.mark.asyncio
+async def test_action_required_api_reruns_processing_without_changing_label(config):
+    service = NodeService(config, mqtt_manager=FakeMQTTManager())
+    item_id = _seed_action_item(service)
+    adapter = service.provider_registry.get_provider("gmail")
+
+    async def fake_flow(*, account_id, message):
+        return {
+            "phase4": SimpleNamespace(profile_id="payment_due"),
+            "phase7": SimpleNamespace(
+                record={
+                    "profile_id": "payment_due",
+                    "trust_level": "partial",
+                    "decision": "accept",
+                    "confidence": 0.91,
+                    "extracted_fields": {
+                        "action_url": {"value": "https://example.com/fresh"},
+                        "due_date": {"value": "2026-05-01"},
+                    },
+                }
+            ),
+        }
+
+    async def fake_action_decision(*, account_id, message, classification_label, **kwargs):
+        return {"summary": "Fresh full processing decision.", "human_review_required": False}
+
+    service._run_action_required_phase1_flow = fake_flow  # type: ignore[method-assign]
+    service._execute_email_action_decision_for_message = fake_action_decision  # type: ignore[method-assign]
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(f"/api/actions/{item_id}/rerun-processing")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["rerun"] == {
+        "classification_label": "action_required",
+        "label_changed": False,
+        "family_flow_ran": True,
+        "action_decision_refreshed": True,
+    }
+    assert body["profile_id"] == "payment_due"
+    assert body["extracted_fields"]["action_url"]["value"] == "https://example.com/fresh"
+    assert body["ai_decision_payload"]["summary"] == "Fresh full processing decision."
+    message = adapter.message_store.get_message("primary", "msg-action-1")
+    assert message is not None
+    assert message.local_label == GmailTrainingLabel.ACTION_REQUIRED.value

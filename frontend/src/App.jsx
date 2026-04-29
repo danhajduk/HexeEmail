@@ -1273,6 +1273,16 @@ export function App() {
     });
   }
 
+  function rerunActionItemProcessing(itemId) {
+    return mutateActionItem({
+      itemId,
+      actionKey: "rerun-processing",
+      path: `/api/actions/${encodeURIComponent(itemId)}/rerun-processing`,
+      method: "POST",
+      notice: "Email processing rerun with the existing label.",
+    });
+  }
+
   function notifyActionItem(itemId) {
     return mutateActionItem({
       itemId,
@@ -3240,6 +3250,7 @@ export function App() {
                   onReclassifyActionItem={reclassifyActionItem}
                   onApplyActionItemRuleFeedback={applyActionItemRuleFeedback}
                   onRegenerateActionItemAiDecision={regenerateActionItemAiDecision}
+                  onRerunActionItemProcessing={rerunActionItemProcessing}
                   onNotifyActionItem={notifyActionItem}
                   formatScheduleTimestamp={formatScheduleTimestamp}
                 />

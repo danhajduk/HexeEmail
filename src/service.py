@@ -5892,6 +5892,52 @@ class NodeService:
             raise ValueError("action item could not be regenerated")
         return self._action_item_detail(updated)
 
+    async def gmail_rerun_action_item_processing(
+        self,
+        *,
+        account_id: str = "primary",
+        item_id: str,
+    ) -> dict[str, object]:
+        item = self._action_item_or_error(account_id=account_id, item_id=item_id)
+        adapter = self.provider_registry.get_provider("gmail")
+        message = adapter.message_store.get_message(account_id, item.source_message_id)
+        if message is None:
+            raise ValueError("source message was not found")
+        if not message.local_label:
+            raise ValueError("source message does not have a classification label")
+        try:
+            classification_label = GmailTrainingLabel(str(message.local_label))
+        except ValueError as exc:
+            raise ValueError(f"source message has unsupported classification label: {message.local_label}") from exc
+        if classification_label != GmailTrainingLabel.ACTION_REQUIRED:
+            raise ValueError("action item processing rerun currently supports action_required mail only")
+
+        pipeline_result = await self._run_action_required_phase1_flow(account_id=account_id, message=message)
+        refreshed_message = adapter.message_store.get_message(account_id, item.source_message_id) or message
+        action_decision = await self._execute_email_action_decision_for_message(
+            account_id=account_id,
+            message=refreshed_message,
+            classification_label=classification_label,
+            force_refresh=True,
+        )
+        refreshed_message = adapter.message_store.get_message(account_id, item.source_message_id) or refreshed_message
+        updated = self._sync_action_required_item_from_message(
+            account_id=account_id,
+            message=refreshed_message,
+            pipeline_result=pipeline_result,
+            action_decision=action_decision or refreshed_message.action_decision_payload,
+        )
+        if updated is None:
+            raise ValueError("action item could not be rerun")
+        detail = self._action_item_detail(updated)
+        detail["rerun"] = {
+            "classification_label": classification_label.value,
+            "label_changed": False,
+            "family_flow_ran": pipeline_result is not None,
+            "action_decision_refreshed": action_decision is not None,
+        }
+        return detail
+
     def _action_item_or_error(self, *, account_id: str, item_id: str) -> GmailActionItem:
         adapter = self.provider_registry.get_provider("gmail")
         item = adapter.action_item_store.get_item(account_id, item_id)

@@ -263,6 +263,14 @@ def build_providers_gmail_router(node_service: NodeService) -> APIRouter:
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    @router.post("/api/actions/{item_id}/rerun-processing")
+    @router.post("/api/gmail/action-items/{item_id}/rerun-processing")
+    async def rerun_gmail_action_item_processing(item_id: str, account_id: str = "primary"):
+        try:
+            return await node_service.gmail_rerun_action_item_processing(account_id=account_id, item_id=item_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     @router.post("/api/gmail/reputation/refresh")
     async def gmail_sender_reputation_refresh(account_id: str = "primary"):
         try:
