@@ -565,6 +565,36 @@ class NodeService:
             "track123": update.payload,
         }
 
+    async def refresh_all_shipment_live_tracking(self, *, limit: int = 100) -> dict[str, object]:
+        self._ensure_track123_configured()
+        gmail_adapter = self.provider_registry.get_provider("gmail")
+        records = gmail_adapter.message_store.list_live_tracking_records(limit=limit)
+        refreshed = 0
+        failed = 0
+        results: list[dict[str, object]] = []
+        for record in records:
+            result = await self.refresh_shipment_live_tracking(account_id=record.account_id, record_id=record.record_id)
+            results.append(
+                {
+                    "account_id": record.account_id,
+                    "record_id": record.record_id,
+                    "tracking_number": record.tracking_number,
+                    "status": result.get("status"),
+                    "detail": result.get("detail"),
+                }
+            )
+            if result.get("status") == "error":
+                failed += 1
+            else:
+                refreshed += 1
+        return {
+            "status": "ok" if failed == 0 else "partial",
+            "refreshed": refreshed,
+            "failed": failed,
+            "total": len(records),
+            "results": results,
+        }
+
     async def list_track123_couriers(self) -> dict[str, object]:
         self._ensure_track123_configured()
         client = self._track123_client()

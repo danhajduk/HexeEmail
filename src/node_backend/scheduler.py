@@ -44,6 +44,7 @@ class BackgroundTaskManager:
         self.supervisor_heartbeat_task: asyncio.Task | None = None
         self.gmail_status_task: asyncio.Task | None = None
         self.gmail_fetch_task: asyncio.Task | None = None
+        self.shipment_live_tracking_task: asyncio.Task | None = None
 
     @staticmethod
     def default_gmail_last_hour_pipeline_state() -> dict[str, object]:
@@ -652,6 +653,19 @@ class BackgroundTaskManager:
                 enabled_resolver=lambda manager: bool(manager.service.config.gmail_fetch_poll_on_startup),
             ),
             ScheduledTaskDefinition(
+                task_id="shipment_live_tracking_refresh",
+                title="Shipment Live Tracking Refresh",
+                kind="provider_recurring_work",
+                owner="background_task_manager",
+                schedule_name="every_5_minutes",
+                detail="Refreshes Track123 live tracking status for all enabled shipment records.",
+                enabled_resolver=lambda manager: bool(
+                    manager.provider_work_allowed()
+                    and manager.service.config.track123_enabled
+                    and manager.service.config.track123_api_secret
+                ),
+            ),
+            ScheduledTaskDefinition(
                 task_id="runtime_prompt_sync_weekly",
                 title="Weekly Prompt Sync",
                 kind="node_local_recurring_work",
@@ -698,6 +712,12 @@ class BackgroundTaskManager:
             and self.service.effective_core_base_url()
         )
         runtime_authorize_status = "scheduled" if runtime_authorize_ready else "idle"
+        live_tracking_state = self.scheduler_task_state("shipment_live_tracking_refresh")
+        live_tracking_ready = bool(
+            self.provider_work_allowed()
+            and self.service.config.track123_enabled
+            and self.service.config.track123_api_secret
+        )
 
         return [
             self.scheduled_task_entry_from_registry(
@@ -823,6 +843,27 @@ class BackgroundTaskManager:
                 enabled=bool(self.service.config.gmail_fetch_poll_on_startup),
             ),
             self.scheduled_task_entry_from_registry(
+                "shipment_live_tracking_refresh",
+                group="shipments",
+                status=self.scheduled_task_public_status(live_tracking_state.get("status") or ("scheduled" if live_tracking_ready else "idle")),
+                last_execution_at=live_tracking_state.get("last_success_at") or live_tracking_state.get("last_started_at"),
+                next_execution_at=(
+                    live_tracking_state.get("next_run_at")
+                    or (self.schedule_template_next_run("every_5_minutes", local_now).isoformat() if live_tracking_ready else None)
+                ),
+                last_reason="scheduled" if live_tracking_state.get("last_success_at") else None,
+                detail=str(
+                    live_tracking_state.get("detail")
+                    or (
+                        "Refreshes Track123 live tracking status for enabled shipment records."
+                        if live_tracking_ready
+                        else "Waiting for trusted readiness and Track123 configuration."
+                    )
+                ),
+                last_slot_key=live_tracking_state.get("last_slot_key"),
+                enabled=live_tracking_ready,
+            ),
+            self.scheduled_task_entry_from_registry(
                 "runtime_prompt_sync_weekly",
                 group="runtime",
                 status=prompt_sync_status,
@@ -881,6 +922,7 @@ class BackgroundTaskManager:
         await self._cancel_task(self.supervisor_heartbeat_task)
         await self._cancel_task(self.gmail_status_task)
         await self._cancel_task(self.gmail_fetch_task)
+        await self._cancel_task(self.shipment_live_tracking_task)
         for task_id in (
             "telemetry",
             "supervisor_heartbeat",
@@ -890,6 +932,7 @@ class BackgroundTaskManager:
             "gmail_fetch_today",
             "gmail_fetch_last_hour",
             "gmail_hourly_batch_classification",
+            "shipment_live_tracking_refresh",
         ):
             self.save_scheduler_task_state(task_id, status="stopped", detail="Task stopped during scheduler shutdown.", next_run_at=None)
 
@@ -915,18 +958,27 @@ class BackgroundTaskManager:
                 self.ensure_gmail_status_polling()
             if self.service.config.gmail_fetch_poll_on_startup:
                 self.ensure_gmail_fetch_polling()
+            if self.service.config.track123_enabled and self.service.config.track123_api_secret:
+                self.ensure_shipment_live_tracking_polling()
+            else:
+                if self.shipment_live_tracking_task is not None and not self.shipment_live_tracking_task.done():
+                    self.shipment_live_tracking_task.cancel()
+                self.mark_task_idle("shipment_live_tracking_refresh", detail="Shipment live tracking refresh is waiting for Track123 configuration.")
             return
 
         if self.gmail_status_task is not None and not self.gmail_status_task.done():
             self.gmail_status_task.cancel()
         if self.gmail_fetch_task is not None and not self.gmail_fetch_task.done():
             self.gmail_fetch_task.cancel()
+        if self.shipment_live_tracking_task is not None and not self.shipment_live_tracking_task.done():
+            self.shipment_live_tracking_task.cancel()
         blocked_detail = "Provider recurring work is waiting for trusted operational readiness."
         self.mark_task_idle("gmail_status_polling", detail=blocked_detail)
         self.mark_task_idle("gmail_fetch_yesterday", detail=blocked_detail)
         self.mark_task_idle("gmail_fetch_today", detail=blocked_detail)
         self.mark_task_idle("gmail_fetch_last_hour", detail=blocked_detail)
         self.mark_task_idle("gmail_hourly_batch_classification", detail=blocked_detail)
+        self.mark_task_idle("shipment_live_tracking_refresh", detail=blocked_detail)
 
     def ensure_telemetry_polling(self) -> None:
         if self.telemetry_task is None or self.telemetry_task.done():
@@ -1106,6 +1158,20 @@ class BackgroundTaskManager:
             self.service.notifications.gmail_fetch_notification_state = "healthy"
             self.gmail_fetch_task = asyncio.create_task(self.gmail_fetch_loop())
 
+    def ensure_shipment_live_tracking_polling(self) -> None:
+        if self.shipment_live_tracking_task is None or self.shipment_live_tracking_task.done():
+            now = datetime.now(UTC).replace(tzinfo=None)
+            self.save_scheduler_task_state(
+                "shipment_live_tracking_refresh",
+                status="scheduled",
+                enabled=True,
+                detail="Shipment live tracking refresh loop is running.",
+                last_started_at=now.isoformat(),
+                next_run_at=self.schedule_template_next_run("every_5_minutes", now.astimezone()).isoformat(),
+                last_error=None,
+            )
+            self.shipment_live_tracking_task = asyncio.create_task(self.shipment_live_tracking_loop())
+
     async def gmail_status_loop(self) -> None:
         while True:
             try:
@@ -1197,6 +1263,80 @@ class BackgroundTaskManager:
             except Exception as exc:
                 AI_LOGGER.error("Monthly Core resolve and authorize failed", extra={"event_data": {"detail": str(exc)}})
             await asyncio.sleep(self.seconds_until_next_minute())
+
+    async def shipment_live_tracking_loop(self) -> None:
+        while True:
+            try:
+                await self.run_due_shipment_live_tracking_refresh(datetime.now().astimezone())
+            except Exception as exc:
+                now = datetime.now().astimezone()
+                self.mark_task_failure(
+                    "shipment_live_tracking_refresh",
+                    detail="Scheduled shipment live tracking refresh failed.",
+                    error=str(exc),
+                    next_run_at=self.schedule_template_next_run("every_5_minutes", now).isoformat(),
+                )
+                LOGGER.error("Scheduled shipment live tracking refresh failed", extra={"event_data": {"detail": str(exc)}})
+            await asyncio.sleep(self.seconds_until_next_minute())
+
+    async def run_due_shipment_live_tracking_refresh(self, now: datetime) -> dict[str, object] | None:
+        slot_key = self.gmail_hourly_batch_slot_key(now)
+        current_task_state = self.scheduler_task_state("shipment_live_tracking_refresh")
+        if slot_key is None or current_task_state.get("last_slot_key") == slot_key:
+            self.mark_task_idle(
+                "shipment_live_tracking_refresh",
+                detail="Waiting for the next 5-minute shipment tracking refresh slot.",
+                next_run_at=self.schedule_template_next_run("every_5_minutes", now).isoformat(),
+            )
+            return None
+        if not self.provider_work_allowed():
+            self.mark_task_idle(
+                "shipment_live_tracking_refresh",
+                detail="Shipment live tracking refresh is waiting for trusted operational readiness.",
+                next_run_at=self.schedule_template_next_run("every_5_minutes", now).isoformat(),
+            )
+            return None
+        if not self.service.config.track123_enabled or not self.service.config.track123_api_secret:
+            self.mark_task_idle(
+                "shipment_live_tracking_refresh",
+                detail="Shipment live tracking refresh is waiting for Track123 configuration.",
+                next_run_at=self.schedule_template_next_run("every_5_minutes", now).isoformat(),
+            )
+            return None
+        if current_task_state.get("status") == "running":
+            LOGGER.info(
+                "Scheduled shipment live tracking refresh skipped because the previous run is still active",
+                extra={"event_data": {"slot_key": slot_key, "active_detail": current_task_state.get("detail")}},
+            )
+            return None
+        self.mark_task_running(
+            "shipment_live_tracking_refresh",
+            detail=f"Scheduled shipment live tracking refresh is running for 5-minute slot {slot_key}.",
+            next_run_at=self.schedule_template_next_run("every_5_minutes", now).isoformat(),
+        )
+        LOGGER.info("Scheduled shipment live tracking refresh starting", extra={"event_data": {"slot_key": slot_key}})
+        result = await self.service.refresh_all_shipment_live_tracking()
+        detail = (
+            f"Scheduled shipment live tracking refreshed {result.get('refreshed', 0)} of "
+            f"{result.get('total', 0)} enabled record(s); failures={result.get('failed', 0)}."
+        )
+        if result.get("failed"):
+            self.mark_task_failure(
+                "shipment_live_tracking_refresh",
+                detail=detail,
+                error=detail,
+                next_run_at=self.schedule_template_next_run("every_5_minutes", now).isoformat(),
+            )
+        else:
+            self.mark_task_success(
+                "shipment_live_tracking_refresh",
+                detail=detail,
+                next_run_at=self.schedule_template_next_run("every_5_minutes", now).isoformat(),
+            )
+        state = self.scheduler_task_state("shipment_live_tracking_refresh")
+        self.save_scheduler_task_state("shipment_live_tracking_refresh", **{**state, "last_slot_key": slot_key})
+        LOGGER.info("Scheduled shipment live tracking refresh completed", extra={"event_data": {"slot_key": slot_key, **result}})
+        return result
 
     async def run_due_gmail_fetches(self) -> None:
         gmail_adapter = self.service.provider_registry.get_provider("gmail")

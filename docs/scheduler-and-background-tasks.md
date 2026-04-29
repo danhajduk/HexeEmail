@@ -165,6 +165,18 @@ The Gmail fetch scheduler currently owns three recurring windows:
 - Operator visibility:
   - surfaced in scheduled task snapshot output
 
+### 5-Minute Shipment Live Tracking Refresh
+
+- Owner: `BackgroundTaskManager.run_due_shipment_live_tracking_refresh()`
+- Trigger model: runs from the shipment live tracking scheduler loop every 5 minutes when Track123 is enabled and configured
+- Slot key model:
+  - current local 5-minute bucket ISO timestamp with second and microsecond zeroed
+- Runtime behavior:
+  - calls `NodeService.refresh_all_shipment_live_tracking()`
+  - refreshes all shipment records that already have live tracking enabled and a tracking number
+- Operator visibility:
+  - surfaced in scheduled task snapshot output as `shipment_live_tracking_refresh`
+
 ### Weekly Runtime Prompt Sync
 
 - Owner: scheduler loop invokes `NodeService._run_weekly_prompt_sync_if_due()`

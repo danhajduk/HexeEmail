@@ -7,7 +7,6 @@ export function TrackedOrdersCard({
   trackingIntegrations,
   liveTrackingPending = "",
   enableLiveTracking,
-  refreshLiveTracking,
   showSeller = true,
 }) {
   const track123 = trackingIntegrations?.track123 || {};
@@ -45,7 +44,6 @@ export function TrackedOrdersCard({
                       track123Ready={track123Ready}
                       liveTrackingPending={liveTrackingPending}
                       enableLiveTracking={enableLiveTracking}
-                      refreshLiveTracking={refreshLiveTracking}
                       formatScheduleTimestamp={formatScheduleTimestamp}
                     />
                   </td>
@@ -68,7 +66,6 @@ function LiveTrackingCell({
   track123Ready,
   liveTrackingPending,
   enableLiveTracking,
-  refreshLiveTracking,
   formatScheduleTimestamp,
 }) {
   const actionKey = `${record.account_id}:${record.record_id}`;
@@ -83,26 +80,15 @@ function LiveTrackingCell({
           {status}
         </span>
         {record.live_tracking_location ? <span className="muted">{record.live_tracking_location}</span> : null}
-        {record.tracking_number && track123Ready ? (
-          record.live_tracking_enabled ? (
-            <button
-              type="button"
-              className="btn btn-ghost"
-              disabled={pending}
-              onClick={() => refreshLiveTracking?.(record)}
-            >
-              Refresh
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="btn btn-ghost"
-              disabled={pending}
-              onClick={() => enableLiveTracking?.(record)}
-            >
-              Track
-            </button>
-          )
+        {record.tracking_number && track123Ready && !record.live_tracking_enabled ? (
+          <button
+            type="button"
+            className="btn btn-ghost"
+            disabled={pending}
+            onClick={() => enableLiveTracking?.(record)}
+          >
+            Track
+          </button>
         ) : null}
       </div>
       {latestEvent ? (

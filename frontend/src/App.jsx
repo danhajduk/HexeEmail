@@ -2600,10 +2600,6 @@ export function App() {
     await runShipmentLiveTrackingAction(record, "enable");
   }
 
-  async function runRefreshShipmentLiveTracking(record) {
-    await runShipmentLiveTrackingAction(record, "refresh");
-  }
-
   async function runShipmentLiveTrackingAction(record, action) {
     const accountId = record?.account_id;
     const recordId = record?.record_id;
@@ -3019,7 +3015,6 @@ export function App() {
                   trackingIntegrations={trackingIntegrations}
                   liveTrackingPending={liveTrackingPending}
                   enableLiveTracking={runEnableShipmentLiveTracking}
-                  refreshLiveTracking={runRefreshShipmentLiveTracking}
                 />
               ) : dashboardSection === "shipments" ? (
                 <TrackedOrdersSection
@@ -3031,7 +3026,6 @@ export function App() {
                   trackingIntegrations={trackingIntegrations}
                   liveTrackingPending={liveTrackingPending}
                   enableLiveTracking={runEnableShipmentLiveTracking}
-                  refreshLiveTracking={runRefreshShipmentLiveTracking}
                   showSeller={false}
                 />
               ) : dashboardSection === "review" ? (

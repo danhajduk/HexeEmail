@@ -57,6 +57,26 @@ async def test_track123_client_lists_couriers_with_user_supplied_shape():
 
 
 @pytest.mark.asyncio
+async def test_track123_client_accepts_base_url_with_api_prefix():
+    requests: list[httpx.Request] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json={"code": "00000", "data": {"accepted": {"content": []}}})
+
+    client = Track123Client(
+        api_secret="secret-test",
+        base_url="https://api.track123.test/gateway/open-api",
+        transport=httpx.MockTransport(handler),
+    )
+
+    await client.query_tracking(tracking_number="123123122222", courier_code="fedex")
+    await client.close()
+
+    assert requests[0].url == "https://api.track123.test/gateway/open-api/tk/v2.1/track/query"
+
+
+@pytest.mark.asyncio
 async def test_track123_client_retries_a0706_rate_limit(monkeypatch):
     monkeypatch.setattr(Track123Client, "_min_endpoint_interval_seconds", 0)
     monkeypatch.setattr(Track123Client, "_rate_limit_retry_delays", (0,))

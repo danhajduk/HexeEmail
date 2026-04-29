@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 import time
+from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 
@@ -37,7 +38,9 @@ class Track123Client:
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self.api_secret = api_secret.strip()
-        self.base_url = base_url.rstrip("/")
+        parsed_base_url = urlsplit(base_url.rstrip("/"))
+        self.base_url = urlunsplit((parsed_base_url.scheme, parsed_base_url.netloc, "", "", ""))
+        self.api_prefix = parsed_base_url.path.rstrip("/")
         self._client = httpx.AsyncClient(base_url=self.base_url, timeout=timeout, transport=transport)
 
     async def close(self) -> None:
@@ -83,12 +86,13 @@ class Track123Client:
         if json_payload is not None:
             headers["content-type"] = "application/json"
         attempts = len(self._rate_limit_retry_delays) + 1
+        request_path = self._request_path(path)
         for attempt in range(attempts):
-            await self._throttle_endpoint(path)
+            await self._throttle_endpoint(request_path)
             try:
                 response = await self._client.request(
                     method,
-                    path,
+                    request_path,
                     headers=headers,
                     json=json_payload,
                 )
@@ -108,6 +112,13 @@ class Track123Client:
                 raise Track123ClientError(str(message))
             return parsed
         raise Track123ClientError(f"{operation} was rate limited by Track123")
+
+    def _request_path(self, path: str) -> str:
+        if not self.api_prefix:
+            return path
+        if path.startswith(f"{self.api_prefix}/") or path == self.api_prefix:
+            return path
+        return f"{self.api_prefix}{path if path.startswith('/') else f'/{path}'}"
 
     @classmethod
     async def _throttle_endpoint(cls, path: str) -> None:
