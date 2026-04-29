@@ -112,6 +112,10 @@ Implemented prompt artifact:
 
 - [prompt.email.family_pattern_template_creation.json](/home/dan/Projects/HexeEmail/runtime/prompts/prompt.email.family_pattern_template_creation.json)
 
+Related recovery prompt:
+
+- [prompt.email.identifier_recovery_template_creation.json](/home/dan/Projects/HexeEmail/runtime/prompts/prompt.email.identifier_recovery_template_creation.json)
+
 And feed it family-owned inputs for:
 
 - `template_schema_version`
@@ -157,6 +161,12 @@ The shared prompt is only safe if:
 - the prompt is strict about not inventing unsupported fields or methods
 
 If a future family needs a fundamentally different Phase 4 contract, that family should get its own prompt instead of stretching the shared prompt too far.
+
+## Identifier Recovery Prompt
+
+Use `prompt.email.identifier_recovery_template_creation` for high-confidence ORDER or SHIPMENT emails where normal extraction failed because the useful identifier is hidden outside visible text. Examples include order numbers in dynamic image URLs, action URLs behind redirect links, tracking identifiers in query parameters, or status values rendered into images.
+
+This prompt returns a probation proposal, not a trusted executable template. The proposal includes evidence, a proposed template, validation steps, and any parser capabilities that are required before the rule can run deterministically. That keeps AI useful for discovering the pattern while preserving review before new extraction methods such as HTML attribute query parsing, parent-link redirect parsing, or OCR become production behavior.
 
 ## Expected Failure Cases
 

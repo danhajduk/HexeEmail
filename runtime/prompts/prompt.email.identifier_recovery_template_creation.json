@@ -1,0 +1,337 @@
+{
+  "prompt_id": "prompt.email.identifier_recovery_template_creation",
+  "service_id": "node-email",
+  "task_family": "task.structured_extraction",
+  "prompt_name": "Identifier recovery template creation",
+  "owner_service": "node-email",
+  "privacy_class": "restricted",
+  "status": "active",
+  "execution_policy": {
+    "allow_direct_execution": true,
+    "allow_version_pinning": true,
+    "access_scope": "service",
+    "allowed_callers": [
+      "node-email"
+    ]
+  },
+  "provider_preferences": {
+    "default_provider": "openai",
+    "default_model": "gpt-5.4-mini",
+    "preferred_models": [
+      "gpt-5.4-mini",
+      "gpt-5-mini"
+    ]
+  },
+  "constraints": {
+    "max_timeout_s": 60,
+    "structured_output_required": true
+  },
+  "definition": {
+    "system_prompt": "You are a deterministic email extraction-template recovery analyst for Hexe Email Node. Your job is to inspect high-confidence ORDER or SHIPMENT emails where normal extraction failed because order numbers, tracking numbers, action URLs, or shipment identifiers were hidden in HTML, image URLs, link redirects, query parameters, alt text, or rendered dynamic images. Return JSON only. Do not return markdown. Do not return explanation text. Do not invent evidence. Prefer deterministic parsing from HTML attributes, query parameters, redirect destinations, stable link metadata, and image metadata before OCR. OCR is fallback only. The output is a probation template proposal, not a trusted production template. If the sample does not contain enough stable evidence, set should_create_template to false and explain the blocker in rejection_reason. When should_create_template is true, include a compact proposed_template object that can be reviewed and later converted into an executable family template. Always list required_engine_capabilities so reviewers know whether current deterministic extraction code can execute the proposal. Keep privacy exposure minimal: cite only structural evidence and short non-sensitive snippets needed to justify the rule.",
+    "prompt_template": "Create a probation identifier-recovery template proposal for this high-confidence email whose normal ORDER/SHIPMENT extraction missed required identifiers.\n\nCandidate context:\n- expected_label: {{expected_label}}\n- classifier_label: {{classifier_label}}\n- classifier_confidence: {{classifier_confidence}}\n- action_decision_label: {{action_decision_label}}\n- action_decision_confidence: {{action_decision_confidence}}\n- missing_fields: {{missing_fields_json}}\n- extraction_failure_summary: {{extraction_failure_summary}}\n\nEmail metadata:\n- message_id: {{message_id}}\n- from_name: {{from_name}}\n- from_email: {{from_email}}\n- sender_domain: {{sender_domain}}\n- subject: {{subject}}\n- received_at: {{received_at}}\n\nNormalized visible body:\n{{body_text}}\n\nHTML body:\n{{body_html}}\n\nExtracted links with optional redirect chains:\n{{links_json}}\n\nExtracted images and surrounding link context:\n{{images_json}}\n\nExisting template diagnostics:\n{{template_diagnostics_json}}\n\nReturn JSON with this exact top-level shape:\n{\n  \"schema_version\": \"identifier-recovery-template-proposal.v1\",\n  \"should_create_template\": true,\n  \"expected_label\": \"ORDER or SHIPMENT\",\n  \"proposal_confidence\": 0.0,\n  \"rejection_reason\": null,\n  \"vendor_identity\": \"string or null\",\n  \"evidence\": [\n    {\n      \"source\": \"body_text | html_attribute | image_src | image_alt | link_href | redirect_url | query_param | ocr_candidate | diagnostics\",\n      \"path\": \"short stable pointer\",\n      \"finding\": \"short finding\",\n      \"supports_field\": \"field name or null\"\n    }\n  ],\n  \"required_engine_capabilities\": [\"string\"],\n  \"proposed_template\": {\n    \"schema_version\": \"order-phase4-template.v1 or shipment-phase4-template.v1\",\n    \"template_id\": \"string\",\n    \"profile_id\": \"string\",\n    \"template_version\": \"v1\",\n    \"enabled\": true,\n    \"match\": {\n      \"vendor_identity\": \"optional string\"\n    },\n    \"extract\": {\n      \"field_name\": {\n        \"method\": \"supported_or_proposed_method\",\n        \"...\": \"method-specific fields\",\n        \"transforms\": [\"optional transform names\"]\n      }\n    },\n    \"required_fields\": [\"string\"],\n    \"confidence_rules\": {\n      \"high_requires\": [\"string\"]\n    },\n    \"post_process\": {}\n  },\n  \"validation_plan\": [\"string\"]\n}\n\nHard output rules:\n- Return exactly one JSON object.\n- expected_label must be ORDER or SHIPMENT.\n- proposal_confidence must be between 0 and 1.\n- If should_create_template is false, proposed_template must be null, required_engine_capabilities must be [], and rejection_reason must be a non-empty string.\n- If should_create_template is true, rejection_reason must be null and proposed_template must be present.\n- Do not create a template from decorative marketing images, unsubscribe links, tracking pixels, social links, insurance links, or generic navigation.\n- Do not infer an identifier from arbitrary numbers unless the surrounding structure labels it as an order, transaction, shipment, tracking, package, consignment, store transaction, or status tracker identifier.\n- Prefer existing supported methods when enough visible text exists: regex, first_match, all_matches, line_contains, line_after, between_markers, link_by_label, link_by_type.\n- For hidden identifier cases, you may propose these methods: html_attr_query_param, html_attr_split_segment, parent_link_redirect_query_param, parent_link_redirect_url, image_ocr_first_match, build_url_from_fields.\n- Every proposed method must include enough method-specific fields to be deterministic, such as selector_hint, attribute, query_param, delimiter, segment_index, child_selector_hint, redirect_url_contains, pattern, or url_template.\n- If a proposed method is not already supported by the current extractor, include it in required_engine_capabilities.\n- Use OCR methods only when HTML/link/query parameters cannot recover the field.\n- Do not place raw full HTML in evidence. Evidence findings must be concise.\n- proposed_template.match may contain only vendor_identity.\n- required_fields should contain the minimum fields needed to accept extraction.\n- confidence_rules.high_requires should contain fields that make the result strongly trustworthy.\n\nField guidance:\n- ORDER identifiers may include order_number, transaction_number, store_id, status, expected_completion_date, order_action_url, item_name, customer_token.\n- SHIPMENT identifiers may include tracking_number, carrier_name, status, estimated_delivery_date, shipment_action_url, order_number.\n- For retail pickup or order-progress emails with no carrier/tracking number, use ORDER rather than SHIPMENT.\n- For package movement emails with carrier/tracking evidence, use SHIPMENT.\n\nVisionworks-like dynamic image guidance:\n- An image with alt text like Order Progress and a source URL containing em.realtime.email/service/rte is likely a dynamic order tracker, not decoration.\n- If an image src query parameter contains a pipe-delimited value like order|store|name, propose html_attr_split_segment extraction for order_number or transaction_number and store_id.\n- If the parent link redirects to an order lookup URL with storeId and transactionNumber, propose parent_link_redirect_query_param or parent_link_redirect_url extraction.\n- If the rendered image contains status or expected completion date but HTML does not, propose image_ocr_first_match only for those visual fields.\n\nReturn JSON only.",
+    "template_variables": [
+      "expected_label",
+      "classifier_label",
+      "classifier_confidence",
+      "action_decision_label",
+      "action_decision_confidence",
+      "missing_fields_json",
+      "extraction_failure_summary",
+      "message_id",
+      "from_name",
+      "from_email",
+      "sender_domain",
+      "subject",
+      "received_at",
+      "body_text",
+      "body_html",
+      "links_json",
+      "images_json",
+      "template_diagnostics_json"
+    ],
+    "default_inputs": {
+      "classifier_label": "",
+      "classifier_confidence": 0,
+      "action_decision_label": "",
+      "action_decision_confidence": 0,
+      "missing_fields_json": "[]",
+      "extraction_failure_summary": "",
+      "body_html": "",
+      "links_json": "[]",
+      "images_json": "[]",
+      "template_diagnostics_json": "[]"
+    }
+  },
+  "version": "v1.0",
+  "metadata": {
+    "content_type": "email",
+    "prompt_role": "identifier_recovery_template_creation",
+    "delegated_by": "node-email",
+    "intended_executor": "node-ai",
+    "template_schema": "identifier-recovery-template-proposal.v1",
+    "supported_current_methods": [
+      "regex",
+      "line_contains",
+      "line_after",
+      "between_markers",
+      "all_matches",
+      "first_match",
+      "link_by_label",
+      "link_by_type"
+    ],
+    "proposed_recovery_methods": [
+      "html_attr_query_param",
+      "html_attr_split_segment",
+      "parent_link_redirect_query_param",
+      "parent_link_redirect_url",
+      "image_ocr_first_match",
+      "build_url_from_fields"
+    ]
+  },
+  "review_policy": {
+    "last_reviewed_at": null,
+    "review_owner": "node-email",
+    "review_reason": null
+  },
+  "node_runtime": {
+    "timeout_s": 60,
+    "json_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "identifier-recovery-template-proposal.v1"
+        },
+        "should_create_template": {
+          "type": "boolean"
+        },
+        "expected_label": {
+          "type": "string",
+          "enum": [
+            "ORDER",
+            "SHIPMENT"
+          ]
+        },
+        "proposal_confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "rejection_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "vendor_identity": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "source": {
+                "type": "string",
+                "enum": [
+                  "body_text",
+                  "html_attribute",
+                  "image_src",
+                  "image_alt",
+                  "link_href",
+                  "redirect_url",
+                  "query_param",
+                  "ocr_candidate",
+                  "diagnostics"
+                ]
+              },
+              "path": {
+                "type": "string"
+              },
+              "finding": {
+                "type": "string"
+              },
+              "supports_field": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "source",
+              "path",
+              "finding",
+              "supports_field"
+            ]
+          }
+        },
+        "required_engine_capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "regex",
+              "line_contains",
+              "line_after",
+              "between_markers",
+              "all_matches",
+              "first_match",
+              "link_by_label",
+              "link_by_type",
+              "html_attr_query_param",
+              "html_attr_split_segment",
+              "parent_link_redirect_query_param",
+              "parent_link_redirect_url",
+              "image_ocr_first_match",
+              "build_url_from_fields"
+            ]
+          }
+        },
+        "proposed_template": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "schema_version": {
+              "type": "string",
+              "enum": [
+                "order-phase4-template.v1",
+                "shipment-phase4-template.v1"
+              ]
+            },
+            "template_id": {
+              "type": "string"
+            },
+            "profile_id": {
+              "type": "string"
+            },
+            "template_version": {
+              "type": "string",
+              "const": "v1"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "match": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "vendor_identity": {
+                  "type": "string"
+                }
+              }
+            },
+            "extract": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean",
+                    "array",
+                    "object",
+                    "null"
+                  ]
+                },
+                "properties": {
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "regex",
+                      "line_contains",
+                      "line_after",
+                      "between_markers",
+                      "all_matches",
+                      "first_match",
+                      "link_by_label",
+                      "link_by_type",
+                      "html_attr_query_param",
+                      "html_attr_split_segment",
+                      "parent_link_redirect_query_param",
+                      "parent_link_redirect_url",
+                      "image_ocr_first_match",
+                      "build_url_from_fields"
+                    ]
+                  },
+                  "transforms": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "method"
+                ]
+              }
+            },
+            "required_fields": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "confidence_rules": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "high_requires": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "high_requires"
+              ]
+            },
+            "post_process": {
+              "type": "object"
+            }
+          },
+          "required": [
+            "schema_version",
+            "template_id",
+            "profile_id",
+            "template_version",
+            "enabled",
+            "match",
+            "extract",
+            "required_fields",
+            "confidence_rules",
+            "post_process"
+          ]
+        },
+        "validation_plan": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "schema_version",
+        "should_create_template",
+        "expected_label",
+        "proposal_confidence",
+        "rejection_reason",
+        "vendor_identity",
+        "evidence",
+        "required_engine_capabilities",
+        "proposed_template",
+        "validation_plan"
+      ]
+    }
+  }
+}
