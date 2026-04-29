@@ -28,7 +28,6 @@ export function TrackedOrdersCard({
                 <th>Tracking Number</th>
                 <th>Status</th>
                 <th>Live Tracking</th>
-                <th>Domain</th>
                 <th>Account</th>
                 <th>Updated</th>
               </tr>
@@ -54,7 +53,6 @@ export function TrackedOrdersCard({
                       refreshLiveTracking={refreshLiveTracking}
                     />
                   </td>
-                  <td>{record.domain || "-"}</td>
                   <td>{record.account_id || "-"}</td>
                   <td>{formatScheduleTimestamp(record.updated_at)}</td>
                 </tr>

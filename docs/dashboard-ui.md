@@ -413,7 +413,6 @@ Data shown:
 - tracking number
 - status
 - live tracking state, provider status, and location when Track123 is configured
-- domain
 - account
 - updated
 
