@@ -2451,8 +2451,13 @@ class NodeService:
         if message.message_id not in grouped_message_ids:
             grouped_message_ids.append(message.message_id)
 
-        state = self._action_required_item_state(existing=existing, flow_output=flow_output, action_decision=action_decision)
         review_reasons = self._action_required_review_reasons(flow_output=flow_output, action_decision=action_decision)
+        state = self._action_required_item_state(
+            existing=existing,
+            flow_output=flow_output,
+            action_decision=action_decision,
+            review_reasons=review_reasons,
+        )
         confidence = self._action_required_confidence(flow_output=flow_output, fallback=message.local_label_confidence)
 
         item = GmailActionItem(
@@ -2651,6 +2656,7 @@ class NodeService:
         existing: GmailActionItem | None,
         flow_output: dict[str, object] | None,
         action_decision: dict[str, object] | None,
+        review_reasons: list[str],
     ) -> GmailActionItemState:
         if existing is not None and existing.state in {
             GmailActionItemState.DONE,
@@ -2665,6 +2671,8 @@ class NodeService:
             return GmailActionItemState.REVIEW_NEEDED
         if isinstance(action_decision, dict) and bool(action_decision.get("human_review_required")):
             return GmailActionItemState.REVIEW_NEEDED
+        if review_reasons:
+            return GmailActionItemState.REVIEW_NEEDED
         return GmailActionItemState.READY
 
     @staticmethod
@@ -2677,15 +2685,58 @@ class NodeService:
         output = flow_output or {}
         if str(output.get("trust_level") or "").strip().lower() == "review_needed":
             reasons.append("flow_output_review_needed")
+        try:
+            confidence = float(output.get("confidence"))
+        except (TypeError, ValueError):
+            confidence = None
+        if confidence is None or confidence < 0.65:
+            reasons.append("low_confidence" if confidence is not None else "missing_confidence")
+        if not str(output.get("profile_id") or "").strip():
+            reasons.append("missing_profile")
         decision_reason = str(output.get("decision_reason") or "").strip()
-        if decision_reason:
+        if decision_reason and decision_reason.lower() not in {"accepted", "accept"}:
             reasons.append(decision_reason)
+        extracted_fields = output.get("extracted_fields")
+        if isinstance(extracted_fields, dict):
+            has_action_detail = False
+            for name in (
+                "action_url",
+                "url",
+                "document_id",
+                "verification_target",
+                "verification_code",
+                "due_date",
+                "deadline",
+                "amount",
+                "account",
+                "vendor",
+            ):
+                field_value = extracted_fields.get(name)
+                if isinstance(field_value, dict):
+                    field_value = field_value.get("value")
+                if str(field_value or "").strip():
+                    has_action_detail = True
+                    break
+            if not has_action_detail:
+                reasons.append("missing_action_details")
+            for field_name, raw_field in extracted_fields.items():
+                if not isinstance(raw_field, dict):
+                    continue
+                is_required = bool(raw_field.get("is_required"))
+                is_valid = raw_field.get("is_valid")
+                value = raw_field.get("value")
+                if is_required and not str(value or "").strip():
+                    reasons.append(f"missing_required:{field_name}")
+                elif is_required and is_valid is False:
+                    reasons.append(f"invalid_required:{field_name}")
+        else:
+            reasons.append("missing_action_details")
         diagnostics = output.get("diagnostics")
         if isinstance(diagnostics, list):
             for item in diagnostics:
                 text = str(item).strip()
                 lowered = text.lower()
-                if text and any(token in lowered for token in ("review", "missing", "failure", "invalid", "conflict")):
+                if text and any(token in lowered for token in ("review", "missing", "failure", "invalid", "conflict", "required")):
                     reasons.append(text)
         if isinstance(action_decision, dict) and bool(action_decision.get("human_review_required")):
             reasons.append("ai_human_review_required")

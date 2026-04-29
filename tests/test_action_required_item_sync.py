@@ -22,7 +22,13 @@ def _message(message_id: str, *, thread_id: str = "thread-1") -> GmailStoredMess
     )
 
 
-def _pipeline_result(*, message_id: str, action_url: str | None, trust_level: str = "trusted") -> dict[str, object]:
+def _pipeline_result(
+    *,
+    message_id: str,
+    action_url: str | None,
+    trust_level: str = "trusted",
+    confidence: float = 0.84,
+) -> dict[str, object]:
     extracted_fields = {
         "document_id": {"field_name": "document_id", "value": "DOC-123", "is_valid": True},
         "due_date": {"field_name": "due_date", "value": "2026-04-30", "is_valid": True},
@@ -36,7 +42,7 @@ def _pipeline_result(*, message_id: str, action_url: str | None, trust_level: st
         "trust_level": trust_level,
         "decision": "review_needed" if trust_level == "review_needed" else "accept",
         "decision_reason": "hard_validation_failure" if trust_level == "review_needed" else "accepted",
-        "confidence": 0.84,
+        "confidence": confidence,
         "confidence_level": "high",
         "extraction_source": "active",
         "profile_id": "document_signature_required",
@@ -123,6 +129,28 @@ def test_action_required_sync_preserves_operator_state(config):
     assert loaded is not None
     assert loaded.state == GmailActionItemState.DONE
     assert "ai_human_review_required" in loaded.review_reasons
+
+
+def test_action_required_sync_marks_low_confidence_items_for_review(config):
+    service = NodeService(config)
+    adapter = service.provider_registry.get_provider("gmail")
+    message = _message("msg-low-confidence")
+    adapter.message_store.upsert_messages([message])
+
+    item = service._sync_action_required_item_from_message(
+        account_id="primary",
+        message=message,
+        pipeline_result=_pipeline_result(
+            message_id="msg-low-confidence",
+            action_url="https://example.com/action/low",
+            confidence=0.42,
+        ),
+        action_decision={"summary": "Probably needs action.", "human_review_required": False},
+    )
+
+    assert item is not None
+    assert item.state == GmailActionItemState.REVIEW_NEEDED
+    assert "low_confidence" in item.review_reasons
 
 
 @pytest.mark.asyncio

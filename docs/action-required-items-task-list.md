@@ -142,6 +142,12 @@ Implementation status:
 - Provide a dashboard filter for review queue.
 - Preserve the reason codes in the item detail.
 
+Implementation status:
+
+- Done in `NodeService._action_required_review_reasons`.
+- Items move to `review_needed` for low/missing confidence, missing profile, missing action details, missing/invalid required fields, review/failure/conflict diagnostics, or AI human-review requests.
+- Review reason codes are persisted on each action item and exposed through the Action Required API.
+
 ### AR-007: Add `#/dashboard/actions` page and navigation
 
 - Add a dashboard nav entry for Action Required.
