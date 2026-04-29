@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 import base64
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Response
 from httpx import ASGITransport
 import pytest
 
@@ -106,6 +106,24 @@ async def test_gmail_mailbox_client_fetches_message_metadata():
     assert messages[0].subject == "Hello"
     assert messages[0].sender == "Sender <sender@example.com>"
     assert messages[0].recipients == ["primary@example.com"]
+
+
+@pytest.mark.asyncio
+async def test_gmail_mailbox_client_treats_no_content_listing_as_empty():
+    app = FastAPI()
+
+    @app.get("/messages")
+    async def list_messages():
+        return Response(status_code=204)
+
+    client = GmailMailboxClient(transport=ASGITransport(app=app))
+    client.MESSAGES_ENDPOINT = "http://google.test/messages"
+    token = GmailTokenRecord(account_id="primary", access_token="access-token")
+
+    messages = await client.fetch_messages(token_record=token, query="after:1 before:2")
+    await client.aclose()
+
+    assert messages == []
 
 
 @pytest.mark.asyncio

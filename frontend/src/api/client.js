@@ -1,5 +1,31 @@
+const DEFAULT_API_PORT = "9003";
+
+function configuredApiBaseUrl() {
+  const env = import.meta.env || {};
+  const configuredBase = env.VITE_API_BASE_URL;
+  if (configuredBase) {
+    return configuredBase.replace(/\/$/, "");
+  }
+
+  if (typeof window === "undefined" || !window.location?.hostname) {
+    return "";
+  }
+
+  const port = env.VITE_API_PORT || DEFAULT_API_PORT;
+  const protocol = window.location.protocol || "http:";
+  return `${protocol}//${window.location.hostname}${port ? `:${port}` : ""}`;
+}
+
+export function buildApiUrl(url) {
+  if (/^https?:\/\//i.test(url)) {
+    return url;
+  }
+  const apiBaseUrl = configuredApiBaseUrl();
+  return apiBaseUrl ? `${apiBaseUrl}${url}` : url;
+}
+
 export async function fetchJson(url, options) {
-  const response = await fetch(url, {
+  const response = await fetch(buildApiUrl(url), {
     headers: {
       "Content-Type": "application/json",
     },

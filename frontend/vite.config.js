@@ -12,6 +12,7 @@ export default defineConfig({
     port: 8083,
     proxy: {
       "/api": apiTarget,
+      "/google": apiTarget,
       "/health": apiTarget,
       "/status": apiTarget,
       "/onboarding": apiTarget,

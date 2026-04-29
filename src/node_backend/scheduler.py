@@ -644,10 +644,10 @@ class BackgroundTaskManager:
             ),
             ScheduledTaskDefinition(
                 task_id="gmail_hourly_batch_classification",
-                title="Hourly Batch Classification",
+                title="5-Minute Batch Classification",
                 kind="node_local_recurring_work",
                 owner="background_task_manager",
-                schedule_name="hourly",
+                schedule_name="every_5_minutes",
                 detail="Classifies the newest 100 unclassified emails and sends remaining unknowns to AI.",
                 enabled_resolver=lambda manager: bool(manager.service.config.gmail_fetch_poll_on_startup),
             ),
@@ -816,7 +816,7 @@ class BackgroundTaskManager:
                     if self.service.state.gmail_hourly_batch_classification_last_run_at is not None
                     else None
                 ),
-                next_execution_at=self.schedule_template_next_run("hourly", local_now).isoformat(),
+                next_execution_at=self.schedule_template_next_run("every_5_minutes", local_now).isoformat(),
                 last_reason="scheduled" if self.service.state.gmail_hourly_batch_classification_last_run_at is not None else None,
                 detail="Classifies the newest 100 unclassified emails and sends remaining unknowns to AI.",
                 last_slot_key=self.service.state.gmail_hourly_batch_classification_slot_key,
@@ -1355,43 +1355,50 @@ class BackgroundTaskManager:
         slot_key = self.gmail_hourly_batch_slot_key(now)
         if slot_key is None or self.service.state.gmail_hourly_batch_classification_slot_key == slot_key:
             return
+        current_task_state = self.scheduler_task_state("gmail_hourly_batch_classification")
+        if current_task_state.get("status") == "running":
+            LOGGER.info(
+                "Scheduled Gmail batch classification skipped because the previous run is still active",
+                extra={"event_data": {"slot_key": slot_key, "active_detail": current_task_state.get("detail")}},
+            )
+            return
         try:
+            self.service.state.gmail_hourly_batch_classification_slot_key = slot_key
+            self.service.state_store.save(self.service.state)
             self.mark_task_running(
                 "gmail_hourly_batch_classification",
-                detail=f"Scheduled hourly Gmail batch classification is running for slot {slot_key}.",
-                next_run_at=self.schedule_template_next_run("hourly", now).isoformat(),
+                detail=f"Scheduled Gmail batch classification is running for 5-minute slot {slot_key}.",
+                next_run_at=self.schedule_template_next_run("every_5_minutes", now).isoformat(),
             )
-            LOGGER.info("Scheduled hourly Gmail batch classification starting", extra={"event_data": {"slot_key": slot_key}})
+            LOGGER.info("Scheduled Gmail batch classification starting", extra={"event_data": {"slot_key": slot_key}})
             await self.service.runtime_execute_email_classifier_batch(
                 RuntimePromptExecutionRequestInput(target_api_base_url="http://127.0.0.1:9002")
             )
-            self.service.state.gmail_hourly_batch_classification_slot_key = slot_key
             self.service.state.gmail_hourly_batch_classification_last_run_at = datetime.now().astimezone()
             self.service.state_store.save(self.service.state)
             self.mark_task_success(
                 "gmail_hourly_batch_classification",
-                detail=f"Scheduled hourly Gmail batch classification completed for slot {slot_key}.",
-                next_run_at=self.schedule_template_next_run("hourly", now).isoformat(),
+                detail=f"Scheduled Gmail batch classification completed for 5-minute slot {slot_key}.",
+                next_run_at=self.schedule_template_next_run("every_5_minutes", now).isoformat(),
             )
-            LOGGER.info("Scheduled hourly Gmail batch classification completed", extra={"event_data": {"slot_key": slot_key}})
+            LOGGER.info("Scheduled Gmail batch classification completed", extra={"event_data": {"slot_key": slot_key}})
         except Exception as exc:
             self.mark_task_failure(
                 "gmail_hourly_batch_classification",
-                detail=f"Scheduled hourly Gmail batch classification failed for slot {slot_key}.",
+                detail=f"Scheduled Gmail batch classification failed for 5-minute slot {slot_key}.",
                 error=str(exc),
-                next_run_at=self.schedule_template_next_run("hourly", now).isoformat(),
+                next_run_at=self.schedule_template_next_run("every_5_minutes", now).isoformat(),
             )
             LOGGER.error(
-                "Scheduled hourly Gmail batch classification failed",
+                "Scheduled Gmail batch classification failed",
                 extra={"event_data": {"slot_key": slot_key, "detail": str(exc)}},
             )
 
     @staticmethod
     def gmail_hourly_batch_slot_key(now: datetime) -> str | None:
         local_now = now.astimezone()
-        if local_now.minute >= 5:
-            return None
-        return local_now.replace(minute=0, second=0, microsecond=0).isoformat()
+        slot_minute = local_now.minute - (local_now.minute % 5)
+        return local_now.replace(minute=slot_minute, second=0, microsecond=0).isoformat()
 
     @staticmethod
     def gmail_fetch_slot_key(window: str, now: datetime) -> str | None:

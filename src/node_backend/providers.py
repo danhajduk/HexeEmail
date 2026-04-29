@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from providers.gmail.models import GmailTrainingLabel
+from providers.gmail.token_client import GmailTokenExchangeError
 from providers.models import ProviderHealth, ProviderId
 from providers.registry import ProviderRegistry
 
@@ -35,7 +36,7 @@ class ProviderManager:
                     health = (await self.service.email_provider_gateway.gmail_get_account_health(accounts[0].account_id)).model_dump(
                         mode="json"
                     )
-                except ValueError as exc:
+                except (GmailTokenExchangeError, ValueError) as exc:
                     health = ProviderHealth(
                         provider_id=ProviderId.GMAIL,
                         account_id=accounts[0].account_id,
@@ -69,7 +70,7 @@ class ProviderManager:
         account = next((account for account in await adapter.list_accounts() if account.account_id == account_id), None)
         try:
             health = await self.service.email_provider_gateway.gmail_get_account_health(account_id)
-        except ValueError as exc:
+        except (GmailTokenExchangeError, ValueError) as exc:
             health = ProviderHealth(
                 provider_id=ProviderId.GMAIL,
                 account_id=account_id,

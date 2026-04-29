@@ -2187,6 +2187,10 @@ async def test_ui_bootstrap_exposes_scheduled_tasks(config, core_client_factory)
     assert "gmail_hourly_batch_classification" in task_ids
     assert "runtime_prompt_sync_weekly" in task_ids
     assert "runtime_monthly_resolve_authorize" in task_ids
+    batch_classification = next(item for item in body["scheduled_tasks"] if item["task_id"] == "gmail_hourly_batch_classification")
+    assert batch_classification["title"] == "5-Minute Batch Classification"
+    assert batch_classification["schedule_name"] == "every_5_minutes"
+    assert batch_classification["schedule_detail"] == "00:05, 00:10, 00:15, ..."
     legend_names = {item["name"] for item in body["scheduled_task_legend"]}
     assert "heartbeat_5_seconds" in legend_names
     assert "daily" in legend_names
@@ -2297,6 +2301,9 @@ def test_background_task_manager_exposes_explicit_task_registry():
     heartbeat = next(item for item in registry if item.task_id == "heartbeat")
     assert heartbeat.owner == "mqtt_manager"
     assert heartbeat.schedule_name == "heartbeat_5_seconds"
+    batch_classification = next(item for item in registry if item.task_id == "gmail_hourly_batch_classification")
+    assert batch_classification.title == "5-Minute Batch Classification"
+    assert batch_classification.schedule_name == "every_5_minutes"
 
 
 @pytest.mark.asyncio
@@ -3451,13 +3458,38 @@ async def test_scheduled_hourly_batch_classification_runs_once_per_slot(config, 
 
     service.runtime_execute_email_classifier_batch = fake_runtime_execute_email_classifier_batch  # type: ignore[method-assign]
     slot_time = datetime(2026, 4, 2, 7, 0, 0).astimezone()
+    first_slot_key = service._gmail_hourly_batch_slot_key(slot_time)
 
     await service._run_due_hourly_batch_classification(slot_time)
     await service._run_due_hourly_batch_classification(slot_time.replace(minute=4))
+    await service._run_due_hourly_batch_classification(slot_time.replace(minute=5))
 
-    assert calls == ["http://127.0.0.1:9002"]
-    assert service.state.gmail_hourly_batch_classification_slot_key == service._gmail_hourly_batch_slot_key(slot_time)
-    assert service._gmail_hourly_batch_slot_key(slot_time.replace(minute=5)) is None
+    assert calls == ["http://127.0.0.1:9002", "http://127.0.0.1:9002"]
+    assert service.state.gmail_hourly_batch_classification_slot_key == service._gmail_hourly_batch_slot_key(slot_time.replace(minute=5))
+    assert service._gmail_hourly_batch_slot_key(slot_time.replace(minute=4)) == first_slot_key
+    assert service._gmail_hourly_batch_slot_key(slot_time.replace(minute=5)) != first_slot_key
+
+
+@pytest.mark.asyncio
+async def test_scheduled_hourly_batch_classification_does_not_overlap(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    calls: list[str | None] = []
+
+    async def fake_runtime_execute_email_classifier_batch(payload, *, correlation_id=None):
+        calls.append(payload.target_api_base_url)
+        return {"ok": True}
+
+    service.runtime_execute_email_classifier_batch = fake_runtime_execute_email_classifier_batch  # type: ignore[method-assign]
+    service.background_tasks.mark_task_running(
+        "gmail_hourly_batch_classification",
+        detail="Previous classification is still running.",
+    )
+
+    slot_time = datetime(2026, 4, 2, 7, 5, 0).astimezone()
+    await service._run_due_hourly_batch_classification(slot_time)
+
+    assert calls == []
+    assert service.state.gmail_hourly_batch_classification_slot_key is None
 
 
 @pytest.mark.asyncio

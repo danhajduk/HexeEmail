@@ -126,6 +126,8 @@ Current unread counter behavior:
   confirm the saved `client_secret_ref` belongs to the same Google OAuth client as `client_id`
 - redirect URI mismatch:
   confirm the Google OAuth Web application credential includes `https://hexe-ai.com/google/gmail/callback` exactly
+- local UI dev callback shows `Not Found` at the end:
+  if the browser is returning through the UI dev host on port `8083`, the dev server must proxy `/google/*` to the API on port `9003`; otherwise `/google/gmail/callback` will 404 before the backend sees the OAuth response
 - missing refresh token:
   reconnect the account and verify offline access is granted
 - degraded provider health:

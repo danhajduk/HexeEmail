@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes.capabilities import build_capabilities_router
 from api.routes.governance import build_governance_router
@@ -34,6 +35,12 @@ def create_app(
             await node_service.stop()
 
     app = FastAPI(title="Hexe Email Node", lifespan=lifespan)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origin_regex=rf"^https?://([^/:]+|\[[^\]]+\]):{app_config.ui_port}$",
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     app.middleware("http")(correlation_id_middleware)
     app.include_router(build_node_router(node_service))
     app.include_router(build_capabilities_router(node_service))

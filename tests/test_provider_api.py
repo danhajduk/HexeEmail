@@ -6,6 +6,7 @@ from httpx import ASGITransport, AsyncClient
 from main import create_app
 from providers.gmail.config_store import GmailProviderConfigStore
 from providers.gmail.models import GmailOAuthConfig
+from providers.gmail.token_client import GmailTokenExchangeError
 from service import NodeService
 from tests.helpers import FakeMQTTManager, build_core_app
 
@@ -44,6 +45,36 @@ async def test_provider_endpoints_expose_gmail_summary(config, core_client_facto
     assert validate_response.status_code == 200
     assert "client_secret_ref" not in str(validate_response.json())
     assert compatibility_response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_provider_snapshot_degrades_when_gmail_token_refresh_fails(config, core_client_factory):
+    isolated_config = config.model_copy(update={"core_base_url": None, "node_name": None})
+    service = NodeService(
+        isolated_config,
+        core_client=core_client_factory(build_core_app()),
+        mqtt_manager=FakeMQTTManager(),
+    )
+    await service.start()
+    adapter = service.provider_registry.get_provider("gmail")
+    adapter.account_store.save_account(
+        adapter.state_machine.ensure_account("primary").model_copy(
+            update={"status": "connected", "email_address": "primary@example.com"}
+        )
+    )
+
+    async def failing_health(account_id: str):
+        raise GmailTokenExchangeError("invalid_grant: Bad Request")
+
+    service.email_provider_gateway.gmail_get_account_health = failing_health  # type: ignore[method-assign]
+
+    overview = await service.providers.provider_status_snapshot_async()
+
+    await service.stop()
+
+    health = overview["providers"]["gmail"]["health"]
+    assert health["status"] == "unknown"
+    assert health["detail"] == "invalid_grant: Bad Request"
 
 
 @pytest.mark.asyncio

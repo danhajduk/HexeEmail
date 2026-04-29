@@ -6,6 +6,25 @@ describe("fetchJson", () => {
     vi.unstubAllGlobals();
   });
 
+  it("targets the backend on the address-bar host", async () => {
+    const fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: { get: () => "application/json" },
+      text: async () => JSON.stringify({ ok: true }),
+    });
+    vi.stubGlobal("window", {
+      location: {
+        protocol: "http:",
+        hostname: "192.168.1.23",
+      },
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    await fetchJson("/api/test");
+
+    expect(fetch).toHaveBeenCalledWith("http://192.168.1.23:9003/api/test", expect.any(Object));
+  });
+
   it("returns parsed json for ok responses", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,

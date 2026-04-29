@@ -466,6 +466,8 @@ class GmailMailboxClient:
         return "\n".join(line.strip() for line in normalized.split("\n")).strip()
 
     def _json_payload(self, response: httpx.Response, operation: str) -> object:
+        if response.status_code == 204:
+            return {}
         try:
             return response.json()
         except ValueError as exc:

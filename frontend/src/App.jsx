@@ -1,13 +1,22 @@
 import { startTransition, useEffect, useState } from "react";
+import { BackendUnavailableCard } from "./app/cards/BackendUnavailableCard";
 import { buildHashRoute, DASHBOARD_SECTIONS, parseHashRoute } from "./app/router";
-import { fetchJson } from "./api/client";
+import { buildApiUrl, fetchJson } from "./api/client";
 import { GmailSetupPage } from "./features/providers/GmailSetupPage";
 import { GmailDashboardSection } from "./features/dashboard/GmailDashboardSection";
 import { OverviewDashboardSection } from "./features/dashboard/OverviewDashboardSection";
 import { RuntimeDashboardSection } from "./features/dashboard/RuntimeDashboardSection";
 import { ScheduledTasksSection } from "./features/dashboard/ScheduledTasksSection";
 import { TrackedOrdersSection } from "./features/dashboard/TrackedOrdersSection";
-import { SetupSidebar, renderCurrentStageCard } from "./features/setup/SetupComponents";
+import { DashboardHeaderCard } from "./features/dashboard/cards/DashboardHeaderCard";
+import { NodeHealthStripCard } from "./features/dashboard/cards/NodeHealthStripCard";
+import { DashboardSidebarCard } from "./features/dashboard/cards/DashboardSidebarCard";
+import { LiveStatusCard } from "./features/setup/cards/LiveStatusCard";
+import { NodeIdentityFormCard } from "./features/setup/cards/NodeIdentityFormCard";
+import { NodeSetupCard } from "./features/setup/cards/NodeSetupCard";
+import { OperatorPromptsCard } from "./features/setup/cards/OperatorPromptsCard";
+import { SetupHeroCard } from "./features/setup/cards/SetupHeroCard";
+import { SetupSidebar } from "./features/setup/SetupComponents";
 import { SenderReputationPage } from "./features/training/SenderReputationPage";
 import { TrainingPage } from "./features/training/TrainingPage";
 
@@ -389,31 +398,14 @@ function BackendUnavailableScreen({
 }) {
   return (
     <section className="backend-unavailable-view">
-      <article className="card backend-unavailable-card">
-        <div className="card-header">
-          <h2>Backend Unavailable</h2>
-          <p>The Hexe Email Node UI loaded, but the node backend could not be reached.</p>
-        </div>
-        <div className="backend-unavailable-meta">
-          <div className="status-pill tone-danger">offline</div>
-          <p className="muted">
-            Retry after the node backend is back online, or verify the service address and process status.
-          </p>
-        </div>
-        <div className="state-grid">
-          <span>API Base</span>
-          <code>{apiBase || "unavailable"}</code>
-          <span>Last Attempt</span>
-          <code>{lastUpdatedAt || "never"}</code>
-          <span>Error</span>
-          <code>{backendUnavailableMessage(error)}</code>
-        </div>
-        <div className="row backend-unavailable-actions">
-          <button className="btn btn-primary" type="button" onClick={onRetry} disabled={retrying}>
-            {retrying ? "Retrying..." : "Retry Connection"}
-          </button>
-        </div>
-      </article>
+      <BackendUnavailableCard
+        apiBase={apiBase}
+        error={error}
+        lastUpdatedAt={lastUpdatedAt}
+        retrying={retrying}
+        onRetry={onRetry}
+        backendUnavailableMessage={backendUnavailableMessage}
+      />
     </section>
   );
 }
@@ -2819,167 +2811,41 @@ export function App() {
     return (
       <div className="shell">
         <main className="app-frame">
-          <section className="card app-header">
-            <div className="app-header-top">
-              <div>
-                <h1>Hexe Email Node</h1>
-              </div>
-              <div className="app-header-status-pills">
-                <span className={healthSeverityClass(status?.operational_readiness ? "operational" : "pending", ["operational"])}>
-                  <span className="status-badge status-operational">
-                    {status?.operational_readiness ? "operational" : nodeState.label}
-                  </span>
-                </span>
-                <span className={healthSeverityClass(providerSummary?.provider_state, ["connected"], ["configured"])}>
-                  <span className="status-badge">
-                    {providerSummary?.provider_state === "connected" ? "Gmail connected" : "Gmail pending"}
-                  </span>
-                </span>
-                {modelTrainingState ? (
-                  <span className={`status-pill tone-${modelTrainingState.tone}`}>
-                    model: {modelTrainingState.label}
-                  </span>
-                ) : null}
-              </div>
-            </div>
-            <div className="app-header-bottom">
-              <button className="btn btn-ghost app-header-theme-btn" type="button">
-                Theme: {currentThemeLabel()}
-              </button>
-              <div className="app-header-actions">
-                <button className="btn btn-ghost" type="button" onClick={restartOnboarding} disabled={restarting}>
-                  {restarting ? "Restarting..." : "Restart Setup"}
-                </button>
-                <button className="btn btn-ghost" type="button" onClick={openSetup}>
-                  Open Setup
-                </button>
-                <button className="btn btn-ghost" type="button" onClick={openProvider}>
-                  Setup Provider
-                </button>
-                <button className="btn btn-ghost" type="button" onClick={copyNodeId} disabled={!status?.node_id}>
-                  {copyNotice || "Copy Node ID"}
-                </button>
-              </div>
-            </div>
-            <div className="app-header-meta">
-              <span className="muted tiny">
-                Updated: <code>{formatTelemetryTimestamp(uiUpdatedAt)}</code>
-              </span>
-              <span className="muted tiny">
-                Quota: <code>{gmailPrimaryQuotaUsage ? `${gmailPrimaryQuotaUsage.used_last_minute}/${gmailPrimaryQuotaUsage.limit_per_minute}` : "0/15000"}</code>
-              </span>
-              <span className="muted tiny">
-                Node: <code>{status?.node_id || "pending"}</code>
-              </span>
-              {modelTrainingState ? (
-                <span className="muted tiny">
-                  Model: <code>{modelTrainingState.detail}</code>
-                </span>
-              ) : null}
-            </div>
-          </section>
+          <DashboardHeaderCard
+            status={status}
+            nodeState={nodeState}
+            healthSeverityClass={healthSeverityClass}
+            providerSummary={providerSummary}
+            modelTrainingState={modelTrainingState}
+            currentThemeLabel={currentThemeLabel}
+            restartOnboarding={restartOnboarding}
+            restarting={restarting}
+            openSetup={openSetup}
+            openProvider={openProvider}
+            copyNodeId={copyNodeId}
+            copyNotice={copyNotice}
+            formatTelemetryTimestamp={formatTelemetryTimestamp}
+            uiUpdatedAt={uiUpdatedAt}
+            gmailPrimaryQuotaUsage={gmailPrimaryQuotaUsage}
+          />
 
           <section className="operational-shell">
-            <aside className="card operational-shell-nav-card">
-              <nav className="operational-shell-nav" aria-label="Operational sections">
-                <button
-                  type="button"
-                  className={`btn operational-nav-btn ${dashboardSection === "overview" ? "btn-primary" : ""}`}
-                  onClick={() => openDashboard("overview")}
-                >
-                  Overview
-                </button>
-                <button
-                  type="button"
-                  className={`btn operational-nav-btn ${dashboardSection === "gmail" ? "btn-primary" : ""}`}
-                  onClick={() => openDashboard("gmail")}
-                >
-                  Gmail
-                </button>
-                <button
-                  type="button"
-                  className={`btn operational-nav-btn ${dashboardSection === "runtime" ? "btn-primary" : ""}`}
-                  onClick={() => openDashboard("runtime")}
-                >
-                  Runtime
-                </button>
-                <button
-                  type="button"
-                  className={`btn operational-nav-btn ${dashboardSection === "scheduled" ? "btn-primary" : ""}`}
-                  onClick={() => openDashboard("scheduled")}
-                >
-                  Scheduled Tasks
-                </button>
-                <button
-                  type="button"
-                  className={`btn operational-nav-btn ${dashboardSection === "orders" ? "btn-primary" : ""}`}
-                  onClick={() => openDashboard("orders")}
-                >
-                  Tracked Orders
-                </button>
-                <button type="button" className="btn operational-nav-btn">Activity</button>
-                <button type="button" className="btn operational-nav-btn">Diagnostics</button>
-              </nav>
-            </aside>
+            <DashboardSidebarCard dashboardSection={dashboardSection} openDashboard={openDashboard} />
 
             <div className="operational-shell-content">
-              <article className="card node-health-strip operational-content-header">
-                <div className="node-health-strip-grid">
-                  <div className="node-health-strip-item">
-                    <span className="muted tiny">Lifecycle</span>
-                    <span className={healthSeverityClass(status?.operational_readiness ? "operational" : "pending", ["operational"])}>
-                      <span className="status-badge status-operational">
-                        {status?.operational_readiness ? "operational" : setupFlow.current?.label || "pending"}
-                      </span>
-                    </span>
-                  </div>
-                  <div className="node-health-strip-item">
-                    <span className="muted tiny">Trust</span>
-                    <span className={healthSeverityClass(status?.trust_state, ["trusted"])}>
-                      <span className="status-badge status-trusted">{status?.trust_state || "untrusted"}</span>
-                    </span>
-                  </div>
-                  <div className="node-health-strip-item">
-                    <span className="muted tiny">Core API</span>
-                    <span className={healthSeverityClass(bootstrap?.config?.core_base_url ? "connected" : "pending", ["connected"])}>
-                      <span className={`health-indicator ${bootstrap?.config?.core_base_url ? "health-connected" : "health-pending"}`}>
-                        <span className="health-dot" />
-                        {bootstrap?.config?.core_base_url ? "connected" : "pending"}
-                      </span>
-                    </span>
-                  </div>
-                  <div className="node-health-strip-item">
-                    <span className="muted tiny">MQTT</span>
-                    <span className={mqttSeverityClass}>
-                      <span className={`health-indicator ${mqttIndicatorClass}`}>
-                        <span className="health-dot" />
-                        {mqttConnected ? "connected" : mqttHealth?.status_freshness_state || status?.mqtt_connection_status || "pending"}
-                      </span>
-                    </span>
-                  </div>
-                  <div className="node-health-strip-item">
-                    <span className="muted tiny">Governance</span>
-                    <span className={healthSeverityClass(status?.governance_sync_status, [], ["ok"])}>
-                      <span className={`health-indicator ${status?.governance_sync_status === "ok" ? "health-fresh" : "health-pending"}`}>
-                        <span className="health-dot" />
-                        {status?.governance_sync_status === "ok" ? "fresh" : status?.governance_sync_status || "pending"}
-                      </span>
-                    </span>
-                  </div>
-                  <div className="node-health-strip-item">
-                    <span className="muted tiny">Providers</span>
-                    <span className={healthSeverityClass(status?.enabled_providers?.length ? "configured" : "pending", [], ["configured"])}>
-                      <span className="status-badge status-configured">
-                        {providerConnected ? "configured" : "pending"}
-                      </span>
-                    </span>
-                  </div>
-                  <div className="node-health-strip-item">
-                    <span className="muted tiny">Last Heartbeat</span>
-                    <code>{formatRelativeTime(lastHeartbeatAt)}</code>
-                  </div>
-                </div>
-              </article>
+              <NodeHealthStripCard
+                status={status}
+                setupFlow={setupFlow}
+                healthSeverityClass={healthSeverityClass}
+                bootstrap={bootstrap}
+                mqttSeverityClass={mqttSeverityClass}
+                mqttConnected={mqttConnected}
+                mqttIndicatorClass={mqttIndicatorClass}
+                mqttHealth={mqttHealth}
+                providerConnected={providerConnected}
+                formatRelativeTime={formatRelativeTime}
+                lastHeartbeatAt={lastHeartbeatAt}
+              />
 
               {dashboardSection === "gmail" ? (
                 <GmailDashboardSection
@@ -3104,7 +2970,7 @@ export function App() {
       <div className="shell">
         <main className="app-frame">
           <BackendUnavailableScreen
-            apiBase="/api/node/bootstrap"
+            apiBase={buildApiUrl("/api/node/bootstrap")}
             error={error}
             lastUpdatedAt={formatTelemetryTimestamp(uiUpdatedAt) || "never"}
             retrying={retryingBackend}
@@ -3118,166 +2984,61 @@ export function App() {
   return (
     <div className="shell">
       <main className="app-frame">
-        <section className="hero card">
-          <div>
-            <div className="hero-topline">
-              <div className="eyebrow">Hexe Email Node</div>
-              <div className={`status-pill tone-${nodeState.tone}`}>state: {nodeState.label}</div>
-            </div>
-            <h1>Hexe Email Node Setup</h1>
-            <p className="hero-copy">
-              Configure the target Core, start onboarding, and watch the node move from local setup to trusted
-              operational status.
-            </p>
-          </div>
-          <div className="hero-actions">
-            <div className="hero-status">
-              <div className={`status-pill tone-${statusTone(onboarding?.onboarding_status)}`}>
-                onboarding: {onboarding?.onboarding_status || "loading"}
-              </div>
-              <div className={`status-pill tone-${statusTone(status?.mqtt_connection_status)}`}>
-                mqtt: {status?.mqtt_connection_status || "loading"}
-              </div>
-            </div>
-            <button className="btn btn-ghost" type="button" onClick={restartOnboarding} disabled={restarting}>
-              {restarting ? "Restarting..." : "Restart Setup"}
-            </button>
-            {dashboardEnabled ? (
-              <button className="btn btn-ghost" type="button" onClick={openDashboard}>
-                Dashboard
-              </button>
-            ) : null}
-            <button className="btn btn-ghost" type="button" onClick={openProvider}>
-              Setup Provider
-            </button>
-          </div>
-        </section>
+        <SetupHeroCard
+          nodeState={nodeState}
+          onboarding={onboarding}
+          status={status}
+          statusTone={statusTone}
+          restartOnboarding={restartOnboarding}
+          restarting={restarting}
+          dashboardEnabled={dashboardEnabled}
+          openDashboard={openDashboard}
+          openProvider={openProvider}
+        />
 
         <section className="app-shell">
           <SetupSidebar flow={setupFlow} />
           <div className="main-column">
             <section className="content-stack">
               {!nodeSetupVisible ? (
-                <article className="card stack">
-                  <div className="section-heading">
-                    <h2>Node Identity</h2>
-                    <span className="pill">UI {bootstrap?.config.ui_port || 8083}</span>
-                  </div>
-                  <Field
-                    label="Core base URL"
-                    name="core_base_url"
-                    value={form.core_base_url}
-                    onChange={handleChange}
-                    placeholder="http://192.168.1.10:8000"
-                    required
-                  />
-                  <Field
-                    label="Node name"
-                    name="node_name"
-                    value={form.node_name}
-                    onChange={handleChange}
-                    placeholder="front-desk-email-node"
-                    required
-                  />
-                  <div className="actions">
-                    <button className="btn btn-ghost" type="button" onClick={saveConfiguration} disabled={saving}>
-                      {saving ? "Saving..." : "Save"}
-                    </button>
-                    <button className="btn btn-primary" type="button" onClick={startOnboarding} disabled={starting}>
-                      {starting ? "Starting..." : "Start Onboarding"}
-                    </button>
-                  </div>
-                  {requiredInputs.length > 0 ? <div className="callout callout-warning">Required before onboarding: {requiredInputs.join(", ")}</div> : null}
-                </article>
+                <NodeIdentityFormCard
+                  bootstrap={bootstrap}
+                  Field={Field}
+                  form={form}
+                  handleChange={handleChange}
+                  saveConfiguration={saveConfiguration}
+                  saving={saving}
+                  startOnboarding={startOnboarding}
+                  starting={starting}
+                  requiredInputs={requiredInputs}
+                />
               ) : null}
 
               {nodeSetupVisible ? (
-                <article className="card stack">
-                  <div className="section-heading">
-                    <h2>Node Setup</h2>
-                    <span className="pill">API {bootstrap?.config.api_port || 9003}</span>
-                  </div>
-                  <div className="status-rail">
-                    <div className={`status-pill tone-${statusTone(onboarding?.onboarding_status)}`}>
-                      lifecycle: {onboarding?.onboarding_status || "not_started"}
-                    </div>
-                    <div className={`status-pill tone-${statusTone(status?.trust_state)}`}>trust: {status?.trust_state || "untrusted"}</div>
-                    <div className={`status-pill tone-${statusTone(status?.governance_sync_status)}`}>
-                      governance: {status?.governance_sync_status || "pending"}
-                    </div>
-                    <div className={`status-pill tone-${status?.trust_state === "trusted" ? "success" : "neutral"}`}>
-                      core: {status?.trust_state === "trusted" ? "paired" : "not paired"}
-                    </div>
-                  </div>
-                  {renderCurrentStageCard({
-                    flow: setupFlow,
-                    status,
-                    onboarding,
-                    requiredInputs,
-                    notice,
-                    error,
-                    onOpenProvider: openProvider,
-                    form,
-                    saving,
-                    declaringCapabilities,
-                    onCapabilityToggle: handleCapabilityToggle,
-                    onSaveConfiguration: saveConfiguration,
-                    onDeclareCapabilities: declareCapabilities,
-                    taskCapabilityOptions: TASK_CAPABILITY_OPTIONS,
-                    statusTone,
-                    boolTone,
-                  })}
-                </article>
+                <NodeSetupCard
+                  bootstrap={bootstrap}
+                  onboarding={onboarding}
+                  status={status}
+                  statusTone={statusTone}
+                  setupFlow={setupFlow}
+                  requiredInputs={requiredInputs}
+                  notice={notice}
+                  error={error}
+                  openProvider={openProvider}
+                  form={form}
+                  saving={saving}
+                  declaringCapabilities={declaringCapabilities}
+                  handleCapabilityToggle={handleCapabilityToggle}
+                  saveConfiguration={saveConfiguration}
+                  declareCapabilities={declareCapabilities}
+                  taskCapabilityOptions={TASK_CAPABILITY_OPTIONS}
+                  boolTone={boolTone}
+                />
               ) : null}
 
               <section className="grid setup-secondary-grid">
-                <article className="card stack">
-                  <div className="section-heading">
-                    <h2>Live Status</h2>
-                    <span className="pill">{bootstrap?.config.node_type || "email-node"}</span>
-                  </div>
-                  <dl className="facts">
-                    <div>
-                      <dt>Node name</dt>
-                      <dd>{bootstrap?.config.node_name || "Not set"}</dd>
-                    </div>
-                    <div>
-                      <dt>Version</dt>
-                      <dd>{bootstrap?.config.node_software_version || "0.1.0"}</dd>
-                    </div>
-                    <div>
-                      <dt>Trust state</dt>
-                      <dd>{status?.trust_state || "untrusted"}</dd>
-                    </div>
-                    <div>
-                      <dt>Node ID</dt>
-                      <dd>{status?.node_id || "Pending"}</dd>
-                    </div>
-                    <div>
-                      <dt>MQTT</dt>
-                      <dd>{status?.mqtt_connection_status || "disconnected"}</dd>
-                    </div>
-                    <div>
-                      <dt>Providers</dt>
-                      <dd>{status?.providers?.join(", ") || "gmail, smtp, imap, graph"}</dd>
-                    </div>
-                  </dl>
-                </article>
-
-                <article className="card stack">
-                  <div className="section-heading">
-                    <h2>Operator Prompts</h2>
-                    <span className="pill">{setupFlow.current?.label || "Idle"}</span>
-                  </div>
-                  <ul className="prompt-list">
-                    {requiredInputs.length > 0 ? <li>Enter the Core base URL and node name, then save or start onboarding.</li> : null}
-                    {onboarding?.approval_url ? <li>Open the approval URL in Core and approve the node.</li> : null}
-                    {onboarding?.onboarding_status === "pending" ? <li>Keep this page open while finalize polling continues.</li> : null}
-                    <li>Use Restart Setup if you need a fresh onboarding session.</li>
-                    {status?.trust_state === "trusted" ? <li>The node is trusted. Use Setup Provider to configure Gmail.</li> : null}
-                    {!requiredInputs.length && !onboarding?.approval_url && status?.trust_state !== "trusted" ? <li>Start onboarding when you are ready.</li> : null}
-                  </ul>
-                </article>
+                <LiveStatusCard bootstrap={bootstrap} status={status} />
+                <OperatorPromptsCard requiredInputs={requiredInputs} onboarding={onboarding} status={status} setupFlow={setupFlow} />
               </section>
             </section>
           </div>
