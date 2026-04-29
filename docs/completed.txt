@@ -358,3 +358,8 @@ Task 350: Add Action Required backend API - Completed on 04/29/2026 09:44
 Task 351: Add Action Required priority scoring - Completed on 04/29/2026 09:47
 Task 352: Add Action Required snooze and reminder handling - Completed on 04/29/2026 09:51
 Task 353: Add Action Required review queue rules - Completed on 04/29/2026 09:53
+Task 354: Add Action Required dashboard page and navigation - Completed on 04/29/2026 10:01
+Task 355: Build Action Required list table with review columns - Completed on 04/29/2026 10:01
+Task 356: Build Action Required mail review panel - Completed on 04/29/2026 10:01
+Task 357: Build Action Required extracted data panel - Completed on 04/29/2026 10:01
+Task 358: Build Action Required AI decision panel - Completed on 04/29/2026 10:01

@@ -48,11 +48,6 @@ Standards reference:
 Do not edit above this line:
 #######################################################################
 
-[TODO] Task 354: Add Action Required dashboard page and navigation
-[TODO] Task 355: Build Action Required list table with review columns
-[TODO] Task 356: Build Action Required mail review panel
-[TODO] Task 357: Build Action Required extracted data panel
-[TODO] Task 358: Build Action Required AI decision panel
 [TODO] Task 359: Add Action Required operator actions
 [TODO] Task 360: Add Action Required rule feedback actions
 [TODO] Task 361: Add Action Required item tests and docs

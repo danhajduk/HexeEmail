@@ -9,6 +9,7 @@ import { RuntimeDashboardSection } from "./features/dashboard/RuntimeDashboardSe
 import { ScheduledTasksSection } from "./features/dashboard/ScheduledTasksSection";
 import { TrackedOrdersSection } from "./features/dashboard/TrackedOrdersSection";
 import { ReviewOutputsSection } from "./features/dashboard/ReviewOutputsSection";
+import { ActionRequiredSection } from "./features/dashboard/ActionRequiredSection";
 import { splitTrackedRecords } from "./features/dashboard/trackedRecords";
 import { DashboardHeaderCard } from "./features/dashboard/cards/DashboardHeaderCard";
 import { NodeHealthStripCard } from "./features/dashboard/cards/NodeHealthStripCard";
@@ -33,6 +34,8 @@ const TASK_CAPABILITY_OPTIONS = [
   "task.summarization",
   "task.tracking",
 ];
+
+const ACTION_ITEM_STATES_QUERY = "new,ready,review_needed,waiting,snoozed,done,ignored";
 
 const EMPTY_PROVIDER_FORM = {
   enabled: false,
@@ -912,6 +915,13 @@ export function App() {
   const [gmailActionPending, setGmailActionPending] = useState("");
   const [gmailActionNotice, setGmailActionNotice] = useState("");
   const [gmailActionError, setGmailActionError] = useState("");
+  const [actionItems, setActionItems] = useState([]);
+  const [actionItemsLoading, setActionItemsLoading] = useState(false);
+  const [actionItemsError, setActionItemsError] = useState("");
+  const [selectedActionItemId, setSelectedActionItemId] = useState("");
+  const [selectedActionItem, setSelectedActionItem] = useState(null);
+  const [selectedActionItemLoading, setSelectedActionItemLoading] = useState(false);
+  const [selectedActionItemError, setSelectedActionItemError] = useState("");
   const [trainingStatus, setTrainingStatus] = useState(null);
   const [trainingLoading, setTrainingLoading] = useState(false);
   const [trainingError, setTrainingError] = useState("");
@@ -1146,6 +1156,114 @@ export function App() {
       window.clearInterval(intervalId);
     };
   }, [view, dashboardSection]);
+
+  async function refreshActionItems() {
+    setActionItemsLoading(true);
+    try {
+      const payload = await fetchJson(`/api/actions?states=${encodeURIComponent(ACTION_ITEM_STATES_QUERY)}&limit=200`);
+      const items = Array.isArray(payload.items) ? payload.items : [];
+      setActionItems(items);
+      setActionItemsError("");
+      setSelectedActionItemId((current) => {
+        if (current && items.some((item) => item.item_id === current)) {
+          return current;
+        }
+        return items[0]?.item_id || "";
+      });
+      if (!items.length) {
+        setSelectedActionItem(null);
+      }
+    } catch (loadError) {
+      setActionItemsError(loadError.message);
+    } finally {
+      setActionItemsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!(view === "dashboard" && dashboardSection === "actions")) {
+      return undefined;
+    }
+
+    let active = true;
+
+    async function loadActionItems() {
+      setActionItemsLoading(true);
+      try {
+        const payload = await fetchJson(`/api/actions?states=${encodeURIComponent(ACTION_ITEM_STATES_QUERY)}&limit=200`);
+        if (!active) {
+          return;
+        }
+        const items = Array.isArray(payload.items) ? payload.items : [];
+        setActionItems(items);
+        setActionItemsError("");
+        setSelectedActionItemId((current) => {
+          if (current && items.some((item) => item.item_id === current)) {
+            return current;
+          }
+          return items[0]?.item_id || "";
+        });
+        if (!items.length) {
+          setSelectedActionItem(null);
+        }
+      } catch (loadError) {
+        if (!active) {
+          return;
+        }
+        setActionItemsError(loadError.message);
+      } finally {
+        if (active) {
+          setActionItemsLoading(false);
+        }
+      }
+    }
+
+    loadActionItems();
+    const intervalId = window.setInterval(loadActionItems, 30000);
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
+  }, [view, dashboardSection]);
+
+  useEffect(() => {
+    if (!(view === "dashboard" && dashboardSection === "actions") || !selectedActionItemId) {
+      setSelectedActionItemLoading(false);
+      if (!selectedActionItemId) {
+        setSelectedActionItem(null);
+      }
+      return undefined;
+    }
+
+    let active = true;
+
+    async function loadActionItemDetail() {
+      setSelectedActionItemLoading(true);
+      try {
+        const payload = await fetchJson(`/api/actions/${encodeURIComponent(selectedActionItemId)}`);
+        if (!active) {
+          return;
+        }
+        setSelectedActionItem(payload);
+        setSelectedActionItemError("");
+      } catch (loadError) {
+        if (!active) {
+          return;
+        }
+        setSelectedActionItemError(loadError.message);
+      } finally {
+        if (active) {
+          setSelectedActionItemLoading(false);
+        }
+      }
+    }
+
+    loadActionItemDetail();
+    return () => {
+      active = false;
+    };
+  }, [view, dashboardSection, selectedActionItemId]);
 
   useEffect(() => {
     if (view !== "training") {
@@ -2998,6 +3116,19 @@ export function App() {
                   emptyMessage="No tracked shipment records are available yet."
                   trackingIntegrations={trackingIntegrations}
                   showSeller={false}
+                />
+              ) : dashboardSection === "actions" ? (
+                <ActionRequiredSection
+                  actionItems={actionItems}
+                  actionItemsLoading={actionItemsLoading}
+                  actionItemsError={actionItemsError}
+                  selectedActionItem={selectedActionItem}
+                  selectedActionItemId={selectedActionItemId}
+                  selectedActionItemLoading={selectedActionItemLoading}
+                  selectedActionItemError={selectedActionItemError}
+                  onSelectActionItem={setSelectedActionItemId}
+                  onRefreshActionItems={refreshActionItems}
+                  formatScheduleTimestamp={formatScheduleTimestamp}
                 />
               ) : dashboardSection === "review" ? (
                 <ReviewOutputsSection

@@ -7,6 +7,7 @@ import { RuntimeDashboardSection } from "./RuntimeDashboardSection";
 import { ScheduledTasksSection } from "./ScheduledTasksSection";
 import { TrackedOrdersSection } from "./TrackedOrdersSection";
 import { ReviewOutputsSection } from "./ReviewOutputsSection";
+import { ActionRequiredSection } from "./ActionRequiredSection";
 
 function render(element) {
   return renderToStaticMarkup(element);
@@ -212,6 +213,51 @@ describe("dashboard feature sections", () => {
         formatScheduleTimestamp={(value) => value}
       />,
     );
+    const actionHtml = render(
+      <ActionRequiredSection
+        actionItems={[{ item_id: "act-1", sender: "billing@example.com", subject: "Payment due", received_at: "now", state: "review_needed", profile_type: "payment_due", confidence: 0.91, priority_score: 86, review_reasons: ["missing_action_url"], due_at: "later", reminder_at: "soon", grouped_message_count: 2, ai_decision_summary: "Pay invoice" }]}
+        actionItemsLoading={false}
+        actionItemsError=""
+        selectedActionItemId="act-1"
+        selectedActionItem={{
+          item_id: "act-1",
+          sender: "billing@example.com",
+          subject: "Payment due",
+          received_at: "now",
+          state: "review_needed",
+          profile_type: "payment_due",
+          confidence: 0.91,
+          priority_score: 86,
+          review_reasons: ["missing_action_url"],
+          due_at: "later",
+          action_url: "https://example.com/pay",
+          extracted_fields: { amount: { value: "$12.00" }, document_id: "INV-1" },
+          flow_output: { template_id: "payment_due.v1", diagnostics: ["needs url"] },
+          ai_decision_payload: {
+            primary_label: "action_required",
+            recommended_action: "Pay invoice",
+            human_review_required: true,
+            risk_notes: ["missing link"],
+            recommended_actions: [{ action: "pay", confidence: 0.9, reason: "due soon" }],
+          },
+          source_message: {
+            message_id: "msg-1",
+            subject: "Payment due",
+            sender: "billing@example.com",
+            recipients: ["ops@example.com"],
+            label_ids: ["INBOX"],
+            received_at: "now",
+            snippet: "Please pay",
+            raw_payload: JSON.stringify({ text: "Plain body", html: "<strong>Pay</strong>" }),
+          },
+        }}
+        selectedActionItemLoading={false}
+        selectedActionItemError=""
+        onSelectActionItem={() => {}}
+        onRefreshActionItems={() => {}}
+        formatScheduleTimestamp={(value) => value || "-"}
+      />,
+    );
 
     expect(runtimeHtml).toContain("Runtime Status");
     expect(runtimeHtml).toContain("Runtime Actions");
@@ -261,5 +307,12 @@ describe("dashboard feature sections", () => {
     expect(reviewHtml).toContain("Review Needed Outputs");
     expect(reviewHtml).toContain("no_structured_extraction");
     expect(reviewHtml).toContain("runtime/flow_families/shipment/outputs/review_needed/msg-1.json");
+    expect(actionHtml).toContain("Action Required");
+    expect(actionHtml).toContain("payment_due");
+    expect(actionHtml).toContain("AI Decision");
+    expect(actionHtml).toContain("Extracted Data");
+    expect(actionHtml).toContain("Mail");
+    expect(actionHtml).toContain("missing action url");
+    expect(actionHtml).toContain("Pay invoice");
   });
 });

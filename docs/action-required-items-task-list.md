@@ -154,6 +154,10 @@ Implementation status:
 - Add the dashboard route and page wrapper.
 - Keep the first screen as the usable Action Required workspace, not a landing page.
 
+Implementation status:
+
+- Done through the `actions` dashboard route, sidebar entry, and `ActionRequiredSection` workspace.
+
 ### AR-008: Build Action Required list table
 
 - Show sender.
@@ -167,6 +171,10 @@ Implementation status:
 - Show grouped/thread count when present.
 - Include filters for active, review needed, snoozed, done, ignored, high priority, and profile.
 
+Implementation status:
+
+- Done with an Action Required table backed by `GET /api/actions`, including state, priority, sender, subject, profile, due/reminder, confidence, review reasons, AI summary, grouped thread count, and local filters.
+
 ### AR-009: Build mail review panel
 
 - Show subject, sender, recipients, and date.
@@ -174,6 +182,10 @@ Implementation status:
 - Show sanitized HTML preview.
 - Show Gmail labels.
 - Link to the original Gmail message if a stable Gmail URL can be built.
+
+Implementation status:
+
+- Done in the selected item detail view using source-message metadata, stored text, sandboxed sanitized HTML preview, Gmail labels, and a Gmail message link.
 
 ### AR-010: Build extracted data panel
 
@@ -184,6 +196,10 @@ Implementation status:
 - Show extraction confidence and diagnostics.
 - Show review-needed reason codes.
 
+Implementation status:
+
+- Done in the selected item detail view with profile, template, action URL, due date, confidence, review reasons, extracted fields, diagnostics, and collapsible flow-output JSON.
+
 ### AR-011: Build AI decision panel
 
 - Show primary label.
@@ -192,6 +208,10 @@ Implementation status:
 - Show risk notes.
 - Show deadline and calendar signals.
 - Show raw parsed JSON behind a debug disclosure.
+
+Implementation status:
+
+- Done in the selected item detail view with primary label, recommendation, human-review state, risk notes, deadline/calendar signals, recommended action list, and collapsible raw AI JSON.
 
 ### AR-012: Add operator actions
 

@@ -5,6 +5,7 @@ describe("router helpers", () => {
   it("parses dashboard sections and falls back to overview", () => {
     expect(parseHashRoute("#/dashboard/gmail")).toEqual({ view: "dashboard", dashboardSection: "gmail" });
     expect(parseHashRoute("#/dashboard/shipments")).toEqual({ view: "dashboard", dashboardSection: "shipments" });
+    expect(parseHashRoute("#/dashboard/actions")).toEqual({ view: "dashboard", dashboardSection: "actions" });
     expect(parseHashRoute("#/dashboard/review")).toEqual({ view: "dashboard", dashboardSection: "review" });
     expect(parseHashRoute("#/dashboard/not-real")).toEqual({ view: "dashboard", dashboardSection: "overview" });
   });
@@ -17,6 +18,7 @@ describe("router helpers", () => {
 
   it("builds hashes from known views", () => {
     expect(buildHashRoute("dashboard", "scheduled")).toBe("#/dashboard/scheduled");
+    expect(buildHashRoute("dashboard", "actions")).toBe("#/dashboard/actions");
     expect(buildHashRoute("dashboard", "unknown")).toBe("#/dashboard/overview");
     expect(buildHashRoute("provider")).toBe("#/provider");
     expect(buildHashRoute("training")).toBe("#/training");
@@ -25,6 +27,6 @@ describe("router helpers", () => {
   });
 
   it("keeps the standards dashboard section set", () => {
-    expect(Array.from(DASHBOARD_SECTIONS)).toEqual(["overview", "gmail", "runtime", "scheduled", "orders", "shipments", "review"]);
+    expect(Array.from(DASHBOARD_SECTIONS)).toEqual(["overview", "gmail", "runtime", "scheduled", "orders", "shipments", "actions", "review"]);
   });
 });

@@ -445,3 +445,9 @@ Chosen fix: Make review-needed state derive from explicit reason codes: low/miss
 What changed: Expanded `NodeService._action_required_review_reasons`, made review reasons drive `review_needed` state for non-terminal items, documented AR-006 completion, removed Task 353 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
 Verification: `.venv/bin/python -m pytest -q tests/test_action_required_item_sync.py tests/test_action_required_api.py tests/test_gmail_action_item_store.py`; `.venv/bin/python -m compileall -q src/service.py`; `git diff --check`.
 ###########
+Task #354-358
+Step objective: Build the first Action Required dashboard workspace.
+Chosen fix: Add one dashboard section that uses the existing operational card/table style, loads the Action Required API list/detail data, and keeps the first screen focused on review work instead of a landing page.
+What changed: Added `#/dashboard/actions`, sidebar navigation, `ActionRequiredSection`, list filters and review columns, selected-item mail review, extracted data, and AI decision panels; documented AR-007 through AR-011 completion; removed Tasks 354-358 from `docs/New_task.txt`; and appended completion entries to `docs/completed.txt`.
+Verification: `npm test -- --run src/app/router.test.js src/features/dashboard/dashboard.test.jsx`; `npm run build`.
+###########
