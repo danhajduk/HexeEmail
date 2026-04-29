@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+import providers.gmail.message_store as message_store_module
 from providers.gmail.message_store import GmailMessageStore
 from providers.gmail.models import (
     GmailSenderReputationInputs,
@@ -64,6 +65,115 @@ def test_gmail_message_store_enforces_six_month_retention(runtime_dir):
 
     messages = store.list_messages("primary", limit=10)
     assert [message.message_id for message in messages] == ["fresh-msg"]
+
+
+def test_gmail_message_store_retains_old_high_confidence_classifications(runtime_dir):
+    store = GmailMessageStore(runtime_dir)
+
+    store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="old-high-confidence",
+                received_at=datetime(2025, 9, 30, 10, 0, 0),
+                local_label=GmailTrainingLabel.DIRECT_HUMAN.value,
+                local_label_confidence=0.92,
+            ),
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="old-low-confidence",
+                received_at=datetime(2025, 9, 30, 9, 0, 0),
+                local_label=GmailTrainingLabel.DIRECT_HUMAN.value,
+                local_label_confidence=0.91,
+            ),
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="old-unknown",
+                received_at=datetime(2025, 9, 30, 8, 0, 0),
+                local_label=GmailTrainingLabel.UNKNOWN.value,
+                local_label_confidence=1.0,
+            ),
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="fresh-msg",
+                received_at=datetime(2026, 3, 31, 8, 0, 0),
+            ),
+        ],
+        now=datetime(2026, 4, 2, 12, 0, 0),
+    )
+
+    messages = store.list_messages("primary", limit=10)
+
+    assert [message.message_id for message in messages] == ["fresh-msg", "old-high-confidence"]
+
+
+def test_gmail_message_store_caps_old_high_confidence_retention_per_account(runtime_dir, monkeypatch):
+    monkeypatch.setattr(message_store_module, "HIGH_CONFIDENCE_RETENTION_LIMIT", 2)
+    store = GmailMessageStore(runtime_dir)
+
+    store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="old-high-3",
+                received_at=datetime(2025, 9, 30, 10, 0, 0),
+                local_label=GmailTrainingLabel.DIRECT_HUMAN.value,
+                local_label_confidence=0.96,
+            ),
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="old-high-2",
+                received_at=datetime(2025, 9, 30, 9, 0, 0),
+                local_label=GmailTrainingLabel.FINANCIAL.value,
+                local_label_confidence=0.95,
+            ),
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="old-high-1",
+                received_at=datetime(2025, 9, 30, 8, 0, 0),
+                local_label=GmailTrainingLabel.ORDER.value,
+                local_label_confidence=0.94,
+            ),
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="fresh-msg",
+                received_at=datetime(2026, 3, 31, 8, 0, 0),
+            ),
+        ],
+        now=datetime(2026, 4, 2, 12, 0, 0),
+    )
+    store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="secondary",
+                message_id="secondary-old-high-3",
+                received_at=datetime(2025, 9, 30, 10, 0, 0),
+                local_label=GmailTrainingLabel.DIRECT_HUMAN.value,
+                local_label_confidence=0.96,
+            ),
+            GmailStoredMessage(
+                account_id="secondary",
+                message_id="secondary-old-high-2",
+                received_at=datetime(2025, 9, 30, 9, 0, 0),
+                local_label=GmailTrainingLabel.FINANCIAL.value,
+                local_label_confidence=0.95,
+            ),
+            GmailStoredMessage(
+                account_id="secondary",
+                message_id="secondary-old-high-1",
+                received_at=datetime(2025, 9, 30, 8, 0, 0),
+                local_label=GmailTrainingLabel.ORDER.value,
+                local_label_confidence=0.94,
+            ),
+        ],
+        now=datetime(2026, 4, 2, 12, 0, 0),
+    )
+
+    primary_messages = store.list_messages("primary", limit=10)
+    secondary_messages = store.list_messages("secondary", limit=10)
+
+    assert [message.message_id for message in primary_messages] == ["fresh-msg", "old-high-3", "old-high-2"]
+    assert [message.message_id for message in secondary_messages] == ["secondary-old-high-3", "secondary-old-high-2"]
 
 
 def test_gmail_message_store_tracks_spamhaus_check_state(runtime_dir):

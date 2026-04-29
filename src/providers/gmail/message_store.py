@@ -21,6 +21,10 @@ from providers.gmail.reputation import finalize_sender_reputation_record
 from providers.gmail.runtime import GmailRuntimeLayout
 
 
+HIGH_CONFIDENCE_RETENTION_LIMIT = 10_000
+HIGH_CONFIDENCE_RETENTION_THRESHOLD = 0.92
+
+
 class GmailMessageStore:
     def __init__(self, runtime_dir: Path) -> None:
         self.layout = GmailRuntimeLayout(runtime_dir)
@@ -303,13 +307,53 @@ class GmailMessageStore:
 
     def enforce_retention(self, *, now: datetime | None = None) -> int:
         cutoff = self._six_month_cutoff(now or datetime.now().astimezone())
+        deleted = 0
         with self._connect() as connection:
             cursor = connection.execute(
-                "DELETE FROM gmail_messages WHERE received_at < ?",
-                (cutoff.isoformat(),),
+                """
+                DELETE FROM gmail_messages
+                WHERE received_at < ?
+                  AND NOT (
+                    local_label IS NOT NULL
+                    AND local_label != ?
+                    AND COALESCE(local_label_confidence, 0) >= ?
+                  )
+                """,
+                (
+                    cutoff.isoformat(),
+                    GmailTrainingLabel.UNKNOWN.value,
+                    HIGH_CONFIDENCE_RETENTION_THRESHOLD,
+                ),
             )
+            deleted += max(cursor.rowcount or 0, 0)
+            account_rows = connection.execute("SELECT DISTINCT account_id FROM gmail_messages").fetchall()
+            for account_row in account_rows:
+                cursor = connection.execute(
+                    """
+                    DELETE FROM gmail_messages
+                    WHERE rowid IN (
+                        SELECT rowid
+                        FROM gmail_messages
+                        WHERE account_id = ?
+                          AND received_at < ?
+                          AND local_label IS NOT NULL
+                          AND local_label != ?
+                          AND COALESCE(local_label_confidence, 0) >= ?
+                        ORDER BY received_at DESC, message_id DESC
+                        LIMIT -1 OFFSET ?
+                    )
+                    """,
+                    (
+                        account_row["account_id"],
+                        cutoff.isoformat(),
+                        GmailTrainingLabel.UNKNOWN.value,
+                        HIGH_CONFIDENCE_RETENTION_THRESHOLD,
+                        HIGH_CONFIDENCE_RETENTION_LIMIT,
+                    ),
+                )
+                deleted += max(cursor.rowcount or 0, 0)
             connection.commit()
-            return cursor.rowcount if cursor.rowcount is not None else 0
+            return deleted
 
     def list_messages(self, account_id: str, *, limit: int = 100) -> list[GmailStoredMessage]:
         with self._connect() as connection:

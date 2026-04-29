@@ -138,6 +138,8 @@ That means repeated fetches update existing rows instead of duplicating them.
 Retention policy:
 
 - keep the last six months of fetched messages
+- preserve older classified messages when the stored local classification is non-unknown and at least 92% confidence
+- cap preserved older high-confidence messages to the newest 10,000 per account
 - prune older rows during store updates
 
 The store summary returned through status includes:
