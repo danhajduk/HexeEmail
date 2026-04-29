@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 import httpx
 
-from providers.tracking_track123 import Track123Client
+from providers.tracking_track123 import Track123Client, Track123ClientError
 
 
 @pytest.mark.asyncio
@@ -54,6 +54,65 @@ async def test_track123_client_lists_couriers_with_user_supplied_shape():
     assert requests[0].url.path == "/gateway/open-api/tk/v2.1/courier/list"
     assert requests[0].headers["Track123-Api-Secret"] == "secret-test"
     assert requests[0].headers["accept"] == "application/json"
+
+
+@pytest.mark.asyncio
+async def test_track123_client_retries_a0706_rate_limit(monkeypatch):
+    monkeypatch.setattr(Track123Client, "_min_endpoint_interval_seconds", 0)
+    monkeypatch.setattr(Track123Client, "_rate_limit_retry_delays", (0,))
+    requests: list[httpx.Request] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if len(requests) == 1:
+            return httpx.Response(200, json={"code": "A0706", "message": "Too Many Requests"})
+        return httpx.Response(
+            200,
+            json={
+                "code": "00000",
+                "data": {
+                    "accepted": {
+                        "content": [
+                            {
+                                "trackNo": "123123122222",
+                                "transitStatus": "IN_TRANSIT",
+                            }
+                        ]
+                    }
+                },
+            },
+        )
+
+    client = Track123Client(
+        api_secret="secret-test",
+        base_url="https://api.track123.test",
+        transport=httpx.MockTransport(handler),
+    )
+
+    update = await client.query_tracking(tracking_number="123123122222", courier_code="fedex")
+    await client.close()
+
+    assert update.status == "in transit"
+    assert len(requests) == 2
+
+
+@pytest.mark.asyncio
+async def test_track123_client_reports_repeated_a0706_rate_limit(monkeypatch):
+    monkeypatch.setattr(Track123Client, "_min_endpoint_interval_seconds", 0)
+    monkeypatch.setattr(Track123Client, "_rate_limit_retry_delays", (0,))
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(429, json={"code": "A0706", "message": "Too Many Requests"})
+
+    client = Track123Client(
+        api_secret="secret-test",
+        base_url="https://api.track123.test",
+        transport=httpx.MockTransport(handler),
+    )
+
+    with pytest.raises(Track123ClientError, match="rate limited"):
+        await client.list_couriers()
+    await client.close()
 
 
 @pytest.mark.asyncio

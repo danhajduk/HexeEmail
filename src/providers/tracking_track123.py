@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
+import time
 
 import httpx
 
@@ -21,6 +23,11 @@ class Track123TrackingUpdate:
 
 
 class Track123Client:
+    _rate_limit_lock = asyncio.Lock()
+    _last_request_started_at: dict[str, float] = {}
+    _min_endpoint_interval_seconds = 0.22
+    _rate_limit_retry_delays = (0.5, 1.0)
+
     def __init__(
         self,
         *,
@@ -54,58 +61,80 @@ class Track123Client:
         return self.parse_tracking_update(payload, fallback_tracking_number=tracking_number, fallback_carrier=courier_code)
 
     async def _post_json(self, path: str, json_payload: object, *, operation: str) -> dict[str, object]:
-        if not self.api_secret:
-            raise Track123ClientError("Track123 API secret is not configured")
-        try:
-            response = await self._client.post(
-                path,
-                headers={
-                    "Track123-Api-Secret": self.api_secret,
-                    "accept": "application/json",
-                    "content-type": "application/json",
-                },
-                json=json_payload,
-            )
-            response.raise_for_status()
-        except httpx.HTTPError as exc:
-            raise Track123ClientError(f"{operation} request failed: {exc}") from exc
-        try:
-            parsed = response.json()
-        except ValueError as exc:
-            raise Track123ClientError(f"{operation} returned invalid JSON") from exc
-        if not isinstance(parsed, dict):
-            raise Track123ClientError(f"{operation} returned non-object JSON")
-        code = parsed.get("code")
-        if code not in {None, "00000", 0, "0"}:
-            message = parsed.get("message") or parsed.get("msg") or parsed.get("error") or "Track123 request failed"
-            raise Track123ClientError(str(message))
-        return parsed
+        return await self._request_json("POST", path, operation=operation, json_payload=json_payload)
 
     async def _get_json(self, path: str, *, operation: str) -> dict[str, object]:
+        return await self._request_json("GET", path, operation=operation)
+
+    async def _request_json(
+        self,
+        method: str,
+        path: str,
+        *,
+        operation: str,
+        json_payload: object | None = None,
+    ) -> dict[str, object]:
         if not self.api_secret:
             raise Track123ClientError("Track123 API secret is not configured")
-        try:
-            response = await self._client.get(
-                path,
-                headers={
-                    "Track123-Api-Secret": self.api_secret,
-                    "accept": "application/json",
-                },
-            )
-            response.raise_for_status()
-        except httpx.HTTPError as exc:
-            raise Track123ClientError(f"{operation} request failed: {exc}") from exc
+        headers = {
+            "Track123-Api-Secret": self.api_secret,
+            "accept": "application/json",
+        }
+        if json_payload is not None:
+            headers["content-type"] = "application/json"
+        attempts = len(self._rate_limit_retry_delays) + 1
+        for attempt in range(attempts):
+            await self._throttle_endpoint(path)
+            try:
+                response = await self._client.request(
+                    method,
+                    path,
+                    headers=headers,
+                    json=json_payload,
+                )
+            except httpx.HTTPError as exc:
+                raise Track123ClientError(f"{operation} request failed: {exc}") from exc
+            parsed = self._parse_json_response(response, operation=operation)
+            if self._is_rate_limited_response(response, parsed) and attempt < attempts - 1:
+                await asyncio.sleep(self._rate_limit_retry_delays[attempt])
+                continue
+            if self._is_rate_limited_response(response, parsed):
+                raise Track123ClientError(f"{operation} was rate limited by Track123")
+            if response.is_error:
+                raise Track123ClientError(f"{operation} request failed: {response.status_code} {response.reason_phrase}")
+            code = parsed.get("code")
+            if code not in {None, "00000", 0, "0"}:
+                message = parsed.get("message") or parsed.get("msg") or parsed.get("error") or "Track123 request failed"
+                raise Track123ClientError(str(message))
+            return parsed
+        raise Track123ClientError(f"{operation} was rate limited by Track123")
+
+    @classmethod
+    async def _throttle_endpoint(cls, path: str) -> None:
+        async with cls._rate_limit_lock:
+            now = time.monotonic()
+            last_started_at = cls._last_request_started_at.get(path)
+            if last_started_at is not None:
+                wait_seconds = cls._min_endpoint_interval_seconds - (now - last_started_at)
+                if wait_seconds > 0:
+                    await asyncio.sleep(wait_seconds)
+                    now = time.monotonic()
+            cls._last_request_started_at[path] = now
+
+    @staticmethod
+    def _parse_json_response(response: httpx.Response, *, operation: str) -> dict[str, object]:
         try:
             parsed = response.json()
         except ValueError as exc:
             raise Track123ClientError(f"{operation} returned invalid JSON") from exc
         if not isinstance(parsed, dict):
             raise Track123ClientError(f"{operation} returned non-object JSON")
-        code = parsed.get("code")
-        if code not in {None, "00000", 0, "0"}:
-            message = parsed.get("message") or parsed.get("msg") or parsed.get("error") or "Track123 request failed"
-            raise Track123ClientError(str(message))
         return parsed
+
+    @staticmethod
+    def _is_rate_limited_response(response: httpx.Response, parsed: dict[str, object]) -> bool:
+        code = str(parsed.get("code") or "").strip().upper()
+        return response.status_code == 429 or code == "A0706"
 
     @classmethod
     def parse_tracking_update(

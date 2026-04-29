@@ -422,6 +422,7 @@ Live tracking:
 - `GET /api/tracking/track123/couriers` proxies the Track123 courier list from `/gateway/open-api/tk/v2.1/courier/list`
 - `Track` registers the shipment through `POST /gateway/open-api/tk/v2/track/import`
 - `Refresh` queries Track123 and writes the latest live status/location back to the shipment record
+- Track123 requests are throttled per endpoint and briefly retried when Track123 returns `A0706` or HTTP `429`
 
 ## Review-needed outputs dashboard section
 
