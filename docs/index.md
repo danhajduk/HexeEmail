@@ -23,6 +23,7 @@ Implementation and architecture references:
 - [shared-email-pipeline-core.md](/home/dan/Projects/HexeEmail/docs/shared-email-pipeline-core.md)
 - [order-family-reference.md](/home/dan/Projects/HexeEmail/docs/order-family-reference.md)
 - [action-required-family-reference.md](/home/dan/Projects/HexeEmail/docs/action-required-family-reference.md)
+- [action-required-items-task-list.md](/home/dan/Projects/HexeEmail/docs/action-required-items-task-list.md)
 - [planned-family-references.md](/home/dan/Projects/HexeEmail/docs/planned-family-references.md)
 - [flow-family-action-matrix.md](/home/dan/Projects/HexeEmail/docs/flow-family-action-matrix.md)
 - [flow-family-terminal-outcomes.md](/home/dan/Projects/HexeEmail/docs/flow-family-terminal-outcomes.md)
