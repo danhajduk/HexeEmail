@@ -421,3 +421,9 @@ Chosen fix: Sync action items from the Action Required classification follow-up 
 What changed: Added group-key lookup to `GmailActionItemStore`, added Action Required item sync and grouping helpers to `NodeService`, returned family pipeline results to follow-up handling, covered grouping/state preservation/notification sync with tests, documented AR-002 completion, removed Task 349 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
 Verification: `.venv/bin/python -m pytest -q tests/test_action_required_item_sync.py tests/test_gmail_action_item_store.py tests/test_notifications.py::test_action_required_flow_toggle_skips_pipeline_execution`; `.venv/bin/python -m compileall -q src/service.py src/providers/gmail/action_item_store.py`; `git diff --check`.
 ###########
+Task #350
+Step objective: Add Action Required backend API.
+Chosen fix: Expose managed Action Required items through list/detail endpoints plus state, note, snooze, and regenerate-AI-decision operations, keeping list responses compact and detail responses rich enough for the upcoming dashboard.
+What changed: Added request models for Action Required item operations, added `/api/actions` and `/api/gmail/action-items` routes, added service methods for filtering and mutating action items, documented AR-003 completion, removed Task 350 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: `.venv/bin/python -m pytest -q tests/test_action_required_api.py tests/test_action_required_item_sync.py tests/test_gmail_action_item_store.py`; `.venv/bin/python -m compileall -q src/service.py src/api/routes/providers_gmail.py src/providers/gmail/models.py`; `git diff --check`.
+###########

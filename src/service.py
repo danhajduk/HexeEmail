@@ -5311,6 +5311,292 @@ class NodeService:
         )
         return await self.gmail_rules(account_id=account_id)
 
+    async def gmail_action_items(
+        self,
+        *,
+        account_id: str = "primary",
+        states: str | None = None,
+        profile: str | None = None,
+        sender: str | None = None,
+        review_needed: bool | None = None,
+        high_priority: bool | None = None,
+        due_before: str | None = None,
+        grouped: bool | None = None,
+        limit: int = 100,
+    ) -> dict[str, object]:
+        adapter = self.provider_registry.get_provider("gmail")
+        state_filter = self._parse_action_item_states(states)
+        normalized_limit = max(1, min(int(limit or 100), 500))
+        due_before_dt = self._parse_action_item_filter_datetime(due_before) if due_before else None
+        items = adapter.action_item_store.list_items(account_id, states=state_filter, limit=10000)
+        filtered = [
+            item
+            for item in items
+            if self._action_item_matches_filters(
+                item,
+                profile=profile,
+                sender=sender,
+                review_needed=review_needed,
+                high_priority=high_priority,
+                due_before=due_before_dt,
+                grouped=grouped,
+            )
+        ][:normalized_limit]
+        return {
+            "account_id": account_id,
+            "items": [self._action_item_summary(item) for item in filtered],
+            "count": len(filtered),
+            "total": len(items),
+            "filters": {
+                "states": [state.value for state in state_filter] if state_filter else None,
+                "profile": profile,
+                "sender": sender,
+                "review_needed": review_needed,
+                "high_priority": high_priority,
+                "due_before": due_before,
+                "grouped": grouped,
+                "limit": normalized_limit,
+            },
+        }
+
+    async def gmail_action_item_detail(self, *, account_id: str = "primary", item_id: str) -> dict[str, object]:
+        item = self._action_item_or_error(account_id=account_id, item_id=item_id)
+        return self._action_item_detail(item)
+
+    async def gmail_update_action_item_state(
+        self,
+        *,
+        account_id: str = "primary",
+        item_id: str,
+        state: GmailActionItemState,
+    ) -> dict[str, object]:
+        adapter = self.provider_registry.get_provider("gmail")
+        item = adapter.action_item_store.update_state(account_id, item_id, state)
+        if item is None:
+            raise ValueError("action item was not found")
+        return self._action_item_detail(item)
+
+    async def gmail_snooze_action_item(
+        self,
+        *,
+        account_id: str = "primary",
+        item_id: str,
+        snoozed_until: datetime | None,
+        reminder_at: datetime | None,
+    ) -> dict[str, object]:
+        item = self._action_item_or_error(account_id=account_id, item_id=item_id)
+        state = GmailActionItemState.SNOOZED if snoozed_until is not None else item.state
+        if snoozed_until is None and item.state == GmailActionItemState.SNOOZED:
+            state = GmailActionItemState.READY
+        adapter = self.provider_registry.get_provider("gmail")
+        updated = adapter.action_item_store.upsert_item(
+            item.model_copy(
+                update={
+                    "state": state,
+                    "snoozed_until": snoozed_until,
+                    "reminder_at": reminder_at,
+                    "reminder_sent_at": None if reminder_at != item.reminder_at else item.reminder_sent_at,
+                    "state_updated_at": None if state != item.state else item.state_updated_at,
+                }
+            )
+        )
+        return self._action_item_detail(updated)
+
+    async def gmail_update_action_item_note(
+        self,
+        *,
+        account_id: str = "primary",
+        item_id: str,
+        operator_note: str | None,
+    ) -> dict[str, object]:
+        item = self._action_item_or_error(account_id=account_id, item_id=item_id)
+        adapter = self.provider_registry.get_provider("gmail")
+        updated = adapter.action_item_store.upsert_item(item.model_copy(update={"operator_note": operator_note}))
+        return self._action_item_detail(updated)
+
+    async def gmail_regenerate_action_item_ai_decision(
+        self,
+        *,
+        account_id: str = "primary",
+        item_id: str,
+    ) -> dict[str, object]:
+        item = self._action_item_or_error(account_id=account_id, item_id=item_id)
+        adapter = self.provider_registry.get_provider("gmail")
+        message = adapter.message_store.get_message(account_id, item.source_message_id)
+        if message is None:
+            raise ValueError("source message was not found")
+        action_decision = await self._execute_email_action_decision_for_message(
+            account_id=account_id,
+            message=message,
+            classification_label=GmailTrainingLabel.ACTION_REQUIRED,
+        )
+        refreshed = adapter.message_store.get_message(account_id, item.source_message_id) or message
+        updated = self._sync_action_required_item_from_message(
+            account_id=account_id,
+            message=refreshed,
+            pipeline_result=None,
+            action_decision=action_decision or refreshed.action_decision_payload,
+        )
+        if updated is None:
+            raise ValueError("action item could not be regenerated")
+        return self._action_item_detail(updated)
+
+    def _action_item_or_error(self, *, account_id: str, item_id: str) -> GmailActionItem:
+        adapter = self.provider_registry.get_provider("gmail")
+        item = adapter.action_item_store.get_item(account_id, item_id)
+        if item is None:
+            raise ValueError("action item was not found")
+        return item
+
+    def _parse_action_item_states(self, states: str | None) -> list[GmailActionItemState] | None:
+        if not states:
+            return None
+        parsed: list[GmailActionItemState] = []
+        for raw in states.split(","):
+            normalized = raw.strip().lower()
+            if not normalized:
+                continue
+            try:
+                parsed.append(GmailActionItemState(normalized))
+            except ValueError as exc:
+                raise ValueError(f"unsupported action item state: {normalized}") from exc
+        return parsed or None
+
+    @staticmethod
+    def _parse_action_item_filter_datetime(value: str) -> datetime:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("due_before must not be blank")
+        try:
+            if len(normalized) == 10:
+                return datetime.fromisoformat(normalized).replace(hour=23, minute=59, second=59)
+            return datetime.fromisoformat(normalized)
+        except ValueError as exc:
+            raise ValueError("due_before must be an ISO date or datetime") from exc
+
+    def _action_item_matches_filters(
+        self,
+        item: GmailActionItem,
+        *,
+        profile: str | None,
+        sender: str | None,
+        review_needed: bool | None,
+        high_priority: bool | None,
+        due_before: datetime | None,
+        grouped: bool | None,
+    ) -> bool:
+        if profile and (item.profile_id or "").strip().lower() != profile.strip().lower():
+            return False
+        if sender and sender.strip().lower() not in (item.sender or "").strip().lower():
+            return False
+        if review_needed is not None:
+            is_review_needed = item.state == GmailActionItemState.REVIEW_NEEDED or bool(item.review_reasons)
+            if is_review_needed != review_needed:
+                return False
+        if high_priority is not None:
+            is_high_priority = item.priority_score >= 70
+            if is_high_priority != high_priority:
+                return False
+        if due_before is not None:
+            due_at = self._action_item_due_at(item)
+            if due_at is None or due_at > due_before:
+                return False
+        if grouped is not None:
+            is_grouped = len(item.grouped_message_ids) > 1
+            if is_grouped != grouped:
+                return False
+        return True
+
+    def _action_item_summary(self, item: GmailActionItem) -> dict[str, object]:
+        action_url = self._action_required_field_value(item.extracted_fields, "action_url") or self._action_required_field_value(
+            item.extracted_fields, "url"
+        )
+        due_at = self._action_item_due_at(item)
+        return {
+            "account_id": item.account_id,
+            "item_id": item.item_id,
+            "group_key": item.group_key,
+            "source_message_id": item.source_message_id,
+            "thread_id": item.thread_id,
+            "sender": item.sender,
+            "subject": item.subject,
+            "received_at": item.received_at.isoformat(),
+            "state": item.state.value,
+            "profile_id": item.profile_id,
+            "profile_type": item.profile_type,
+            "confidence": item.confidence,
+            "priority_score": item.priority_score,
+            "snoozed_until": item.snoozed_until.isoformat() if item.snoozed_until is not None else None,
+            "reminder_at": item.reminder_at.isoformat() if item.reminder_at is not None else None,
+            "operator_note": item.operator_note,
+            "review_reasons": list(item.review_reasons),
+            "grouped_message_count": len(item.grouped_message_ids),
+            "grouped_message_ids": list(item.grouped_message_ids),
+            "action_url": str(action_url).strip() if action_url else None,
+            "due_at": due_at.isoformat() if due_at is not None else None,
+            "ai_decision_summary": self._action_item_ai_summary(item.ai_decision_payload),
+            "created_at": item.created_at.isoformat() if item.created_at is not None else None,
+            "updated_at": item.updated_at.isoformat() if item.updated_at is not None else None,
+            "state_updated_at": item.state_updated_at.isoformat() if item.state_updated_at is not None else None,
+        }
+
+    def _action_item_detail(self, item: GmailActionItem) -> dict[str, object]:
+        adapter = self.provider_registry.get_provider("gmail")
+        message = adapter.message_store.get_message(item.account_id, item.source_message_id)
+        detail = self._action_item_summary(item)
+        detail.update(
+            {
+                "extracted_fields": item.extracted_fields,
+                "flow_output": item.flow_output,
+                "ai_decision_payload": item.ai_decision_payload,
+                "source_message": self._action_item_message_snapshot(message),
+            }
+        )
+        return detail
+
+    @staticmethod
+    def _action_item_ai_summary(payload: dict[str, object] | None) -> str | None:
+        if not isinstance(payload, dict):
+            return None
+        summary = str(payload.get("summary") or payload.get("recommended_action") or "").strip()
+        return summary or None
+
+    @staticmethod
+    def _action_item_message_snapshot(message) -> dict[str, object] | None:
+        if message is None:
+            return None
+        return {
+            "account_id": message.account_id,
+            "message_id": message.message_id,
+            "thread_id": message.thread_id,
+            "subject": message.subject,
+            "sender": message.sender,
+            "recipients": list(message.recipients or []),
+            "snippet": message.snippet,
+            "label_ids": list(message.label_ids or []),
+            "received_at": message.received_at.isoformat(),
+            "local_label": message.local_label,
+            "local_label_confidence": message.local_label_confidence,
+            "manual_classification": message.manual_classification,
+            "raw_payload": message.raw_payload,
+        }
+
+    def _action_item_due_at(self, item: GmailActionItem) -> datetime | None:
+        value = (
+            self._action_required_field_value(item.extracted_fields, "due_date")
+            or self._action_required_field_value(item.extracted_fields, "deadline")
+            or self._action_required_field_value(item.extracted_fields, "deadline_at")
+        )
+        if value is None:
+            return None
+        text = str(value).strip()
+        if not text:
+            return None
+        try:
+            return datetime.fromisoformat(text)
+        except ValueError:
+            return None
+
     async def gmail_fetch_messages(
         self,
         window: str,

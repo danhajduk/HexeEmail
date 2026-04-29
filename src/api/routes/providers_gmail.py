@@ -3,6 +3,9 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Request
 
 from providers.gmail.models import (
+    GmailActionItemNoteInput,
+    GmailActionItemSnoozeInput,
+    GmailActionItemStateUpdateInput,
     GmailManualClassificationBatchInput,
     GmailOAuthConfig,
     GmailRulesInput,
@@ -119,6 +122,99 @@ def build_providers_gmail_router(node_service: NodeService) -> APIRouter:
     async def backfill_shipments_from_outputs(account_id: str = "primary"):
         try:
             return node_service.backfill_tracked_orders_from_shipment_outputs(account_id=account_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @router.get("/api/actions")
+    @router.get("/api/gmail/action-items")
+    async def gmail_action_items(
+        account_id: str = "primary",
+        states: str | None = None,
+        profile: str | None = None,
+        sender: str | None = None,
+        review_needed: bool | None = None,
+        high_priority: bool | None = None,
+        due_before: str | None = None,
+        grouped: bool | None = None,
+        limit: int = 100,
+    ):
+        try:
+            return await node_service.gmail_action_items(
+                account_id=account_id,
+                states=states,
+                profile=profile,
+                sender=sender,
+                review_needed=review_needed,
+                high_priority=high_priority,
+                due_before=due_before,
+                grouped=grouped,
+                limit=limit,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @router.get("/api/actions/{item_id}")
+    @router.get("/api/gmail/action-items/{item_id}")
+    async def gmail_action_item_detail(item_id: str, account_id: str = "primary"):
+        try:
+            return await node_service.gmail_action_item_detail(account_id=account_id, item_id=item_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @router.patch("/api/actions/{item_id}/state")
+    @router.patch("/api/gmail/action-items/{item_id}/state")
+    async def update_gmail_action_item_state(
+        item_id: str,
+        payload: GmailActionItemStateUpdateInput,
+        account_id: str = "primary",
+    ):
+        try:
+            return await node_service.gmail_update_action_item_state(
+                account_id=account_id,
+                item_id=item_id,
+                state=payload.state,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @router.patch("/api/actions/{item_id}/snooze")
+    @router.patch("/api/gmail/action-items/{item_id}/snooze")
+    async def snooze_gmail_action_item(
+        item_id: str,
+        payload: GmailActionItemSnoozeInput,
+        account_id: str = "primary",
+    ):
+        try:
+            return await node_service.gmail_snooze_action_item(
+                account_id=account_id,
+                item_id=item_id,
+                snoozed_until=payload.snoozed_until,
+                reminder_at=payload.reminder_at,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @router.patch("/api/actions/{item_id}/note")
+    @router.patch("/api/gmail/action-items/{item_id}/note")
+    async def update_gmail_action_item_note(
+        item_id: str,
+        payload: GmailActionItemNoteInput,
+        account_id: str = "primary",
+    ):
+        try:
+            return await node_service.gmail_update_action_item_note(
+                account_id=account_id,
+                item_id=item_id,
+                operator_note=payload.operator_note,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @router.post("/api/actions/{item_id}/regenerate-ai-decision")
+    @router.post("/api/gmail/action-items/{item_id}/regenerate-ai-decision")
+    async def regenerate_gmail_action_item_ai_decision(item_id: str, account_id: str = "primary"):
+        try:
+            return await node_service.gmail_regenerate_action_item_ai_decision(account_id=account_id, item_id=item_id)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 

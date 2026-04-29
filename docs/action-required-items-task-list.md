@@ -104,6 +104,12 @@ Implementation status:
 - Return list-ready summaries and full detail payloads separately.
 - Support filters for state, profile, priority, due date, review-needed, sender, and grouped items.
 
+Implementation status:
+
+- Done through `GET /api/actions`, `GET /api/actions/{item_id}`, state/note/snooze patch endpoints, and regenerate-AI-decision.
+- Gmail-specific aliases are also available under `/api/gmail/action-items`.
+- List responses return summaries; detail responses include extracted fields, flow output, AI decision payload, and source message metadata.
+
 ### AR-004: Add priority scoring
 
 - Score by profile, deadline proximity, overdue status, sender reputation, extraction confidence, AI human-review flag, and diagnostics.

@@ -868,6 +868,31 @@ class GmailActionItem(BaseModel):
         return value
 
 
+class GmailActionItemStateUpdateInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    state: GmailActionItemState
+
+
+class GmailActionItemSnoozeInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    snoozed_until: datetime | None = None
+    reminder_at: datetime | None = None
+
+
+class GmailActionItemNoteInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    operator_note: str | None = None
+
+    @field_validator("operator_note")
+    @classmethod
+    def normalize_operator_note(cls, value: str | None) -> str | None:
+        normalized = " ".join(str(value or "").strip().split())
+        return normalized or None
+
+
 class GmailShipmentRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
