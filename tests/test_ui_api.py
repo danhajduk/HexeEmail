@@ -2417,6 +2417,66 @@ async def test_ui_bootstrap_exposes_tracked_orders(config, core_client_factory):
 
 
 @pytest.mark.asyncio
+async def test_shipment_live_tracking_enable_and_refresh_use_track123(config, core_client_factory, monkeypatch):
+    config.track123_enabled = True
+    config.track123_api_secret = "secret-test"
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    gmail_adapter = service.provider_registry.get_provider("gmail")
+    gmail_adapter.message_store.upsert_shipment_record(
+        GmailShipmentRecord(
+            account_id="primary",
+            record_id="tracking:771700723045",
+            carrier="fedex",
+            tracking_number="771700723045",
+            last_known_status="on the way",
+            last_seen_at=datetime(2026, 4, 29, 9, 0, 0).astimezone(),
+        )
+    )
+
+    class FakeTrack123Client:
+        async def import_tracking(self, *, tracking_number, courier_code=None):
+            return {"code": "00000", "imported": [{"trackNo": tracking_number, "courierCode": courier_code}]}
+
+        async def query_tracking(self, *, tracking_number, courier_code=None):
+            from providers.tracking_track123 import Track123TrackingUpdate
+
+            return Track123TrackingUpdate(
+                tracking_number=tracking_number,
+                carrier=courier_code,
+                status="Delivered",
+                location="Toronto, ON, CA",
+                tracking_time="2026-04-29 11:30:00",
+                payload={"code": "00000", "data": {"status": "Delivered"}},
+            )
+
+        async def close(self):
+            return None
+
+    monkeypatch.setattr(service, "_track123_client", lambda: FakeTrack123Client())
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        enable_response = await client.post("/api/shipments/primary/tracking:771700723045/live-tracking/enable")
+        refresh_response = await client.post("/api/shipments/primary/tracking:771700723045/live-tracking/refresh")
+        bootstrap_response = await client.get("/api/node/bootstrap")
+
+    await service.stop()
+
+    assert enable_response.status_code == 200
+    assert enable_response.json()["status"] == "registered"
+    assert refresh_response.status_code == 200
+    refreshed = refresh_response.json()["record"]
+    assert refreshed["live_tracking_enabled"] is True
+    assert refreshed["live_tracking_provider"] == "track123"
+    assert refreshed["live_tracking_status"] == "Delivered"
+    assert refreshed["live_tracking_location"] == "Toronto, ON, CA"
+    body = bootstrap_response.json()
+    assert body["tracking_integrations"]["track123"]["configured"] is True
+    assert body["tracked_orders"][0]["live_tracking_status"] == "Delivered"
+
+
+@pytest.mark.asyncio
 async def test_ui_bootstrap_excludes_tracked_orders_older_than_four_months(config, core_client_factory):
     service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
     service._tracked_orders_cutoff = lambda now: datetime(2026, 1, 3, 0, 0, 0).astimezone()  # type: ignore[method-assign]

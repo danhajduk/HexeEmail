@@ -763,6 +763,13 @@ class GmailShipmentRecord(BaseModel):
     last_seen_at: datetime | None = None
     status_updated_at: datetime | None = None
     updated_at: datetime | None = None
+    live_tracking_enabled: bool = False
+    live_tracking_provider: str | None = None
+    live_tracking_status: str | None = None
+    live_tracking_location: str | None = None
+    live_tracking_checked_at: datetime | None = None
+    live_tracking_error: str | None = None
+    live_tracking_payload: dict[str, object] | None = None
 
 
 class GmailShipmentScrubResult(BaseModel):

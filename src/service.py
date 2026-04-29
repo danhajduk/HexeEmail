@@ -101,6 +101,7 @@ from providers.gmail.order_flow import GmailOrderPhase1Processor
 from providers.gmail.oauth import GmailOAuthSessionManager
 from providers.gmail.token_client import GmailTokenExchangeClient, GmailTokenExchangeError
 from providers.gmail.training import normalize_email_for_classifier
+from providers.tracking_track123 import Track123Client, Track123ClientError, Track123TrackingUpdate
 from mqtt import MQTTManager
 from providers.registry import ProviderRegistry
 from state_store import OperatorConfigStore, RuntimeStateStore, StateCorruptionError, TrustMaterialStore
@@ -469,22 +470,200 @@ class NodeService:
             limit=500,
             since=self._tracked_orders_cutoff(datetime.now().astimezone()),
         )
-        return [
-            {
-                "account_id": record.account_id,
-                "record_id": record.record_id,
-                "seller": record.seller,
-                "carrier": record.carrier,
-                "order_number": record.order_number,
-                "tracking_number": record.tracking_number,
-                "domain": record.domain,
-                "last_known_status": record.last_known_status,
-                "last_seen_at": record.last_seen_at.isoformat() if record.last_seen_at is not None else None,
-                "status_updated_at": record.status_updated_at.isoformat() if record.status_updated_at is not None else None,
-                "updated_at": record.updated_at.isoformat() if record.updated_at is not None else None,
+        return [self._shipment_record_snapshot(record) for record in records]
+
+    @staticmethod
+    def _shipment_record_snapshot(record: GmailShipmentRecord) -> dict[str, object]:
+        return {
+            "account_id": record.account_id,
+            "record_id": record.record_id,
+            "seller": record.seller,
+            "carrier": record.carrier,
+            "order_number": record.order_number,
+            "tracking_number": record.tracking_number,
+            "domain": record.domain,
+            "last_known_status": record.last_known_status,
+            "last_seen_at": record.last_seen_at.isoformat() if record.last_seen_at is not None else None,
+            "status_updated_at": record.status_updated_at.isoformat() if record.status_updated_at is not None else None,
+            "updated_at": record.updated_at.isoformat() if record.updated_at is not None else None,
+            "live_tracking_enabled": record.live_tracking_enabled,
+            "live_tracking_provider": record.live_tracking_provider,
+            "live_tracking_status": record.live_tracking_status,
+            "live_tracking_location": record.live_tracking_location,
+            "live_tracking_checked_at": (
+                record.live_tracking_checked_at.isoformat() if record.live_tracking_checked_at is not None else None
+            ),
+            "live_tracking_error": record.live_tracking_error,
+        }
+
+    def _tracking_integrations_snapshot(self) -> dict[str, object]:
+        return {
+            "track123": {
+                "enabled": bool(self.config.track123_enabled),
+                "configured": bool(self.config.track123_api_secret),
+                "api_base_url": self.config.track123_api_base_url,
             }
-            for record in records
-        ]
+        }
+
+    async def enable_shipment_live_tracking(self, *, account_id: str, record_id: str) -> dict[str, object]:
+        record = self._shipment_record_or_error(account_id=account_id, record_id=record_id)
+        self._ensure_track123_ready(record)
+        courier_code = self._track123_courier_code(record.carrier)
+        client = self._track123_client()
+        try:
+            import_payload = await client.import_tracking(
+                tracking_number=str(record.tracking_number or ""),
+                courier_code=courier_code,
+            )
+        except Track123ClientError as exc:
+            failed = self._save_live_tracking_error(record, str(exc), provider="track123")
+            return {
+                "status": "error",
+                "record": self._shipment_record_snapshot(failed),
+                "detail": str(exc),
+            }
+        finally:
+            await client.close()
+        updated = self._save_live_tracking_update(
+            record,
+            provider="track123",
+            status="registered",
+            location=None,
+            payload={"import": import_payload},
+            error=None,
+        )
+        return {
+            "status": "registered",
+            "record": self._shipment_record_snapshot(updated),
+            "track123": import_payload,
+        }
+
+    async def refresh_shipment_live_tracking(self, *, account_id: str, record_id: str) -> dict[str, object]:
+        record = self._shipment_record_or_error(account_id=account_id, record_id=record_id)
+        self._ensure_track123_ready(record)
+        courier_code = self._track123_courier_code(record.carrier)
+        client = self._track123_client()
+        try:
+            update = await client.query_tracking(
+                tracking_number=str(record.tracking_number or ""),
+                courier_code=courier_code,
+            )
+        except Track123ClientError as exc:
+            failed = self._save_live_tracking_error(record, str(exc), provider=record.live_tracking_provider or "track123")
+            return {
+                "status": "error",
+                "record": self._shipment_record_snapshot(failed),
+                "detail": str(exc),
+            }
+        finally:
+            await client.close()
+        updated = self._apply_track123_tracking_update(record, update)
+        return {
+            "status": "updated",
+            "record": self._shipment_record_snapshot(updated),
+            "track123": update.payload,
+        }
+
+    def _shipment_record_or_error(self, *, account_id: str, record_id: str) -> GmailShipmentRecord:
+        gmail_adapter = self.provider_registry.get_provider("gmail")
+        record = gmail_adapter.message_store.get_shipment_record(account_id, record_id)
+        if record is None:
+            raise ValueError("shipment record was not found")
+        return record
+
+    def _ensure_track123_ready(self, record: GmailShipmentRecord) -> None:
+        if not self.config.track123_enabled:
+            raise ValueError("Track123 tracking is disabled. Set TRACK123_ENABLED=true.")
+        if not self.config.track123_api_secret:
+            raise ValueError("Track123 API secret is missing. Set TRACK123_API_SECRET.")
+        if not str(record.tracking_number or "").strip():
+            raise ValueError("shipment record does not have a tracking number")
+
+    def _track123_client(self) -> Track123Client:
+        return Track123Client(
+            api_secret=str(self.config.track123_api_secret or ""),
+            base_url=self.config.track123_api_base_url,
+        )
+
+    @staticmethod
+    def _track123_courier_code(carrier: str | None) -> str | None:
+        normalized = re.sub(r"[^a-z0-9]", "", str(carrier or "").strip().lower())
+        aliases = {
+            "fedex": "fedex",
+            "federalexpress": "fedex",
+            "ups": "ups",
+            "usps": "usps",
+            "dhl": "dhl",
+            "amazon": "amazon",
+            "amazonlogistics": "amazon",
+        }
+        return aliases.get(normalized) or normalized or None
+
+    def _apply_track123_tracking_update(
+        self,
+        record: GmailShipmentRecord,
+        update: Track123TrackingUpdate,
+    ) -> GmailShipmentRecord:
+        status = update.status or record.live_tracking_status or record.last_known_status
+        checked_at = datetime.now().astimezone()
+        status_changed = bool(status and status != record.last_known_status)
+        updated = record.model_copy(
+            update={
+                "carrier": update.carrier or record.carrier,
+                "last_known_status": status,
+                "status_updated_at": checked_at if status_changed else record.status_updated_at,
+                "live_tracking_enabled": True,
+                "live_tracking_provider": "track123",
+                "live_tracking_status": update.status or record.live_tracking_status,
+                "live_tracking_location": update.location or record.live_tracking_location,
+                "live_tracking_checked_at": checked_at,
+                "live_tracking_error": None,
+                "live_tracking_payload": update.payload,
+            }
+        )
+        gmail_adapter = self.provider_registry.get_provider("gmail")
+        return gmail_adapter.message_store.upsert_shipment_record(updated, now=checked_at)
+
+    def _save_live_tracking_update(
+        self,
+        record: GmailShipmentRecord,
+        *,
+        provider: str,
+        status: str | None,
+        location: str | None,
+        payload: dict[str, object],
+        error: str | None,
+    ) -> GmailShipmentRecord:
+        checked_at = datetime.now().astimezone()
+        updated = record.model_copy(
+            update={
+                "live_tracking_enabled": True,
+                "live_tracking_provider": provider,
+                "live_tracking_status": status,
+                "live_tracking_location": location,
+                "live_tracking_checked_at": checked_at,
+                "live_tracking_error": error,
+                "live_tracking_payload": payload,
+            }
+        )
+        gmail_adapter = self.provider_registry.get_provider("gmail")
+        return gmail_adapter.message_store.upsert_shipment_record(updated, now=checked_at)
+
+    def _save_live_tracking_error(
+        self,
+        record: GmailShipmentRecord,
+        error: str,
+        *,
+        provider: str,
+    ) -> GmailShipmentRecord:
+        return self._save_live_tracking_update(
+            record,
+            provider=provider,
+            status=record.live_tracking_status,
+            location=record.live_tracking_location,
+            payload=record.live_tracking_payload or {},
+            error=error,
+        )
 
     def _review_needed_outputs_snapshot(self, *, limit: int = 200) -> list[dict[str, object]]:
         review_dirs = (self.config.runtime_dir / "flow_families").glob("*/outputs/review_needed")
@@ -3884,6 +4063,7 @@ class NodeService:
             scheduled_task_legend=self._scheduled_task_legend(),
             tracked_orders=self._tracked_orders_snapshot(),
             review_needed_outputs=self._review_needed_outputs_snapshot(),
+            tracking_integrations=self._tracking_integrations_snapshot(),
         )
 
     async def governance_status(self) -> dict[str, object]:

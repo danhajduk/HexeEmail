@@ -321,6 +321,15 @@
   flex-wrap: wrap;
 }
 
+.compact-row {
+  align-items: center;
+  gap: 6px;
+}
+
+.compact-row .btn {
+  padding: 6px 10px;
+}
+
 .gmail-fetch-row .btn {
   flex: 1 1 0;
 }

@@ -6,6 +6,10 @@ export function TrackedOrdersSection({
   title,
   description,
   emptyMessage,
+  trackingIntegrations,
+  liveTrackingPending,
+  enableLiveTracking,
+  refreshLiveTracking,
 }) {
   return (
     <section className="grid scheduled-tasks-grid">
@@ -15,6 +19,10 @@ export function TrackedOrdersSection({
         title={title}
         description={description}
         emptyMessage={emptyMessage}
+        trackingIntegrations={trackingIntegrations}
+        liveTrackingPending={liveTrackingPending}
+        enableLiveTracking={enableLiveTracking}
+        refreshLiveTracking={refreshLiveTracking}
       />
     </section>
   );

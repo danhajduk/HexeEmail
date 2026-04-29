@@ -640,6 +640,12 @@ def test_gmail_message_store_persists_shipment_records(runtime_dir):
             last_known_status="in transit",
             last_seen_at=datetime(2026, 4, 3, 12, 0, 0),
             status_updated_at=datetime(2026, 4, 3, 12, 0, 0),
+            live_tracking_enabled=True,
+            live_tracking_provider="track123",
+            live_tracking_status="IN_TRANSIT",
+            live_tracking_location="Memphis, TN",
+            live_tracking_checked_at=datetime(2026, 4, 3, 12, 4, 0),
+            live_tracking_payload={"code": "00000"},
         ),
         now=datetime(2026, 4, 3, 12, 5, 0),
     )
@@ -654,6 +660,12 @@ def test_gmail_message_store_persists_shipment_records(runtime_dir):
     assert loaded.carrier == "fedex"
     assert loaded.tracking_number == "449044304137821"
     assert loaded.last_known_status == "in transit"
+    assert loaded.live_tracking_enabled is True
+    assert loaded.live_tracking_provider == "track123"
+    assert loaded.live_tracking_status == "IN_TRANSIT"
+    assert loaded.live_tracking_location == "Memphis, TN"
+    assert loaded.live_tracking_payload == {"code": "00000"}
+    assert [record.record_id for record in store.list_live_tracking_records()] == ["ship-1"]
 
 
 def test_gmail_message_store_filters_shipment_records_since(runtime_dir):

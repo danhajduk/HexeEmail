@@ -4,7 +4,13 @@ export function TrackedOrdersCard({
   title = "Tracked Orders",
   description = "Existing shipment and order records tracked by the local Gmail shipment reconciler.",
   emptyMessage = "No tracked order records are available yet.",
+  trackingIntegrations,
+  liveTrackingPending = "",
+  enableLiveTracking,
+  refreshLiveTracking,
 }) {
+  const track123 = trackingIntegrations?.track123 || {};
+  const track123Ready = Boolean(track123.enabled && track123.configured);
   return (
     <article className="card scheduled-tasks-card">
       <div className="card-header">
@@ -21,6 +27,7 @@ export function TrackedOrdersCard({
                 <th>Order Number</th>
                 <th>Tracking Number</th>
                 <th>Status</th>
+                <th>Live Tracking</th>
                 <th>Domain</th>
                 <th>Account</th>
                 <th>Last Seen</th>
@@ -40,6 +47,15 @@ export function TrackedOrdersCard({
                       {record.last_known_status || "unknown"}
                     </span>
                   </td>
+                  <td>
+                    <LiveTrackingCell
+                      record={record}
+                      track123Ready={track123Ready}
+                      liveTrackingPending={liveTrackingPending}
+                      enableLiveTracking={enableLiveTracking}
+                      refreshLiveTracking={refreshLiveTracking}
+                    />
+                  </td>
                   <td>{record.domain || "-"}</td>
                   <td>{record.account_id || "-"}</td>
                   <td>{formatScheduleTimestamp(record.last_seen_at)}</td>
@@ -54,5 +70,54 @@ export function TrackedOrdersCard({
         <div className="callout">{emptyMessage}</div>
       )}
     </article>
+  );
+}
+
+function LiveTrackingCell({
+  record,
+  track123Ready,
+  liveTrackingPending,
+  enableLiveTracking,
+  refreshLiveTracking,
+}) {
+  if (!record.tracking_number) {
+    return <span className="status-pill tone-neutral">no number</span>;
+  }
+  if (!track123Ready) {
+    return <span className="status-pill tone-warning">Track123 off</span>;
+  }
+  const actionKey = `${record.account_id}:${record.record_id}`;
+  const pending = liveTrackingPending === actionKey;
+  const status = record.live_tracking_error
+    ? "error"
+    : record.live_tracking_enabled
+      ? record.live_tracking_status || "enabled"
+      : "off";
+  return (
+    <div className="row compact-row">
+      <span className={`status-pill tone-${record.live_tracking_error ? "danger" : record.live_tracking_enabled ? "success" : "neutral"}`}>
+        {status}
+      </span>
+      {record.live_tracking_location ? <span className="muted">{record.live_tracking_location}</span> : null}
+      {record.live_tracking_enabled ? (
+        <button
+          type="button"
+          className="btn btn-ghost"
+          disabled={pending}
+          onClick={() => refreshLiveTracking?.(record)}
+        >
+          Refresh
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="btn btn-ghost"
+          disabled={pending}
+          onClick={() => enableLiveTracking?.(record)}
+        >
+          Track
+        </button>
+      )}
+    </div>
   );
 }

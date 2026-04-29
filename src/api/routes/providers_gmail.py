@@ -79,6 +79,20 @@ def build_providers_gmail_router(node_service: NodeService) -> APIRouter:
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    @router.post("/api/shipments/{account_id}/{record_id}/live-tracking/enable")
+    async def enable_shipment_live_tracking(account_id: str, record_id: str):
+        try:
+            return await node_service.enable_shipment_live_tracking(account_id=account_id, record_id=record_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @router.post("/api/shipments/{account_id}/{record_id}/live-tracking/refresh")
+    async def refresh_shipment_live_tracking(account_id: str, record_id: str):
+        try:
+            return await node_service.refresh_shipment_live_tracking(account_id=account_id, record_id=record_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     @router.post("/api/gmail/reputation/refresh")
     async def gmail_sender_reputation_refresh(account_id: str = "primary"):
         try:

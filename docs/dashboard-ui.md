@@ -412,11 +412,18 @@ Data shown:
 - order number
 - tracking number
 - status
+- live tracking state, provider status, and location when Track123 is configured
 - domain
 - account
 - last seen
 - status updated
 - updated
+
+Live tracking:
+
+- set `TRACK123_ENABLED=true` and `TRACK123_API_SECRET` in the local environment to enable Track123 controls
+- `Track` registers the shipment through `POST /gateway/open-api/tk/v2/track/import`
+- `Refresh` queries Track123 and writes the latest live status/location back to the shipment record
 
 ## Review-needed outputs dashboard section
 

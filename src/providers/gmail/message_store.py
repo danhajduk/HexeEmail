@@ -107,6 +107,13 @@ class GmailMessageStore:
                 ON gmail_shipment_records(account_id, order_number)
                 """
             )
+            self._ensure_column(connection, "gmail_shipment_records", "live_tracking_enabled", "INTEGER NOT NULL DEFAULT 0")
+            self._ensure_column(connection, "gmail_shipment_records", "live_tracking_provider", "TEXT")
+            self._ensure_column(connection, "gmail_shipment_records", "live_tracking_status", "TEXT")
+            self._ensure_column(connection, "gmail_shipment_records", "live_tracking_location", "TEXT")
+            self._ensure_column(connection, "gmail_shipment_records", "live_tracking_checked_at", "TEXT")
+            self._ensure_column(connection, "gmail_shipment_records", "live_tracking_error", "TEXT")
+            self._ensure_column(connection, "gmail_shipment_records", "live_tracking_payload", "TEXT")
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS gmail_spamhaus_checks (
@@ -830,8 +837,15 @@ class GmailMessageStore:
                     last_known_status,
                     last_seen_at,
                     status_updated_at,
-                    updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    updated_at,
+                    live_tracking_enabled,
+                    live_tracking_provider,
+                    live_tracking_status,
+                    live_tracking_location,
+                    live_tracking_checked_at,
+                    live_tracking_error,
+                    live_tracking_payload
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(account_id, record_id) DO UPDATE SET
                     seller=excluded.seller,
                     carrier=excluded.carrier,
@@ -841,7 +855,14 @@ class GmailMessageStore:
                     last_known_status=excluded.last_known_status,
                     last_seen_at=excluded.last_seen_at,
                     status_updated_at=excluded.status_updated_at,
-                    updated_at=excluded.updated_at
+                    updated_at=excluded.updated_at,
+                    live_tracking_enabled=excluded.live_tracking_enabled,
+                    live_tracking_provider=excluded.live_tracking_provider,
+                    live_tracking_status=excluded.live_tracking_status,
+                    live_tracking_location=excluded.live_tracking_location,
+                    live_tracking_checked_at=excluded.live_tracking_checked_at,
+                    live_tracking_error=excluded.live_tracking_error,
+                    live_tracking_payload=excluded.live_tracking_payload
                 """,
                 (
                     persisted.account_id,
@@ -855,6 +876,13 @@ class GmailMessageStore:
                     persisted.last_seen_at.isoformat() if persisted.last_seen_at else None,
                     persisted.status_updated_at.isoformat() if persisted.status_updated_at else None,
                     updated_at.isoformat(),
+                    1 if persisted.live_tracking_enabled else 0,
+                    persisted.live_tracking_provider,
+                    persisted.live_tracking_status,
+                    persisted.live_tracking_location,
+                    persisted.live_tracking_checked_at.isoformat() if persisted.live_tracking_checked_at else None,
+                    persisted.live_tracking_error,
+                    json.dumps(persisted.live_tracking_payload) if persisted.live_tracking_payload is not None else None,
                 ),
             )
             connection.commit()
@@ -875,7 +903,14 @@ class GmailMessageStore:
                     last_known_status,
                     last_seen_at,
                     status_updated_at,
-                    updated_at
+                    updated_at,
+                    live_tracking_enabled,
+                    live_tracking_provider,
+                    live_tracking_status,
+                    live_tracking_location,
+                    live_tracking_checked_at,
+                    live_tracking_error,
+                    live_tracking_payload
                 FROM gmail_shipment_records
                 WHERE account_id = ?
                 ORDER BY updated_at DESC, record_id ASC
@@ -906,7 +941,14 @@ class GmailMessageStore:
                     last_known_status,
                     last_seen_at,
                     status_updated_at,
-                    updated_at
+                    updated_at,
+                    live_tracking_enabled,
+                    live_tracking_provider,
+                    live_tracking_status,
+                    live_tracking_location,
+                    live_tracking_checked_at,
+                    live_tracking_error,
+                    live_tracking_payload
                 FROM gmail_shipment_records
                 {where_clause}
                 ORDER BY
@@ -934,7 +976,14 @@ class GmailMessageStore:
                     last_known_status,
                     last_seen_at,
                     status_updated_at,
-                    updated_at
+                    updated_at,
+                    live_tracking_enabled,
+                    live_tracking_provider,
+                    live_tracking_status,
+                    live_tracking_location,
+                    live_tracking_checked_at,
+                    live_tracking_error,
+                    live_tracking_payload
                 FROM gmail_shipment_records
                 WHERE account_id = ?
                   AND record_id = ?
@@ -943,6 +992,43 @@ class GmailMessageStore:
                 (account_id, record_id),
             ).fetchone()
         return self._row_to_shipment_record(row) if row is not None else None
+
+    def list_live_tracking_records(self, *, limit: int = 100) -> list[GmailShipmentRecord]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    account_id,
+                    record_id,
+                    seller,
+                    carrier,
+                    order_number,
+                    tracking_number,
+                    domain,
+                    last_known_status,
+                    last_seen_at,
+                    status_updated_at,
+                    updated_at,
+                    live_tracking_enabled,
+                    live_tracking_provider,
+                    live_tracking_status,
+                    live_tracking_location,
+                    live_tracking_checked_at,
+                    live_tracking_error,
+                    live_tracking_payload
+                FROM gmail_shipment_records
+                WHERE live_tracking_enabled = 1
+                  AND tracking_number IS NOT NULL
+                  AND tracking_number != ''
+                ORDER BY
+                    COALESCE(live_tracking_checked_at, status_updated_at, last_seen_at, updated_at) ASC,
+                    updated_at ASC,
+                    record_id ASC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        return [self._row_to_shipment_record(row) for row in rows]
 
     def get_runtime_setting(
         self,
@@ -1751,6 +1837,14 @@ class GmailMessageStore:
         )
 
     def _row_to_shipment_record(self, row: sqlite3.Row) -> GmailShipmentRecord:
+        live_tracking_payload = None
+        if "live_tracking_payload" in row.keys() and row["live_tracking_payload"]:
+            try:
+                parsed_payload = json.loads(row["live_tracking_payload"])
+                if isinstance(parsed_payload, dict):
+                    live_tracking_payload = parsed_payload
+            except (TypeError, json.JSONDecodeError):
+                live_tracking_payload = None
         return GmailShipmentRecord(
             account_id=row["account_id"],
             record_id=row["record_id"],
@@ -1763,6 +1857,17 @@ class GmailMessageStore:
             last_seen_at=datetime.fromisoformat(row["last_seen_at"]) if row["last_seen_at"] else None,
             status_updated_at=datetime.fromisoformat(row["status_updated_at"]) if row["status_updated_at"] else None,
             updated_at=datetime.fromisoformat(row["updated_at"]) if row["updated_at"] else None,
+            live_tracking_enabled=bool(row["live_tracking_enabled"]) if "live_tracking_enabled" in row.keys() else False,
+            live_tracking_provider=row["live_tracking_provider"] if "live_tracking_provider" in row.keys() else None,
+            live_tracking_status=row["live_tracking_status"] if "live_tracking_status" in row.keys() else None,
+            live_tracking_location=row["live_tracking_location"] if "live_tracking_location" in row.keys() else None,
+            live_tracking_checked_at=(
+                datetime.fromisoformat(row["live_tracking_checked_at"])
+                if "live_tracking_checked_at" in row.keys() and row["live_tracking_checked_at"]
+                else None
+            ),
+            live_tracking_error=row["live_tracking_error"] if "live_tracking_error" in row.keys() else None,
+            live_tracking_payload=live_tracking_payload,
         )
 
     def _six_month_cutoff(self, now: datetime) -> datetime:

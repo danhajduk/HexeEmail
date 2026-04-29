@@ -45,6 +45,9 @@ class AppConfig(BaseSettings):
     gmail_fetch_poll_on_startup: bool = Field(default=True, alias="GMAIL_FETCH_POLL_ON_STARTUP")
     gmail_local_classification_threshold: float = Field(default=0.6, alias="GMAIL_LOCAL_CLASSIFICATION_THRESHOLD")
     gmail_training_bootstrap_threshold: float = Field(default=3.0, alias="GMAIL_TRAINING_BOOTSTRAP_THRESHOLD")
+    track123_enabled: bool = Field(default=False, alias="TRACK123_ENABLED")
+    track123_api_base_url: str = Field(default="https://api.track123.com", alias="TRACK123_API_BASE_URL")
+    track123_api_secret: str | None = Field(default=None, alias="TRACK123_API_SECRET")
     node_status_stale_after_s: int = Field(default=300, alias="SYNTHIA_NODE_STATUS_STALE_AFTER_S")
     node_status_inactive_after_s: int = Field(default=1800, alias="SYNTHIA_NODE_STATUS_INACTIVE_AFTER_S")
     providers: ProviderConfigs = Field(default_factory=ProviderConfigs)
@@ -81,6 +84,20 @@ class AppConfig(BaseSettings):
     @classmethod
     def normalize_prompt_definition_dir(cls, value: Path) -> Path:
         return value
+
+    @field_validator("track123_api_base_url")
+    @classmethod
+    def normalize_track123_api_base_url(cls, value: str) -> str:
+        normalized = str(value or "").strip().rstrip("/")
+        return normalized or "https://api.track123.com"
+
+    @field_validator("track123_api_secret")
+    @classmethod
+    def normalize_track123_api_secret(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        stripped = value.strip()
+        return stripped or None
 
     @property
     def state_file(self) -> Path:
