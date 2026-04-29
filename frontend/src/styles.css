@@ -258,6 +258,14 @@
   gap: 18px;
 }
 
+.action-required-detail-card {
+  order: 1;
+}
+
+.action-required-list-card {
+  order: 2;
+}
+
 .action-required-header {
   flex-direction: row;
   justify-content: space-between;
