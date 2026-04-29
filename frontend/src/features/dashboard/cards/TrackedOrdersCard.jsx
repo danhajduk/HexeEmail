@@ -27,8 +27,7 @@ export function TrackedOrdersCard({
                 <th>Carrier</th>
                 <th>Order Number</th>
                 <th>Tracking Number</th>
-                <th>Status</th>
-                <th>Live Tracking</th>
+                <th>Tracking</th>
                 <th>Account</th>
                 <th>Updated</th>
               </tr>
@@ -41,17 +40,13 @@ export function TrackedOrdersCard({
                   <td><code>{record.order_number || "-"}</code></td>
                   <td><code>{record.tracking_number || "-"}</code></td>
                   <td>
-                    <span className={`status-pill tone-${record.last_known_status ? "success" : "neutral"}`}>
-                      {record.last_known_status || "unknown"}
-                    </span>
-                  </td>
-                  <td>
                     <LiveTrackingCell
                       record={record}
                       track123Ready={track123Ready}
                       liveTrackingPending={liveTrackingPending}
                       enableLiveTracking={enableLiveTracking}
                       refreshLiveTracking={refreshLiveTracking}
+                      formatScheduleTimestamp={formatScheduleTimestamp}
                     />
                   </td>
                   <td>{record.account_id || "-"}</td>
@@ -74,48 +69,81 @@ function LiveTrackingCell({
   liveTrackingPending,
   enableLiveTracking,
   refreshLiveTracking,
+  formatScheduleTimestamp,
 }) {
-  if (!record.tracking_number) {
-    return <span className="status-pill tone-neutral">no number</span>;
-  }
-  if (!track123Ready) {
-    return <span className="status-pill tone-warning">Track123 off</span>;
-  }
   const actionKey = `${record.account_id}:${record.record_id}`;
   const pending = liveTrackingPending === actionKey;
-  const status = record.live_tracking_error
-    ? "error"
-    : record.live_tracking_enabled
-      ? record.live_tracking_status || "enabled"
-      : "off";
+  const status = liveTrackingLabel(record, track123Ready);
   const tone = liveTrackingTone(record);
+  const events = Array.isArray(record.live_tracking_events) ? record.live_tracking_events.slice(0, 4) : [];
   return (
-    <div className="row compact-row">
-      <span className={`status-pill tone-${tone}`}>
-        {status}
-      </span>
-      {record.live_tracking_location ? <span className="muted">{record.live_tracking_location}</span> : null}
-      {record.live_tracking_enabled ? (
-        <button
-          type="button"
-          className="btn btn-ghost"
-          disabled={pending}
-          onClick={() => refreshLiveTracking?.(record)}
-        >
-          Refresh
-        </button>
-      ) : (
-        <button
-          type="button"
-          className="btn btn-ghost"
-          disabled={pending}
-          onClick={() => enableLiveTracking?.(record)}
-        >
-          Track
-        </button>
-      )}
+    <div className="tracking-cell">
+      <div className="row compact-row">
+        <span className={`status-pill tone-${tone}`}>
+          {status}
+        </span>
+        {record.live_tracking_location ? <span className="muted">{record.live_tracking_location}</span> : null}
+        {record.tracking_number && track123Ready ? (
+          record.live_tracking_enabled ? (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={pending}
+              onClick={() => refreshLiveTracking?.(record)}
+            >
+              Refresh
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={pending}
+              onClick={() => enableLiveTracking?.(record)}
+            >
+              Track
+            </button>
+          )
+        ) : null}
+      </div>
+      {events.length ? (
+        <ol className="tracking-events">
+          {events.map((event, index) => (
+            <li key={`${event.time || "event"}:${event.detail || index}`}>
+              <span className="tracking-event-detail">{event.detail || event.status_code || "Tracking update"}</span>
+              <span className="muted tiny">
+                {[event.location, formatTrackingEventTime(event.time, formatScheduleTimestamp)].filter(Boolean).join(" · ")}
+              </span>
+            </li>
+          ))}
+        </ol>
+      ) : record.last_known_status ? (
+        <div className="muted tiny">{record.last_known_status}</div>
+      ) : null}
     </div>
   );
+}
+
+function formatTrackingEventTime(value, formatScheduleTimestamp) {
+  if (!value) {
+    return "";
+  }
+  return formatScheduleTimestamp?.(value) || value;
+}
+
+function liveTrackingLabel(record, track123Ready) {
+  if (!record.tracking_number) {
+    return "no number";
+  }
+  if (!track123Ready) {
+    return record.last_known_status || "Track123 off";
+  }
+  if (record.live_tracking_error) {
+    return "error";
+  }
+  if (record.live_tracking_enabled) {
+    return record.live_tracking_status || record.last_known_status || "enabled";
+  }
+  return record.last_known_status || "off";
 }
 
 function liveTrackingTone(record) {

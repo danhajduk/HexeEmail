@@ -494,6 +494,7 @@ class NodeService:
                 record.live_tracking_checked_at.isoformat() if record.live_tracking_checked_at is not None else None
             ),
             "live_tracking_error": record.live_tracking_error,
+            "live_tracking_events": Track123Client.tracking_events(record.live_tracking_payload),
         }
 
     def _tracking_integrations_snapshot(self) -> dict[str, object]:

@@ -330,6 +330,28 @@
   padding: 6px 10px;
 }
 
+.tracking-cell {
+  display: flex;
+  min-width: 280px;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tracking-events {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.tracking-events li {
+  padding-left: 2px;
+}
+
+.tracking-event-detail {
+  display: block;
+}
+
 .gmail-fetch-row .btn {
   flex: 1 1 0;
 }

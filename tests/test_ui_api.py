@@ -2476,7 +2476,29 @@ async def test_shipment_live_tracking_enable_and_refresh_use_track123(config, co
                 status_code="DELIVERED",
                 location="Toronto, ON, CA",
                 tracking_time="2026-04-29 11:30:00",
-                payload={"code": "00000", "data": {"status": "Delivered"}},
+                payload={
+                    "code": "00000",
+                    "data": {
+                        "accepted": {
+                            "content": [
+                                {
+                                    "trackNo": tracking_number,
+                                    "transitStatus": "DELIVERED",
+                                    "localLogisticsInfo": {
+                                        "trackingDetails": [
+                                            {
+                                                "address": "Toronto, ON, CA",
+                                                "eventTime": "2026-04-29 11:30:00",
+                                                "eventDetail": "Delivered",
+                                                "transitSubStatus": "DELIVERED_01",
+                                            }
+                                        ]
+                                    },
+                                }
+                            ]
+                        }
+                    },
+                },
             )
 
         async def close(self):
@@ -2500,9 +2522,12 @@ async def test_shipment_live_tracking_enable_and_refresh_use_track123(config, co
     assert refreshed["live_tracking_provider"] == "track123"
     assert refreshed["live_tracking_status"] == "Delivered"
     assert refreshed["live_tracking_location"] == "Toronto, ON, CA"
+    assert refreshed["live_tracking_events"][0]["detail"] == "Delivered"
+    assert refreshed["live_tracking_events"][0]["location"] == "Toronto, ON, CA"
     body = bootstrap_response.json()
     assert body["tracking_integrations"]["track123"]["configured"] is True
     assert body["tracked_orders"][0]["live_tracking_status"] == "Delivered"
+    assert body["tracked_orders"][0]["live_tracking_events"][0]["detail"] == "Delivered"
 
 
 @pytest.mark.asyncio

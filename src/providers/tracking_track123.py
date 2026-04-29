@@ -54,7 +54,7 @@ class Track123Client:
 
     async def query_tracking(self, *, tracking_number: str, courier_code: str | None = None) -> Track123TrackingUpdate:
         payload = await self._post_json(
-            "/gateway/open-api/tk/v2/track/query",
+            "/gateway/open-api/tk/v2.1/track/query",
             {"trackNos": [tracking_number]},
             operation="track123_query",
         )
@@ -163,7 +163,7 @@ class Track123Client:
         location = cls._first_text(
             event,
             record,
-            keys=("location", "eventLocation", "trackingLocation", "checkpointLocation", "currentLocation"),
+            keys=("location", "address", "eventLocation", "trackingLocation", "checkpointLocation", "currentLocation"),
         )
         tracking_time = cls._first_text(
             event,
@@ -243,7 +243,15 @@ class Track123Client:
 
     @classmethod
     def _latest_event(cls, record: dict[str, object]) -> dict[str, object]:
-        for key in ("trackInfo", "trackingDetails", "trackingItems", "events", "originInfo", "transitInfo"):
+        for key in (
+            "trackInfo",
+            "trackingDetails",
+            "trackingItems",
+            "events",
+            "originInfo",
+            "transitInfo",
+            "localLogisticsInfo",
+        ):
             value = record.get(key)
             if isinstance(value, list):
                 first = next((item for item in value if isinstance(item, dict)), None)
@@ -254,6 +262,53 @@ class Track123Client:
                 if nested:
                     return nested
         return {}
+
+    @classmethod
+    def tracking_events(cls, payload: dict[str, object] | None, *, limit: int = 8) -> list[dict[str, str | None]]:
+        if not isinstance(payload, dict):
+            return []
+        record = cls._first_tracking_record(payload)
+        events = cls._tracking_event_records(record)
+        normalized = [cls._tracking_event_snapshot(event) for event in events]
+        return [event for event in normalized if any(event.values())][:limit]
+
+    @classmethod
+    def _tracking_event_records(cls, record: dict[str, object]) -> list[dict[str, object]]:
+        for key in ("trackInfo", "trackingDetails", "trackingItems", "events"):
+            value = record.get(key)
+            if isinstance(value, list):
+                return [item for item in value if isinstance(item, dict)]
+        local = record.get("localLogisticsInfo")
+        if isinstance(local, dict):
+            value = local.get("trackingDetails")
+            if isinstance(value, list):
+                return [item for item in value if isinstance(item, dict)]
+        for key in ("originInfo", "transitInfo"):
+            value = record.get(key)
+            if isinstance(value, dict):
+                nested = cls._tracking_event_records(value)
+                if nested:
+                    return nested
+        return []
+
+    @classmethod
+    def _tracking_event_snapshot(cls, event: dict[str, object]) -> dict[str, str | None]:
+        return {
+            "time": cls._first_text(
+                event,
+                keys=("trackingTime", "eventTime", "time", "lastTrackingTime", "updateTime", "deliveredTime"),
+            ),
+            "time_utc": cls._first_text(event, keys=("eventTimeZeroUTC", "eventTimeUTC", "timeUTC")),
+            "location": cls._first_text(
+                event,
+                keys=("location", "address", "eventLocation", "trackingLocation", "checkpointLocation", "currentLocation"),
+            ),
+            "detail": cls._first_text(
+                event,
+                keys=("trackingDetail", "eventDetail", "trackingInfo", "description", "status"),
+            ),
+            "status_code": cls._first_text(event, keys=("transitSubStatus", "transitStatus", "trackingStatus", "status")),
+        }
 
     @staticmethod
     def _carrier(record: dict[str, object]) -> str | None:

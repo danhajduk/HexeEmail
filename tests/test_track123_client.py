@@ -76,6 +76,16 @@ async def test_track123_client_retries_a0706_rate_limit(monkeypatch):
                             {
                                 "trackNo": "123123122222",
                                 "transitStatus": "IN_TRANSIT",
+                                "localLogisticsInfo": {
+                                    "trackingDetails": [
+                                        {
+                                            "address": "MEMPHIS, TN, US",
+                                            "eventTime": "2026-04-29 05:39:00",
+                                            "eventDetail": "Departed FedEx hub",
+                                            "transitSubStatus": "IN_TRANSIT_01",
+                                        }
+                                    ]
+                                },
                             }
                         ]
                     }
@@ -131,6 +141,16 @@ async def test_track123_client_queries_tracking_with_user_supplied_shape():
                             {
                                 "trackNo": "123123122222",
                                 "transitStatus": "IN_TRANSIT",
+                                "localLogisticsInfo": {
+                                    "trackingDetails": [
+                                        {
+                                            "address": "MEMPHIS, TN, US",
+                                            "eventTime": "2026-04-29 05:39:00",
+                                            "eventDetail": "Departed FedEx hub",
+                                            "transitSubStatus": "IN_TRANSIT_01",
+                                        }
+                                    ]
+                                },
                             }
                         ]
                     }
@@ -150,7 +170,9 @@ async def test_track123_client_queries_tracking_with_user_supplied_shape():
     assert update.tracking_number == "123123122222"
     assert update.status_code == "IN_TRANSIT"
     assert update.status == "in transit"
-    assert requests[0].url.path == "/gateway/open-api/tk/v2/track/query"
+    assert update.location == "MEMPHIS, TN, US"
+    assert Track123Client.tracking_events(update.payload)[0]["detail"] == "Departed FedEx hub"
+    assert requests[0].url.path == "/gateway/open-api/tk/v2.1/track/query"
     assert requests[0].headers["Track123-Api-Secret"] == "secret-test"
     assert requests[0].read() == b'{"trackNos":["123123122222"]}'
 
@@ -166,14 +188,16 @@ def test_track123_client_parses_tracking_update():
                             "trackNo": "398891812948",
                             "transitStatus": "DELIVERED",
                             "lastTrackingTime": "2026-02-26 10:41:14",
-                            "localLogisticsInfo": {"courierCode": "fedex"},
-                            "trackInfo": [
-                                {
-                                    "trackingDetail": "Delivered, Left in patio/carport.",
-                                    "trackingTime": "2026-02-26 10:41:14",
-                                    "location": "Lafayette, LA, US",
-                                }
-                            ],
+                            "localLogisticsInfo": {
+                                "courierCode": "fedex",
+                                "trackingDetails": [
+                                    {
+                                        "eventDetail": "Delivered, Left in patio/carport.",
+                                        "eventTime": "2026-02-26 10:41:14",
+                                        "address": "Lafayette, LA, US",
+                                    }
+                                ],
+                            },
                         }
                     ]
                 }
@@ -188,3 +212,12 @@ def test_track123_client_parses_tracking_update():
     assert update.status_code == "DELIVERED"
     assert update.status == "delivered"
     assert update.location == "Lafayette, LA, US"
+    assert Track123Client.tracking_events(update.payload) == [
+        {
+            "time": "2026-02-26 10:41:14",
+            "time_utc": None,
+            "location": "Lafayette, LA, US",
+            "detail": "Delivered, Left in patio/carport.",
+            "status_code": None,
+        }
+    ]
