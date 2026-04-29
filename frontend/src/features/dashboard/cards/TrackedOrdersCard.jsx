@@ -93,9 +93,10 @@ function LiveTrackingCell({
     : record.live_tracking_enabled
       ? record.live_tracking_status || "enabled"
       : "off";
+  const tone = liveTrackingTone(record);
   return (
     <div className="row compact-row">
-      <span className={`status-pill tone-${record.live_tracking_error ? "danger" : record.live_tracking_enabled ? "success" : "neutral"}`}>
+      <span className={`status-pill tone-${tone}`}>
         {status}
       </span>
       {record.live_tracking_location ? <span className="muted">{record.live_tracking_location}</span> : null}
@@ -120,4 +121,21 @@ function LiveTrackingCell({
       )}
     </div>
   );
+}
+
+function liveTrackingTone(record) {
+  if (record.live_tracking_error) {
+    return "danger";
+  }
+  const status = String(record.live_tracking_status || "").toLowerCase();
+  if (["delivery failed", "attention needed"].includes(status)) {
+    return "danger";
+  }
+  if (["no record", "expired"].includes(status)) {
+    return "warning";
+  }
+  if (["delivered", "in transit", "out for delivery"].includes(status)) {
+    return "success";
+  }
+  return record.live_tracking_enabled ? "neutral" : "neutral";
 }

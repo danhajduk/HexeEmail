@@ -2445,6 +2445,7 @@ async def test_shipment_live_tracking_enable_and_refresh_use_track123(config, co
                 tracking_number=tracking_number,
                 carrier=courier_code,
                 status="Delivered",
+                status_code="DELIVERED",
                 location="Toronto, ON, CA",
                 tracking_time="2026-04-29 11:30:00",
                 payload={"code": "00000", "data": {"status": "Delivered"}},

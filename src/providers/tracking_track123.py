@@ -14,6 +14,7 @@ class Track123TrackingUpdate:
     tracking_number: str
     carrier: str | None
     status: str | None
+    status_code: str | None
     location: str | None
     tracking_time: str | None
     payload: dict[str, object]
@@ -87,17 +88,18 @@ class Track123Client:
     ) -> Track123TrackingUpdate:
         record = cls._first_tracking_record(payload)
         event = cls._latest_event(record)
-        status = cls._first_text(
-            event,
+        status_code = cls._status_code(record, event)
+        status = cls.status_label(status_code) or cls._first_text(
             record,
+            event,
             keys=(
+                "transitStatus",
+                "trackingStatus",
+                "status",
                 "trackingDetail",
                 "trackingInfo",
                 "eventDetail",
                 "description",
-                "transitStatus",
-                "trackingStatus",
-                "status",
             ),
         )
         location = cls._first_text(
@@ -116,10 +118,45 @@ class Track123Client:
             tracking_number=tracking_number,
             carrier=carrier,
             status=status,
+            status_code=status_code,
             location=location,
             tracking_time=tracking_time,
             payload=payload,
         )
+
+    @staticmethod
+    def status_label(status_code: str | None) -> str | None:
+        labels = {
+            "INIT": "registered",
+            "NO_RECORD": "no record",
+            "INFO_RECEIVED": "info received",
+            "IN_TRANSIT": "in transit",
+            "WAITING_DELIVERY": "out for delivery",
+            "DELIVERY_FAILED": "delivery failed",
+            "ABNORMAL": "attention needed",
+            "DELIVERED": "delivered",
+            "EXPIRED": "expired",
+        }
+        return labels.get(str(status_code or "").strip().upper())
+
+    @classmethod
+    def _status_code(cls, record: dict[str, object], event: dict[str, object]) -> str | None:
+        for source in (record, event):
+            for key in ("transitStatus", "trackingStatus", "status"):
+                value = str(source.get(key) or "").strip().upper()
+                if value in {
+                    "INIT",
+                    "NO_RECORD",
+                    "INFO_RECEIVED",
+                    "IN_TRANSIT",
+                    "WAITING_DELIVERY",
+                    "DELIVERY_FAILED",
+                    "ABNORMAL",
+                    "DELIVERED",
+                    "EXPIRED",
+                }:
+                    return value
+        return None
 
     @classmethod
     def _first_tracking_record(cls, payload: dict[str, object]) -> dict[str, object]:

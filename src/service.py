@@ -618,7 +618,11 @@ class NodeService:
                 "live_tracking_location": update.location or record.live_tracking_location,
                 "live_tracking_checked_at": checked_at,
                 "live_tracking_error": None,
-                "live_tracking_payload": update.payload,
+                "live_tracking_payload": {
+                    **update.payload,
+                    "normalized_status_code": update.status_code,
+                    "normalized_status_label": update.status,
+                },
             }
         )
         gmail_adapter = self.provider_registry.get_provider("gmail")

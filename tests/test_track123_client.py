@@ -62,6 +62,8 @@ async def test_track123_client_queries_tracking_with_user_supplied_shape():
     await client.close()
 
     assert update.tracking_number == "123123122222"
+    assert update.status_code == "IN_TRANSIT"
+    assert update.status == "in transit"
     assert requests[0].url.path == "/gateway/open-api/tk/v2/track/query"
     assert requests[0].headers["Track123-Api-Secret"] == "secret-test"
     assert requests[0].read() == b'{"trackNos":["123123122222"]}'
@@ -97,5 +99,6 @@ def test_track123_client_parses_tracking_update():
 
     assert update.tracking_number == "398891812948"
     assert update.carrier == "fedex"
-    assert update.status == "Delivered, Left in patio/carport."
+    assert update.status_code == "DELIVERED"
+    assert update.status == "delivered"
     assert update.location == "Lafayette, LA, US"
