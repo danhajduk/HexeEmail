@@ -75,7 +75,7 @@ function LiveTrackingCell({
   const pending = liveTrackingPending === actionKey;
   const status = liveTrackingLabel(record, track123Ready);
   const tone = liveTrackingTone(record);
-  const events = Array.isArray(record.live_tracking_events) ? record.live_tracking_events.slice(0, 4) : [];
+  const latestEvent = Array.isArray(record.live_tracking_events) ? record.live_tracking_events[0] : null;
   return (
     <div className="tracking-cell">
       <div className="row compact-row">
@@ -105,17 +105,13 @@ function LiveTrackingCell({
           )
         ) : null}
       </div>
-      {events.length ? (
-        <ol className="tracking-events">
-          {events.map((event, index) => (
-            <li key={`${event.time || "event"}:${event.detail || index}`}>
-              <span className="tracking-event-detail">{event.detail || event.status_code || "Tracking update"}</span>
-              <span className="muted tiny">
-                {[event.location, formatTrackingEventTime(event.time, formatScheduleTimestamp)].filter(Boolean).join(" · ")}
-              </span>
-            </li>
-          ))}
-        </ol>
+      {latestEvent ? (
+        <div className="tracking-latest-event">
+          <span className="tracking-event-detail">{latestEvent.detail || latestEvent.status_code || "Tracking update"}</span>
+          <span className="muted tiny">
+            {[latestEvent.location, formatTrackingEventTime(latestEvent.time, formatScheduleTimestamp)].filter(Boolean).join(" · ")}
+          </span>
+        </div>
       ) : record.last_known_status ? (
         <div className="muted tiny">{record.last_known_status}</div>
       ) : null}

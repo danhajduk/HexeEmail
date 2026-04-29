@@ -337,15 +337,9 @@
   gap: 8px;
 }
 
-.tracking-events {
+.tracking-latest-event {
   display: grid;
-  gap: 6px;
-  margin: 0;
-  padding-left: 18px;
-}
-
-.tracking-events li {
-  padding-left: 2px;
+  gap: 2px;
 }
 
 .tracking-event-detail {
