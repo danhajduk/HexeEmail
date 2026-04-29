@@ -242,6 +242,7 @@ describe("dashboard feature sections", () => {
     expect(shipmentsHtml).toContain("Expected delivery: soon");
     expect(shipmentsHtml).toContain("in transit");
     expect(shipmentsHtml).not.toContain("Picked up");
+    expect(shipmentsHtml).not.toContain(">Track</button>");
     expect(shipmentsHtml).not.toContain("Refresh");
     expect(shipmentsHtml).not.toContain("Live Tracking");
     expect(shipmentsHtml).not.toContain("Seller");

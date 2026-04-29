@@ -7,8 +7,6 @@ export function TrackedOrdersSection({
   description,
   emptyMessage,
   trackingIntegrations,
-  liveTrackingPending,
-  enableLiveTracking,
   showSeller,
 }) {
   return (
@@ -20,8 +18,6 @@ export function TrackedOrdersSection({
         description={description}
         emptyMessage={emptyMessage}
         trackingIntegrations={trackingIntegrations}
-        liveTrackingPending={liveTrackingPending}
-        enableLiveTracking={enableLiveTracking}
         showSeller={showSeller}
       />
     </section>

@@ -658,7 +658,7 @@ class BackgroundTaskManager:
                 kind="provider_recurring_work",
                 owner="background_task_manager",
                 schedule_name="every_5_minutes",
-                detail="Refreshes Track123 live tracking status for all enabled shipment records.",
+                detail="Registers new shipment tracking numbers and refreshes Track123 live tracking status.",
                 enabled_resolver=lambda manager: bool(
                     manager.provider_work_allowed()
                     and manager.service.config.track123_enabled
@@ -855,7 +855,7 @@ class BackgroundTaskManager:
                 detail=str(
                     live_tracking_state.get("detail")
                     or (
-                        "Refreshes Track123 live tracking status for enabled shipment records."
+                        "Registers new shipment tracking numbers and refreshes Track123 live tracking status."
                         if live_tracking_ready
                         else "Waiting for trusted readiness and Track123 configuration."
                     )
@@ -1165,7 +1165,7 @@ class BackgroundTaskManager:
                 "shipment_live_tracking_refresh",
                 status="scheduled",
                 enabled=True,
-                detail="Shipment live tracking refresh loop is running.",
+                detail="Shipment live tracking registration and refresh loop is running.",
                 last_started_at=now.isoformat(),
                 next_run_at=self.schedule_template_next_run("every_5_minutes", now.astimezone()).isoformat(),
                 last_error=None,
@@ -1272,7 +1272,7 @@ class BackgroundTaskManager:
                 now = datetime.now().astimezone()
                 self.mark_task_failure(
                     "shipment_live_tracking_refresh",
-                    detail="Scheduled shipment live tracking refresh failed.",
+                    detail="Scheduled shipment live tracking registration and refresh failed.",
                     error=str(exc),
                     next_run_at=self.schedule_template_next_run("every_5_minutes", now).isoformat(),
                 )
@@ -1285,21 +1285,21 @@ class BackgroundTaskManager:
         if slot_key is None or current_task_state.get("last_slot_key") == slot_key:
             self.mark_task_idle(
                 "shipment_live_tracking_refresh",
-                detail="Waiting for the next 5-minute shipment tracking refresh slot.",
+                detail="Waiting for the next 5-minute shipment tracking registration and refresh slot.",
                 next_run_at=self.schedule_template_next_run("every_5_minutes", now).isoformat(),
             )
             return None
         if not self.provider_work_allowed():
             self.mark_task_idle(
                 "shipment_live_tracking_refresh",
-                detail="Shipment live tracking refresh is waiting for trusted operational readiness.",
+                detail="Shipment live tracking registration and refresh is waiting for trusted operational readiness.",
                 next_run_at=self.schedule_template_next_run("every_5_minutes", now).isoformat(),
             )
             return None
         if not self.service.config.track123_enabled or not self.service.config.track123_api_secret:
             self.mark_task_idle(
                 "shipment_live_tracking_refresh",
-                detail="Shipment live tracking refresh is waiting for Track123 configuration.",
+                detail="Shipment live tracking registration and refresh is waiting for Track123 configuration.",
                 next_run_at=self.schedule_template_next_run("every_5_minutes", now).isoformat(),
             )
             return None
@@ -1311,16 +1311,18 @@ class BackgroundTaskManager:
             return None
         self.mark_task_running(
             "shipment_live_tracking_refresh",
-            detail=f"Scheduled shipment live tracking refresh is running for 5-minute slot {slot_key}.",
+            detail=f"Scheduled shipment live tracking registration and refresh is running for 5-minute slot {slot_key}.",
             next_run_at=self.schedule_template_next_run("every_5_minutes", now).isoformat(),
         )
         LOGGER.info("Scheduled shipment live tracking refresh starting", extra={"event_data": {"slot_key": slot_key}})
         result = await self.service.refresh_all_shipment_live_tracking()
         detail = (
-            f"Scheduled shipment live tracking refreshed {result.get('refreshed', 0)} of "
-            f"{result.get('total', 0)} enabled record(s); failures={result.get('failed', 0)}."
+            f"Scheduled shipment live tracking registered {result.get('registered', 0)} of "
+            f"{result.get('registration_total', 0)} new record(s) and refreshed {result.get('refreshed', 0)} of "
+            f"{result.get('total', 0)} enabled record(s); failures="
+            f"{int(result.get('registration_failed', 0) or 0) + int(result.get('failed', 0) or 0)}."
         )
-        if result.get("failed"):
+        if result.get("failed") or result.get("registration_failed"):
             self.mark_task_failure(
                 "shipment_live_tracking_refresh",
                 detail=detail,

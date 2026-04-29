@@ -937,7 +937,6 @@ export function App() {
   const [serviceControlPending, setServiceControlPending] = useState("");
   const [serviceControlNotice, setServiceControlNotice] = useState("");
   const [serviceControlError, setServiceControlError] = useState("");
-  const [liveTrackingPending, setLiveTrackingPending] = useState("");
   const [uiUpdatedAt, setUiUpdatedAt] = useState(null);
   const [backendReachable, setBackendReachable] = useState(true);
   const [retryingBackend, setRetryingBackend] = useState(false);
@@ -2596,43 +2595,6 @@ export function App() {
     }
   }
 
-  async function runEnableShipmentLiveTracking(record) {
-    await runShipmentLiveTrackingAction(record, "enable");
-  }
-
-  async function runShipmentLiveTrackingAction(record, action) {
-    const accountId = record?.account_id;
-    const recordId = record?.record_id;
-    if (!accountId || !recordId) {
-      return;
-    }
-    const actionKey = `${accountId}:${recordId}`;
-    setLiveTrackingPending(actionKey);
-    setError("");
-    setNotice("");
-    try {
-      const payload = await fetchJson(
-        `/api/shipments/${encodeURIComponent(accountId)}/${encodeURIComponent(recordId)}/live-tracking/${action}`,
-        { method: "POST" },
-      );
-      const refreshed = await fetchJson("/api/node/bootstrap");
-      startTransition(() => {
-        setBootstrap(refreshed);
-        setProviderStatus(refreshed.status);
-        setUiUpdatedAt(new Date().toISOString());
-      });
-      setNotice(
-        payload.status === "error"
-          ? `Track123 returned an error for ${record.tracking_number || recordId}.`
-          : `Live tracking ${action === "enable" ? "enabled" : "refreshed"} for ${record.tracking_number || recordId}.`,
-      );
-    } catch (trackingError) {
-      setError(trackingError.message);
-    } finally {
-      setLiveTrackingPending("");
-    }
-  }
-
   async function restartRuntimeService(target) {
     const normalizedTarget = String(target || "").trim().toLowerCase();
     if (!normalizedTarget) {
@@ -3013,8 +2975,6 @@ export function App() {
                   trackedOrdersSorted={trackedOrdersSorted}
                   formatScheduleTimestamp={formatScheduleTimestamp}
                   trackingIntegrations={trackingIntegrations}
-                  liveTrackingPending={liveTrackingPending}
-                  enableLiveTracking={runEnableShipmentLiveTracking}
                 />
               ) : dashboardSection === "shipments" ? (
                 <TrackedOrdersSection
@@ -3024,8 +2984,6 @@ export function App() {
                   description="Shipment-focused records with carriers, tracking numbers, or delivery status from the local Gmail shipment reconciler."
                   emptyMessage="No tracked shipment records are available yet."
                   trackingIntegrations={trackingIntegrations}
-                  liveTrackingPending={liveTrackingPending}
-                  enableLiveTracking={runEnableShipmentLiveTracking}
                   showSeller={false}
                 />
               ) : dashboardSection === "review" ? (

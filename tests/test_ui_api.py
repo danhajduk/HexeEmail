@@ -2559,6 +2559,99 @@ async def test_shipment_live_tracking_enable_and_refresh_use_track123(config, co
 
 
 @pytest.mark.asyncio
+async def test_shipment_live_tracking_refresh_all_registers_new_tracking_numbers(config, core_client_factory, monkeypatch):
+    config.track123_enabled = True
+    config.track123_api_secret = "secret-test"
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    gmail_adapter = service.provider_registry.get_provider("gmail")
+    gmail_adapter.message_store.upsert_shipment_record(
+        GmailShipmentRecord(
+            account_id="primary",
+            record_id="tracking:771700723045",
+            carrier="fedex",
+            order_number="ORDER-123",
+            tracking_number="771700723045",
+            last_known_status="on the way",
+            last_seen_at=datetime(2026, 4, 29, 9, 0, 0).astimezone(),
+            status_updated_at=datetime(2026, 4, 29, 9, 0, 0).astimezone(),
+            updated_at=datetime(2026, 4, 29, 9, 0, 0).astimezone(),
+        )
+    )
+
+    class FakeTrack123Client:
+        def __init__(self):
+            self.imports = []
+            self.queries = []
+
+        async def list_couriers(self):
+            return {"code": "00000", "data": [{"courierCode": "fedex", "courierName": "FedEx"}]}
+
+        async def import_tracking(self, *, tracking_number, courier_code=None, order_number=None):
+            self.imports.append({"tracking_number": tracking_number, "courier_code": courier_code, "order_number": order_number})
+            return {"code": "00000", "data": [{"trackNo": tracking_number, "courierCode": courier_code, "orderNo": order_number}]}
+
+        async def query_tracking(self, *, tracking_number, courier_code=None):
+            from providers.tracking_track123 import Track123TrackingUpdate
+
+            self.queries.append({"tracking_number": tracking_number, "courier_code": courier_code})
+            return Track123TrackingUpdate(
+                tracking_number=tracking_number,
+                carrier=courier_code,
+                status="In Transit",
+                status_code="IN_TRANSIT",
+                location="Memphis, TN, US",
+                tracking_time="2026-04-29 05:39:00",
+                payload={
+                    "code": "00000",
+                    "data": {
+                        "accepted": {
+                            "content": [
+                                {
+                                    "trackNo": tracking_number,
+                                    "transitStatus": "IN_TRANSIT",
+                                    "localLogisticsInfo": {
+                                        "trackingDetails": [
+                                            {
+                                                "address": "Memphis, TN, US",
+                                                "eventTime": "2026-04-29 05:39:00",
+                                                "eventDetail": "Departed FedEx hub",
+                                                "transitSubStatus": "IN_TRANSIT_01",
+                                            }
+                                        ]
+                                    },
+                                }
+                            ]
+                        }
+                    },
+                },
+            )
+
+        async def close(self):
+            return None
+
+    fake_track123_client = FakeTrack123Client()
+    monkeypatch.setattr(service, "_track123_client", lambda: fake_track123_client)
+
+    result = await service.refresh_all_shipment_live_tracking()
+    refreshed = gmail_adapter.message_store.get_shipment_record("primary", "tracking:771700723045")
+
+    await service.stop()
+
+    assert result["status"] == "ok"
+    assert result["registered"] == 1
+    assert result["registration_total"] == 1
+    assert result["refreshed"] == 1
+    assert fake_track123_client.imports == [
+        {"tracking_number": "771700723045", "courier_code": "fedex", "order_number": "ORDER-123"}
+    ]
+    assert fake_track123_client.queries == [{"tracking_number": "771700723045", "courier_code": "fedex"}]
+    assert refreshed is not None
+    assert refreshed.live_tracking_enabled is True
+    assert refreshed.live_tracking_status == "In Transit"
+
+
+@pytest.mark.asyncio
 async def test_shipment_live_tracking_enable_rejects_unknown_track123_courier(config, core_client_factory, monkeypatch):
     config.track123_enabled = True
     config.track123_api_secret = "secret-test"

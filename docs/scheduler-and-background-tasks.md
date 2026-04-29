@@ -173,7 +173,8 @@ The Gmail fetch scheduler currently owns three recurring windows:
   - current local 5-minute bucket ISO timestamp with second and microsecond zeroed
 - Runtime behavior:
   - calls `NodeService.refresh_all_shipment_live_tracking()`
-  - refreshes all shipment records that already have live tracking enabled and a tracking number
+  - automatically registers recent shipment records that have a tracking number but are not live-tracked yet
+  - refreshes all shipment records that have live tracking enabled and a tracking number
 - Operator visibility:
   - surfaced in scheduled task snapshot output as `shipment_live_tracking_refresh`
 

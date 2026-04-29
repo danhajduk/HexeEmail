@@ -411,7 +411,7 @@ Orders data shown:
 - carrier
 - order number
 - tracking number
-- tracking status, Track123 controls, expected delivery time, and latest tracking event
+- tracking status, expected delivery time, and latest tracking event
 - account
 - updated
 
@@ -420,17 +420,17 @@ Shipments data shown:
 - carrier
 - order number
 - tracking number
-- tracking status, Track123 controls, expected delivery time, and latest tracking event
+- tracking status, expected delivery time, and latest tracking event
 - account
 - updated
 
 Live tracking:
 
-- set `TRACK123_ENABLED=true` and `TRACK123_API_SECRET` in the local environment to enable Track123 controls
+- set `TRACK123_ENABLED=true` and `TRACK123_API_SECRET` in the local environment to enable Track123 live tracking
 - `GET /api/tracking/track123/couriers` proxies the Track123 courier list from `/gateway/open-api/tk/v2.1/courier/list`
-- `Track` validates the mapped courier code against Track123's courier list, then registers the shipment through `POST /gateway/open-api/tk/v2/track/import`
+- `Shipment Live Tracking Refresh` validates mapped courier codes against Track123's courier list, then automatically registers untracked shipment numbers through `POST /gateway/open-api/tk/v2/track/import`
 - order-linked shipments include `orderNo` in the Track123 registration payload
-- `Shipment Live Tracking Refresh` runs every 5 minutes and queries Track123 through `POST /gateway/open-api/tk/v2.1/track/query` for all enabled live-tracking shipment records
+- the same task runs every 5 minutes and queries Track123 through `POST /gateway/open-api/tk/v2.1/track/query` for all enabled live-tracking shipment records
 - Track123 requests are throttled per endpoint and briefly retried when Track123 returns `A0706` or HTTP `429`
 
 ## Review-needed outputs dashboard section

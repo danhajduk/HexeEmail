@@ -573,6 +573,33 @@ class NodeService:
     async def refresh_all_shipment_live_tracking(self, *, limit: int = 100) -> dict[str, object]:
         self._ensure_track123_configured()
         gmail_adapter = self.provider_registry.get_provider("gmail")
+        registration_candidates = [
+            record
+            for record in gmail_adapter.message_store.list_all_shipment_records(
+                limit=limit,
+                since=self._tracked_orders_cutoff(datetime.now().astimezone()),
+            )
+            if record.tracking_number and not record.live_tracking_enabled
+        ]
+        registered = 0
+        registration_failed = 0
+        registration_results: list[dict[str, object]] = []
+        for record in registration_candidates:
+            result = await self.enable_shipment_live_tracking(account_id=record.account_id, record_id=record.record_id)
+            registration_results.append(
+                {
+                    "account_id": record.account_id,
+                    "record_id": record.record_id,
+                    "tracking_number": record.tracking_number,
+                    "order_number": record.order_number,
+                    "status": result.get("status"),
+                    "detail": result.get("detail"),
+                }
+            )
+            if result.get("status") == "error":
+                registration_failed += 1
+            else:
+                registered += 1
         records = gmail_adapter.message_store.list_live_tracking_records(limit=limit)
         refreshed = 0
         failed = 0
@@ -593,10 +620,14 @@ class NodeService:
             else:
                 refreshed += 1
         return {
-            "status": "ok" if failed == 0 else "partial",
+            "status": "ok" if failed == 0 and registration_failed == 0 else "partial",
+            "registered": registered,
+            "registration_failed": registration_failed,
+            "registration_total": len(registration_candidates),
             "refreshed": refreshed,
             "failed": failed,
             "total": len(records),
+            "registration_results": registration_results,
             "results": results,
         }
 

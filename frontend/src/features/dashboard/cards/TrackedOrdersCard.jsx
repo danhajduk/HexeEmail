@@ -5,8 +5,6 @@ export function TrackedOrdersCard({
   description = "Existing shipment and order records tracked by the local Gmail shipment reconciler.",
   emptyMessage = "No tracked order records are available yet.",
   trackingIntegrations,
-  liveTrackingPending = "",
-  enableLiveTracking,
   showSeller = true,
 }) {
   const track123 = trackingIntegrations?.track123 || {};
@@ -42,8 +40,6 @@ export function TrackedOrdersCard({
                     <LiveTrackingCell
                       record={record}
                       track123Ready={track123Ready}
-                      liveTrackingPending={liveTrackingPending}
-                      enableLiveTracking={enableLiveTracking}
                       formatScheduleTimestamp={formatScheduleTimestamp}
                     />
                   </td>
@@ -64,12 +60,8 @@ export function TrackedOrdersCard({
 function LiveTrackingCell({
   record,
   track123Ready,
-  liveTrackingPending,
-  enableLiveTracking,
   formatScheduleTimestamp,
 }) {
-  const actionKey = `${record.account_id}:${record.record_id}`;
-  const pending = liveTrackingPending === actionKey;
   const status = liveTrackingLabel(record, track123Ready);
   const tone = liveTrackingTone(record);
   const latestEvent = Array.isArray(record.live_tracking_events) ? record.live_tracking_events[0] : null;
@@ -79,16 +71,6 @@ function LiveTrackingCell({
         <span className={`status-pill tone-${tone}`}>
           {status}
         </span>
-        {record.tracking_number && track123Ready && !record.live_tracking_enabled ? (
-          <button
-            type="button"
-            className="btn btn-ghost"
-            disabled={pending}
-            onClick={() => enableLiveTracking?.(record)}
-          >
-            Track
-          </button>
-        ) : null}
       </div>
       {latestEvent ? (
         <div className="tracking-latest-event">
@@ -127,7 +109,7 @@ function liveTrackingLabel(record, track123Ready) {
   if (record.live_tracking_enabled) {
     return record.live_tracking_status || record.last_known_status || "enabled";
   }
-  return record.last_known_status || "off";
+  return record.last_known_status || "pending registration";
 }
 
 function liveTrackingTone(record) {
