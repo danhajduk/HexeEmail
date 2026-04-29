@@ -529,11 +529,33 @@ function schedulerStatusTone(value) {
   return "neutral";
 }
 
-function buildGmailLastHourPipelinePills(pipeline) {
+export function buildGmailLastHourPipelinePills(
+  pipeline,
+  { gmailActionPending = "", runtimeTaskPending = "", runtimeTaskStatus = null, gmailFetchScheduler = null } = {},
+) {
   const stages = pipeline?.stages || {};
   const now = Date.now();
   const completedAt = pipeline?.last_completed_at ? new Date(pipeline.last_completed_at).getTime() : null;
   const completionExpired = completedAt !== null && !Number.isNaN(completedAt) && now - completedAt >= 10000;
+  const schedulerTaskStates = runtimeTaskStatus?.scheduler_task_states || {};
+  const batchScheduler = schedulerTaskStates.gmail_hourly_batch_classification || {};
+  const runtimeBatchExecution = runtimeTaskStatus?.last_step === "execute_batch" ? runtimeTaskStatus?.execution_response : null;
+  const runtimeUpdatedAt = runtimeTaskStatus?.updated_at ? new Date(runtimeTaskStatus.updated_at).getTime() : null;
+  const runtimeStateFresh =
+    runtimeUpdatedAt !== null && !Number.isNaN(runtimeUpdatedAt) && now - runtimeUpdatedAt < 30000;
+  const runtimeBatchRunning =
+    runtimeTaskPending === "execute_batch" ||
+    batchScheduler?.status === "running" ||
+    (
+      runtimeTaskStatus?.last_step === "execute_batch" &&
+      runtimeTaskStatus?.request_status === "running" &&
+      batchScheduler?.status !== "stopped" &&
+      runtimeStateFresh
+    );
+  const runtimeBatchStage = runtimeBatchRunning ? runtimeBatchExecution?.stage || "local" : "";
+  const fetchRunning =
+    gmailFetchScheduler?.status === "running" ||
+    (gmailActionPending !== "" && !["spamhaus", "sender_reputation"].includes(gmailActionPending));
   const normalizeStageStatus = (value) => {
     if (value === "failed") {
       return "error";
@@ -549,12 +571,31 @@ function buildGmailLastHourPipelinePills(pipeline) {
     }
     return "idle";
   };
-  return [
+  const pills = [
     { key: "fetch", label: "Fetch", value: normalizeStageStatus(stages.fetch?.status || "idle") },
     { key: "spamhaus", label: "Spamhaus", value: normalizeStageStatus(stages.spamhaus?.status || "idle") },
     { key: "local", label: "Local", value: normalizeStageStatus(stages.local_classification?.status || "idle") },
     { key: "ai", label: "AI", value: normalizeStageStatus(stages.ai_classification?.status || "idle") },
   ];
+
+  return pills.map((pill) => {
+    if (pill.key === "fetch" && fetchRunning) {
+      return { ...pill, value: "in_progress" };
+    }
+    if (pill.key === "spamhaus" && gmailActionPending === "spamhaus") {
+      return { ...pill, value: "in_progress" };
+    }
+    if (runtimeBatchRunning && pill.key === "local" && runtimeBatchStage !== "ai") {
+      return { ...pill, value: "in_progress" };
+    }
+    if (runtimeBatchRunning && pill.key === "local" && runtimeBatchStage === "ai") {
+      return { ...pill, value: pill.value === "error" ? "error" : "completed" };
+    }
+    if (runtimeBatchRunning && pill.key === "ai" && runtimeBatchStage === "ai") {
+      return { ...pill, value: "in_progress" };
+    }
+    return pill;
+  });
 }
 
 function pipelineStageClass(value) {
@@ -2609,7 +2650,12 @@ export function App() {
   const gmailFetchSchedule = gmailStatus?.fetch_schedule || null;
   const gmailFetchScheduler = gmailStatus?.fetch_scheduler || null;
   const gmailLastHourPipeline = gmailStatus?.last_hour_pipeline || null;
-  const gmailLastHourPipelinePills = buildGmailLastHourPipelinePills(gmailLastHourPipeline);
+  const gmailLastHourPipelinePills = buildGmailLastHourPipelinePills(gmailLastHourPipeline, {
+    gmailActionPending,
+    runtimeTaskPending,
+    runtimeTaskStatus,
+    gmailFetchScheduler,
+  });
   const gmailWindowSettings = buildGmailWindowSettings(gmailFetchSchedule);
   const scheduledTasks = Array.isArray(bootstrap?.scheduled_tasks) ? bootstrap.scheduled_tasks : [];
   const scheduledTasksNormalized = scheduledTasks.map((task) => {

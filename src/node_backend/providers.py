@@ -244,7 +244,7 @@ class ProviderManager:
             ]
             local_stage_status = "idle"
             local_detail = "No last-hour unknown emails needed local classification."
-            local_count, ai_candidates = self.service._classify_candidates_locally(
+            local_count, ai_candidates = await self.service._classify_candidates_locally(
                 account_id=account_id,
                 candidates=local_candidates,
             )

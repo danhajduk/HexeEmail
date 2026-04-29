@@ -236,7 +236,7 @@ Actions:
 Additional UI:
 
 - batch progress bar
-- pipeline stage pills
+- pipeline stage pills; the active fetch or classification stage turns green while work is running
 - status and error callouts
 
 Form-like inputs:

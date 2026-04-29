@@ -151,12 +151,12 @@ The Gmail fetch scheduler currently owns three recurring windows:
   - surfaced through `/api/gmail/status`
   - visible in runtime UI fetch pipeline status panels
 
-### Hourly Gmail Batch Classification
+### 5-Minute Gmail Batch Classification
 
 - Owner: `BackgroundTaskManager.run_due_hourly_batch_classification()`
-- Trigger model: runs from the Gmail fetch scheduler loop during the first 5 minutes of each local hour
+- Trigger model: runs from the Gmail fetch scheduler loop every 5 minutes when the previous batch is not still running
 - Slot key model:
-  - current local hour ISO timestamp with minute, second, and microsecond zeroed
+  - current local 5-minute bucket ISO timestamp with second and microsecond zeroed
 - Persisted state impact:
   - updates `gmail_hourly_batch_classification_slot_key`
   - updates `gmail_hourly_batch_classification_last_run_at`
