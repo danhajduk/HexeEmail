@@ -164,6 +164,59 @@ async def test_action_required_api_reclassifies_grouped_messages(config):
 
 
 @pytest.mark.asyncio
+async def test_action_required_api_applies_sender_rule_feedback(config):
+    service = NodeService(config, mqtt_manager=FakeMQTTManager())
+    item_id = _seed_action_item(service)
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        domain_response = await client.post(
+            f"/api/actions/{item_id}/rule-feedback",
+            json={"scope": "domain", "label": "action_required", "note": "always action required"},
+        )
+        sender_response = await client.post(
+            f"/api/actions/{item_id}/rule-feedback",
+            json={"scope": "sender", "label": "system", "note": "never action required"},
+        )
+
+    assert domain_response.status_code == 200
+    domain_body = domain_response.json()
+    assert domain_body["rule_feedback"] == {
+        "scope": "domain",
+        "value": "example.com",
+        "label": "action_required",
+        "note": "always action required",
+        "replaced": False,
+    }
+    assert "rule_feedback domain:example.com -> action_required" in domain_body["operator_note"]
+
+    assert sender_response.status_code == 200
+    sender_body = sender_response.json()
+    assert sender_body["state"] == "ignored"
+    assert sender_body["rule_feedback"]["scope"] == "sender"
+    assert sender_body["rule_feedback"]["value"] == "sender@example.com"
+    assert sender_body["rule_feedback"]["label"] == "system"
+    assert "rule_feedback sender:sender@example.com -> system" in sender_body["operator_note"]
+
+    rules = await service.gmail_rules()
+    label_overrides = rules["label_overrides"]
+    assert {
+        "match_type": "domain",
+        "value": "example.com",
+        "label": "action_required",
+        "enabled": True,
+        "note": "always action required",
+    } in label_overrides
+    assert {
+        "match_type": "sender",
+        "value": "sender@example.com",
+        "label": "system",
+        "enabled": True,
+        "note": "never action required",
+    } in label_overrides
+
+
+@pytest.mark.asyncio
 async def test_action_required_api_resends_notification(config):
     mqtt_manager = FakeMQTTManager()
     service = NodeService(config, mqtt_manager=mqtt_manager)

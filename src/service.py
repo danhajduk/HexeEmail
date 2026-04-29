@@ -94,8 +94,10 @@ from providers.gmail.config_store import GmailProviderConfigError, GmailProvider
 from providers.gmail.models import (
     GmailActionItem,
     GmailActionItemState,
+    GmailLabelOverrideRule,
     GmailManualClassificationBatchInput,
     GmailOAuthConfig,
+    GmailRuleMatchType,
     GmailRulesInput,
     GmailSemiAutoClassificationBatchInput,
     GmailShipmentRecord,
@@ -108,6 +110,7 @@ from providers.gmail.rules import (
     matching_label_override,
     normalize_full_html_rules,
     normalize_label_override_rules,
+    sender_identity,
 )
 from providers.gmail.order_flow import GmailOrderPhase1Processor
 from providers.gmail.oauth import GmailOAuthSessionManager
@@ -5671,6 +5674,78 @@ class NodeService:
         }
         return detail
 
+    async def gmail_apply_action_item_rule_feedback(
+        self,
+        *,
+        account_id: str = "primary",
+        item_id: str,
+        scope: GmailRuleMatchType,
+        label: GmailTrainingLabel,
+        note: str | None = None,
+    ) -> dict[str, object]:
+        item = self._action_item_or_error(account_id=account_id, item_id=item_id)
+        sender_email, sender_domain = sender_identity(item.sender)
+        if scope == GmailRuleMatchType.SENDER:
+            if sender_email is None:
+                raise ValueError("action item has no sender email for sender rule feedback")
+            rule_value = sender_email
+        else:
+            if sender_domain is None:
+                raise ValueError("action item has no sender domain for domain rule feedback")
+            rule_value = sender_domain
+
+        adapter = self.provider_registry.get_provider("gmail")
+        label_overrides = normalize_label_override_rules(
+            adapter.message_store.get_runtime_setting(
+                account_id,
+                namespace=GMAIL_RULES_NAMESPACE,
+                key=GMAIL_LABEL_OVERRIDES_KEY,
+            )
+        )
+        rule_note = note or f"Action Required feedback from {item.item_id}"
+        feedback_rule = GmailLabelOverrideRule(
+            match_type=scope,
+            value=rule_value,
+            label=label,
+            enabled=True,
+            note=rule_note,
+        )
+        updated_rules: list[GmailLabelOverrideRule] = []
+        replaced = False
+        for rule in label_overrides:
+            if rule.match_type == scope and rule.value == rule_value:
+                updated_rules.append(feedback_rule)
+                replaced = True
+            else:
+                updated_rules.append(rule)
+        if not replaced:
+            updated_rules.append(feedback_rule)
+
+        adapter.message_store.set_runtime_setting(
+            account_id,
+            namespace=GMAIL_RULES_NAMESPACE,
+            key=GMAIL_LABEL_OVERRIDES_KEY,
+            value=[rule.model_dump(mode="json") for rule in updated_rules],
+        )
+        audit_note = self._append_action_item_audit_note(
+            item.operator_note,
+            f"rule_feedback {scope.value}:{rule_value} -> {label.value}",
+        )
+        item_updates: dict[str, object] = {"operator_note": audit_note}
+        if label != GmailTrainingLabel.ACTION_REQUIRED:
+            item_updates.update({"state": GmailActionItemState.IGNORED, "state_updated_at": None})
+        updated = adapter.action_item_store.upsert_item(item.model_copy(update=item_updates))
+        detail = self._action_item_detail(updated)
+        detail["rule_feedback"] = {
+            "scope": scope.value,
+            "value": rule_value,
+            "label": label.value,
+            "note": rule_note,
+            "replaced": replaced,
+        }
+        detail["rules"] = await self.gmail_rules(account_id=account_id)
+        return detail
+
     async def gmail_send_action_item_notification(
         self,
         *,
@@ -5823,6 +5898,14 @@ class NodeService:
         if item is None:
             raise ValueError("action item was not found")
         return item
+
+    @staticmethod
+    def _append_action_item_audit_note(existing_note: str | None, event: str) -> str:
+        timestamp = datetime.now(UTC).replace(microsecond=0).isoformat()
+        audit_line = f"{timestamp} {event}"
+        if not existing_note:
+            return audit_line
+        return f"{existing_note.rstrip()}\n{audit_line}"
 
     def _parse_action_item_states(self, states: str | None) -> list[GmailActionItemState] | None:
         if not states:

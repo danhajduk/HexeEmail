@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Request
 from providers.gmail.models import (
     GmailActionItemNoteInput,
     GmailActionItemReclassifyInput,
+    GmailActionItemRuleFeedbackInput,
     GmailActionItemSnoozeInput,
     GmailActionItemStateUpdateInput,
     GmailManualClassificationBatchInput,
@@ -224,6 +225,24 @@ def build_providers_gmail_router(node_service: NodeService) -> APIRouter:
                 item_id=item_id,
                 label=payload.label,
                 confidence=payload.confidence,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @router.post("/api/actions/{item_id}/rule-feedback")
+    @router.post("/api/gmail/action-items/{item_id}/rule-feedback")
+    async def apply_gmail_action_item_rule_feedback(
+        item_id: str,
+        payload: GmailActionItemRuleFeedbackInput,
+        account_id: str = "primary",
+    ):
+        try:
+            return await node_service.gmail_apply_action_item_rule_feedback(
+                account_id=account_id,
+                item_id=item_id,
+                scope=payload.scope,
+                label=payload.label,
+                note=payload.note,
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc

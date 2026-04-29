@@ -363,6 +363,18 @@
   padding-bottom: 2px;
 }
 
+.action-required-rule-feedback {
+  display: grid;
+  gap: 10px;
+}
+
+.action-required-rule-feedback-header {
+  display: grid;
+  grid-template-columns: minmax(130px, max-content) minmax(180px, 260px);
+  gap: 12px;
+  align-items: center;
+}
+
 .action-required-note-input {
   min-height: 92px;
 }
@@ -1462,6 +1474,10 @@
   }
 
   .action-required-operator-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .action-required-rule-feedback-header {
     grid-template-columns: 1fr;
   }
 

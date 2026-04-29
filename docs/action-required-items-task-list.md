@@ -236,6 +236,12 @@ Implementation status:
 - Write through to the Gmail sender rule settings.
 - Record feedback on the action item audit trail.
 
+Implementation status:
+
+- Done with `POST /api/actions/{item_id}/rule-feedback` and the matching Gmail action-item alias.
+- The endpoint writes enabled sender/domain label override rules into Gmail runtime rule settings and records a timestamped rule-feedback line in the item operator note.
+- The dashboard detail view includes generic sender/domain rule saves plus quick always/never sender/domain controls.
+
 ### AR-014: Add action item tests and docs
 
 - Cover store behavior, item grouping, state transitions, snooze/reminder behavior, priority scoring, API contracts, and dashboard rendering.

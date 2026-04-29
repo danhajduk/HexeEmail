@@ -1248,6 +1248,21 @@ export function App() {
     });
   }
 
+  function applyActionItemRuleFeedback(itemId, scope, label) {
+    return mutateActionItem({
+      itemId,
+      actionKey: `rule-feedback:${scope}:${label}`,
+      path: `/api/actions/${encodeURIComponent(itemId)}/rule-feedback`,
+      method: "POST",
+      body: {
+        scope,
+        label,
+        note: `Dashboard rule feedback: ${scope} -> ${label}`,
+      },
+      notice: `${scope.replace(/_/g, " ")} rule saved as ${label.replace(/_/g, " ")}.`,
+    });
+  }
+
   function regenerateActionItemAiDecision(itemId) {
     return mutateActionItem({
       itemId,
@@ -3223,6 +3238,7 @@ export function App() {
                   onSnoozeActionItem={snoozeActionItem}
                   onSaveActionItemNote={saveActionItemNote}
                   onReclassifyActionItem={reclassifyActionItem}
+                  onApplyActionItemRuleFeedback={applyActionItemRuleFeedback}
                   onRegenerateActionItemAiDecision={regenerateActionItemAiDecision}
                   onNotifyActionItem={notifyActionItem}
                   formatScheduleTimestamp={formatScheduleTimestamp}

@@ -908,6 +908,20 @@ class GmailActionItemReclassifyInput(BaseModel):
         return value
 
 
+class GmailActionItemRuleFeedbackInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    scope: GmailRuleMatchType = GmailRuleMatchType.DOMAIN
+    label: GmailTrainingLabel
+    note: str | None = None
+
+    @field_validator("note")
+    @classmethod
+    def normalize_note(cls, value: str | None) -> str | None:
+        normalized = " ".join(str(value or "").strip().split())
+        return normalized or None
+
+
 class GmailShipmentRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

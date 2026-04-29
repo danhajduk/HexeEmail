@@ -53,6 +53,7 @@ export function ActionRequiredSection({
   onSnoozeActionItem,
   onSaveActionItemNote,
   onReclassifyActionItem,
+  onApplyActionItemRuleFeedback,
   onRegenerateActionItemAiDecision,
   onNotifyActionItem,
   formatScheduleTimestamp,
@@ -203,6 +204,7 @@ export function ActionRequiredSection({
               onSnoozeActionItem={onSnoozeActionItem}
               onSaveActionItemNote={onSaveActionItemNote}
               onReclassifyActionItem={onReclassifyActionItem}
+              onApplyActionItemRuleFeedback={onApplyActionItemRuleFeedback}
               onRegenerateActionItemAiDecision={onRegenerateActionItemAiDecision}
               onNotifyActionItem={onNotifyActionItem}
             />
@@ -223,6 +225,7 @@ function OperatorActionsPanel({
   onSnoozeActionItem,
   onSaveActionItemNote,
   onReclassifyActionItem,
+  onApplyActionItemRuleFeedback,
   onRegenerateActionItemAiDecision,
   onNotifyActionItem,
 }) {
@@ -231,6 +234,7 @@ function OperatorActionsPanel({
   const [reminderAt, setReminderAt] = useState(toDateTimeLocal(item.reminder_at));
   const [classificationLabel, setClassificationLabel] = useState("action_required");
   const [classificationConfidence, setClassificationConfidence] = useState("1");
+  const [ruleLabel, setRuleLabel] = useState("action_required");
   const disabled = Boolean(pendingAction);
 
   useEffect(() => {
@@ -239,6 +243,7 @@ function OperatorActionsPanel({
     setReminderAt(toDateTimeLocal(item.reminder_at));
     setClassificationLabel("action_required");
     setClassificationConfidence("1");
+    setRuleLabel("action_required");
   }, [item.item_id, item.operator_note, item.reminder_at, item.snoozed_until]);
 
   return (
@@ -373,6 +378,69 @@ function OperatorActionsPanel({
             onClick={() => onReclassifyActionItem(item.item_id, classificationLabel, Number(classificationConfidence || 1))}
           >
             Reclassify
+          </button>
+        </div>
+      </div>
+
+      <div className="action-required-rule-feedback">
+        <div className="action-required-rule-feedback-header">
+          <span className="field-label">Rule Feedback</span>
+          <select className="form-input" value={ruleLabel} onChange={(event) => setRuleLabel(event.target.value)}>
+            {CLASSIFICATION_LABELS.map((label) => (
+              <option key={label} value={label}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="action-required-action-row">
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={disabled}
+            onClick={() => onApplyActionItemRuleFeedback(item.item_id, "sender", ruleLabel)}
+          >
+            Save Sender Rule
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={disabled}
+            onClick={() => onApplyActionItemRuleFeedback(item.item_id, "domain", ruleLabel)}
+          >
+            Save Domain Rule
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            disabled={disabled}
+            onClick={() => onApplyActionItemRuleFeedback(item.item_id, "sender", "action_required")}
+          >
+            Always Sender
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            disabled={disabled}
+            onClick={() => onApplyActionItemRuleFeedback(item.item_id, "domain", "action_required")}
+          >
+            Always Domain
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            disabled={disabled}
+            onClick={() => onApplyActionItemRuleFeedback(item.item_id, "sender", "system")}
+          >
+            Never Sender
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            disabled={disabled}
+            onClick={() => onApplyActionItemRuleFeedback(item.item_id, "domain", "system")}
+          >
+            Never Domain
           </button>
         </div>
       </div>
