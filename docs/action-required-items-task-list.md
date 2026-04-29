@@ -91,6 +91,13 @@ Implementation status:
 - Attach saved `action_decision_payload` from the Gmail message when present.
 - Avoid duplicating items for the same thread, action URL, document id, verification target, or sender/profile/deadline group.
 
+Implementation status:
+
+- Done in `NodeService._sync_action_required_item_from_message`.
+- Runs from the Action Required classification follow-up path after the family pipeline and AI decision.
+- Falls back to persisted family output files when the in-memory pipeline result is not available.
+- Groups by action URL, document id, verification target, thread, then sender/profile/deadline.
+
 ### AR-003: Add backend Action Required API
 
 - Add list, detail, state update, snooze, note update, and regenerate-AI-decision endpoints.

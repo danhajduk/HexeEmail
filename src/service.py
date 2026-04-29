@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import calendar
 import contextlib
+import hashlib
 import json
 import re
 import socket
@@ -91,6 +92,8 @@ from node_models.runtime import (
 from providers.gmail.adapter import GmailProviderAdapter
 from providers.gmail.config_store import GmailProviderConfigError, GmailProviderConfigStore
 from providers.gmail.models import (
+    GmailActionItem,
+    GmailActionItemState,
     GmailRulesInput,
     GmailManualClassificationBatchInput,
     GmailOAuthConfig,
@@ -2327,12 +2330,17 @@ class NodeService:
         source_component: str,
     ) -> bool:
         adapter = self.provider_registry.get_provider("gmail")
-        if not adapter.message_store.get_message(account_id, message_id):
-            return False
-        if adapter.message_store.has_notification_label(account_id, message_id, classification_label.value):
-            return False
         message = adapter.message_store.get_message(account_id, message_id)
         if message is None:
+            return False
+        if adapter.message_store.has_notification_label(account_id, message_id, classification_label.value):
+            if classification_label == GmailTrainingLabel.ACTION_REQUIRED:
+                self._sync_action_required_item_from_message(
+                    account_id=account_id,
+                    message=message,
+                    pipeline_result=None,
+                    action_decision=message.action_decision_payload,
+                )
             return False
         flow_handlers = {
             GmailTrainingLabel.ORDER: self._run_order_phase1_flow,
@@ -2343,9 +2351,10 @@ class NodeService:
             GmailTrainingLabel.SECURITY: self._run_security_phase1_flow,
         }
         flow_handler = flow_handlers.get(classification_label)
+        pipeline_result: dict[str, object] | None = None
         if flow_handler is not None:
             try:
-                await flow_handler(account_id=account_id, message=message)
+                pipeline_result = await flow_handler(account_id=account_id, message=message)
             except Exception as exc:
                 LOGGER.warning(
                     "Label-family flow failed during classification handling",
@@ -2367,6 +2376,13 @@ class NodeService:
         refreshed_message = adapter.message_store.get_message(account_id, message_id)
         if refreshed_message is not None:
             message = refreshed_message
+        if classification_label == GmailTrainingLabel.ACTION_REQUIRED:
+            self._sync_action_required_item_from_message(
+                account_id=account_id,
+                message=message,
+                pipeline_result=pipeline_result,
+                action_decision=action_decision or message.action_decision_payload,
+            )
         sent = self.send_email_classification_notification(
             classification_label=classification_label,
             sender=message.sender,
@@ -2380,6 +2396,313 @@ class NodeService:
         if sent:
             adapter.message_store.mark_notification_label_sent(account_id, message_id, classification_label.value)
         return sent
+
+    def _sync_action_required_item_from_message(
+        self,
+        *,
+        account_id: str,
+        message,
+        pipeline_result: dict[str, object] | None,
+        action_decision: dict[str, object] | None,
+    ) -> GmailActionItem | None:
+        flow_output = self._action_required_flow_output(message_id=message.message_id, pipeline_result=pipeline_result)
+        extracted_fields = (
+            self._action_required_object(flow_output.get("extracted_fields")) if flow_output is not None else {}
+        )
+        profile_id = (
+            str(flow_output.get("profile_id") or "").strip()
+            if flow_output is not None and flow_output.get("profile_id") is not None
+            else None
+        )
+        if not profile_id and pipeline_result is not None:
+            phase4 = pipeline_result.get("phase4")
+            profile_id = str(getattr(phase4, "profile_id", "") or "").strip() or None
+
+        candidate_group_keys = self._action_required_candidate_group_keys(
+            message=message,
+            profile_id=profile_id,
+            extracted_fields=extracted_fields,
+        )
+        group_key = candidate_group_keys[0] if candidate_group_keys else f"message:{message.message_id}"
+
+        adapter = self.provider_registry.get_provider("gmail")
+        existing = self._find_existing_action_required_item(
+            account_id=account_id,
+            message=message,
+            profile_id=profile_id,
+            candidate_group_keys=candidate_group_keys,
+        )
+        if existing is not None:
+            if not profile_id:
+                profile_id = existing.profile_id
+            if not extracted_fields:
+                extracted_fields = existing.extracted_fields
+            if flow_output is None:
+                flow_output = existing.flow_output
+            if action_decision is None:
+                action_decision = existing.ai_decision_payload
+            if (
+                existing.group_key
+                and self._action_required_group_key_rank(existing.group_key) > self._action_required_group_key_rank(group_key)
+            ):
+                group_key = existing.group_key
+        item_id = existing.item_id if existing is not None else self._action_required_item_id(account_id, group_key)
+        grouped_message_ids = list(existing.grouped_message_ids) if existing is not None else []
+        if message.message_id not in grouped_message_ids:
+            grouped_message_ids.append(message.message_id)
+
+        state = self._action_required_item_state(existing=existing, flow_output=flow_output, action_decision=action_decision)
+        review_reasons = self._action_required_review_reasons(flow_output=flow_output, action_decision=action_decision)
+        confidence = self._action_required_confidence(flow_output=flow_output, fallback=message.local_label_confidence)
+
+        item = GmailActionItem(
+            account_id=account_id,
+            item_id=item_id,
+            group_key=group_key,
+            source_message_id=message.message_id,
+            thread_id=message.thread_id,
+            sender=message.sender,
+            subject=message.subject,
+            received_at=message.received_at,
+            state=state,
+            profile_id=profile_id,
+            profile_type=profile_id,
+            extracted_fields=extracted_fields,
+            flow_output=flow_output,
+            ai_decision_payload=action_decision,
+            confidence=confidence,
+            priority_score=existing.priority_score if existing is not None else 0.0,
+            snoozed_until=existing.snoozed_until if existing is not None else None,
+            reminder_at=existing.reminder_at if existing is not None else None,
+            reminder_sent_at=existing.reminder_sent_at if existing is not None else None,
+            operator_note=existing.operator_note if existing is not None else None,
+            grouped_message_ids=grouped_message_ids,
+            review_reasons=review_reasons,
+            created_at=existing.created_at if existing is not None else None,
+            state_updated_at=existing.state_updated_at if existing is not None and existing.state == state else None,
+        )
+        return adapter.action_item_store.upsert_item(item)
+
+    def _find_existing_action_required_item(
+        self,
+        *,
+        account_id: str,
+        message,
+        profile_id: str | None,
+        candidate_group_keys: list[str],
+    ) -> GmailActionItem | None:
+        adapter = self.provider_registry.get_provider("gmail")
+        for candidate in candidate_group_keys:
+            existing = adapter.action_item_store.get_item_by_group_key(account_id, candidate)
+            if existing is not None:
+                return existing
+
+        candidate_set = set(candidate_group_keys)
+        for existing in adapter.action_item_store.list_items(account_id, limit=10000):
+            existing_keys = {existing.group_key} if existing.group_key else set()
+            existing_keys.update(
+                self._action_required_candidate_group_keys_from_values(
+                    message_id=existing.source_message_id,
+                    thread_id=existing.thread_id,
+                    sender=existing.sender,
+                    profile_id=existing.profile_id or profile_id,
+                    extracted_fields=existing.extracted_fields,
+                )
+            )
+            if candidate_set.intersection(existing_keys):
+                return existing
+        return None
+
+    def _action_required_flow_output(
+        self,
+        *,
+        message_id: str,
+        pipeline_result: dict[str, object] | None,
+    ) -> dict[str, object] | None:
+        phase7 = pipeline_result.get("phase7") if pipeline_result is not None else None
+        record = getattr(phase7, "record", None)
+        if record is not None and hasattr(record, "model_dump"):
+            dumped = record.model_dump(mode="json")
+            return dumped if isinstance(dumped, dict) else None
+        if isinstance(record, dict):
+            return dict(record)
+
+        record_path = getattr(phase7, "record_path", None)
+        if isinstance(record_path, str) and record_path:
+            loaded = self._load_action_required_flow_output_path(Path(record_path))
+            if loaded is not None:
+                return loaded
+
+        for trust_level in ("trusted", "partial", "review_needed"):
+            loaded = self._load_action_required_flow_output_path(
+                self.config.runtime_dir / "flow_families" / "action_required" / "outputs" / trust_level / f"{message_id}.json"
+            )
+            if loaded is not None:
+                return loaded
+        return None
+
+    @staticmethod
+    def _load_action_required_flow_output_path(path: Path) -> dict[str, object] | None:
+        try:
+            loaded = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+        return loaded if isinstance(loaded, dict) else None
+
+    def _action_required_candidate_group_keys(
+        self,
+        *,
+        message,
+        profile_id: str | None,
+        extracted_fields: dict[str, object],
+    ) -> list[str]:
+        return self._action_required_candidate_group_keys_from_values(
+            message_id=message.message_id,
+            thread_id=message.thread_id,
+            sender=message.sender,
+            profile_id=profile_id,
+            extracted_fields=extracted_fields,
+        )
+
+    def _action_required_candidate_group_keys_from_values(
+        self,
+        *,
+        message_id: str,
+        thread_id: str | None,
+        sender: str | None,
+        profile_id: str | None,
+        extracted_fields: dict[str, object],
+    ) -> list[str]:
+        candidates: list[str] = []
+        for field_name, prefix in (
+            ("action_url", "action_url"),
+            ("url", "action_url"),
+            ("document_id", "document_id"),
+            ("verification_target", "verification_target"),
+            ("verification_code", "verification_target"),
+        ):
+            value = self._action_required_field_value(extracted_fields, field_name)
+            normalized = self._normalize_action_required_group_value(value)
+            if normalized:
+                candidates.append(f"{prefix}:{normalized}")
+        if thread_id:
+            candidates.append(f"thread:{self._normalize_action_required_group_value(thread_id)}")
+        sender_key = self._action_required_sender_domain(sender) or self._normalize_action_required_group_value(sender)
+        due_key = self._normalize_action_required_group_value(
+            self._action_required_field_value(extracted_fields, "due_date")
+            or self._action_required_field_value(extracted_fields, "deadline")
+        )
+        profile_key = self._normalize_action_required_group_value(profile_id or "generic_action_required")
+        if sender_key or due_key:
+            candidates.append(f"sender_profile_deadline:{sender_key}|{profile_key}|{due_key}")
+        candidates.append(f"message:{self._normalize_action_required_group_value(message_id)}")
+        return list(dict.fromkeys(candidate for candidate in candidates if candidate))
+
+    @staticmethod
+    def _action_required_sender_domain(sender: str | None) -> str | None:
+        _, sender_email = parseaddr(sender or "")
+        if "@" not in sender_email:
+            return None
+        return str(sender_email.rsplit("@", 1)[-1]).strip().lower() or None
+
+    @staticmethod
+    def _action_required_item_id(account_id: str, group_key: str) -> str:
+        digest = hashlib.sha1(f"{account_id}\0{group_key}".encode("utf-8")).hexdigest()[:24]
+        return f"action:{digest}"
+
+    @staticmethod
+    def _action_required_group_key_rank(group_key: str) -> int:
+        prefix = group_key.split(":", 1)[0]
+        return {
+            "action_url": 50,
+            "document_id": 40,
+            "verification_target": 30,
+            "thread": 20,
+            "sender_profile_deadline": 10,
+            "message": 0,
+        }.get(prefix, 0)
+
+    @staticmethod
+    def _action_required_object(value: object) -> dict[str, object]:
+        return dict(value) if isinstance(value, dict) else {}
+
+    def _action_required_field_value(self, extracted_fields: dict[str, object], field_name: str) -> object:
+        field = extracted_fields.get(field_name)
+        if isinstance(field, dict) and "value" in field:
+            return field.get("value")
+        return field
+
+    @staticmethod
+    def _normalize_action_required_group_value(value: object) -> str:
+        text = " ".join(str(value or "").strip().split())
+        if not text:
+            return ""
+        parsed = urlparse(text)
+        if parsed.scheme and parsed.netloc:
+            path = parsed.path.rstrip("/") or "/"
+            return f"{parsed.scheme.lower()}://{parsed.netloc.lower()}{path}"
+        return text.lower()
+
+    def _action_required_item_state(
+        self,
+        *,
+        existing: GmailActionItem | None,
+        flow_output: dict[str, object] | None,
+        action_decision: dict[str, object] | None,
+    ) -> GmailActionItemState:
+        if existing is not None and existing.state in {
+            GmailActionItemState.DONE,
+            GmailActionItemState.IGNORED,
+            GmailActionItemState.SNOOZED,
+            GmailActionItemState.WAITING,
+        }:
+            return existing.state
+        trust_level = str((flow_output or {}).get("trust_level") or "").strip().lower()
+        decision = str((flow_output or {}).get("decision") or "").strip().lower()
+        if trust_level == "review_needed" or decision == "review_needed":
+            return GmailActionItemState.REVIEW_NEEDED
+        if isinstance(action_decision, dict) and bool(action_decision.get("human_review_required")):
+            return GmailActionItemState.REVIEW_NEEDED
+        return GmailActionItemState.READY
+
+    @staticmethod
+    def _action_required_review_reasons(
+        *,
+        flow_output: dict[str, object] | None,
+        action_decision: dict[str, object] | None,
+    ) -> list[str]:
+        reasons: list[str] = []
+        output = flow_output or {}
+        if str(output.get("trust_level") or "").strip().lower() == "review_needed":
+            reasons.append("flow_output_review_needed")
+        decision_reason = str(output.get("decision_reason") or "").strip()
+        if decision_reason:
+            reasons.append(decision_reason)
+        diagnostics = output.get("diagnostics")
+        if isinstance(diagnostics, list):
+            for item in diagnostics:
+                text = str(item).strip()
+                lowered = text.lower()
+                if text and any(token in lowered for token in ("review", "missing", "failure", "invalid", "conflict")):
+                    reasons.append(text)
+        if isinstance(action_decision, dict) and bool(action_decision.get("human_review_required")):
+            reasons.append("ai_human_review_required")
+        return list(dict.fromkeys(reasons))
+
+    @staticmethod
+    def _action_required_confidence(
+        *,
+        flow_output: dict[str, object] | None,
+        fallback: float | None,
+    ) -> float | None:
+        value = (flow_output or {}).get("confidence")
+        try:
+            confidence = float(value)
+        except (TypeError, ValueError):
+            confidence = fallback
+        if confidence is None:
+            return None
+        return max(0.0, min(1.0, confidence))
 
     def _schedule_email_classification_followups(
         self,
@@ -2470,14 +2793,14 @@ class NodeService:
         pipeline,
         flow_enabled: bool,
         disabled_detail: str,
-    ) -> None:
+    ) -> dict[str, object] | None:
         if not self._runtime_classification_enabled():
             LOGGER.info(
                 "%s flow skipped because Clasify is disabled",
                 family_label,
                 extra={"event_data": {"account_id": account_id, "message_id": message.message_id}},
             )
-            return
+            return None
         if not flow_enabled:
             LOGGER.info(
                 "%s flow skipped because %s",
@@ -2485,7 +2808,7 @@ class NodeService:
                 disabled_detail,
                 extra={"event_data": {"account_id": account_id, "message_id": message.message_id}},
             )
-            return
+            return None
         normalized = await self.email_phase1.normalize(
             SharedPhase1NormalizeRequest(
                 fetch_full_message_payload=self.email_provider_gateway.gmail_fetch_full_message_payload,
@@ -2542,6 +2865,7 @@ class NodeService:
                 }
             },
         )
+        return pipeline_result
 
     def _upsert_tracked_order_from_shipment_family_output(
         self,
@@ -2837,8 +3161,8 @@ class NodeService:
             return 10
         return 20 if normalized else 0
 
-    async def _run_order_phase1_flow(self, *, account_id: str, message) -> None:
-        await self._run_label_family_phase1_flow(
+    async def _run_order_phase1_flow(self, *, account_id: str, message) -> dict[str, object] | None:
+        return await self._run_label_family_phase1_flow(
             account_id=account_id,
             message=message,
             family_label="ORDER",
@@ -2847,8 +3171,8 @@ class NodeService:
             disabled_detail="Check Orders is disabled",
         )
 
-    async def _run_action_required_phase1_flow(self, *, account_id: str, message) -> None:
-        await self._run_label_family_phase1_flow(
+    async def _run_action_required_phase1_flow(self, *, account_id: str, message) -> dict[str, object] | None:
+        return await self._run_label_family_phase1_flow(
             account_id=account_id,
             message=message,
             family_label="ACTION_REQUIRED",
@@ -2857,8 +3181,8 @@ class NodeService:
             disabled_detail="Action Required is disabled",
         )
 
-    async def _run_financial_phase1_flow(self, *, account_id: str, message) -> None:
-        await self._run_label_family_phase1_flow(
+    async def _run_financial_phase1_flow(self, *, account_id: str, message) -> dict[str, object] | None:
+        return await self._run_label_family_phase1_flow(
             account_id=account_id,
             message=message,
             family_label="FINANCIAL",
@@ -2867,8 +3191,8 @@ class NodeService:
             disabled_detail="Financial is disabled",
         )
 
-    async def _run_invoice_phase1_flow(self, *, account_id: str, message) -> None:
-        await self._run_label_family_phase1_flow(
+    async def _run_invoice_phase1_flow(self, *, account_id: str, message) -> dict[str, object] | None:
+        return await self._run_label_family_phase1_flow(
             account_id=account_id,
             message=message,
             family_label="INVOICE",
@@ -2877,8 +3201,8 @@ class NodeService:
             disabled_detail="Invoice is disabled",
         )
 
-    async def _run_shipment_phase1_flow(self, *, account_id: str, message) -> None:
-        await self._run_label_family_phase1_flow(
+    async def _run_shipment_phase1_flow(self, *, account_id: str, message) -> dict[str, object] | None:
+        return await self._run_label_family_phase1_flow(
             account_id=account_id,
             message=message,
             family_label="SHIPMENT",
@@ -2887,8 +3211,8 @@ class NodeService:
             disabled_detail="Shipment is disabled",
         )
 
-    async def _run_security_phase1_flow(self, *, account_id: str, message) -> None:
-        await self._run_label_family_phase1_flow(
+    async def _run_security_phase1_flow(self, *, account_id: str, message) -> dict[str, object] | None:
+        return await self._run_label_family_phase1_flow(
             account_id=account_id,
             message=message,
             family_label="SECURITY",

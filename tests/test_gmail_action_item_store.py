@@ -78,6 +78,26 @@ def test_gmail_action_item_store_updates_state_and_preserves_created_at(runtime_
     assert updated.state_updated_at == updated_at
 
 
+def test_gmail_action_item_store_finds_item_by_group_key(runtime_dir):
+    store = GmailActionItemStore(runtime_dir)
+    now = datetime(2026, 4, 29, 9, 30, 0).astimezone()
+    store.upsert_item(
+        GmailActionItem(
+            account_id="primary",
+            item_id="action:msg-1",
+            group_key="action_url:https://example.com/action",
+            source_message_id="msg-1",
+            received_at=now,
+        ),
+        now=now,
+    )
+
+    loaded = store.get_item_by_group_key("primary", "action_url:https://example.com/action")
+
+    assert loaded is not None
+    assert loaded.item_id == "action:msg-1"
+
+
 def test_gmail_action_item_store_lists_by_state_and_priority(runtime_dir):
     store = GmailActionItemStore(runtime_dir)
     now = datetime(2026, 4, 29, 9, 30, 0).astimezone()

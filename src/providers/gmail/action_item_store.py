@@ -163,6 +163,21 @@ class GmailActionItemStore:
             ).fetchone()
         return self._row_to_item(row) if row is not None else None
 
+    def get_item_by_group_key(self, account_id: str, group_key: str) -> GmailActionItem | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT *
+                FROM gmail_action_items
+                WHERE account_id = ?
+                  AND group_key = ?
+                ORDER BY updated_at DESC, received_at DESC
+                LIMIT 1
+                """,
+                (account_id, group_key),
+            ).fetchone()
+        return self._row_to_item(row) if row is not None else None
+
     def list_items(
         self,
         account_id: str,

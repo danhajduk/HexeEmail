@@ -353,3 +353,4 @@ Task 345: Add concrete worked examples for representative emails across multiple
 Task 346: Update repo documentation indexes so the new flow and action docs are discoverable from the main runtime, pipeline, and architecture docs - Completed on 04/06/2026 03:56
 Task 347: Send a completion user notification over MQTT using the Core-documented user-notification format after the scheduled-task and flow-family work is finished - Completed on 04/06/2026 03:59
 Task 348: Add Action Required item data store - Completed on 04/29/2026 09:26
+Task 349: Build Action Required item sync from classified mail - Completed on 04/29/2026 09:36
