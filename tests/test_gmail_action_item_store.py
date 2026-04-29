@@ -100,20 +100,20 @@ def test_gmail_action_item_store_finds_item_by_group_key(runtime_dir):
     assert loaded.item_id == "action:msg-1"
 
 
-def test_gmail_action_item_store_lists_by_state_and_priority(runtime_dir):
+def test_gmail_action_item_store_lists_by_state_oldest_first(runtime_dir):
     store = GmailActionItemStore(runtime_dir)
     now = datetime(2026, 4, 29, 9, 30, 0).astimezone()
-    for item_id, state, priority in [
-        ("action:low", GmailActionItemState.NEW, 20),
-        ("action:high", GmailActionItemState.NEW, 90),
-        ("action:done", GmailActionItemState.DONE, 100),
+    for item_id, state, priority, received_at in [
+        ("action:newer", GmailActionItemState.NEW, 90, now),
+        ("action:older", GmailActionItemState.NEW, 20, now - timedelta(hours=2)),
+        ("action:done", GmailActionItemState.DONE, 100, now - timedelta(hours=3)),
     ]:
         store.upsert_item(
             GmailActionItem(
                 account_id="primary",
                 item_id=item_id,
                 source_message_id=item_id,
-                received_at=now,
+                received_at=received_at,
                 state=state,
                 priority_score=priority,
             ),
@@ -122,7 +122,7 @@ def test_gmail_action_item_store_lists_by_state_and_priority(runtime_dir):
 
     active = store.list_items("primary", states=[GmailActionItemState.NEW])
 
-    assert [item.item_id for item in active] == ["action:high", "action:low"]
+    assert [item.item_id for item in active] == ["action:older", "action:newer"]
 
 
 def test_gmail_action_item_store_validates_score_and_confidence():

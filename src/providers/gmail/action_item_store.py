@@ -208,7 +208,7 @@ class GmailActionItemStore:
                 FROM gmail_action_items
                 WHERE account_id = ?
                   {state_filter}
-                ORDER BY priority_score DESC, received_at DESC, item_id DESC
+                ORDER BY received_at ASC, item_id ASC
                 LIMIT ?
                 """,
                 tuple(params),
