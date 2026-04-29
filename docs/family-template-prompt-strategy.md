@@ -164,9 +164,9 @@ If a future family needs a fundamentally different Phase 4 contract, that family
 
 ## Identifier Recovery Prompt
 
-Use `prompt.email.identifier_recovery_template_creation` for high-confidence ORDER or SHIPMENT emails where normal extraction failed because the useful identifier is hidden outside visible text. Examples include order numbers in dynamic image URLs, action URLs behind redirect links, tracking identifiers in query parameters, or status values rendered into images.
+Use `prompt.email.identifier_recovery_template_creation` for high-confidence ORDER or SHIPMENT emails where normal extraction failed because the useful identifier is hidden outside visible text. Examples include order numbers in dynamic image URLs, action URLs behind redirect links, tracking identifiers in query parameters, compound URL parameter segments, or status values rendered into images.
 
-This prompt returns a probation proposal, not a trusted executable template. The proposal includes evidence, a proposed template, validation steps, and any parser capabilities that are required before the rule can run deterministically. That keeps AI useful for discovering the pattern while preserving review before new extraction methods such as HTML attribute query parsing, parent-link redirect parsing, or OCR become production behavior.
+This prompt returns a probation proposal, not a trusted executable template. The proposal includes evidence, a proposed template, validation steps, and any parser capabilities that are required before the rule can run deterministically. It should learn reusable structural patterns from labels, HTML attributes, query keys, redirect destinations, and nearby context rather than overfitting to one sender or one exact URL. That keeps AI useful for discovering the pattern while preserving review before new extraction methods such as HTML attribute query parsing, parent-link redirect parsing, compound parameter parsing, or OCR become production behavior.
 
 ## Expected Failure Cases
 
