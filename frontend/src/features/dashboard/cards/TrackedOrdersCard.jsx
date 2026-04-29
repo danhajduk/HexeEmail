@@ -62,16 +62,19 @@ function LiveTrackingCell({
   track123Ready,
   formatScheduleTimestamp,
 }) {
-  const status = liveTrackingLabel(record, track123Ready);
-  const tone = liveTrackingTone(record);
+  const status = normalizedTrackingStatus(record);
+  const detail = trackingDetail(record, track123Ready);
+  const tone = liveTrackingTone(status, record);
   const latestEvent = Array.isArray(record.live_tracking_events) ? record.live_tracking_events[0] : null;
   return (
     <div className="tracking-cell">
-      <div className="row compact-row">
-        <span className={`status-pill tone-${tone}`}>
-          {status}
-        </span>
-      </div>
+      {status ? (
+        <div className="row compact-row">
+          <span className={`status-pill tone-${tone}`}>
+            {status}
+          </span>
+        </div>
+      ) : null}
       {latestEvent ? (
         <div className="tracking-latest-event">
           <span className="tracking-event-detail">{latestEvent.detail || latestEvent.status_code || "Tracking update"}</span>
@@ -79,8 +82,8 @@ function LiveTrackingCell({
             {[latestEvent.location, formatTrackingEventTime(latestEvent.time, formatScheduleTimestamp)].filter(Boolean).join(" · ")}
           </span>
         </div>
-      ) : record.last_known_status ? (
-        <div className="muted tiny">{record.last_known_status}</div>
+      ) : detail ? (
+        <div className="muted tiny">{detail}</div>
       ) : null}
       {record.live_tracking_expected_delivery ? (
         <div className="muted tiny">Expected delivery: {formatTrackingEventTime(record.live_tracking_expected_delivery, formatScheduleTimestamp)}</div>
@@ -96,34 +99,81 @@ function formatTrackingEventTime(value, formatScheduleTimestamp) {
   return formatScheduleTimestamp?.(value) || value;
 }
 
-function liveTrackingLabel(record, track123Ready) {
-  if (!record.tracking_number) {
-    return "no number";
-  }
+function trackingDetail(record, track123Ready) {
   if (!track123Ready) {
-    return record.last_known_status || "Track123 off";
+    return record.tracking_number ? "Track123 off" : "";
   }
   if (record.live_tracking_error) {
-    return "error";
+    return record.live_tracking_error;
   }
-  if (record.live_tracking_enabled) {
-    return record.live_tracking_status || record.last_known_status || "enabled";
+  if (!record.tracking_number) {
+    return "";
   }
-  return record.last_known_status || "pending registration";
+  const normalized = normalizedTrackingStatus(record);
+  const rawStatus = String(record.live_tracking_status || record.last_known_status || "").trim();
+  if (rawStatus && rawStatus.toLowerCase() !== normalized) {
+    return rawStatus;
+  }
+  return record.live_tracking_enabled ? "" : "pending registration";
 }
 
-function liveTrackingTone(record) {
+function normalizedTrackingStatus(record) {
+  const candidates = [record.live_tracking_status, record.last_known_status];
+  for (const candidate of candidates) {
+    const status = normalizeStatusText(candidate);
+    if (status) {
+      return status;
+    }
+  }
+  return "";
+}
+
+function normalizeStatusText(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized || ["no number", "no record", "pending registration", "track123 off", "enabled"].includes(normalized)) {
+    return "";
+  }
+  if (normalized.includes("delivery failed") || normalized.includes("failed delivery")) {
+    return "delivery failed";
+  }
+  if (normalized.includes("attention") || normalized.includes("abnormal")) {
+    return "attention needed";
+  }
+  if (normalized.includes("out for delivery")) {
+    return "out for delivery";
+  }
+  if (normalized.includes("delivered")) {
+    return "delivered";
+  }
+  if (normalized.includes("in transit") || normalized.includes("on the way")) {
+    return "in transit";
+  }
+  if (normalized.includes("shipped")) {
+    return "shipped";
+  }
+  if (normalized.includes("label created")) {
+    return "label created";
+  }
+  if (normalized.includes("info received")) {
+    return "info received";
+  }
+  if (normalized.includes("expired")) {
+    return "expired";
+  }
+  return "";
+}
+
+function liveTrackingTone(status, record) {
   if (record.live_tracking_error) {
     return "danger";
   }
-  const status = String(record.live_tracking_status || "").toLowerCase();
   if (["delivery failed", "attention needed"].includes(status)) {
     return "danger";
   }
-  if (["no record", "expired"].includes(status)) {
+  if (["expired"].includes(status)) {
     return "warning";
   }
-  if (["delivered", "in transit", "out for delivery"].includes(status)) {
+  if (["delivered", "in transit", "out for delivery", "shipped", "label created", "info received"].includes(status)) {
     return "success";
   }
   return record.live_tracking_enabled ? "neutral" : "neutral";

@@ -184,7 +184,7 @@ describe("dashboard feature sections", () => {
     );
     const ordersHtml = render(
       <TrackedOrdersSection
-        trackedOrdersSorted={[{ account_id: "acct", record_id: "1", seller: "Amazon", carrier: "UPS", order_number: "123", tracking_number: "1Z", last_known_status: "shipped", domain: "amazon.com", last_seen_at: "now", status_updated_at: "now", updated_at: "now" }]}
+        trackedOrdersSorted={[{ account_id: "acct", record_id: "1", seller: "Amazon", carrier: "UPS", order_number: "123", tracking_number: "", last_known_status: "Delivered to locker; awaiting pickup", domain: "amazon.com", last_seen_at: "now", status_updated_at: "now", updated_at: "now" }]}
         formatScheduleTimestamp={(value) => value}
       />,
     );
@@ -235,6 +235,9 @@ describe("dashboard feature sections", () => {
     expect(ordersHtml).toContain("Seller");
     expect(ordersHtml).toContain("Tracking");
     expect(ordersHtml).toContain("Added");
+    expect(ordersHtml).toContain("delivered");
+    expect(ordersHtml).not.toContain("no number");
+    expect(ordersHtml).not.toContain("Delivered to locker; awaiting pickup");
     expect(ordersHtml).not.toContain("Live Tracking");
     expect(shipmentsHtml).toContain("Tracked Shipments");
     expect(shipmentsHtml).toContain("Departed FedEx hub");
