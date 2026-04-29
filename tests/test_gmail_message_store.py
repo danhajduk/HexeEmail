@@ -654,3 +654,33 @@ def test_gmail_message_store_persists_shipment_records(runtime_dir):
     assert loaded.carrier == "fedex"
     assert loaded.tracking_number == "449044304137821"
     assert loaded.last_known_status == "in transit"
+
+
+def test_gmail_message_store_filters_shipment_records_since(runtime_dir):
+    store = GmailMessageStore(runtime_dir)
+    store.upsert_shipment_record(
+        GmailShipmentRecord(
+            account_id="primary",
+            record_id="recent-order",
+            seller="recent seller",
+            order_number="recent-1",
+            last_seen_at=datetime(2026, 4, 2, 12, 0, 0),
+            status_updated_at=datetime(2026, 4, 2, 12, 0, 0),
+            updated_at=datetime(2026, 4, 2, 12, 5, 0),
+        )
+    )
+    store.upsert_shipment_record(
+        GmailShipmentRecord(
+            account_id="primary",
+            record_id="old-order",
+            seller="old seller",
+            order_number="old-1",
+            last_seen_at=datetime(2025, 11, 2, 12, 0, 0),
+            status_updated_at=datetime(2025, 11, 2, 12, 0, 0),
+            updated_at=datetime(2025, 11, 2, 12, 5, 0),
+        )
+    )
+
+    records = store.list_all_shipment_records(since=datetime(2025, 12, 2, 12, 0, 0))
+
+    assert [record.record_id for record in records] == ["recent-order"]

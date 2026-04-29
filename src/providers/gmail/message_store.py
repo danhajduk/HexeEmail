@@ -884,10 +884,17 @@ class GmailMessageStore:
             ).fetchall()
         return [self._row_to_shipment_record(row) for row in rows]
 
-    def list_all_shipment_records(self, *, limit: int = 500) -> list[GmailShipmentRecord]:
+    def list_all_shipment_records(self, *, limit: int = 500, since: datetime | None = None) -> list[GmailShipmentRecord]:
+        where_clause = ""
+        params: tuple[object, ...]
+        if since is None:
+            params = (limit,)
+        else:
+            where_clause = "WHERE COALESCE(status_updated_at, last_seen_at, updated_at) >= ?"
+            params = (since.isoformat(), limit)
         with self._connect() as connection:
             rows = connection.execute(
-                """
+                f"""
                 SELECT
                     account_id,
                     record_id,
@@ -901,13 +908,14 @@ class GmailMessageStore:
                     status_updated_at,
                     updated_at
                 FROM gmail_shipment_records
+                {where_clause}
                 ORDER BY
                     COALESCE(status_updated_at, last_seen_at, updated_at) DESC,
                     updated_at DESC,
                     record_id ASC
                 LIMIT ?
                 """,
-                (limit,),
+                params,
             ).fetchall()
         return [self._row_to_shipment_record(row) for row in rows]
 

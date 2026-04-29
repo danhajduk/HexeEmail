@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import calendar
 import contextlib
 import json
 import re
@@ -464,7 +465,10 @@ class NodeService:
 
     def _tracked_orders_snapshot(self) -> list[dict[str, object]]:
         gmail_adapter = self.provider_registry.get_provider("gmail")
-        records = gmail_adapter.message_store.list_all_shipment_records(limit=500)
+        records = gmail_adapter.message_store.list_all_shipment_records(
+            limit=500,
+            since=self._tracked_orders_cutoff(datetime.now().astimezone()),
+        )
         return [
             {
                 "account_id": record.account_id,
@@ -481,6 +485,16 @@ class NodeService:
             }
             for record in records
         ]
+
+    @staticmethod
+    def _tracked_orders_cutoff(now: datetime) -> datetime:
+        year = now.year
+        month = now.month - 4
+        while month <= 0:
+            month += 12
+            year -= 1
+        day = min(now.day, calendar.monthrange(year, month)[1])
+        return now.replace(year=year, month=month, day=day)
 
     def _next_email_classify_task_id(self) -> str:
         next_counter = int(self.state.runtime_email_classify_counter or 0) + 1

@@ -187,6 +187,15 @@ describe("dashboard feature sections", () => {
         formatScheduleTimestamp={(value) => value}
       />,
     );
+    const shipmentsHtml = render(
+      <TrackedOrdersSection
+        trackedOrdersSorted={[{ account_id: "acct", record_id: "1", seller: "Amazon", carrier: "UPS", order_number: "123", tracking_number: "1Z", last_known_status: "shipped", domain: "amazon.com", last_seen_at: "now", status_updated_at: "now", updated_at: "now" }]}
+        formatScheduleTimestamp={(value) => value}
+        title="Tracked Shipments"
+        description="Shipment-focused records"
+        emptyMessage="No tracked shipment records are available yet."
+      />,
+    );
 
     expect(runtimeHtml).toContain("Runtime Status");
     expect(runtimeHtml).toContain("Runtime Actions");
@@ -214,5 +223,6 @@ describe("dashboard feature sections", () => {
     expect(scheduledHtml).toContain("Provider");
     expect(scheduledHtml).toContain("background_task_manager");
     expect(ordersHtml).toContain("Tracked Orders");
+    expect(shipmentsHtml).toContain("Tracked Shipments");
   });
 });

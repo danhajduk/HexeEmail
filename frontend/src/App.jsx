@@ -235,6 +235,19 @@ function trackedOrderSortTime(record) {
   return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed;
 }
 
+function isTrackedShipment(record) {
+  const status = String(record?.last_known_status || "").toLowerCase();
+  return Boolean(
+    record?.tracking_number
+      || record?.carrier
+      || status.includes("ship")
+      || status.includes("deliver")
+      || status.includes("transit")
+      || status.includes("locker")
+      || status.includes("pickup"),
+  );
+}
+
 function deriveModelTrainingState(modelStatus, providerConnected) {
   if (!providerConnected) {
     return null;
@@ -2696,6 +2709,7 @@ export function App() {
     }
     return String(left?.order_number || left?.record_id || "").localeCompare(String(right?.order_number || right?.record_id || ""));
   });
+  const trackedShipmentsSorted = trackedOrdersSorted.filter(isTrackedShipment);
   const mqttHealth = status?.mqtt_health || {};
   const lastHeartbeatAt = mqttHealth?.last_status_report_at || status?.last_heartbeat_at || null;
   const mqttConnected = status?.mqtt_connection_status === "connected" || mqttHealth?.health_status === "connected";
@@ -2974,6 +2988,14 @@ export function App() {
                 <TrackedOrdersSection
                   trackedOrdersSorted={trackedOrdersSorted}
                   formatScheduleTimestamp={formatScheduleTimestamp}
+                />
+              ) : dashboardSection === "shipments" ? (
+                <TrackedOrdersSection
+                  trackedOrdersSorted={trackedShipmentsSorted}
+                  formatScheduleTimestamp={formatScheduleTimestamp}
+                  title="Tracked Shipments"
+                  description="Shipment-focused records with carriers, tracking numbers, or delivery status from the local Gmail shipment reconciler."
+                  emptyMessage="No tracked shipment records are available yet."
                 />
               ) : (
                 <OverviewDashboardSection

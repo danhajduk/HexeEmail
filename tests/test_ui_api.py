@@ -2417,6 +2417,48 @@ async def test_ui_bootstrap_exposes_tracked_orders(config, core_client_factory):
 
 
 @pytest.mark.asyncio
+async def test_ui_bootstrap_excludes_tracked_orders_older_than_four_months(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    service._tracked_orders_cutoff = lambda now: datetime(2026, 1, 3, 0, 0, 0).astimezone()  # type: ignore[method-assign]
+    await service.start()
+    gmail_adapter = service.provider_registry.get_provider("gmail")
+    gmail_adapter.message_store.upsert_shipment_record(
+        GmailShipmentRecord(
+            account_id="primary",
+            record_id="recent-order",
+            seller="recent seller",
+            order_number="recent-1",
+            last_known_status="ordered",
+            last_seen_at=datetime(2026, 4, 3, 11, 0, 0).astimezone(),
+            status_updated_at=datetime(2026, 4, 3, 11, 0, 0).astimezone(),
+            updated_at=datetime(2026, 4, 3, 11, 5, 0).astimezone(),
+        )
+    )
+    gmail_adapter.message_store.upsert_shipment_record(
+        GmailShipmentRecord(
+            account_id="primary",
+            record_id="old-order",
+            seller="old seller",
+            order_number="old-1",
+            last_known_status="ordered",
+            last_seen_at=datetime(2025, 1, 3, 11, 0, 0).astimezone(),
+            status_updated_at=datetime(2025, 1, 3, 11, 0, 0).astimezone(),
+            updated_at=datetime(2025, 1, 3, 11, 5, 0).astimezone(),
+        )
+    )
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/node/bootstrap")
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [record["record_id"] for record in body["tracked_orders"]] == ["recent-order"]
+
+
+@pytest.mark.asyncio
 async def test_gmail_status_api_exposes_mailbox_counts(config, core_client_factory):
     service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
     await service.start()

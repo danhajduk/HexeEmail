@@ -4,6 +4,7 @@ import { buildHashRoute, DASHBOARD_SECTIONS, parseHashRoute } from "./router";
 describe("router helpers", () => {
   it("parses dashboard sections and falls back to overview", () => {
     expect(parseHashRoute("#/dashboard/gmail")).toEqual({ view: "dashboard", dashboardSection: "gmail" });
+    expect(parseHashRoute("#/dashboard/shipments")).toEqual({ view: "dashboard", dashboardSection: "shipments" });
     expect(parseHashRoute("#/dashboard/not-real")).toEqual({ view: "dashboard", dashboardSection: "overview" });
   });
 
@@ -23,6 +24,6 @@ describe("router helpers", () => {
   });
 
   it("keeps the standards dashboard section set", () => {
-    expect(Array.from(DASHBOARD_SECTIONS)).toEqual(["overview", "gmail", "runtime", "scheduled", "orders"]);
+    expect(Array.from(DASHBOARD_SECTIONS)).toEqual(["overview", "gmail", "runtime", "scheduled", "orders", "shipments"]);
   });
 });

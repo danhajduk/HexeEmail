@@ -37,6 +37,13 @@ export function DashboardSidebarCard({ dashboardSection, openDashboard }) {
         >
           Tracked Orders
         </button>
+        <button
+          type="button"
+          className={`btn operational-nav-btn ${dashboardSection === "shipments" ? "btn-primary" : ""}`}
+          onClick={() => openDashboard("shipments")}
+        >
+          Shipments
+        </button>
         <button type="button" className="btn operational-nav-btn">Activity</button>
         <button type="button" className="btn operational-nav-btn">Diagnostics</button>
       </nav>

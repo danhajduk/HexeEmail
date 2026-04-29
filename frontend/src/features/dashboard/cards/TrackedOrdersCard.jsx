@@ -1,9 +1,15 @@
-export function TrackedOrdersCard({ trackedOrdersSorted, formatScheduleTimestamp }) {
+export function TrackedOrdersCard({
+  trackedOrdersSorted,
+  formatScheduleTimestamp,
+  title = "Tracked Orders",
+  description = "Existing shipment and order records tracked by the local Gmail shipment reconciler.",
+  emptyMessage = "No tracked order records are available yet.",
+}) {
   return (
     <article className="card scheduled-tasks-card">
       <div className="card-header">
-        <h2>Tracked Orders</h2>
-        <p className="muted">Existing shipment and order records tracked by the local Gmail shipment reconciler.</p>
+        <h2>{title}</h2>
+        <p className="muted">{description}</p>
       </div>
       {trackedOrdersSorted.length ? (
         <div className="scheduled-tasks-table-wrap">
@@ -45,7 +51,7 @@ export function TrackedOrdersCard({ trackedOrdersSorted, formatScheduleTimestamp
           </table>
         </div>
       ) : (
-        <div className="callout">No tracked order records are available yet.</div>
+        <div className="callout">{emptyMessage}</div>
       )}
     </article>
   );
