@@ -96,6 +96,11 @@ async def test_track123_client_retries_a0706_rate_limit(monkeypatch):
                             {
                                 "trackNo": "123123122222",
                                 "transitStatus": "IN_TRANSIT",
+                                "expectedDeliveryTime": {
+                                    "start": "2026-04-29 11:30:00",
+                                    "end": "2026-04-29 11:30:00",
+                                    "timezone": "-07:00",
+                                },
                                 "localLogisticsInfo": {
                                     "trackingDetails": [
                                         {
@@ -161,6 +166,11 @@ async def test_track123_client_queries_tracking_with_user_supplied_shape():
                             {
                                 "trackNo": "123123122222",
                                 "transitStatus": "IN_TRANSIT",
+                                "expectedDeliveryTime": {
+                                    "start": "2026-04-29 11:30:00",
+                                    "end": "2026-04-29 11:30:00",
+                                    "timezone": "-07:00",
+                                },
                                 "localLogisticsInfo": {
                                     "trackingDetails": [
                                         {
@@ -192,6 +202,7 @@ async def test_track123_client_queries_tracking_with_user_supplied_shape():
     assert update.status == "in transit"
     assert update.location == "MEMPHIS, TN, US"
     assert Track123Client.tracking_events(update.payload)[0]["detail"] == "Departed FedEx hub"
+    assert Track123Client.expected_delivery_time(update.payload) == "2026-04-29 11:30:00"
     assert requests[0].url.path == "/gateway/open-api/tk/v2.1/track/query"
     assert requests[0].headers["Track123-Api-Secret"] == "secret-test"
     assert requests[0].read() == b'{"trackNos":["123123122222"]}'

@@ -79,7 +79,6 @@ function LiveTrackingCell({
         <span className={`status-pill tone-${tone}`}>
           {status}
         </span>
-        {record.live_tracking_location ? <span className="muted">{record.live_tracking_location}</span> : null}
         {record.tracking_number && track123Ready && !record.live_tracking_enabled ? (
           <button
             type="button"
@@ -100,6 +99,9 @@ function LiveTrackingCell({
         </div>
       ) : record.last_known_status ? (
         <div className="muted tiny">{record.last_known_status}</div>
+      ) : null}
+      {record.live_tracking_expected_delivery ? (
+        <div className="muted tiny">Expected delivery: {formatTrackingEventTime(record.live_tracking_expected_delivery, formatScheduleTimestamp)}</div>
       ) : null}
     </div>
   );

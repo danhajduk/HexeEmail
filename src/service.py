@@ -495,6 +495,7 @@ class NodeService:
             ),
             "live_tracking_error": record.live_tracking_error,
             "live_tracking_events": Track123Client.tracking_events(record.live_tracking_payload),
+            "live_tracking_expected_delivery": Track123Client.expected_delivery_time(record.live_tracking_payload),
         }
 
     def _tracking_integrations_snapshot(self) -> dict[str, object]:

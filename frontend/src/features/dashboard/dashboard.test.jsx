@@ -190,7 +190,7 @@ describe("dashboard feature sections", () => {
     );
     const shipmentsHtml = render(
       <TrackedOrdersSection
-        trackedOrdersSorted={[{ account_id: "acct", record_id: "1", seller: "Amazon", carrier: "UPS", order_number: "123", tracking_number: "1Z", last_known_status: "shipped", live_tracking_enabled: true, live_tracking_status: "in transit", live_tracking_location: "Memphis, TN, US", live_tracking_events: [{ detail: "Departed FedEx hub", location: "Memphis, TN, US", time: "now", status_code: "IN_TRANSIT_01" }, { detail: "Picked up", location: "Toronto, ON, CA", time: "earlier", status_code: "INFO_RECEIVED_01" }], domain: "amazon.com", last_seen_at: "now", status_updated_at: "now", updated_at: "now" }]}
+        trackedOrdersSorted={[{ account_id: "acct", record_id: "1", seller: "Amazon", carrier: "UPS", order_number: "123", tracking_number: "1Z", last_known_status: "shipped", live_tracking_enabled: true, live_tracking_status: "in transit", live_tracking_location: "Memphis, TN, US", live_tracking_expected_delivery: "soon", live_tracking_events: [{ detail: "Departed FedEx hub", location: "Memphis, TN, US", time: "now", status_code: "IN_TRANSIT_01" }, { detail: "Picked up", location: "Toronto, ON, CA", time: "earlier", status_code: "INFO_RECEIVED_01" }], domain: "amazon.com", last_seen_at: "now", status_updated_at: "now", updated_at: "now" }]}
         formatScheduleTimestamp={(value) => value}
         title="Tracked Shipments"
         description="Shipment-focused records"
@@ -238,6 +238,8 @@ describe("dashboard feature sections", () => {
     expect(shipmentsHtml).toContain("Tracked Shipments");
     expect(shipmentsHtml).toContain("Departed FedEx hub");
     expect(shipmentsHtml).toContain("Memphis, TN, US");
+    expect(shipmentsHtml.match(/Memphis, TN, US/g)).toHaveLength(1);
+    expect(shipmentsHtml).toContain("Expected delivery: soon");
     expect(shipmentsHtml).toContain("in transit");
     expect(shipmentsHtml).not.toContain("Picked up");
     expect(shipmentsHtml).not.toContain("Refresh");

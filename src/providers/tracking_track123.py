@@ -284,6 +284,16 @@ class Track123Client:
         return [event for event in normalized if any(event.values())][:limit]
 
     @classmethod
+    def expected_delivery_time(cls, payload: dict[str, object] | None) -> str | None:
+        if not isinstance(payload, dict):
+            return None
+        record = cls._first_tracking_record(payload)
+        expected_delivery_time = record.get("expectedDeliveryTime")
+        if isinstance(expected_delivery_time, dict):
+            return cls._first_text(expected_delivery_time, keys=("start", "end", "time", "date"))
+        return cls._first_text(record, keys=("expectedDelivery", "estimatedDelivery", "scheduledDelivery"))
+
+    @classmethod
     def _tracking_event_records(cls, record: dict[str, object]) -> list[dict[str, object]]:
         for key in ("trackInfo", "trackingDetails", "trackingItems", "events"):
             value = record.get(key)

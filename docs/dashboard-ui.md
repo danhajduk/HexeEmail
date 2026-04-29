@@ -411,7 +411,7 @@ Orders data shown:
 - carrier
 - order number
 - tracking number
-- tracking status, Track123 controls, current location, and latest tracking event
+- tracking status, Track123 controls, expected delivery time, and latest tracking event
 - account
 - updated
 
@@ -420,7 +420,7 @@ Shipments data shown:
 - carrier
 - order number
 - tracking number
-- tracking status, Track123 controls, current location, and latest tracking event
+- tracking status, Track123 controls, expected delivery time, and latest tracking event
 - account
 - updated
 
