@@ -76,7 +76,11 @@ Add new future-feature backlog items in GitHub first, then update repo docs only
 [TODO] Task 351: Add Action Required priority scoring
 [TODO] Task 352: Add Action Required snooze and reminder handling
 [TODO] Task 353: Add Action Required review queue rules
-[TODO] Task 354: Build Action Required dashboard list UI
-[TODO] Task 355: Build Action Required detail review UI
-[TODO] Task 356: Add Action Required rule feedback actions
-[TODO] Task 357: Add Action Required item tests and docs
+[TODO] Task 354: Add Action Required dashboard page and navigation
+[TODO] Task 355: Build Action Required list table with review columns
+[TODO] Task 356: Build Action Required mail review panel
+[TODO] Task 357: Build Action Required extracted data panel
+[TODO] Task 358: Build Action Required AI decision panel
+[TODO] Task 359: Add Action Required operator actions
+[TODO] Task 360: Add Action Required rule feedback actions
+[TODO] Task 361: Add Action Required item tests and docs

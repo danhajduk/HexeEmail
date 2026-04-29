@@ -110,27 +110,70 @@ Pickup and general:
 - Provide a dashboard filter for review queue.
 - Preserve the reason codes in the item detail.
 
-### AR-007: Build `#/dashboard/actions` list UI
+### AR-007: Add `#/dashboard/actions` page and navigation
 
 - Add a dashboard nav entry for Action Required.
-- Show sender, subject, profile, state, priority, due/reminder time, confidence, grouped count, and AI decision summary.
+- Add the dashboard route and page wrapper.
+- Keep the first screen as the usable Action Required workspace, not a landing page.
+
+### AR-008: Build Action Required list table
+
+- Show sender.
+- Show subject.
+- Show received date.
+- Show profile/type, such as `payment_due`, `document_signature_required`, or `pickup_ready_action_required`.
+- Show current state.
+- Show urgency/deadline when extracted.
+- Show confidence as a pill.
+- Show AI decision summary.
+- Show grouped/thread count when present.
 - Include filters for active, review needed, snoozed, done, ignored, high priority, and profile.
 
-### AR-008: Build Action Required detail UI
+### AR-009: Build mail review panel
 
-- Show mail review with headers, plain text, and sanitized HTML preview.
-- Show extracted data from the family pipeline.
-- Show AI decision summary and raw JSON in a debug disclosure.
-- Show grouped emails and source evidence.
-- Provide operator actions: mark done, ignore, needs review, ready, waiting, snooze, add note, regenerate AI decision, and open action URL.
+- Show subject, sender, recipients, and date.
+- Show plain text body.
+- Show sanitized HTML preview.
+- Show Gmail labels.
+- Link to the original Gmail message if a stable Gmail URL can be built.
 
-### AR-009: Add rule feedback from item detail
+### AR-010: Build extracted data panel
+
+- Show flow-family output.
+- Show profile detected.
+- Show extracted fields such as action URL, due date, verification code, amount, account/vendor, and document ID.
+- Show template used.
+- Show extraction confidence and diagnostics.
+- Show review-needed reason codes.
+
+### AR-011: Build AI decision panel
+
+- Show primary label.
+- Show recommended action.
+- Show whether human review is required.
+- Show risk notes.
+- Show deadline and calendar signals.
+- Show raw parsed JSON behind a debug disclosure.
+
+### AR-012: Add operator actions
+
+- Mark done.
+- Snooze or set reminder.
+- Ignore.
+- Mark needs review.
+- Reclassify label.
+- Open action URL.
+- Add note.
+- Regenerate AI decision.
+- Send notification again.
+
+### AR-013: Add rule feedback from item detail
 
 - Allow operator actions such as always action-required for this sender/domain or never action-required for this sender/domain.
 - Write through to the Gmail sender rule settings.
 - Record feedback on the action item audit trail.
 
-### AR-010: Add action item tests and docs
+### AR-014: Add action item tests and docs
 
 - Cover store behavior, item grouping, state transitions, snooze/reminder behavior, priority scoring, API contracts, and dashboard rendering.
 - Update dashboard, API, and action-required family docs with the final behavior.
@@ -139,7 +182,8 @@ Pickup and general:
 
 1. Data store and sync from classified messages.
 2. Backend list/detail/state/snooze APIs.
-3. Dashboard list and detail view.
-4. Priority scoring and review queue filters.
-5. Reminder scheduler and user notification.
-6. Rule feedback integration.
+3. Dashboard page, list table, and detail panels.
+4. Operator actions.
+5. Priority scoring and review queue filters.
+6. Reminder scheduler and user notification.
+7. Rule feedback integration.
