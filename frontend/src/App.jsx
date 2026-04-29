@@ -8,6 +8,7 @@ import { OverviewDashboardSection } from "./features/dashboard/OverviewDashboard
 import { RuntimeDashboardSection } from "./features/dashboard/RuntimeDashboardSection";
 import { ScheduledTasksSection } from "./features/dashboard/ScheduledTasksSection";
 import { TrackedOrdersSection } from "./features/dashboard/TrackedOrdersSection";
+import { ReviewOutputsSection } from "./features/dashboard/ReviewOutputsSection";
 import { splitTrackedRecords } from "./features/dashboard/trackedRecords";
 import { DashboardHeaderCard } from "./features/dashboard/cards/DashboardHeaderCard";
 import { NodeHealthStripCard } from "./features/dashboard/cards/NodeHealthStripCard";
@@ -2683,6 +2684,17 @@ export function App() {
   const trackedRecords = splitTrackedRecords(trackedOrders);
   const trackedOrdersSorted = trackedRecords.orders;
   const trackedShipmentsSorted = trackedRecords.shipments;
+  const reviewOutputs = Array.isArray(bootstrap?.review_needed_outputs) ? bootstrap.review_needed_outputs : [];
+  const reviewOutputsSorted = [...reviewOutputs].sort((left, right) => {
+    const leftTime = left?.persisted_at ? new Date(left.persisted_at).getTime() : 0;
+    const rightTime = right?.persisted_at ? new Date(right.persisted_at).getTime() : 0;
+    const safeLeftTime = Number.isNaN(leftTime) ? 0 : leftTime;
+    const safeRightTime = Number.isNaN(rightTime) ? 0 : rightTime;
+    if (safeLeftTime !== safeRightTime) {
+      return safeRightTime - safeLeftTime;
+    }
+    return String(left?.record_path || left?.message_id || "").localeCompare(String(right?.record_path || right?.message_id || ""));
+  });
   const mqttHealth = status?.mqtt_health || {};
   const lastHeartbeatAt = mqttHealth?.last_status_report_at || status?.last_heartbeat_at || null;
   const mqttConnected = status?.mqtt_connection_status === "connected" || mqttHealth?.health_status === "connected";
@@ -2969,6 +2981,11 @@ export function App() {
                   title="Tracked Shipments"
                   description="Shipment-focused records with carriers, tracking numbers, or delivery status from the local Gmail shipment reconciler."
                   emptyMessage="No tracked shipment records are available yet."
+                />
+              ) : dashboardSection === "review" ? (
+                <ReviewOutputsSection
+                  reviewOutputsSorted={reviewOutputsSorted}
+                  formatScheduleTimestamp={formatScheduleTimestamp}
                 />
               ) : (
                 <OverviewDashboardSection

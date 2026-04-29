@@ -2459,6 +2459,58 @@ async def test_ui_bootstrap_excludes_tracked_orders_older_than_four_months(confi
 
 
 @pytest.mark.asyncio
+async def test_ui_bootstrap_exposes_review_needed_outputs(config, core_client_factory):
+    review_dir = config.runtime_dir / "flow_families" / "shipment" / "outputs" / "review_needed"
+    review_dir.mkdir(parents=True)
+    review_path = review_dir / "msg-review.json"
+    review_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "shared-structured-output.v1",
+                "flow_family": "shipment",
+                "persisted_at": "2026-04-29T10:34:02Z",
+                "trust_level": "review_needed",
+                "decision": "review_needed",
+                "decision_reason": "no_structured_extraction",
+                "confidence": 0.0,
+                "confidence_level": "low",
+                "extraction_source": "active",
+                "profile_id": "label_created",
+                "extracted_fields": {},
+                "diagnostics": ["template_execution:skipped_no_template"],
+                "message_metadata": {
+                    "message_id": "msg-review",
+                    "account_id": "primary",
+                    "subject": "Tracking update",
+                    "sender_email": "tracking@example.com",
+                    "sender_domain": "example.com",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/node/bootstrap")
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["review_needed_outputs"]) == 1
+    review_output = body["review_needed_outputs"][0]
+    assert review_output["flow_family"] == "shipment"
+    assert review_output["message_id"] == "msg-review"
+    assert review_output["subject"] == "Tracking update"
+    assert review_output["decision_reason"] == "no_structured_extraction"
+    assert review_output["profile_id"] == "label_created"
+    assert review_output["record_path"].endswith("flow_families/shipment/outputs/review_needed/msg-review.json")
+
+
+@pytest.mark.asyncio
 async def test_gmail_status_api_exposes_mailbox_counts(config, core_client_factory):
     service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
     await service.start()

@@ -486,6 +486,102 @@ class NodeService:
             for record in records
         ]
 
+    def _review_needed_outputs_snapshot(self, *, limit: int = 200) -> list[dict[str, object]]:
+        review_dirs = (self.config.runtime_dir / "flow_families").glob("*/outputs/review_needed")
+        records = [
+            self._review_needed_output_entry(path)
+            for review_dir in review_dirs
+            for path in review_dir.glob("*.json")
+            if path.is_file()
+        ]
+        records.sort(key=lambda record: record.pop("_sort_timestamp", 0.0), reverse=True)
+        return records[:limit]
+
+    def _review_needed_output_entry(self, path: Path) -> dict[str, object]:
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            return {
+                "flow_family": self._flow_family_from_review_path(path),
+                "message_id": path.stem,
+                "record_path": self._runtime_display_path(path),
+                "persisted_at": self._path_mtime_iso(path),
+                "decision": "review_needed",
+                "decision_reason": "invalid_review_output",
+                "confidence": 0.0,
+                "confidence_level": "unknown",
+                "extraction_source": "unknown",
+                "profile_id": None,
+                "subject": path.stem,
+                "sender_email": None,
+                "sender_domain": None,
+                "received_at": None,
+                "extracted_field_count": 0,
+                "extracted_field_keys": [],
+                "diagnostics": [f"read_error:{exc.__class__.__name__}"],
+                "_sort_timestamp": path.stat().st_mtime,
+            }
+        if not isinstance(payload, dict):
+            payload = {}
+
+        metadata = payload.get("message_metadata") if isinstance(payload.get("message_metadata"), dict) else {}
+        extracted_fields = payload.get("extracted_fields") if isinstance(payload.get("extracted_fields"), dict) else {}
+        diagnostics = payload.get("diagnostics") if isinstance(payload.get("diagnostics"), list) else []
+        persisted_at = payload.get("persisted_at") or self._path_mtime_iso(path)
+        return {
+            "flow_family": payload.get("flow_family") or self._flow_family_from_review_path(path),
+            "message_id": metadata.get("message_id") or path.stem,
+            "record_path": self._runtime_display_path(path),
+            "persisted_at": persisted_at,
+            "decision": payload.get("decision") or "review_needed",
+            "decision_reason": payload.get("decision_reason") or "unknown",
+            "confidence": payload.get("confidence") if payload.get("confidence") is not None else 0.0,
+            "confidence_level": payload.get("confidence_level") or "unknown",
+            "extraction_source": payload.get("extraction_source") or "unknown",
+            "profile_id": payload.get("profile_id"),
+            "subject": metadata.get("subject") or path.stem,
+            "sender_name": metadata.get("sender_name"),
+            "sender_email": metadata.get("sender_email"),
+            "sender_domain": metadata.get("sender_domain"),
+            "received_at": metadata.get("received_at"),
+            "extracted_field_count": len(extracted_fields),
+            "extracted_field_keys": sorted(str(key) for key in extracted_fields.keys())[:12],
+            "diagnostics": [str(item) for item in diagnostics[:8]],
+            "_sort_timestamp": self._timestamp_sort_value(persisted_at, path),
+        }
+
+    def _runtime_display_path(self, path: Path) -> str:
+        try:
+            return str(path.relative_to(Path.cwd()))
+        except ValueError:
+            pass
+        try:
+            return str(Path(self.config.runtime_dir.name) / path.relative_to(self.config.runtime_dir))
+        except ValueError:
+            return str(path)
+
+    @staticmethod
+    def _flow_family_from_review_path(path: Path) -> str:
+        parts = path.parts
+        try:
+            index = parts.index("flow_families")
+            return parts[index + 1]
+        except (ValueError, IndexError):
+            return "unknown"
+
+    @staticmethod
+    def _path_mtime_iso(path: Path) -> str:
+        return datetime.fromtimestamp(path.stat().st_mtime, UTC).isoformat().replace("+00:00", "Z")
+
+    @classmethod
+    def _timestamp_sort_value(cls, value: object, path: Path) -> float:
+        if isinstance(value, str) and value.strip():
+            try:
+                return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
+            except ValueError:
+                pass
+        return path.stat().st_mtime
+
     @staticmethod
     def _tracked_orders_cutoff(now: datetime) -> datetime:
         year = now.year
@@ -3787,6 +3883,7 @@ class NodeService:
             scheduled_tasks=self._scheduled_tasks_snapshot(),
             scheduled_task_legend=self._scheduled_task_legend(),
             tracked_orders=self._tracked_orders_snapshot(),
+            review_needed_outputs=self._review_needed_outputs_snapshot(),
         )
 
     async def governance_status(self) -> dict[str, object]:

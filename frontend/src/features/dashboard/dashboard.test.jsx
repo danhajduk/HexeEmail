@@ -6,6 +6,7 @@ import { OverviewDashboardSection } from "./OverviewDashboardSection";
 import { RuntimeDashboardSection } from "./RuntimeDashboardSection";
 import { ScheduledTasksSection } from "./ScheduledTasksSection";
 import { TrackedOrdersSection } from "./TrackedOrdersSection";
+import { ReviewOutputsSection } from "./ReviewOutputsSection";
 
 function render(element) {
   return renderToStaticMarkup(element);
@@ -196,6 +197,12 @@ describe("dashboard feature sections", () => {
         emptyMessage="No tracked shipment records are available yet."
       />,
     );
+    const reviewHtml = render(
+      <ReviewOutputsSection
+        reviewOutputsSorted={[{ flow_family: "shipment", message_id: "msg-1", subject: "Tracking update", decision_reason: "no_structured_extraction", profile_id: "label_created", confidence: 0, confidence_level: "low", extracted_field_keys: [], sender_email: "tracking@example.com", persisted_at: "now", record_path: "runtime/flow_families/shipment/outputs/review_needed/msg-1.json" }]}
+        formatScheduleTimestamp={(value) => value}
+      />,
+    );
 
     expect(runtimeHtml).toContain("Runtime Status");
     expect(runtimeHtml).toContain("Runtime Actions");
@@ -224,5 +231,8 @@ describe("dashboard feature sections", () => {
     expect(scheduledHtml).toContain("background_task_manager");
     expect(ordersHtml).toContain("Tracked Orders");
     expect(shipmentsHtml).toContain("Tracked Shipments");
+    expect(reviewHtml).toContain("Review Needed Outputs");
+    expect(reviewHtml).toContain("no_structured_extraction");
+    expect(reviewHtml).toContain("runtime/flow_families/shipment/outputs/review_needed/msg-1.json");
   });
 });

@@ -99,6 +99,7 @@ class UiBootstrapResponse(BaseModel):
     scheduled_tasks: list[dict[str, object]] = Field(default_factory=list)
     scheduled_task_legend: list[dict[str, object]] = Field(default_factory=list)
     tracked_orders: list[dict[str, object]] = Field(default_factory=list)
+    review_needed_outputs: list[dict[str, object]] = Field(default_factory=list)
 
 
 class GmailConnectStartResponse(BaseModel):

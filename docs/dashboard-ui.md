@@ -15,6 +15,8 @@ The active dashboard view is selected by `dashboardSection`. The current section
 - `runtime`
 - `scheduled`
 - `orders`
+- `shipments`
+- `review`
 
 These section wrappers now compose card components from:
 
@@ -415,6 +417,30 @@ Data shown:
 - last seen
 - status updated
 - updated
+
+## Review-needed outputs dashboard section
+
+Section wrapper:
+
+- `frontend/src/features/dashboard/ReviewOutputsSection.jsx`
+
+Purpose:
+
+- `#/dashboard/review` shows persisted family-flow outputs under `runtime/flow_families/*/outputs/review_needed`
+- the bootstrap payload exposes these records as `review_needed_outputs`
+
+Data shown:
+
+- flow family
+- message id
+- subject
+- review reason
+- profile
+- confidence
+- extracted field keys
+- sender
+- persisted timestamp
+- output file path
 
 Form-like inputs:
 

@@ -1,4 +1,4 @@
-export const DASHBOARD_SECTIONS = new Set(["overview", "gmail", "runtime", "scheduled", "orders", "shipments"]);
+export const DASHBOARD_SECTIONS = new Set(["overview", "gmail", "runtime", "scheduled", "orders", "shipments", "review"]);
 
 export function parseHashRoute(hash) {
   const normalized = String(hash || "").replace(/^#\/?/, "").replace(/^\/+|\/+$/g, "");
