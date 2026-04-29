@@ -564,6 +564,20 @@ class NodeService:
             "track123": update.payload,
         }
 
+    async def list_track123_couriers(self) -> dict[str, object]:
+        self._ensure_track123_configured()
+        client = self._track123_client()
+        try:
+            payload = await client.list_couriers()
+        except Track123ClientError as exc:
+            raise ValueError(str(exc)) from exc
+        finally:
+            await client.close()
+        return {
+            "status": "ok",
+            "track123": payload,
+        }
+
     def _shipment_record_or_error(self, *, account_id: str, record_id: str) -> GmailShipmentRecord:
         gmail_adapter = self.provider_registry.get_provider("gmail")
         record = gmail_adapter.message_store.get_shipment_record(account_id, record_id)
@@ -572,12 +586,15 @@ class NodeService:
         return record
 
     def _ensure_track123_ready(self, record: GmailShipmentRecord) -> None:
+        self._ensure_track123_configured()
+        if not str(record.tracking_number or "").strip():
+            raise ValueError("shipment record does not have a tracking number")
+
+    def _ensure_track123_configured(self) -> None:
         if not self.config.track123_enabled:
             raise ValueError("Track123 tracking is disabled. Set TRACK123_ENABLED=true.")
         if not self.config.track123_api_secret:
             raise ValueError("Track123 API secret is missing. Set TRACK123_API_SECRET.")
-        if not str(record.tracking_number or "").strip():
-            raise ValueError("shipment record does not have a tracking number")
 
     def _track123_client(self) -> Track123Client:
         return Track123Client(

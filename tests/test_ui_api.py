@@ -2417,6 +2417,34 @@ async def test_ui_bootstrap_exposes_tracked_orders(config, core_client_factory):
 
 
 @pytest.mark.asyncio
+async def test_track123_courier_list_endpoint_uses_configured_client(config, core_client_factory, monkeypatch):
+    config.track123_enabled = True
+    config.track123_api_secret = "secret-test"
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+
+    class FakeTrack123Client:
+        async def list_couriers(self):
+            return {"code": "00000", "data": [{"courierCode": "fedex", "courierName": "FedEx"}]}
+
+        async def close(self):
+            return None
+
+    monkeypatch.setattr(service, "_track123_client", lambda: FakeTrack123Client())
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/tracking/track123/couriers")
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["track123"]["data"][0]["courierCode"] == "fedex"
+
+
+@pytest.mark.asyncio
 async def test_shipment_live_tracking_enable_and_refresh_use_track123(config, core_client_factory, monkeypatch):
     config.track123_enabled = True
     config.track123_api_secret = "secret-test"

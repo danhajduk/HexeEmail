@@ -42,6 +42,9 @@ class Track123Client:
             payload["courierCode"] = courier_code
         return await self._post_json("/gateway/open-api/tk/v2/track/import", [payload], operation="track123_import")
 
+    async def list_couriers(self) -> dict[str, object]:
+        return await self._get_json("/gateway/open-api/tk/v2.1/courier/list", operation="track123_courier_list")
+
     async def query_tracking(self, *, tracking_number: str, courier_code: str | None = None) -> Track123TrackingUpdate:
         payload = await self._post_json(
             "/gateway/open-api/tk/v2/track/query",
@@ -62,6 +65,32 @@ class Track123Client:
                     "content-type": "application/json",
                 },
                 json=json_payload,
+            )
+            response.raise_for_status()
+        except httpx.HTTPError as exc:
+            raise Track123ClientError(f"{operation} request failed: {exc}") from exc
+        try:
+            parsed = response.json()
+        except ValueError as exc:
+            raise Track123ClientError(f"{operation} returned invalid JSON") from exc
+        if not isinstance(parsed, dict):
+            raise Track123ClientError(f"{operation} returned non-object JSON")
+        code = parsed.get("code")
+        if code not in {None, "00000", 0, "0"}:
+            message = parsed.get("message") or parsed.get("msg") or parsed.get("error") or "Track123 request failed"
+            raise Track123ClientError(str(message))
+        return parsed
+
+    async def _get_json(self, path: str, *, operation: str) -> dict[str, object]:
+        if not self.api_secret:
+            raise Track123ClientError("Track123 API secret is not configured")
+        try:
+            response = await self._client.get(
+                path,
+                headers={
+                    "Track123-Api-Secret": self.api_secret,
+                    "accept": "application/json",
+                },
             )
             response.raise_for_status()
         except httpx.HTTPError as exc:

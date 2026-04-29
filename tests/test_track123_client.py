@@ -30,6 +30,33 @@ async def test_track123_client_imports_tracking_with_user_supplied_shape():
 
 
 @pytest.mark.asyncio
+async def test_track123_client_lists_couriers_with_user_supplied_shape():
+    requests: list[httpx.Request] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(
+            200,
+            json={"code": "00000", "data": [{"courierCode": "fedex", "courierName": "FedEx"}]},
+        )
+
+    client = Track123Client(
+        api_secret="secret-test",
+        base_url="https://api.track123.test",
+        transport=httpx.MockTransport(handler),
+    )
+
+    response = await client.list_couriers()
+    await client.close()
+
+    assert response["code"] == "00000"
+    assert requests[0].method == "GET"
+    assert requests[0].url.path == "/gateway/open-api/tk/v2.1/courier/list"
+    assert requests[0].headers["Track123-Api-Secret"] == "secret-test"
+    assert requests[0].headers["accept"] == "application/json"
+
+
+@pytest.mark.asyncio
 async def test_track123_client_queries_tracking_with_user_supplied_shape():
     requests: list[httpx.Request] = []
 

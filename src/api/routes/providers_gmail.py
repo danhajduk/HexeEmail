@@ -93,6 +93,13 @@ def build_providers_gmail_router(node_service: NodeService) -> APIRouter:
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    @router.get("/api/tracking/track123/couriers")
+    async def track123_couriers():
+        try:
+            return await node_service.list_track123_couriers()
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     @router.post("/api/gmail/reputation/refresh")
     async def gmail_sender_reputation_refresh(account_id: str = "primary"):
         try:
