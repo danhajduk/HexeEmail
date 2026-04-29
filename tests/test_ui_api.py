@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 import json
+import httpx
 import pytest
 from fastapi import Header
 from fastapi.responses import JSONResponse
@@ -1919,6 +1920,76 @@ async def test_runtime_execute_email_classifier_batch_registers_prompt_and_class
     assert updated_messages["unknown-2"].local_label == "marketing"
     assert service.state.runtime_task_state["request_status"] == "executed"
     assert service.state.runtime_task_state["last_step"] == "execute_batch"
+
+
+@pytest.mark.asyncio
+async def test_runtime_execute_email_classifier_batch_records_ai_failures_without_stalling(config, core_client_factory):
+    core_app = build_core_app()
+    service = NodeService(config, core_client=core_client_factory(core_app), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    adapter = service.provider_registry.get_provider("gmail")
+    adapter.account_store.save_account(
+        adapter.state_machine.ensure_account("primary").model_copy(
+            update={"status": "connected", "email_address": "primary@example.com"}
+        )
+    )
+    adapter.message_store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id=f"unknown-{index}",
+                subject=f"Unknown {index}",
+                sender=f"Sender {index} <sender{index}@example.com>",
+                recipients=["primary@example.com"],
+                snippet="please classify",
+                received_at=datetime(2026, 4, 2, 10, index, 0).astimezone(),
+                local_label="unknown",
+                local_label_confidence=0.1,
+            )
+            for index in range(1, 4)
+        ]
+    )
+    calls = 0
+
+    async def fake_execute_direct(target_api_base_url, *, request_body):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise httpx.ReadTimeout("")
+        return target_api_base_url, {
+            "task_id": request_body["task_id"],
+            "status": "completed",
+            "output": {
+                "label": "marketing",
+                "confidence": 0.91,
+                "rationale": "Promotional language and offer-style content.",
+            },
+            "error_code": None,
+            "error_message": None,
+        }
+
+    service.ai_gateway.execute_direct = fake_execute_direct  # type: ignore[method-assign]
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/runtime/execute-email-classifier-batch",
+            json={"target_api_base_url": "http://10.0.0.100:9002"},
+        )
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is True
+    assert body["ai_total"] == 3
+    assert body["ai_attempted"] == 3
+    assert body["ai_completed"] == 2
+    assert body["ai_failed"] == 1
+    assert body["ai_results"][1]["classification_applied"] is False
+    assert body["ai_results"][1]["execution"]["error_message"] == "AI node request timed out."
+    assert service.state.runtime_task_state["request_status"] == "executed"
+    assert service.state.runtime_task_state["execution_response"]["stage"] == "completed"
 
 
 @pytest.mark.asyncio

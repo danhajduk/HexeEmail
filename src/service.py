@@ -2656,6 +2656,10 @@ class NodeService:
     @staticmethod
     def _runtime_execution_error_message(exc: Exception) -> str:
         message = str(exc)
+        if isinstance(exc, httpx.TimeoutException):
+            return "AI node request timed out."
+        if not message:
+            return f"{exc.__class__.__name__ or 'Runtime execution failed'}."
         if not isinstance(exc, httpx.HTTPStatusError) or exc.response is None:
             return message
         try:
@@ -3376,13 +3380,42 @@ class NodeService:
                 updated_at=datetime.now(UTC).isoformat(),
             )
 
-        raw_ai_results, _ = await self._execute_email_classifier_for_messages(
-            account_id=account_id,
-            messages=ai_candidates,
-            target_api_base_url=batch_target_api_base_url,
-            correlation_id=correlation_id,
-            on_result=save_batch_progress,
-        )
+        try:
+            raw_ai_results, _ = await self._execute_email_classifier_for_messages(
+                account_id=account_id,
+                messages=ai_candidates,
+                target_api_base_url=batch_target_api_base_url,
+                correlation_id=correlation_id,
+                on_result=save_batch_progress,
+            )
+        except Exception as exc:
+            error_message = self._runtime_execution_error_message(exc)
+            now = datetime.now(UTC).isoformat()
+            current_state = self._runtime_task_state()
+            last_execution_response = current_state.get("execution_response")
+            failed_response = dict(last_execution_response) if isinstance(last_execution_response, dict) else dict(progress_payload)
+            failed_response.update(
+                {
+                    "ok": False,
+                    "stage": "failed",
+                    "error_message": error_message,
+                }
+            )
+            self._save_runtime_task_state(
+                request_status="failed",
+                last_step="execute_batch",
+                detail=f"Runtime batch classification failed: {error_message}",
+                preview_response=current.get("preview_response"),
+                resolve_response=current.get("resolve_response"),
+                authorize_response=current.get("authorize_response"),
+                registration_request_payload=current.get("registration_request_payload"),
+                execution_request_payload=current_state.get("execution_request_payload"),
+                execution_response=failed_response,
+                usage_summary_response=None,
+                started_at=current.get("started_at") or started_at,
+                updated_at=now,
+            )
+            raise
         ai_results: list[dict[str, object]] = []
         ai_succeeded = 0
         for index, result in enumerate(raw_ai_results, start=1):
@@ -3391,7 +3424,7 @@ class NodeService:
             ai_results.append(
                 {
                     "message_id": result["message_id"],
-                    "task_id": result["task_id"],
+                    "task_id": result.get("task_id"),
                     "classification_applied": bool(result.get("classification_applied")),
                     "execution": result["execution"],
                     "request_payload": result["request_payload"],
@@ -3399,6 +3432,7 @@ class NodeService:
             )
         final_result = {
             "ok": True,
+            "stage": "completed",
             "batch_size": len(candidates),
             "local_processed": local_processed,
             "local_classified": local_classified,
@@ -3406,6 +3440,7 @@ class NodeService:
             "ai_attempted": len(ai_results),
             "ai_completed": ai_succeeded,
             "ai_failed": len(ai_results) - ai_succeeded,
+            "progress_percent": 100,
             "ai_results": ai_results,
         }
         self._save_runtime_task_state(
@@ -3638,13 +3673,33 @@ class NodeService:
         results: list[dict[str, object]] = []
         succeeded = 0
         for message in messages:
-            result = await self._execute_email_classifier_for_message(
-                account_id=account_id,
-                message=message,
-                target_api_base_url=target_api_base_url,
-                correlation_id=correlation_id,
-                persist_runtime_state=False,
-            )
+            try:
+                result = await self._execute_email_classifier_for_message(
+                    account_id=account_id,
+                    message=message,
+                    target_api_base_url=target_api_base_url,
+                    correlation_id=correlation_id,
+                    persist_runtime_state=False,
+                )
+            except Exception as exc:
+                error_message = self._runtime_execution_error_message(exc)
+                result = {
+                    "ok": False,
+                    "task_id": None,
+                    "trace_id": correlation_id,
+                    "target_api_base_url": self._normalize_target_api_base_url(target_api_base_url),
+                    "message_id": message.message_id,
+                    "classification_applied": False,
+                    "request_payload": None,
+                    "execution": {
+                        "status": "failed",
+                        "error_code": exc.__class__.__name__,
+                        "error_message": error_message,
+                    },
+                    "parsed_output": None,
+                    "sender_reputation": None,
+                    "error_message": error_message,
+                }
             if result.get("classification_applied"):
                 succeeded += 1
             results.append(result)
