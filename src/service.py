@@ -5474,6 +5474,7 @@ class NodeService:
     ) -> dict[str, object]:
         adapter = self.provider_registry.get_provider("gmail")
         state_filter = self._parse_action_item_states(states)
+        default_active = state_filter is None
         normalized_limit = max(1, min(int(limit or 100), 500))
         due_before_dt = self._parse_action_item_filter_datetime(due_before) if due_before else None
         items = adapter.action_item_store.list_items(account_id, states=state_filter, limit=10000)
@@ -5482,6 +5483,7 @@ class NodeService:
             for item in items
             if self._action_item_matches_filters(
                 item,
+                default_active=default_active,
                 profile=profile,
                 sender=sender,
                 review_needed=review_needed,
@@ -5562,6 +5564,69 @@ class NodeService:
         updated = adapter.action_item_store.upsert_item(item.model_copy(update={"operator_note": operator_note}))
         return self._action_item_detail(updated)
 
+    async def process_due_action_item_reminders(
+        self,
+        *,
+        account_id: str = "primary",
+        now: datetime | None = None,
+    ) -> dict[str, object]:
+        timestamp = now or datetime.now().astimezone()
+        adapter = self.provider_registry.get_provider("gmail")
+        items = adapter.action_item_store.list_items(account_id, limit=10000)
+        woken = 0
+        sent = 0
+        skipped = 0
+        for item in items:
+            if item.state in {GmailActionItemState.DONE, GmailActionItemState.IGNORED}:
+                skipped += 1
+                continue
+            current = item
+            if (
+                item.state == GmailActionItemState.SNOOZED
+                and item.snoozed_until is not None
+                and self._datetime_lte(item.snoozed_until, timestamp)
+            ):
+                current = adapter.action_item_store.upsert_item(
+                    item.model_copy(update={"state": GmailActionItemState.READY, "state_updated_at": None}),
+                    now=timestamp,
+                )
+                woken += 1
+            if current.reminder_at is None or current.reminder_sent_at is not None:
+                skipped += 1
+                continue
+            if not self._datetime_lte(current.reminder_at, timestamp):
+                skipped += 1
+                continue
+            delivered = self._send_action_item_reminder_notification(current)
+            if not delivered:
+                skipped += 1
+                continue
+            adapter.action_item_store.upsert_item(
+                current.model_copy(update={"reminder_sent_at": timestamp}),
+                now=timestamp,
+            )
+            sent += 1
+        return {"account_id": account_id, "checked": len(items), "woken": woken, "sent": sent, "skipped": skipped}
+
+    def _send_action_item_reminder_notification(self, item: GmailActionItem) -> bool:
+        title = "Action Required reminder"
+        subject = item.subject or "Action item"
+        sender = item.sender or "unknown sender"
+        due_at = self._action_item_due_at(item)
+        due_text = f"\nDue: {due_at.isoformat()}" if due_at is not None else ""
+        note_text = f"\nNote: {item.operator_note}" if item.operator_note else ""
+        return self.notifications.send_user_notification(
+            title=title,
+            message=f"{subject}\nFrom: {sender}{due_text}{note_text}",
+            severity="warning" if item.priority_score >= 70 else "info",
+            urgency="actions_needed",
+            dedupe_key=f"action-item-reminder:{item.account_id}:{item.item_id}:{item.reminder_at.isoformat() if item.reminder_at else 'none'}",
+            event_type="action_required_reminder",
+            summary=f"Action Required reminder for {subject}",
+            source_component="action_required_reminders",
+            data={"account_id": item.account_id, "item_id": item.item_id, "priority_score": item.priority_score},
+        )
+
     async def gmail_regenerate_action_item_ai_decision(
         self,
         *,
@@ -5626,6 +5691,7 @@ class NodeService:
         self,
         item: GmailActionItem,
         *,
+        default_active: bool,
         profile: str | None,
         sender: str | None,
         review_needed: bool | None,
@@ -5633,6 +5699,12 @@ class NodeService:
         due_before: datetime | None,
         grouped: bool | None,
     ) -> bool:
+        if default_active:
+            if item.state in {GmailActionItemState.DONE, GmailActionItemState.IGNORED}:
+                return False
+            if item.state == GmailActionItemState.SNOOZED and item.snoozed_until is not None:
+                if not self._datetime_lte(item.snoozed_until, datetime.now().astimezone()):
+                    return False
         if profile and (item.profile_id or "").strip().lower() != profile.strip().lower():
             return False
         if sender and sender.strip().lower() not in (item.sender or "").strip().lower():
@@ -5654,6 +5726,16 @@ class NodeService:
             if is_grouped != grouped:
                 return False
         return True
+
+    @staticmethod
+    def _datetime_lte(left: datetime, right: datetime) -> bool:
+        comparable_left = left
+        comparable_right = right
+        if comparable_left.tzinfo is None and comparable_right.tzinfo is not None:
+            comparable_left = comparable_left.replace(tzinfo=comparable_right.tzinfo)
+        if comparable_left.tzinfo is not None and comparable_right.tzinfo is None:
+            comparable_right = comparable_right.replace(tzinfo=comparable_left.tzinfo)
+        return comparable_left <= comparable_right
 
     def _action_item_summary(self, item: GmailActionItem) -> dict[str, object]:
         action_url = self._action_required_field_value(item.extracted_fields, "action_url") or self._action_required_field_value(

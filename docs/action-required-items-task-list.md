@@ -129,6 +129,13 @@ Implementation status:
 - Add a scheduled reminder check that sends user notifications for due reminders.
 - Prevent repeated reminder spam with reminder delivery timestamps.
 
+Implementation status:
+
+- Done through the Action Required snooze API plus `process_due_action_item_reminders`.
+- Future-snoozed items are hidden from the default Action Required list unless explicitly filtering for `snoozed`.
+- Added the `action_required_reminders` scheduled task on the five-minute cadence.
+- Reminder delivery sets `reminder_sent_at` so a reminder is not sent repeatedly.
+
 ### AR-006: Add review queue rules
 
 - Mark items `review_needed` when extraction confidence is low, required fields are missing, AI requests human review, profiles conflict, or no clear action URL/details exist.

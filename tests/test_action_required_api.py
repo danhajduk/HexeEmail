@@ -59,6 +59,28 @@ def _seed_action_item(service: NodeService) -> str:
 
 
 @pytest.mark.asyncio
+async def test_action_required_api_hides_future_snoozed_items_by_default(config):
+    service = NodeService(config, mqtt_manager=FakeMQTTManager())
+    item_id = _seed_action_item(service)
+    app = create_app(config=config, service=service)
+    snooze_until = (datetime.now().astimezone() + timedelta(days=1)).isoformat()
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        snooze_response = await client.patch(
+            f"/api/actions/{item_id}/snooze",
+            json={"snoozed_until": snooze_until, "reminder_at": snooze_until},
+        )
+        default_list_response = await client.get("/api/actions")
+        snoozed_list_response = await client.get("/api/actions", params={"states": "snoozed"})
+
+    assert snooze_response.status_code == 200
+    assert default_list_response.status_code == 200
+    assert default_list_response.json()["count"] == 0
+    assert snoozed_list_response.status_code == 200
+    assert snoozed_list_response.json()["count"] == 1
+
+
+@pytest.mark.asyncio
 async def test_action_required_api_lists_details_and_updates_items(config):
     service = NodeService(config, mqtt_manager=FakeMQTTManager())
     item_id = _seed_action_item(service)
@@ -97,6 +119,44 @@ async def test_action_required_api_lists_details_and_updates_items(config):
     assert snooze_response.status_code == 200
     assert snooze_response.json()["state"] == "snoozed"
     assert snooze_response.json()["reminder_at"] == reminder_at
+
+
+@pytest.mark.asyncio
+async def test_action_required_due_reminder_wakes_snooze_and_sends_once(config):
+    mqtt_manager = FakeMQTTManager()
+    service = NodeService(config, mqtt_manager=mqtt_manager)
+    service.state.trust_state = "trusted"
+    service.state.node_id = "node-1"
+    service.mqtt_manager.status.state = "connected"
+    item_id = _seed_action_item(service)
+    adapter = service.provider_registry.get_provider("gmail")
+    item = adapter.action_item_store.get_item("primary", item_id)
+    assert item is not None
+    now = datetime(2026, 4, 29, 12, 0, 0).astimezone()
+    adapter.action_item_store.upsert_item(
+        item.model_copy(
+            update={
+                "state": GmailActionItemState.SNOOZED,
+                "snoozed_until": now - timedelta(minutes=5),
+                "reminder_at": now - timedelta(minutes=1),
+                "reminder_sent_at": None,
+            }
+        )
+    )
+
+    result = await service.process_due_action_item_reminders(now=now)
+    second_result = await service.process_due_action_item_reminders(now=now + timedelta(minutes=5))
+    loaded = adapter.action_item_store.get_item("primary", item_id)
+
+    assert result["woken"] == 1
+    assert result["sent"] == 1
+    assert second_result["sent"] == 0
+    assert loaded is not None
+    assert loaded.state == GmailActionItemState.READY
+    assert loaded.reminder_sent_at is not None
+    assert len(mqtt_manager.notification_requests) == 1
+    assert mqtt_manager.notification_requests[0].event is not None
+    assert mqtt_manager.notification_requests[0].event.event_type == "action_required_reminder"
 
 
 @pytest.mark.asyncio

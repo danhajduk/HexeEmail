@@ -356,3 +356,4 @@ Task 348: Add Action Required item data store - Completed on 04/29/2026 09:26
 Task 349: Build Action Required item sync from classified mail - Completed on 04/29/2026 09:36
 Task 350: Add Action Required backend API - Completed on 04/29/2026 09:44
 Task 351: Add Action Required priority scoring - Completed on 04/29/2026 09:47
+Task 352: Add Action Required snooze and reminder handling - Completed on 04/29/2026 09:51

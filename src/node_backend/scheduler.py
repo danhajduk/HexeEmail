@@ -45,6 +45,7 @@ class BackgroundTaskManager:
         self.gmail_status_task: asyncio.Task | None = None
         self.gmail_fetch_task: asyncio.Task | None = None
         self.shipment_live_tracking_task: asyncio.Task | None = None
+        self.action_required_reminder_task: asyncio.Task | None = None
 
     @staticmethod
     def default_gmail_last_hour_pipeline_state() -> dict[str, object]:
@@ -666,6 +667,15 @@ class BackgroundTaskManager:
                 ),
             ),
             ScheduledTaskDefinition(
+                task_id="action_required_reminders",
+                title="Action Required Reminders",
+                kind="node_local_recurring_work",
+                owner="background_task_manager",
+                schedule_name="every_5_minutes",
+                detail="Wakes snoozed Action Required items and sends due reminder notifications.",
+                enabled_resolver=lambda manager: bool(manager.provider_work_allowed()),
+            ),
+            ScheduledTaskDefinition(
                 task_id="runtime_prompt_sync_weekly",
                 title="Weekly Prompt Sync",
                 kind="node_local_recurring_work",
@@ -713,11 +723,13 @@ class BackgroundTaskManager:
         )
         runtime_authorize_status = "scheduled" if runtime_authorize_ready else "idle"
         live_tracking_state = self.scheduler_task_state("shipment_live_tracking_refresh")
+        action_required_reminders_state = self.scheduler_task_state("action_required_reminders")
         live_tracking_ready = bool(
             self.provider_work_allowed()
             and self.service.config.track123_enabled
             and self.service.config.track123_api_secret
         )
+        action_required_reminders_ready = self.provider_work_allowed()
 
         return [
             self.scheduled_task_entry_from_registry(
@@ -864,6 +876,29 @@ class BackgroundTaskManager:
                 enabled=live_tracking_ready,
             ),
             self.scheduled_task_entry_from_registry(
+                "action_required_reminders",
+                group="gmail",
+                status=self.scheduled_task_public_status(
+                    action_required_reminders_state.get("status") or ("scheduled" if action_required_reminders_ready else "idle")
+                ),
+                last_execution_at=action_required_reminders_state.get("last_success_at") or action_required_reminders_state.get("last_started_at"),
+                next_execution_at=(
+                    action_required_reminders_state.get("next_run_at")
+                    or (self.schedule_template_next_run("every_5_minutes", local_now).isoformat() if action_required_reminders_ready else None)
+                ),
+                last_reason="scheduled" if action_required_reminders_state.get("last_success_at") else None,
+                detail=str(
+                    action_required_reminders_state.get("detail")
+                    or (
+                        "Wakes snoozed Action Required items and sends due reminder notifications."
+                        if action_required_reminders_ready
+                        else "Waiting for trusted operational readiness."
+                    )
+                ),
+                last_slot_key=action_required_reminders_state.get("last_slot_key"),
+                enabled=action_required_reminders_ready,
+            ),
+            self.scheduled_task_entry_from_registry(
                 "runtime_prompt_sync_weekly",
                 group="runtime",
                 status=prompt_sync_status,
@@ -923,6 +958,7 @@ class BackgroundTaskManager:
         await self._cancel_task(self.gmail_status_task)
         await self._cancel_task(self.gmail_fetch_task)
         await self._cancel_task(self.shipment_live_tracking_task)
+        await self._cancel_task(self.action_required_reminder_task)
         for task_id in (
             "telemetry",
             "supervisor_heartbeat",
@@ -933,6 +969,7 @@ class BackgroundTaskManager:
             "gmail_fetch_last_hour",
             "gmail_hourly_batch_classification",
             "shipment_live_tracking_refresh",
+            "action_required_reminders",
         ):
             self.save_scheduler_task_state(task_id, status="stopped", detail="Task stopped during scheduler shutdown.", next_run_at=None)
 
@@ -964,6 +1001,7 @@ class BackgroundTaskManager:
                 if self.shipment_live_tracking_task is not None and not self.shipment_live_tracking_task.done():
                     self.shipment_live_tracking_task.cancel()
                 self.mark_task_idle("shipment_live_tracking_refresh", detail="Shipment live tracking refresh is waiting for Track123 configuration.")
+            self.ensure_action_required_reminder_polling()
             return
 
         if self.gmail_status_task is not None and not self.gmail_status_task.done():
@@ -972,6 +1010,8 @@ class BackgroundTaskManager:
             self.gmail_fetch_task.cancel()
         if self.shipment_live_tracking_task is not None and not self.shipment_live_tracking_task.done():
             self.shipment_live_tracking_task.cancel()
+        if self.action_required_reminder_task is not None and not self.action_required_reminder_task.done():
+            self.action_required_reminder_task.cancel()
         blocked_detail = "Provider recurring work is waiting for trusted operational readiness."
         self.mark_task_idle("gmail_status_polling", detail=blocked_detail)
         self.mark_task_idle("gmail_fetch_yesterday", detail=blocked_detail)
@@ -979,6 +1019,7 @@ class BackgroundTaskManager:
         self.mark_task_idle("gmail_fetch_last_hour", detail=blocked_detail)
         self.mark_task_idle("gmail_hourly_batch_classification", detail=blocked_detail)
         self.mark_task_idle("shipment_live_tracking_refresh", detail=blocked_detail)
+        self.mark_task_idle("action_required_reminders", detail=blocked_detail)
 
     def ensure_telemetry_polling(self) -> None:
         if self.telemetry_task is None or self.telemetry_task.done():
@@ -1172,6 +1213,20 @@ class BackgroundTaskManager:
             )
             self.shipment_live_tracking_task = asyncio.create_task(self.shipment_live_tracking_loop())
 
+    def ensure_action_required_reminder_polling(self) -> None:
+        if self.action_required_reminder_task is None or self.action_required_reminder_task.done():
+            now = datetime.now(UTC).replace(tzinfo=None)
+            self.save_scheduler_task_state(
+                "action_required_reminders",
+                status="scheduled",
+                enabled=True,
+                detail="Action Required reminder loop is running.",
+                last_started_at=now.isoformat(),
+                next_run_at=self.schedule_template_next_run("every_5_minutes", now.astimezone()).isoformat(),
+                last_error=None,
+            )
+            self.action_required_reminder_task = asyncio.create_task(self.action_required_reminder_loop())
+
     async def gmail_status_loop(self) -> None:
         while True:
             try:
@@ -1278,6 +1333,59 @@ class BackgroundTaskManager:
                 )
                 LOGGER.error("Scheduled shipment live tracking refresh failed", extra={"event_data": {"detail": str(exc)}})
             await asyncio.sleep(self.seconds_until_next_minute())
+
+    async def action_required_reminder_loop(self) -> None:
+        while True:
+            try:
+                await self.run_due_action_required_reminders(datetime.now().astimezone())
+            except Exception as exc:
+                now = datetime.now().astimezone()
+                self.mark_task_failure(
+                    "action_required_reminders",
+                    detail="Scheduled Action Required reminder check failed.",
+                    error=str(exc),
+                    next_run_at=self.schedule_template_next_run("every_5_minutes", now).isoformat(),
+                )
+                LOGGER.error("Scheduled Action Required reminder check failed", extra={"event_data": {"detail": str(exc)}})
+            await asyncio.sleep(self.seconds_until_next_minute())
+
+    async def run_due_action_required_reminders(self, now: datetime) -> dict[str, object] | None:
+        slot_key = self.gmail_hourly_batch_slot_key(now)
+        current_task_state = self.scheduler_task_state("action_required_reminders")
+        if slot_key is None or current_task_state.get("last_slot_key") == slot_key:
+            self.mark_task_idle(
+                "action_required_reminders",
+                detail="Waiting for the next 5-minute Action Required reminder slot.",
+                next_run_at=self.schedule_template_next_run("every_5_minutes", now).isoformat(),
+            )
+            return None
+        if not self.provider_work_allowed():
+            self.mark_task_idle(
+                "action_required_reminders",
+                detail="Action Required reminders are waiting for trusted operational readiness.",
+                next_run_at=self.schedule_template_next_run("every_5_minutes", now).isoformat(),
+            )
+            return None
+        if current_task_state.get("status") == "running":
+            return None
+        self.mark_task_running(
+            "action_required_reminders",
+            detail=f"Scheduled Action Required reminder check is running for 5-minute slot {slot_key}.",
+            next_run_at=self.schedule_template_next_run("every_5_minutes", now).isoformat(),
+        )
+        result = await self.service.process_due_action_item_reminders(now=now)
+        detail = (
+            f"Action Required reminders woke {result.get('woken', 0)} snoozed item(s), sent "
+            f"{result.get('sent', 0)} reminder(s), skipped {result.get('skipped', 0)} item(s)."
+        )
+        self.mark_task_success(
+            "action_required_reminders",
+            detail=detail,
+            next_run_at=self.schedule_template_next_run("every_5_minutes", now).isoformat(),
+        )
+        state = self.scheduler_task_state("action_required_reminders")
+        self.save_scheduler_task_state("action_required_reminders", **{**state, "last_slot_key": slot_key})
+        return result
 
     async def run_due_shipment_live_tracking_refresh(self, now: datetime) -> dict[str, object] | None:
         slot_key = self.gmail_hourly_batch_slot_key(now)

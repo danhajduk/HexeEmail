@@ -433,3 +433,9 @@ Chosen fix: Calculate a deterministic priority score whenever Action Required it
 What changed: Added `priority_inputs` to action item records with SQLite migration support, scored by profile, deadline, confidence, review reasons, AI human-review flag, sender reputation, and diagnostics, documented AR-004 completion, removed Task 351 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
 Verification: `.venv/bin/python -m pytest -q tests/test_gmail_action_item_store.py tests/test_action_required_item_sync.py tests/test_action_required_api.py`; `.venv/bin/python -m compileall -q src/service.py src/providers/gmail/action_item_store.py src/providers/gmail/models.py`; `git diff --check`.
 ###########
+Task #352
+Step objective: Add Action Required snooze and reminder handling.
+Chosen fix: Keep snooze state in the item API, hide future-snoozed items from default active lists, and add a five-minute scheduled reminder task that wakes expired snoozes and sends due reminders once.
+What changed: Added `process_due_action_item_reminders`, Action Required reminder user notifications, default list snooze filtering, the `action_required_reminders` scheduler task, documented AR-005 completion, removed Task 352 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: `.venv/bin/python -m pytest -q tests/test_action_required_api.py tests/test_action_required_item_sync.py tests/test_gmail_action_item_store.py`; `.venv/bin/python -m compileall -q src/service.py src/node_backend/scheduler.py`; `git diff --check`.
+###########
