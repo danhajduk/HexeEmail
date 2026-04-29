@@ -400,8 +400,8 @@ Card used:
 
 Purpose:
 
-- `#/dashboard/orders` shows tracked shipment and order records from the last four months
-- `#/dashboard/shipments` shows shipment-focused records with carriers, tracking numbers, or delivery-like status
+- `#/dashboard/orders` shows order-linked records from the last four months, including shipments that are tied to an order
+- `#/dashboard/shipments` shows standalone shipment records that are not tied to an order
 
 Data shown:
 

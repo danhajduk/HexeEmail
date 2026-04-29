@@ -8,6 +8,7 @@ import { OverviewDashboardSection } from "./features/dashboard/OverviewDashboard
 import { RuntimeDashboardSection } from "./features/dashboard/RuntimeDashboardSection";
 import { ScheduledTasksSection } from "./features/dashboard/ScheduledTasksSection";
 import { TrackedOrdersSection } from "./features/dashboard/TrackedOrdersSection";
+import { splitTrackedRecords } from "./features/dashboard/trackedRecords";
 import { DashboardHeaderCard } from "./features/dashboard/cards/DashboardHeaderCard";
 import { NodeHealthStripCard } from "./features/dashboard/cards/NodeHealthStripCard";
 import { DashboardSidebarCard } from "./features/dashboard/cards/DashboardSidebarCard";
@@ -224,28 +225,6 @@ function formatScheduleTimestamp(value) {
     return "-";
   }
   return formatTelemetryTimestamp(value);
-}
-
-function trackedOrderSortTime(record) {
-  const value = record?.status_updated_at || record?.last_seen_at || record?.updated_at || null;
-  if (!value) {
-    return Number.POSITIVE_INFINITY;
-  }
-  const parsed = new Date(value).getTime();
-  return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed;
-}
-
-function isTrackedShipment(record) {
-  const status = String(record?.last_known_status || "").toLowerCase();
-  return Boolean(
-    record?.tracking_number
-      || record?.carrier
-      || status.includes("ship")
-      || status.includes("deliver")
-      || status.includes("transit")
-      || status.includes("locker")
-      || status.includes("pickup"),
-  );
 }
 
 function deriveModelTrainingState(modelStatus, providerConnected) {
@@ -2701,15 +2680,9 @@ export function App() {
     return String(left?.name || "").localeCompare(String(right?.name || ""));
   });
   const trackedOrders = Array.isArray(bootstrap?.tracked_orders) ? bootstrap.tracked_orders : [];
-  const trackedOrdersSorted = [...trackedOrders].sort((left, right) => {
-    const leftTime = trackedOrderSortTime(left);
-    const rightTime = trackedOrderSortTime(right);
-    if (leftTime !== rightTime) {
-      return rightTime - leftTime;
-    }
-    return String(left?.order_number || left?.record_id || "").localeCompare(String(right?.order_number || right?.record_id || ""));
-  });
-  const trackedShipmentsSorted = trackedOrdersSorted.filter(isTrackedShipment);
+  const trackedRecords = splitTrackedRecords(trackedOrders);
+  const trackedOrdersSorted = trackedRecords.orders;
+  const trackedShipmentsSorted = trackedRecords.shipments;
   const mqttHealth = status?.mqtt_health || {};
   const lastHeartbeatAt = mqttHealth?.last_status_report_at || status?.last_heartbeat_at || null;
   const mqttConnected = status?.mqtt_connection_status === "connected" || mqttHealth?.health_status === "connected";
