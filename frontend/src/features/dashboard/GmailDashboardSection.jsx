@@ -33,6 +33,8 @@ export function GmailDashboardSection({
   healthSeverityClass,
   formatScheduleTimestamp,
   gmailWindowSettings,
+  gmailPrimaryRules,
+  onSaveGmailRules,
   senderReputationTone,
   formatSenderReputationInputs,
   formatTelemetryTimestamp,
@@ -83,6 +85,8 @@ export function GmailDashboardSection({
         healthSeverityClass={healthSeverityClass}
         formatScheduleTimestamp={formatScheduleTimestamp}
         gmailWindowSettings={gmailWindowSettings}
+        gmailRules={gmailPrimaryRules}
+        onSaveGmailRules={onSaveGmailRules}
       />
     </section>
   );

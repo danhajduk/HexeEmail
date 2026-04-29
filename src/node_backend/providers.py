@@ -126,6 +126,7 @@ class ProviderManager:
             model_status = await adapter.training_model_status() if hasattr(adapter, "training_model_status") else None
             spamhaus_summary = await adapter.spamhaus_summary(account.account_id) if hasattr(adapter, "spamhaus_summary") else None
             quota_usage = await adapter.quota_usage_summary(account.account_id) if hasattr(adapter, "quota_usage_summary") else None
+            rules = await self.service.gmail_rules(account_id=account.account_id)
             statuses.append(
                 {
                     "account": account.model_dump(mode="json"),
@@ -137,6 +138,7 @@ class ProviderManager:
                     "model_status": model_status,
                     "spamhaus": spamhaus_summary.model_dump(mode="json") if spamhaus_summary is not None else None,
                     "quota_usage": quota_usage.model_dump(mode="json") if quota_usage is not None else None,
+                    "rules": rules,
                 }
             )
         return {

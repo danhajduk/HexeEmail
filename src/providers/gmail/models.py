@@ -596,6 +596,69 @@ class GmailTrainingLabel(str, Enum):
     UNKNOWN = "unknown"
 
 
+class GmailRuleMatchType(str, Enum):
+    DOMAIN = "domain"
+    SENDER = "sender"
+
+
+class GmailLabelOverrideRule(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    match_type: GmailRuleMatchType = GmailRuleMatchType.DOMAIN
+    value: str
+    label: GmailTrainingLabel
+    enabled: bool = True
+    note: str | None = None
+
+    @field_validator("value")
+    @classmethod
+    def normalize_value(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if not normalized:
+            raise ValueError("value is required")
+        return normalized
+
+    @field_validator("note")
+    @classmethod
+    def normalize_note(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
+
+
+class GmailFullHtmlExtractionRule(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    match_type: GmailRuleMatchType = GmailRuleMatchType.DOMAIN
+    value: str
+    enabled: bool = True
+    note: str | None = None
+
+    @field_validator("value")
+    @classmethod
+    def normalize_value(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if not normalized:
+            raise ValueError("value is required")
+        return normalized
+
+    @field_validator("note")
+    @classmethod
+    def normalize_note(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
+
+
+class GmailRulesInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    label_overrides: list[GmailLabelOverrideRule] = Field(default_factory=list)
+    full_html_required: list[GmailFullHtmlExtractionRule] = Field(default_factory=list)
+
+
 class GmailTrainingRecipientFlags(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

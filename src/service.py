@@ -91,11 +91,20 @@ from node_models.runtime import (
 from providers.gmail.adapter import GmailProviderAdapter
 from providers.gmail.config_store import GmailProviderConfigError, GmailProviderConfigStore
 from providers.gmail.models import (
+    GmailRulesInput,
     GmailManualClassificationBatchInput,
     GmailOAuthConfig,
     GmailSemiAutoClassificationBatchInput,
     GmailShipmentRecord,
     GmailTrainingLabel,
+)
+from providers.gmail.rules import (
+    GMAIL_FULL_HTML_REQUIRED_KEY,
+    GMAIL_LABEL_OVERRIDES_KEY,
+    GMAIL_RULES_NAMESPACE,
+    matching_label_override,
+    normalize_full_html_rules,
+    normalize_label_override_rules,
 )
 from providers.gmail.order_flow import GmailOrderPhase1Processor
 from providers.gmail.oauth import GmailOAuthSessionManager
@@ -4287,17 +4296,29 @@ class NodeService:
             return 0, []
         if not self._runtime_classification_enabled():
             return 0, []
+        local_processed = 0
+        model_candidates = []
+        for message in candidates:
+            override_result = await self._apply_gmail_label_override_if_configured(
+                account_id=account_id,
+                message=message,
+            )
+            if override_result is not None:
+                local_processed += 1
+            else:
+                model_candidates.append(message)
         if not bool(model_status.get("trained")):
-            return 0, list(candidates)
+            return local_processed, model_candidates
+        if not model_candidates:
+            return local_processed, []
 
         account_record = adapter.account_store.load_account(account_id)
         my_addresses = [account_record.email_address] if account_record is not None and account_record.email_address else []
-        texts = [normalize_email_for_classifier(message, my_addresses=my_addresses) for message in candidates]
+        texts = [normalize_email_for_classifier(message, my_addresses=my_addresses) for message in model_candidates]
         predictions = adapter.training_model_store.predict(texts, threshold=self.config.gmail_local_classification_threshold)
 
-        local_processed = 0
         ai_candidates = []
-        for message, prediction in zip(candidates, predictions, strict=False):
+        for message, prediction in zip(model_candidates, predictions, strict=False):
             predicted_label = GmailTrainingLabel(str(prediction["predicted_label"]))
             predicted_confidence = float(prediction["predicted_confidence"])
             adapter.message_store.update_local_classification(
@@ -4319,6 +4340,40 @@ class NodeService:
                 ai_candidates.append(message)
         return local_processed, ai_candidates
 
+    async def _apply_gmail_label_override_if_configured(self, *, account_id: str, message) -> dict[str, object] | None:
+        adapter = self.provider_registry.get_provider("gmail")
+        rules = normalize_label_override_rules(
+            adapter.message_store.get_runtime_setting(
+                account_id,
+                namespace=GMAIL_RULES_NAMESPACE,
+                key=GMAIL_LABEL_OVERRIDES_KEY,
+            )
+        )
+        matched_rule = matching_label_override(rules, message)
+        if matched_rule is None:
+            return None
+        confidence = 1.0
+        adapter.message_store.update_local_classification(
+            account_id,
+            message.message_id,
+            label=matched_rule.label,
+            confidence=confidence,
+            manual_classification=False,
+        )
+        await self._notify_for_new_email_classification(
+            account_id=account_id,
+            message_id=message.message_id,
+            classification_label=matched_rule.label,
+            confidence=confidence,
+            source_component="gmail_label_override",
+        )
+        return {
+            "match_type": matched_rule.match_type.value,
+            "value": matched_rule.value,
+            "label": matched_rule.label.value,
+            "confidence": confidence,
+        }
+
     async def _execute_email_classifier_for_message(
         self,
         *,
@@ -4330,6 +4385,51 @@ class NodeService:
     ) -> dict[str, object]:
         if not self._runtime_classification_enabled():
             raise ValueError(self._runtime_classification_disabled_message())
+        override_result = await self._apply_gmail_label_override_if_configured(
+            account_id=account_id,
+            message=message,
+        )
+        if override_result is not None:
+            normalized_target_base_url = self._normalize_target_api_base_url(target_api_base_url)
+            trace_id = correlation_id or f"trace-email-{uuid.uuid4().hex}"
+            result = {
+                "ok": True,
+                "task_id": None,
+                "trace_id": trace_id,
+                "target_api_base_url": normalized_target_base_url,
+                "message_id": message.message_id,
+                "classification_applied": True,
+                "request_payload": None,
+                "execution": {
+                    "status": "skipped",
+                    "detail": "Matched Gmail sender label override rule.",
+                    "source_component": "gmail_label_override",
+                },
+                "parsed_output": {
+                    "raw": override_result,
+                    "normalized_label": override_result["label"],
+                    "normalized_confidence": override_result["confidence"],
+                },
+                "sender_reputation": None,
+            }
+            if persist_runtime_state:
+                now = datetime.now(UTC).isoformat()
+                current = self._runtime_task_state()
+                self._save_runtime_task_state(
+                    request_status="executed",
+                    last_step="execute",
+                    detail=f"Applied Gmail label override for {message.message_id}; AI classifier was not needed.",
+                    preview_response=current.get("preview_response"),
+                    resolve_response=current.get("resolve_response"),
+                    authorize_response=current.get("authorize_response"),
+                    registration_request_payload=current.get("registration_request_payload"),
+                    execution_request_payload=None,
+                    execution_response=result["execution"],
+                    usage_summary_response=None,
+                    started_at=current.get("started_at") or now,
+                    updated_at=now,
+                )
+            return result
         if not self._runtime_ai_calls_enabled():
             raise ValueError(self._runtime_ai_disabled_message())
         normalized_target_base_url = self._normalize_target_api_base_url(target_api_base_url)
@@ -4848,6 +4948,44 @@ class NodeService:
 
     async def gmail_status(self) -> dict[str, object]:
         return await self.providers.gmail_status()
+
+    async def gmail_rules(self, *, account_id: str = "primary") -> dict[str, object]:
+        adapter = self.provider_registry.get_provider("gmail")
+        label_overrides = normalize_label_override_rules(
+            adapter.message_store.get_runtime_setting(
+                account_id,
+                namespace=GMAIL_RULES_NAMESPACE,
+                key=GMAIL_LABEL_OVERRIDES_KEY,
+            )
+        )
+        full_html_required = normalize_full_html_rules(
+            adapter.message_store.get_runtime_setting(
+                account_id,
+                namespace=GMAIL_RULES_NAMESPACE,
+                key=GMAIL_FULL_HTML_REQUIRED_KEY,
+            )
+        )
+        return {
+            "account_id": account_id,
+            "label_overrides": [rule.model_dump(mode="json") for rule in label_overrides],
+            "full_html_required": [rule.model_dump(mode="json") for rule in full_html_required],
+        }
+
+    async def update_gmail_rules(self, payload: GmailRulesInput, *, account_id: str = "primary") -> dict[str, object]:
+        adapter = self.provider_registry.get_provider("gmail")
+        adapter.message_store.set_runtime_setting(
+            account_id,
+            namespace=GMAIL_RULES_NAMESPACE,
+            key=GMAIL_LABEL_OVERRIDES_KEY,
+            value=[rule.model_dump(mode="json") for rule in payload.label_overrides],
+        )
+        adapter.message_store.set_runtime_setting(
+            account_id,
+            namespace=GMAIL_RULES_NAMESPACE,
+            key=GMAIL_FULL_HTML_REQUIRED_KEY,
+            value=[rule.model_dump(mode="json") for rule in payload.full_html_required],
+        )
+        return await self.gmail_rules(account_id=account_id)
 
     async def gmail_fetch_messages(
         self,

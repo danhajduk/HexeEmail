@@ -2101,6 +2101,16 @@ export function App() {
     }
   }
 
+  async function saveGmailRules(rulesPayload) {
+    const payload = await fetchJson("/api/gmail/rules", {
+      method: "PUT",
+      body: JSON.stringify(rulesPayload),
+    });
+    const refreshedStatus = await fetchJson("/api/gmail/status");
+    setGmailStatus(refreshedStatus);
+    return payload;
+  }
+
   async function loadTrainingManualBatch() {
     setTrainingBatchLoading(true);
     setTrainingBatchError("");
@@ -2640,6 +2650,7 @@ export function App() {
   const gmailPrimaryModelStatus = resolvePrimaryModelStatus(gmailPrimary?.model_status || null, trainingStatus?.model_status || null);
   const gmailPrimarySpamhaus = gmailPrimary?.spamhaus || null;
   const gmailPrimaryQuotaUsage = gmailPrimary?.quota_usage || null;
+  const gmailPrimaryRules = gmailPrimary?.rules || null;
   const gmailFetchSchedule = gmailStatus?.fetch_schedule || null;
   const gmailFetchScheduler = gmailStatus?.fetch_scheduler || null;
   const gmailLastHourPipeline = gmailStatus?.last_hour_pipeline || null;
@@ -2924,6 +2935,8 @@ export function App() {
                   healthSeverityClass={healthSeverityClass}
                   formatScheduleTimestamp={formatScheduleTimestamp}
                   gmailWindowSettings={gmailWindowSettings}
+                  gmailPrimaryRules={gmailPrimaryRules}
+                  onSaveGmailRules={saveGmailRules}
                   senderReputationTone={senderReputationTone}
                   formatSenderReputationInputs={formatSenderReputationInputs}
                   formatTelemetryTimestamp={formatTelemetryTimestamp}

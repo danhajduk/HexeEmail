@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Request
 from providers.gmail.models import (
     GmailManualClassificationBatchInput,
     GmailOAuthConfig,
+    GmailRulesInput,
     GmailSenderReputationManualRatingInput,
     GmailSemiAutoClassificationBatchInput,
     GmailTrainingLabel,
@@ -60,6 +61,20 @@ def build_providers_gmail_router(node_service: NodeService) -> APIRouter:
     @router.get("/api/gmail/status")
     async def gmail_status():
         return await node_service.gmail_status()
+
+    @router.get("/api/gmail/rules")
+    async def gmail_rules(account_id: str = "primary"):
+        try:
+            return await node_service.gmail_rules(account_id=account_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @router.put("/api/gmail/rules")
+    async def update_gmail_rules(payload: GmailRulesInput, account_id: str = "primary"):
+        try:
+            return await node_service.update_gmail_rules(payload, account_id=account_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @router.post("/api/gmail/fetch/{window}")
     async def gmail_fetch(window: str, request: Request, account_id: str = "primary"):

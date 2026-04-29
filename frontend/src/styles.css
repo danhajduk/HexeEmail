@@ -388,6 +388,76 @@
   gap: 10px;
 }
 
+.gmail-rule-editor {
+  display: grid;
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.gmail-rule-section {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--sx-radius-md);
+  border: 1px solid hsl(var(--sx-border));
+  background: hsl(var(--sx-text) / 0.03);
+}
+
+.gmail-rule-section-header,
+.gmail-rule-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gmail-rule-section-header {
+  justify-content: space-between;
+}
+
+.gmail-rule-section-header h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.gmail-rule-list {
+  display: grid;
+  gap: 10px;
+}
+
+.gmail-rule-row {
+  flex-wrap: wrap;
+}
+
+.gmail-rule-row input,
+.gmail-rule-row select {
+  min-height: 38px;
+  border-radius: var(--sx-radius-md);
+  border: 1px solid hsl(var(--sx-border));
+  background: hsl(var(--sx-panel));
+  color: hsl(var(--sx-text));
+  padding: 8px 10px;
+}
+
+.gmail-rule-row input {
+  flex: 1 1 180px;
+}
+
+.gmail-rule-row select {
+  flex: 0 1 150px;
+}
+
+.gmail-rule-row-compact select {
+  flex-basis: 130px;
+}
+
+.gmail-rule-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: hsl(var(--sx-text-muted));
+  font-size: 13px;
+}
+
 .node-health-strip {
   padding: 18px 20px;
 }

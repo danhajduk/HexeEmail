@@ -56,6 +56,11 @@ describe("dashboard feature sections", () => {
         healthSeverityClass={() => "status-pill"}
         formatScheduleTimestamp={(value) => value || "-"}
         gmailWindowSettings={[{ key: "today", label: "Today", runReason: "scheduled", fetchedAt: "now", schedule: "00:00" }]}
+        gmailPrimaryRules={{
+          label_overrides: [{ match_type: "domain", value: "parcelpending.com", label: "action_required", enabled: true }],
+          full_html_required: [{ match_type: "domain", value: "c.visionworks.com", enabled: true }],
+        }}
+        onSaveGmailRules={() => {}}
         senderReputationTone={() => "success"}
         formatSenderReputationInputs={() => "signals"}
         formatTelemetryTimestamp={() => "-"}
@@ -65,6 +70,8 @@ describe("dashboard feature sections", () => {
     expect(html).toContain("Gmail Status");
     expect(html).toContain("Fetch Initial Learning");
     expect(html).toContain("Gmail Settings");
+    expect(html).toContain("Sender Label Rules");
+    expect(html).toContain("Full HTML Extraction");
   });
 
   it("renders the overview dashboard section", () => {

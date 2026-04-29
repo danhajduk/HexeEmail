@@ -140,6 +140,17 @@ Classification and training queues ignore messages with Gmail mailbox labels:
 - `TRASH`
 - `SPAM`
 
+## Sender Rules
+
+The Gmail dashboard settings card can persist per-account sender rules in the local runtime settings table.
+
+Rule types:
+
+- sender label overrides match an exact sender email or sender domain and classify matching mail before the local model or AI classifier runs
+- full HTML extraction rules match an exact sender email or sender domain and store the full Gmail message payload during fetch so HTML-heavy templates have enough source material
+
+Domain rules match the exact domain and subdomains, so `visionworks.com` also covers `c.visionworks.com`.
+
 ## Retention
 
 Retention policy:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from email.utils import parseaddr
 from datetime import datetime
 from pathlib import Path
@@ -28,6 +29,12 @@ from providers.gmail.models import (
 )
 from providers.gmail.quota_tracker import GmailQuotaTracker
 from providers.gmail.reputation import build_sender_reputation_records, sender_matches_reputation_entity
+from providers.gmail.rules import (
+    GMAIL_FULL_HTML_REQUIRED_KEY,
+    GMAIL_RULES_NAMESPACE,
+    full_html_required,
+    normalize_full_html_rules,
+)
 from providers.gmail.spamhaus_checker import GmailSpamhausChecker
 from providers.gmail.state_machine import GmailAccountStateMachine
 from providers.gmail.shipment_email_reconciler import GmailShipmentEmailReconciler
@@ -227,10 +234,24 @@ class GmailProviderAdapter(EmailProviderAdapter):
             self.mailbox_client.quota_tracker = self.quota_tracker
 
         query = self.mailbox_client.build_fetch_query(window)
+        full_html_rules = normalize_full_html_rules(
+            self.message_store.get_runtime_setting(
+                account_id,
+                namespace=GMAIL_RULES_NAMESPACE,
+                key=GMAIL_FULL_HTML_REQUIRED_KEY,
+            )
+        )
         fetched_count = 0
         stored_count = 0
         async for batch_messages in self.mailbox_client.iter_message_batches(token_record=token_record, query=query):
             fetched_count += len(batch_messages)
+            if full_html_rules:
+                batch_messages = await self._hydrate_full_html_required_messages(
+                    account_id=account_id,
+                    token_record=token_record,
+                    messages=batch_messages,
+                    full_html_rules=full_html_rules,
+                )
             stored_count += self.message_store.upsert_messages(batch_messages)
             for message in batch_messages:
                 self.shipment_email_reconciler.process_message(account_id, message)
@@ -255,6 +276,54 @@ class GmailProviderAdapter(EmailProviderAdapter):
             "reason": window_reason,
             "slot_key": slot_key,
         }
+
+    async def _hydrate_full_html_required_messages(
+        self,
+        *,
+        account_id: str,
+        token_record,
+        messages: list[GmailStoredMessage],
+        full_html_rules: list,
+    ) -> list[GmailStoredMessage]:
+        if not hasattr(self.mailbox_client, "fetch_full_message_text"):
+            return messages
+        hydrated: list[GmailStoredMessage] = []
+        for message in messages:
+            if not full_html_required(full_html_rules, message):
+                hydrated.append(message)
+                continue
+            try:
+                full_message = await self.mailbox_client.fetch_full_message_text(
+                    token_record=token_record,
+                    message_id=message.message_id,
+                )
+            except Exception as exc:
+                LOGGER.warning(
+                    "Gmail full HTML fetch for configured sender failed",
+                    extra={
+                        "event_data": {
+                            "account_id": account_id,
+                            "message_id": message.message_id,
+                            "sender": message.sender,
+                            "detail": str(exc),
+                        }
+                    },
+                )
+                hydrated.append(message)
+                continue
+            raw_payload = full_message.get("raw_payload") if isinstance(full_message, dict) else None
+            if not isinstance(raw_payload, dict):
+                hydrated.append(message)
+                continue
+            hydrated.append(
+                message.model_copy(
+                    update={
+                        "raw_payload": json.dumps(raw_payload, separators=(",", ":")),
+                        "snippet": full_message.get("snippet") or message.snippet,
+                    }
+                )
+            )
+        return hydrated
 
     async def list_stored_messages(self, account_id: str, *, limit: int = 100) -> list[GmailStoredMessage]:
         return self.message_store.list_messages(account_id, limit=limit)
