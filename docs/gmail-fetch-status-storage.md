@@ -133,6 +133,13 @@ The store upserts by:
 
 That means repeated fetches update existing rows instead of duplicating them.
 
+Classification and training queues ignore messages with Gmail mailbox labels:
+
+- `SENT`
+- `DRAFT`
+- `TRASH`
+- `SPAM`
+
 ## Retention
 
 Retention policy:

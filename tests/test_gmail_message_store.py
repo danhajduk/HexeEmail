@@ -295,6 +295,55 @@ def test_gmail_message_store_supports_local_training_labels(runtime_dir):
     assert [message.message_id for message in candidates] == ["msg-2"]
 
 
+def test_gmail_message_store_excludes_sent_mail_from_classification_queues(runtime_dir):
+    store = GmailMessageStore(runtime_dir)
+    store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="inbox-unknown",
+                subject="Needs classification",
+                label_ids=["INBOX"],
+                received_at=datetime(2026, 4, 2, 12, 0, 0),
+                local_label="unknown",
+                local_label_confidence=0.2,
+            ),
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="sent-unknown",
+                subject="Sent unknown",
+                label_ids=["SENT"],
+                received_at=datetime(2026, 4, 2, 13, 0, 0),
+                local_label="unknown",
+                local_label_confidence=0.2,
+            ),
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="sent-low-confidence",
+                subject="Sent low confidence",
+                label_ids=["SENT"],
+                received_at=datetime(2026, 4, 2, 14, 0, 0),
+                local_label=GmailTrainingLabel.NEWSLETTER.value,
+                local_label_confidence=0.35,
+            ),
+        ],
+        now=datetime(2026, 4, 2, 15, 0, 0),
+    )
+
+    candidates = store.list_training_candidates("primary", limit=10, threshold=0.6)
+    oldest_candidates = store.list_oldest_training_candidates("primary", limit=10, threshold=0.6)
+    newest_unknown = store.get_newest_unknown_message("primary")
+    summary = store.local_classification_summary("primary")
+
+    assert [message.message_id for message in candidates] == ["inbox-unknown"]
+    assert [message.message_id for message in oldest_candidates] == ["inbox-unknown"]
+    assert newest_unknown is not None
+    assert newest_unknown.message_id == "inbox-unknown"
+    assert summary["total_count"] == 1
+    assert summary["unknown_count"] == 1
+    assert summary["per_label"] == {"unknown": 1}
+
+
 def test_gmail_message_store_tracks_notification_flags_per_label(runtime_dir):
     store = GmailMessageStore(runtime_dir)
     store.upsert_messages(

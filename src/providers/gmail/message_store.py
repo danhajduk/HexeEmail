@@ -19,6 +19,7 @@ from providers.gmail.models import (
 )
 from providers.gmail.reputation import finalize_sender_reputation_record
 from providers.gmail.runtime import GmailRuntimeLayout
+from providers.gmail.training import EXCLUDED_MAILBOX_LABELS
 
 
 HIGH_CONFIDENCE_RETENTION_LIMIT = 10_000
@@ -486,9 +487,11 @@ class GmailMessageStore:
         limit: int = 40,
         threshold: float = 0.6,
     ) -> list[GmailStoredMessage]:
+        excluded_mailbox_filter_sql = self._excluded_mailbox_filter_sql()
+        excluded_mailbox_filter_params = self._excluded_mailbox_filter_params()
         with self._connect() as connection:
             rows = connection.execute(
-                """
+                f"""
                 SELECT
                     account_id,
                     message_id,
@@ -510,17 +513,26 @@ class GmailMessageStore:
                     OR local_label = ?
                     OR COALESCE(local_label_confidence, 0) < ?
                   )
+                  {excluded_mailbox_filter_sql}
                 ORDER BY RANDOM()
                 LIMIT ?
                 """,
-                (account_id, GmailTrainingLabel.UNKNOWN.value, threshold, limit),
+                (
+                    account_id,
+                    GmailTrainingLabel.UNKNOWN.value,
+                    threshold,
+                    *excluded_mailbox_filter_params,
+                    limit,
+                ),
             ).fetchall()
         return [self._row_to_message(row) for row in rows]
 
     def get_newest_unknown_message(self, account_id: str) -> GmailStoredMessage | None:
+        excluded_mailbox_filter_sql = self._excluded_mailbox_filter_sql()
+        excluded_mailbox_filter_params = self._excluded_mailbox_filter_params()
         with self._connect() as connection:
             row = connection.execute(
-                """
+                f"""
                 SELECT
                     account_id,
                     message_id,
@@ -541,10 +553,11 @@ class GmailMessageStore:
                     local_label IS NULL
                     OR local_label = ?
                   )
+                  {excluded_mailbox_filter_sql}
                 ORDER BY received_at DESC
                 LIMIT 1
                 """,
-                (account_id, GmailTrainingLabel.UNKNOWN.value),
+                (account_id, GmailTrainingLabel.UNKNOWN.value, *excluded_mailbox_filter_params),
             ).fetchone()
         return self._row_to_message(row) if row is not None else None
 
@@ -629,9 +642,11 @@ class GmailMessageStore:
         limit: int = 20,
         threshold: float = 0.6,
     ) -> list[GmailStoredMessage]:
+        excluded_mailbox_filter_sql = self._excluded_mailbox_filter_sql()
+        excluded_mailbox_filter_params = self._excluded_mailbox_filter_params()
         with self._connect() as connection:
             rows = connection.execute(
-                """
+                f"""
                 SELECT
                     account_id,
                     message_id,
@@ -653,10 +668,17 @@ class GmailMessageStore:
                     OR local_label = ?
                     OR COALESCE(local_label_confidence, 0) < ?
                   )
+                  {excluded_mailbox_filter_sql}
                 ORDER BY received_at ASC
                 LIMIT ?
                 """,
-                (account_id, GmailTrainingLabel.UNKNOWN.value, threshold, limit),
+                (
+                    account_id,
+                    GmailTrainingLabel.UNKNOWN.value,
+                    threshold,
+                    *excluded_mailbox_filter_params,
+                    limit,
+                ),
             ).fetchall()
         return [self._row_to_message(row) for row in rows]
 
@@ -1373,9 +1395,11 @@ class GmailMessageStore:
         return updated
 
     def local_classification_summary(self, account_id: str, *, high_confidence_threshold: float = 0.92) -> dict[str, object]:
+        excluded_mailbox_filter_sql = self._excluded_mailbox_filter_sql()
+        excluded_mailbox_filter_params = self._excluded_mailbox_filter_params()
         with self._connect() as connection:
             totals_row = connection.execute(
-                """
+                f"""
                 SELECT
                     COUNT(*) AS total_count,
                     SUM(CASE WHEN local_label IS NOT NULL AND local_label != ? THEN 1 ELSE 0 END) AS classified_count,
@@ -1393,6 +1417,7 @@ class GmailMessageStore:
                     ) AS high_confidence_count
                 FROM gmail_messages
                 WHERE account_id = ?
+                  {excluded_mailbox_filter_sql}
                 """,
                 (
                     GmailTrainingLabel.UNKNOWN.value,
@@ -1400,18 +1425,20 @@ class GmailMessageStore:
                     GmailTrainingLabel.UNKNOWN.value,
                     high_confidence_threshold,
                     account_id,
+                    *excluded_mailbox_filter_params,
                 ),
             ).fetchone()
             rows = connection.execute(
-                """
+                f"""
                 SELECT local_label, COUNT(*) AS count
                 FROM gmail_messages
                 WHERE account_id = ?
                   AND local_label IS NOT NULL
+                  {excluded_mailbox_filter_sql}
                 GROUP BY local_label
                 ORDER BY local_label
                 """,
-                (account_id,),
+                (account_id, *excluded_mailbox_filter_params),
             ).fetchall()
         per_label = {
             row["local_label"]: int(row["count"] or 0)
@@ -1738,6 +1765,15 @@ class GmailMessageStore:
             year -= 1
         day = min(now.day, calendar.monthrange(year, month)[1])
         return now.replace(year=year, month=month, day=day)
+
+    def _excluded_mailbox_filter_sql(self, *, column_name: str = "label_ids") -> str:
+        return "\n".join(
+            f"AND (char(10) || COALESCE({column_name}, '') || char(10)) NOT LIKE ?"
+            for _ in sorted(EXCLUDED_MAILBOX_LABELS)
+        )
+
+    def _excluded_mailbox_filter_params(self) -> tuple[str, ...]:
+        return tuple(f"%\n{label}\n%" for label in sorted(EXCLUDED_MAILBOX_LABELS))
 
     def _normalize_message_time(self, value: datetime, reference: datetime) -> datetime:
         if value.tzinfo is not None:
