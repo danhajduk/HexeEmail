@@ -46,10 +46,18 @@ class Track123Client:
     async def close(self) -> None:
         await self._client.aclose()
 
-    async def import_tracking(self, *, tracking_number: str, courier_code: str | None = None) -> dict[str, object]:
+    async def import_tracking(
+        self,
+        *,
+        tracking_number: str,
+        courier_code: str | None = None,
+        order_number: str | None = None,
+    ) -> dict[str, object]:
         payload: dict[str, object] = {"trackNo": tracking_number}
         if courier_code:
             payload["courierCode"] = courier_code
+        if order_number:
+            payload["orderNo"] = order_number
         return await self._post_json("/gateway/open-api/tk/v2/track/import", [payload], operation="track123_import")
 
     async def list_couriers(self) -> dict[str, object]:
@@ -146,6 +154,41 @@ class Track123Client:
     def _is_rate_limited_response(response: httpx.Response, parsed: dict[str, object]) -> bool:
         code = str(parsed.get("code") or "").strip().upper()
         return response.status_code == 429 or code == "A0706"
+
+    @classmethod
+    def courier_code_available(cls, payload: dict[str, object] | None, courier_code: str | None) -> bool:
+        normalized = str(courier_code or "").strip().lower()
+        if not normalized:
+            return True
+        codes = cls.courier_codes(payload)
+        return not codes or normalized in codes
+
+    @classmethod
+    def courier_codes(cls, payload: dict[str, object] | None) -> set[str]:
+        if not isinstance(payload, dict):
+            return set()
+        records = cls._courier_records(payload)
+        codes: set[str] = set()
+        for record in records:
+            for key in ("courierCode", "code", "carrierCode"):
+                value = str(record.get(key) or "").strip().lower()
+                if value:
+                    codes.add(value)
+        return codes
+
+    @classmethod
+    def _courier_records(cls, payload: dict[str, object]) -> list[dict[str, object]]:
+        data = payload.get("data")
+        candidates = [data, payload]
+        for candidate in candidates:
+            if isinstance(candidate, list):
+                return [item for item in candidate if isinstance(item, dict)]
+            if isinstance(candidate, dict):
+                for key in ("content", "couriers", "list"):
+                    value = candidate.get(key)
+                    if isinstance(value, list):
+                        return [item for item in value if isinstance(item, dict)]
+        return []
 
     @classmethod
     def parse_tracking_update(

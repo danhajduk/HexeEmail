@@ -513,9 +513,13 @@ class NodeService:
         courier_code = self._track123_courier_code(record.carrier)
         client = self._track123_client()
         try:
+            courier_payload = await client.list_couriers()
+            if not Track123Client.courier_code_available(courier_payload, courier_code):
+                raise Track123ClientError(f"Track123 courier code is not available: {courier_code}")
             import_payload = await client.import_tracking(
                 tracking_number=str(record.tracking_number or ""),
                 courier_code=courier_code,
+                order_number=record.order_number,
             )
         except Track123ClientError as exc:
             failed = self._save_live_tracking_error(record, str(exc), provider="track123")

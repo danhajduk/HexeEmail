@@ -20,13 +20,13 @@ async def test_track123_client_imports_tracking_with_user_supplied_shape():
         transport=httpx.MockTransport(handler),
     )
 
-    response = await client.import_tracking(tracking_number="771700723045", courier_code="fedex")
+    response = await client.import_tracking(tracking_number="771700723045", courier_code="fedex", order_number="ORDER-123")
     await client.close()
 
     assert response["code"] == "00000"
     assert requests[0].url.path == "/gateway/open-api/tk/v2/track/import"
     assert requests[0].headers["Track123-Api-Secret"] == "secret-test"
-    assert requests[0].read() == b'[{"trackNo":"771700723045","courierCode":"fedex"}]'
+    assert requests[0].read() == b'[{"trackNo":"771700723045","courierCode":"fedex","orderNo":"ORDER-123"}]'
 
 
 @pytest.mark.asyncio
@@ -54,6 +54,8 @@ async def test_track123_client_lists_couriers_with_user_supplied_shape():
     assert requests[0].url.path == "/gateway/open-api/tk/v2.1/courier/list"
     assert requests[0].headers["Track123-Api-Secret"] == "secret-test"
     assert requests[0].headers["accept"] == "application/json"
+    assert Track123Client.courier_code_available(response, "fedex") is True
+    assert Track123Client.courier_code_available(response, "ups") is False
 
 
 @pytest.mark.asyncio

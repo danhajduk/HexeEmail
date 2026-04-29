@@ -2465,6 +2465,7 @@ async def test_shipment_live_tracking_enable_and_refresh_use_track123(config, co
             account_id="primary",
             record_id="tracking:771700723045",
             carrier="fedex",
+            order_number="ORDER-123",
             tracking_number="771700723045",
             last_known_status="on the way",
             last_seen_at=datetime(2026, 4, 29, 9, 0, 0).astimezone(),
@@ -2472,8 +2473,15 @@ async def test_shipment_live_tracking_enable_and_refresh_use_track123(config, co
     )
 
     class FakeTrack123Client:
-        async def import_tracking(self, *, tracking_number, courier_code=None):
-            return {"code": "00000", "imported": [{"trackNo": tracking_number, "courierCode": courier_code}]}
+        def __init__(self):
+            self.imports = []
+
+        async def list_couriers(self):
+            return {"code": "00000", "data": [{"courierCode": "fedex", "courierName": "FedEx"}]}
+
+        async def import_tracking(self, *, tracking_number, courier_code=None, order_number=None):
+            self.imports.append({"tracking_number": tracking_number, "courier_code": courier_code, "order_number": order_number})
+            return {"code": "00000", "imported": [{"trackNo": tracking_number, "courierCode": courier_code, "orderNo": order_number}]}
 
         async def query_tracking(self, *, tracking_number, courier_code=None):
             from providers.tracking_track123 import Track123TrackingUpdate
@@ -2518,7 +2526,8 @@ async def test_shipment_live_tracking_enable_and_refresh_use_track123(config, co
         async def close(self):
             return None
 
-    monkeypatch.setattr(service, "_track123_client", lambda: FakeTrack123Client())
+    fake_track123_client = FakeTrack123Client()
+    monkeypatch.setattr(service, "_track123_client", lambda: fake_track123_client)
     app = create_app(config=config, service=service)
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -2530,6 +2539,9 @@ async def test_shipment_live_tracking_enable_and_refresh_use_track123(config, co
 
     assert enable_response.status_code == 200
     assert enable_response.json()["status"] == "registered"
+    assert fake_track123_client.imports == [
+        {"tracking_number": "771700723045", "courier_code": "fedex", "order_number": "ORDER-123"}
+    ]
     assert refresh_response.status_code == 200
     refreshed = refresh_response.json()["record"]
     assert refreshed["live_tracking_enabled"] is True
@@ -2544,6 +2556,48 @@ async def test_shipment_live_tracking_enable_and_refresh_use_track123(config, co
     assert body["tracked_orders"][0]["live_tracking_status"] == "Delivered"
     assert body["tracked_orders"][0]["live_tracking_expected_delivery"] == "2026-04-29 11:30:00"
     assert body["tracked_orders"][0]["live_tracking_events"][0]["detail"] == "Delivered"
+
+
+@pytest.mark.asyncio
+async def test_shipment_live_tracking_enable_rejects_unknown_track123_courier(config, core_client_factory, monkeypatch):
+    config.track123_enabled = True
+    config.track123_api_secret = "secret-test"
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    gmail_adapter = service.provider_registry.get_provider("gmail")
+    gmail_adapter.message_store.upsert_shipment_record(
+        GmailShipmentRecord(
+            account_id="primary",
+            record_id="tracking:771700723045",
+            carrier="unknown-carrier",
+            tracking_number="771700723045",
+            last_seen_at=datetime(2026, 4, 29, 9, 0, 0).astimezone(),
+        )
+    )
+
+    class FakeTrack123Client:
+        async def list_couriers(self):
+            return {"code": "00000", "data": [{"courierCode": "fedex", "courierName": "FedEx"}]}
+
+        async def import_tracking(self, **kwargs):
+            raise AssertionError("import should not run when courier code is unavailable")
+
+        async def close(self):
+            return None
+
+    monkeypatch.setattr(service, "_track123_client", lambda: FakeTrack123Client())
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post("/api/shipments/primary/tracking:771700723045/live-tracking/enable")
+
+    await service.stop()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "error"
+    assert "courier code is not available" in body["detail"]
+    assert body["record"]["live_tracking_error"] == body["detail"]
 
 
 @pytest.mark.asyncio
