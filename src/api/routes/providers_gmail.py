@@ -100,6 +100,13 @@ def build_providers_gmail_router(node_service: NodeService) -> APIRouter:
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    @router.post("/api/shipments/backfill-from-outputs")
+    async def backfill_shipments_from_outputs(account_id: str = "primary"):
+        try:
+            return node_service.backfill_tracked_orders_from_shipment_outputs(account_id=account_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     @router.post("/api/gmail/reputation/refresh")
     async def gmail_sender_reputation_refresh(account_id: str = "primary"):
         try:

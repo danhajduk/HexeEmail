@@ -2664,6 +2664,170 @@ class NodeService:
         }
         return profile_statuses.get(normalized)
 
+    def backfill_tracked_orders_from_shipment_outputs(self, *, account_id: str = "primary") -> dict[str, object]:
+        output_paths = sorted((self.config.runtime_dir / "flow_families" / "shipment" / "outputs").glob("*/*.json"))
+        candidates: list[tuple[str, dict[str, object]]] = []
+        skipped = 0
+        for path in output_paths:
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                skipped += 1
+                continue
+            item = self._shipment_output_backfill_candidate(payload, account_id=account_id)
+            if item is None:
+                skipped += 1
+                continue
+            candidates.append((str(path), item))
+
+        best_by_order: dict[str, tuple[str, dict[str, object]]] = {}
+        for path, item in candidates:
+            order_number = str(item.get("order_number") or "")
+            current = best_by_order.get(order_number)
+            if current is None or self._shipment_output_backfill_sort_key(item) > self._shipment_output_backfill_sort_key(current[1]):
+                best_by_order[order_number] = (path, item)
+
+        gmail_adapter = self.provider_registry.get_provider("gmail")
+        updated = 0
+        created = 0
+        unchanged = 0
+        results: list[dict[str, object]] = []
+        for path, item in best_by_order.values():
+            record_id = f"order:{item['order_number']}"
+            existing = gmail_adapter.message_store.get_shipment_record(account_id, record_id)
+            status = str(item.get("status") or "").strip() or None
+            current_rank = self._shipment_status_rank(existing.last_known_status if existing is not None else None)
+            next_rank = self._shipment_status_rank(status)
+            if existing is not None and next_rank <= current_rank:
+                unchanged += 1
+                results.append(
+                    {
+                        "order_number": item["order_number"],
+                        "status": "unchanged",
+                        "current_status": existing.last_known_status,
+                        "output_status": status,
+                        "path": self._runtime_display_path(Path(path)),
+                    }
+                )
+                continue
+            received_at = self._parse_tracking_timestamp(item.get("received_at")) or self._parse_tracking_timestamp(item.get("persisted_at")) or datetime.now().astimezone()
+            if existing is None:
+                record = GmailShipmentRecord(
+                    account_id=account_id,
+                    record_id=record_id,
+                    seller=str(item.get("seller") or "amazon"),
+                    carrier=item.get("carrier") if isinstance(item.get("carrier"), str) else None,
+                    order_number=str(item["order_number"]),
+                    tracking_number=item.get("tracking_number") if isinstance(item.get("tracking_number"), str) else None,
+                    domain=str(item.get("sender_domain") or "amazon.com"),
+                    last_known_status=status,
+                    last_seen_at=received_at,
+                    status_updated_at=received_at if status else None,
+                )
+                created += 1
+                outcome = "created"
+            else:
+                record = existing.model_copy(
+                    update={
+                        "seller": item.get("seller") or existing.seller,
+                        "carrier": item.get("carrier") or existing.carrier,
+                        "order_number": item.get("order_number") or existing.order_number,
+                        "tracking_number": item.get("tracking_number") or existing.tracking_number,
+                        "domain": item.get("sender_domain") or existing.domain,
+                        "last_known_status": status or existing.last_known_status,
+                        "last_seen_at": received_at or existing.last_seen_at,
+                        "status_updated_at": received_at if status else existing.status_updated_at,
+                    }
+                )
+                updated += 1
+                outcome = "updated"
+            gmail_adapter.message_store.upsert_shipment_record(record)
+            results.append(
+                {
+                    "order_number": item["order_number"],
+                    "status": outcome,
+                    "output_status": status,
+                    "message_id": item.get("message_id"),
+                    "path": self._runtime_display_path(Path(path)),
+                }
+            )
+        return {
+            "status": "ok",
+            "scanned": len(output_paths),
+            "candidates": len(candidates),
+            "orders": len(best_by_order),
+            "updated": updated,
+            "created": created,
+            "unchanged": unchanged,
+            "skipped": skipped,
+            "results": results,
+        }
+
+    def _shipment_output_backfill_candidate(self, payload: dict[str, object], *, account_id: str) -> dict[str, object] | None:
+        if payload.get("flow_family") != "shipment":
+            return None
+        trust_level = str(payload.get("trust_level") or "").strip().lower()
+        if trust_level not in {"trusted", "partial"}:
+            return None
+        metadata = payload.get("message_metadata")
+        if not isinstance(metadata, dict):
+            return None
+        sender_domain = str(metadata.get("sender_domain") or "").strip().lower()
+        sender_email = str(metadata.get("sender_email") or "").strip().lower()
+        if "amazon" not in sender_domain and "amazon" not in sender_email:
+            return None
+        if str(metadata.get("account_id") or account_id) != account_id:
+            return None
+        extracted_fields = payload.get("extracted_fields")
+        if not isinstance(extracted_fields, dict):
+            return None
+        order_number = self._action_decision_canonical_identifier(self._family_output_field_value(extracted_fields, "order_number"))
+        if not order_number:
+            return None
+        status = (
+            self._family_output_field_value(extracted_fields, "status")
+            or self._family_output_field_value(extracted_fields, "shipment_status")
+            or self._shipment_status_from_profile(payload.get("profile_id"))
+        )
+        if not status:
+            return None
+        return {
+            "order_number": order_number,
+            "status": status,
+            "seller": "amazon",
+            "carrier": self._family_output_field_value(extracted_fields, "carrier"),
+            "tracking_number": self._action_decision_canonical_identifier(self._family_output_field_value(extracted_fields, "tracking_number")),
+            "sender_domain": sender_domain or "amazon.com",
+            "message_id": metadata.get("message_id"),
+            "received_at": metadata.get("received_at"),
+            "persisted_at": payload.get("persisted_at"),
+        }
+
+    def _shipment_output_backfill_sort_key(self, item: dict[str, object]) -> tuple[int, str]:
+        return (
+            self._shipment_status_rank(item.get("status")),
+            str(item.get("received_at") or item.get("persisted_at") or ""),
+        )
+
+    @staticmethod
+    def _shipment_status_rank(status: object) -> int:
+        normalized = str(status or "").strip().lower()
+        if "delivered" in normalized:
+            return 70
+        if "out for delivery" in normalized:
+            return 60
+        if "delayed" in normalized:
+            return 55
+        if "in transit" in normalized or "on the way" in normalized:
+            return 50
+        if "shipped" in normalized:
+            return 40
+        if "label" in normalized:
+            return 30
+        if "ordered" in normalized:
+            return 10
+        return 20 if normalized else 0
+
     async def _run_order_phase1_flow(self, *, account_id: str, message) -> None:
         await self._run_label_family_phase1_flow(
             account_id=account_id,

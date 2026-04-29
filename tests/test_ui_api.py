@@ -1830,6 +1830,66 @@ async def test_shipment_family_output_updates_existing_order_record_status(confi
 
 
 @pytest.mark.asyncio
+async def test_shipment_output_backfill_updates_stale_amazon_orders(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    adapter = service.provider_registry.get_provider("gmail")
+    adapter.message_store.upsert_shipment_record(
+        GmailShipmentRecord(
+            account_id="primary",
+            record_id="order:111-5578694-2059458",
+            seller="amazon",
+            domain="amazon.com",
+            order_number="111-5578694-2059458",
+            last_known_status="ordered",
+            last_seen_at=datetime(2026, 4, 21, 22, 11, 1).astimezone(),
+            status_updated_at=datetime(2026, 4, 21, 22, 11, 1).astimezone(),
+        )
+    )
+    output_dir = config.runtime_dir / "flow_families" / "shipment" / "outputs" / "partial"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "msg-delivered.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "shared-structured-output.v1",
+                "flow_family": "shipment",
+                "persisted_at": "2026-04-29T10:30:09Z",
+                "trust_level": "partial",
+                "decision": "probation",
+                "decision_reason": "probation_template_result",
+                "confidence": 0.49,
+                "confidence_level": "low",
+                "extraction_source": "probation",
+                "profile_id": "delivered",
+                "extracted_fields": {
+                    "order_number": {"field_name": "order_number", "value": "111-5578694-2059458"},
+                    "shipment_status": {"field_name": "shipment_status", "value": None},
+                },
+                "message_metadata": {
+                    "message_id": "msg-delivered",
+                    "account_id": "primary",
+                    "subject": 'Delivered: "BariSlim Complete Chewable..."',
+                    "sender_email": "order-update@amazon.com",
+                    "sender_domain": "amazon.com",
+                    "received_at": "2026-04-22T14:30:00-07:00",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = service.backfill_tracked_orders_from_shipment_outputs(account_id="primary")
+    updated = adapter.message_store.get_shipment_record("primary", "order:111-5578694-2059458")
+
+    await service.stop()
+
+    assert result["updated"] == 1
+    assert updated is not None
+    assert updated.last_known_status == "delivered"
+    assert updated.status_updated_at == datetime.fromisoformat("2026-04-22T14:30:00-07:00")
+
+
+@pytest.mark.asyncio
 async def test_runtime_execute_latest_email_action_decision_rejects_partial_output(config, core_client_factory):
     core_app = build_core_app()
     core_app.state.action_decision_output_override = {
