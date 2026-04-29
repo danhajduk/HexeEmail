@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import json
 import httpx
 import pytest
-from fastapi import Header
+from fastapi import FastAPI, Header
 from fastapi.responses import JSONResponse
 from httpx import ASGITransport, AsyncClient
 
@@ -1770,6 +1770,63 @@ async def test_runtime_execute_latest_email_action_decision_marks_no_tracking_or
     assert tracked_orders[0].record_id == "order:112-0000000-0000000"
     assert tracked_orders[0].tracking_number is None
     assert tracked_orders[0].last_known_status == "ordered"
+
+
+@pytest.mark.asyncio
+async def test_shipment_family_output_updates_existing_order_record_status(config, core_client_factory):
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    adapter = service.provider_registry.get_provider("gmail")
+    adapter.message_store.upsert_shipment_record(
+        GmailShipmentRecord(
+            account_id="primary",
+            record_id="order:112-4455736-2808243",
+            seller="amazon",
+            domain="amazon.com",
+            order_number="112-4455736-2808243",
+            last_known_status="ordered",
+            last_seen_at=datetime(2026, 4, 26, 6, 42, 25).astimezone(),
+            status_updated_at=datetime(2026, 4, 26, 6, 42, 25).astimezone(),
+        )
+    )
+    message = GmailStoredMessage(
+        account_id="primary",
+        message_id="19dcc72563bdb1a4",
+        subject='Delivered: "SinLoon Dupont Wire..." and 1 more item',
+        sender='"Amazon.com" <order-update@amazon.com>',
+        recipients=["primary@example.com"],
+        snippet='Delivered: "SinLoon Dupont Wire..." and 1 more item',
+        received_at=datetime(2026, 4, 26, 17, 58, 58).astimezone(),
+        local_label="shipment",
+        local_label_confidence=0.62,
+    )
+    pipeline_result = {
+        "phase4": SimpleNamespace(
+            profile_id="delivered",
+            vendor_identity="amazon",
+            sender_domain="amazon.com",
+            extracted_fields={
+                "order_number": SimpleNamespace(value="112-4455736-2808243"),
+                "shipment_status": SimpleNamespace(value=None),
+            },
+        ),
+        "phase6": SimpleNamespace(decision="probation"),
+        "phase7": SimpleNamespace(persisted=True, trust_level="partial"),
+    }
+
+    service._upsert_tracked_order_from_shipment_family_output(
+        account_id="primary",
+        message=message,
+        pipeline_result=pipeline_result,
+    )
+    updated = adapter.message_store.get_shipment_record("primary", "order:112-4455736-2808243")
+
+    await service.stop()
+
+    assert updated is not None
+    assert updated.last_known_status == "delivered"
+    assert updated.status_updated_at == message.received_at
+    assert updated.last_seen_at == message.received_at
 
 
 @pytest.mark.asyncio

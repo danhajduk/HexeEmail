@@ -404,6 +404,7 @@ Purpose:
 
 - `#/dashboard/orders` shows order-linked records from the last four months, including shipments that are tied to an order
 - `#/dashboard/shipments` shows standalone shipment records that are not tied to an order
+- persisted shipment-family outputs update matching order rows by order number so Amazon shipped/delivered messages without tracking numbers still advance the order status
 
 Orders data shown:
 

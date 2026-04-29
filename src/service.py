@@ -2501,6 +2501,12 @@ class NodeService:
         phase4 = pipeline_result["phase4"]
         phase6 = pipeline_result["phase6"]
         phase7_result = pipeline_result.get("phase7_result") or {}
+        if family_label == "SHIPMENT":
+            self._upsert_tracked_order_from_shipment_family_output(
+                account_id=account_id,
+                message=message,
+                pipeline_result=pipeline_result,
+            )
         LOGGER.info(
             "%s Phase 2-7 pipeline completed",
             family_label,
@@ -2527,6 +2533,136 @@ class NodeService:
                 }
             },
         )
+
+    def _upsert_tracked_order_from_shipment_family_output(
+        self,
+        *,
+        account_id: str,
+        message,
+        pipeline_result: dict[str, object],
+    ) -> None:
+        phase4 = pipeline_result.get("phase4")
+        phase6 = pipeline_result.get("phase6")
+        phase7 = pipeline_result.get("phase7")
+        if phase4 is None or phase6 is None or phase7 is None:
+            return
+        if not bool(getattr(phase7, "persisted", False)):
+            return
+        trust_level = str(getattr(phase7, "trust_level", "") or "").strip().lower()
+        if trust_level not in {"trusted", "partial"}:
+            return
+
+        extracted_fields = getattr(phase4, "extracted_fields", {}) or {}
+        seller = self._action_decision_canonical_party(
+            self._family_output_field_value(extracted_fields, "seller") or getattr(phase4, "vendor_identity", None)
+        )
+        carrier = self._action_decision_canonical_party(self._family_output_field_value(extracted_fields, "carrier"))
+        order_number = self._action_decision_canonical_identifier(self._family_output_field_value(extracted_fields, "order_number"))
+        tracking_number = self._action_decision_canonical_identifier(self._family_output_field_value(extracted_fields, "tracking_number"))
+        last_known_status = (
+            self._family_output_field_value(extracted_fields, "status")
+            or self._family_output_field_value(extracted_fields, "shipment_status")
+            or self._shipment_status_from_profile(getattr(phase4, "profile_id", None))
+        )
+        last_known_status = " ".join(str(last_known_status or "").strip().split()) or None
+        domain = str(getattr(phase4, "sender_domain", "") or self._action_decision_sender_domain(message) or "").strip().lower() or None
+        if not any([seller, carrier, order_number, tracking_number, last_known_status]):
+            return
+
+        gmail_adapter = self.provider_registry.get_provider("gmail")
+        existing_records = gmail_adapter.message_store.list_shipment_records(account_id)
+        matched_record = None
+        if tracking_number:
+            matched_record = next(
+                (
+                    record
+                    for record in existing_records
+                    if self._action_decision_canonical_identifier(record.tracking_number) == tracking_number
+                ),
+                None,
+            )
+        if matched_record is None and order_number:
+            matched_record = next(
+                (
+                    record
+                    for record in existing_records
+                    if self._action_decision_canonical_identifier(record.order_number) == order_number
+                ),
+                None,
+            )
+        if matched_record is None and getattr(message, "message_id", None):
+            matched_record = next((record for record in existing_records if record.record_id == f"msg:{message.message_id}"), None)
+
+        received_at = getattr(message, "received_at", None)
+        if matched_record is not None:
+            status_timestamp = matched_record.status_updated_at
+            next_status = last_known_status or matched_record.last_known_status
+            if last_known_status and last_known_status != matched_record.last_known_status:
+                status_is_newer = (
+                    received_at is None
+                    or matched_record.status_updated_at is None
+                    or received_at >= matched_record.status_updated_at
+                )
+                if status_is_newer:
+                    status_timestamp = received_at
+                else:
+                    next_status = matched_record.last_known_status
+            record = matched_record.model_copy(
+                update={
+                    "seller": seller or matched_record.seller,
+                    "carrier": carrier or matched_record.carrier,
+                    "order_number": order_number or matched_record.order_number,
+                    "tracking_number": tracking_number or matched_record.tracking_number,
+                    "domain": domain or matched_record.domain,
+                    "last_known_status": next_status,
+                    "last_seen_at": received_at or matched_record.last_seen_at,
+                    "status_updated_at": status_timestamp,
+                }
+            )
+        else:
+            record_id = (
+                f"order:{order_number}"
+                if order_number
+                else f"tracking:{tracking_number}"
+                if tracking_number
+                else f"msg:{getattr(message, 'message_id', 'unknown')}"
+            )
+            record = GmailShipmentRecord(
+                account_id=account_id,
+                record_id=record_id,
+                seller=seller,
+                carrier=carrier,
+                order_number=order_number,
+                tracking_number=tracking_number,
+                domain=domain,
+                last_known_status=last_known_status,
+                last_seen_at=received_at,
+                status_updated_at=received_at if last_known_status else None,
+            )
+        gmail_adapter.message_store.upsert_shipment_record(record)
+
+    @staticmethod
+    def _family_output_field_value(extracted_fields: dict[str, object], field_name: str) -> str | None:
+        value = extracted_fields.get(field_name)
+        if hasattr(value, "value"):
+            value = getattr(value, "value")
+        elif isinstance(value, dict):
+            value = value.get("value")
+        normalized = " ".join(str(value or "").strip().split())
+        return normalized or None
+
+    @staticmethod
+    def _shipment_status_from_profile(profile_id: object) -> str | None:
+        normalized = str(profile_id or "").strip().lower()
+        profile_statuses = {
+            "shipped": "shipped",
+            "out_for_delivery": "out for delivery",
+            "delivered": "delivered",
+            "delayed": "delayed",
+            "label_created": "label created",
+            "generic_shipment_update": "shipment update",
+        }
+        return profile_statuses.get(normalized)
 
     async def _run_order_phase1_flow(self, *, account_id: str, message) -> None:
         await self._run_label_family_phase1_flow(
