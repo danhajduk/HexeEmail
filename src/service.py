@@ -2471,7 +2471,6 @@ class NodeService:
             flow_output=flow_output,
             ai_decision_payload=action_decision,
             confidence=confidence,
-            priority_score=existing.priority_score if existing is not None else 0.0,
             snoozed_until=existing.snoozed_until if existing is not None else None,
             reminder_at=existing.reminder_at if existing is not None else None,
             reminder_sent_at=existing.reminder_sent_at if existing is not None else None,
@@ -2481,7 +2480,10 @@ class NodeService:
             created_at=existing.created_at if existing is not None else None,
             state_updated_at=existing.state_updated_at if existing is not None and existing.state == state else None,
         )
-        return adapter.action_item_store.upsert_item(item)
+        priority_score, priority_inputs = self._score_action_item_priority(item)
+        return adapter.action_item_store.upsert_item(
+            item.model_copy(update={"priority_score": priority_score, "priority_inputs": priority_inputs})
+        )
 
     def _find_existing_action_required_item(
         self,
@@ -2703,6 +2705,152 @@ class NodeService:
         if confidence is None:
             return None
         return max(0.0, min(1.0, confidence))
+
+    def _score_action_item_priority(
+        self,
+        item: GmailActionItem,
+        *,
+        now: datetime | None = None,
+    ) -> tuple[float, dict[str, object]]:
+        timestamp = now or datetime.now().astimezone()
+        profile_score = self._action_item_profile_priority_score(item.profile_id)
+        due_at = self._action_item_due_at(item)
+        deadline_score = self._action_item_deadline_priority_score(due_at, now=timestamp)
+        confidence_score = self._action_item_confidence_priority_score(item.confidence)
+        review_score = 0.0
+        if item.state == GmailActionItemState.REVIEW_NEEDED:
+            review_score += 8
+        if item.review_reasons:
+            review_score += min(12, len(item.review_reasons) * 3)
+        human_review_required = bool(
+            isinstance(item.ai_decision_payload, dict) and item.ai_decision_payload.get("human_review_required")
+        )
+        if human_review_required:
+            review_score += 10
+        sender_score, sender_inputs = self._action_item_sender_priority_score(item.account_id, sender=item.sender)
+        diagnostic_score = self._action_item_diagnostic_priority_score(item)
+        raw_score = profile_score + deadline_score + confidence_score + review_score + sender_score + diagnostic_score
+        score = round(max(0.0, min(100.0, raw_score)), 2)
+        inputs = {
+            "profile_score": profile_score,
+            "deadline_score": deadline_score,
+            "confidence_score": confidence_score,
+            "review_score": review_score,
+            "sender_score": sender_score,
+            "diagnostic_score": diagnostic_score,
+            "due_at": due_at.isoformat() if due_at is not None else None,
+            "confidence": item.confidence,
+            "human_review_required": human_review_required,
+            "review_reasons": list(item.review_reasons),
+            "sender": sender_inputs,
+            "scored_at": timestamp.isoformat(),
+            "score": score,
+        }
+        return score, inputs
+
+    @staticmethod
+    def _action_item_profile_priority_score(profile_id: str | None) -> float:
+        profile = str(profile_id or "generic_action_required").strip().lower()
+        profile_scores = {
+            "payment_due": 58,
+            "payment_method_update_required": 66,
+            "subscription_payment_failed": 70,
+            "account_verification_required": 60,
+            "verification_code_required": 62,
+            "security_alert_action_required": 74,
+            "account_retention_required": 56,
+            "document_signature_required": 62,
+            "document_available_action_required": 48,
+            "appointment_preparation_required": 54,
+            "appointment_scheduling_required": 52,
+            "travel_check_in_required": 64,
+            "subscription_expiring": 48,
+            "benefit_order_update_required": 55,
+            "benefit_expiring": 52,
+            "site_issue_action_required": 60,
+            "service_issue_action_required": 58,
+            "pickup_ready_action_required": 62,
+            "application_completion_required": 60,
+            "generic_action_required": 45,
+        }
+        return float(profile_scores.get(profile, 45))
+
+    @staticmethod
+    def _action_item_deadline_priority_score(due_at: datetime | None, *, now: datetime) -> float:
+        if due_at is None:
+            return 0.0
+        comparable_due_at = due_at
+        comparable_now = now
+        if comparable_due_at.tzinfo is None and comparable_now.tzinfo is not None:
+            comparable_due_at = comparable_due_at.replace(tzinfo=comparable_now.tzinfo)
+        if comparable_due_at.tzinfo is not None and comparable_now.tzinfo is None:
+            comparable_now = comparable_now.replace(tzinfo=comparable_due_at.tzinfo)
+        seconds = (comparable_due_at - comparable_now).total_seconds()
+        if seconds < 0:
+            return 26.0
+        hours = seconds / 3600
+        if hours <= 24:
+            return 22.0
+        if hours <= 72:
+            return 14.0
+        if hours <= 168:
+            return 7.0
+        return 0.0
+
+    @staticmethod
+    def _action_item_confidence_priority_score(confidence: float | None) -> float:
+        if confidence is None:
+            return 8.0
+        if confidence < 0.5:
+            return 14.0
+        if confidence < 0.75:
+            return 7.0
+        if confidence >= 0.92:
+            return -4.0
+        return 0.0
+
+    def _action_item_sender_priority_score(self, account_id: str, *, sender: str | None) -> tuple[float, dict[str, object] | None]:
+        context = self._sender_reputation_context(account_id, sender=sender)
+        preferred = context.get("preferred") if isinstance(context, dict) else None
+        if not isinstance(preferred, dict):
+            return 0.0, None
+        state = str(preferred.get("reputation_state") or "neutral").strip().lower()
+        try:
+            rating = float(preferred.get("rating"))
+        except (TypeError, ValueError):
+            rating = 0.0
+        score = 0.0
+        if state in {"risky", "blocked"}:
+            score += 12
+        elif state in {"trusted", "safe"}:
+            score -= 6
+        if rating < -2:
+            score += 8
+        elif rating > 2:
+            score -= 4
+        return score, {
+            "state": state,
+            "rating": rating,
+            "sender_email": context.get("sender_email") if isinstance(context, dict) else None,
+            "sender_domain": context.get("sender_domain") if isinstance(context, dict) else None,
+        }
+
+    @staticmethod
+    def _action_item_diagnostic_priority_score(item: GmailActionItem) -> float:
+        diagnostics: list[str] = []
+        if isinstance(item.flow_output, dict):
+            raw_diagnostics = item.flow_output.get("diagnostics")
+            if isinstance(raw_diagnostics, list):
+                diagnostics.extend(str(value).strip().lower() for value in raw_diagnostics if str(value).strip())
+        diagnostics.extend(reason.lower() for reason in item.review_reasons)
+        score = 0.0
+        if any("deadline" in diagnostic or "overdue" in diagnostic for diagnostic in diagnostics):
+            score += 6
+        if any("security" in diagnostic or "risk" in diagnostic for diagnostic in diagnostics):
+            score += 8
+        if any("missing" in diagnostic or "invalid" in diagnostic or "failure" in diagnostic for diagnostic in diagnostics):
+            score += 5
+        return min(score, 14.0)
 
     def _schedule_email_classification_followups(
         self,
@@ -5526,6 +5674,7 @@ class NodeService:
             "profile_type": item.profile_type,
             "confidence": item.confidence,
             "priority_score": item.priority_score,
+            "priority_inputs": item.priority_inputs,
             "snoozed_until": item.snoozed_until.isoformat() if item.snoozed_until is not None else None,
             "reminder_at": item.reminder_at.isoformat() if item.reminder_at is not None else None,
             "operator_note": item.operator_note,

@@ -841,6 +841,7 @@ class GmailActionItem(BaseModel):
     ai_decision_payload: dict[str, object] | None = None
     confidence: float | None = None
     priority_score: float = 0.0
+    priority_inputs: dict[str, object] = Field(default_factory=dict)
     snoozed_until: datetime | None = None
     reminder_at: datetime | None = None
     reminder_sent_at: datetime | None = None

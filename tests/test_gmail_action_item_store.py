@@ -29,6 +29,7 @@ def test_gmail_action_item_store_persists_action_item(runtime_dir):
         ai_decision_payload={"summary": "Pay by tomorrow", "human_review_required": True},
         confidence=0.83,
         priority_score=72.5,
+        priority_inputs={"profile_score": 58, "deadline_score": 14},
         snoozed_until=now + timedelta(hours=2),
         reminder_at=now + timedelta(hours=1),
         operator_note="Check account first",
@@ -47,6 +48,7 @@ def test_gmail_action_item_store_persists_action_item(runtime_dir):
     assert loaded.ai_decision_payload is not None
     assert loaded.ai_decision_payload["summary"] == "Pay by tomorrow"
     assert loaded.priority_score == 72.5
+    assert loaded.priority_inputs["profile_score"] == 58
     assert loaded.grouped_message_ids == ["msg-1", "msg-2"]
     assert loaded.review_reasons == ["missing_action_url"]
     assert store.count_items("primary") == 1

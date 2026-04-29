@@ -116,6 +116,12 @@ Implementation status:
 - Persist the score and expose the score inputs for operator trust.
 - Keep scoring deterministic and locally testable.
 
+Implementation status:
+
+- Done in `NodeService._score_action_item_priority`.
+- Score inputs are persisted on `GmailActionItem.priority_inputs` and exposed by the Action Required API.
+- Scoring currently includes profile, deadline, confidence, review reasons, AI human-review flag, sender reputation, and diagnostics.
+
 ### AR-005: Add snooze and reminder handling
 
 - Store `snoozed_until` and `reminder_at`.

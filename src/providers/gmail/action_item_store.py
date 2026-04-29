@@ -43,6 +43,7 @@ class GmailActionItemStore:
                     ai_decision_payload_json TEXT,
                     confidence REAL,
                     priority_score REAL NOT NULL DEFAULT 0,
+                    priority_inputs_json TEXT NOT NULL DEFAULT '{}',
                     snoozed_until TEXT,
                     reminder_at TEXT,
                     reminder_sent_at TEXT,
@@ -55,6 +56,12 @@ class GmailActionItemStore:
                     PRIMARY KEY (account_id, item_id)
                 )
                 """
+            )
+            self._ensure_column(
+                connection,
+                "gmail_action_items",
+                "priority_inputs_json",
+                "TEXT NOT NULL DEFAULT '{}'",
             )
             connection.execute(
                 """
@@ -110,6 +117,7 @@ class GmailActionItemStore:
                     ai_decision_payload_json,
                     confidence,
                     priority_score,
+                    priority_inputs_json,
                     snoozed_until,
                     reminder_at,
                     reminder_sent_at,
@@ -119,7 +127,7 @@ class GmailActionItemStore:
                     created_at,
                     updated_at,
                     state_updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(account_id, item_id) DO UPDATE SET
                     group_key = excluded.group_key,
                     source_message_id = excluded.source_message_id,
@@ -135,6 +143,7 @@ class GmailActionItemStore:
                     ai_decision_payload_json = excluded.ai_decision_payload_json,
                     confidence = excluded.confidence,
                     priority_score = excluded.priority_score,
+                    priority_inputs_json = excluded.priority_inputs_json,
                     snoozed_until = excluded.snoozed_until,
                     reminder_at = excluded.reminder_at,
                     reminder_sent_at = excluded.reminder_sent_at,
@@ -246,6 +255,7 @@ class GmailActionItemStore:
             self._json_dumps(item.ai_decision_payload) if item.ai_decision_payload is not None else None,
             item.confidence,
             item.priority_score,
+            self._json_dumps(item.priority_inputs),
             self._datetime_to_text(item.snoozed_until),
             self._datetime_to_text(item.reminder_at),
             self._datetime_to_text(item.reminder_sent_at),
@@ -275,6 +285,7 @@ class GmailActionItemStore:
             ai_decision_payload=self._json_loads_optional_object(row["ai_decision_payload_json"]),
             confidence=row["confidence"],
             priority_score=float(row["priority_score"] or 0),
+            priority_inputs=self._json_loads_object(row["priority_inputs_json"] if "priority_inputs_json" in row.keys() else None),
             snoozed_until=self._datetime_from_text(row["snoozed_until"]),
             reminder_at=self._datetime_from_text(row["reminder_at"]),
             reminder_sent_at=self._datetime_from_text(row["reminder_sent_at"]),
@@ -326,3 +337,9 @@ class GmailActionItemStore:
             os.chmod(path, mode)
         except PermissionError:
             return
+
+    @staticmethod
+    def _ensure_column(connection: sqlite3.Connection, table: str, column: str, definition: str) -> None:
+        existing = {row["name"] for row in connection.execute(f"PRAGMA table_info({table})").fetchall()}
+        if column not in existing:
+            connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")

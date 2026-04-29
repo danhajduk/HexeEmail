@@ -48,7 +48,6 @@ Standards reference:
 Do not edit above this line:
 #######################################################################
 
-[TODO] Task 351: Add Action Required priority scoring
 [TODO] Task 352: Add Action Required snooze and reminder handling
 [TODO] Task 353: Add Action Required review queue rules
 [TODO] Task 354: Add Action Required dashboard page and navigation

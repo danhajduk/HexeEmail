@@ -83,6 +83,9 @@ def test_action_required_sync_creates_and_groups_items(config):
     assert item.state == GmailActionItemState.READY
     assert item.profile_id == "document_signature_required"
     assert item.confidence == 0.84
+    assert item.priority_score >= 58
+    assert item.priority_inputs["profile_score"] == 62
+    assert "deadline_score" in item.priority_inputs
     assert item.group_key == "action_url:https://example.com/action/123"
     assert item.grouped_message_ids == ["msg-1", "msg-2", "msg-3"]
     assert item.ai_decision_payload is not None

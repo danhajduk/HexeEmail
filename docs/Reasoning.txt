@@ -427,3 +427,9 @@ Chosen fix: Expose managed Action Required items through list/detail endpoints p
 What changed: Added request models for Action Required item operations, added `/api/actions` and `/api/gmail/action-items` routes, added service methods for filtering and mutating action items, documented AR-003 completion, removed Task 350 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
 Verification: `.venv/bin/python -m pytest -q tests/test_action_required_api.py tests/test_action_required_item_sync.py tests/test_gmail_action_item_store.py`; `.venv/bin/python -m compileall -q src/service.py src/api/routes/providers_gmail.py src/providers/gmail/models.py`; `git diff --check`.
 ###########
+Task #351
+Step objective: Add Action Required priority scoring.
+Chosen fix: Calculate a deterministic priority score whenever Action Required items sync, persist the score inputs for operator trust, and expose those inputs through the API.
+What changed: Added `priority_inputs` to action item records with SQLite migration support, scored by profile, deadline, confidence, review reasons, AI human-review flag, sender reputation, and diagnostics, documented AR-004 completion, removed Task 351 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: `.venv/bin/python -m pytest -q tests/test_gmail_action_item_store.py tests/test_action_required_item_sync.py tests/test_action_required_api.py`; `.venv/bin/python -m compileall -q src/service.py src/providers/gmail/action_item_store.py src/providers/gmail/models.py`; `git diff --check`.
+###########
