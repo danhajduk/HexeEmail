@@ -415,3 +415,9 @@ Chosen fix: Add a dedicated SQLite-backed Gmail action item store with typed ite
 What changed: Added `GmailActionItem` and `GmailActionItemState`, added `GmailActionItemStore` using `runtime/providers/gmail/action_items.sqlite3`, exposed the store on `GmailProviderAdapter`, documented the store status, removed Task 348 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
 Verification: `.venv/bin/python -m pytest -q tests/test_gmail_action_item_store.py`; `python -m compileall -q src`; `git diff --check`.
 ###########
+Task #349
+Step objective: Build Action Required item sync from classified mail.
+Chosen fix: Sync action items from the Action Required classification follow-up path after the family pipeline and AI decision, while falling back to persisted family output files when in-memory pipeline output is unavailable.
+What changed: Added group-key lookup to `GmailActionItemStore`, added Action Required item sync and grouping helpers to `NodeService`, returned family pipeline results to follow-up handling, covered grouping/state preservation/notification sync with tests, documented AR-002 completion, removed Task 349 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: `.venv/bin/python -m pytest -q tests/test_action_required_item_sync.py tests/test_gmail_action_item_store.py tests/test_notifications.py::test_action_required_flow_toggle_skips_pipeline_execution`; `.venv/bin/python -m compileall -q src/service.py src/providers/gmail/action_item_store.py`; `git diff --check`.
+###########
