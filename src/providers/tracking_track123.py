@@ -42,12 +42,9 @@ class Track123Client:
         return await self._post_json("/gateway/open-api/tk/v2/track/import", [payload], operation="track123_import")
 
     async def query_tracking(self, *, tracking_number: str, courier_code: str | None = None) -> Track123TrackingUpdate:
-        track_info: dict[str, object] = {"trackNo": tracking_number}
-        if courier_code:
-            track_info["courierCode"] = courier_code
         payload = await self._post_json(
-            "/gateway/open-api/tk/v2.1/track/query",
-            {"trackNoInfos": [track_info]},
+            "/gateway/open-api/tk/v2/track/query",
+            {"trackNos": [tracking_number]},
             operation="track123_query",
         )
         return self.parse_tracking_update(payload, fallback_tracking_number=tracking_number, fallback_carrier=courier_code)
