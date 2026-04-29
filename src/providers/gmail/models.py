@@ -812,6 +812,62 @@ class GmailSenderReputationManualRatingInput(BaseModel):
     note: str | None = None
 
 
+class GmailActionItemState(str, Enum):
+    NEW = "new"
+    REVIEW_NEEDED = "review_needed"
+    READY = "ready"
+    SNOOZED = "snoozed"
+    WAITING = "waiting"
+    DONE = "done"
+    IGNORED = "ignored"
+
+
+class GmailActionItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    account_id: str
+    item_id: str
+    group_key: str | None = None
+    source_message_id: str
+    thread_id: str | None = None
+    sender: str | None = None
+    subject: str | None = None
+    received_at: datetime
+    state: GmailActionItemState = GmailActionItemState.NEW
+    profile_id: str | None = None
+    profile_type: str | None = None
+    extracted_fields: dict[str, object] = Field(default_factory=dict)
+    flow_output: dict[str, object] | None = None
+    ai_decision_payload: dict[str, object] | None = None
+    confidence: float | None = None
+    priority_score: float = 0.0
+    snoozed_until: datetime | None = None
+    reminder_at: datetime | None = None
+    reminder_sent_at: datetime | None = None
+    operator_note: str | None = None
+    grouped_message_ids: list[str] = Field(default_factory=list)
+    review_reasons: list[str] = Field(default_factory=list)
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    state_updated_at: datetime | None = None
+
+    @field_validator("confidence")
+    @classmethod
+    def validate_confidence(cls, value: float | None) -> float | None:
+        if value is None:
+            return None
+        if value < 0 or value > 1:
+            raise ValueError("confidence must be between 0 and 1")
+        return value
+
+    @field_validator("priority_score")
+    @classmethod
+    def validate_priority_score(cls, value: float) -> float:
+        if value < 0 or value > 100:
+            raise ValueError("priority_score must be between 0 and 100")
+        return value
+
+
 class GmailShipmentRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

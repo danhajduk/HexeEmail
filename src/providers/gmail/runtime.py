@@ -39,6 +39,10 @@ class GmailRuntimeLayout:
         return self.provider_dir / "messages.sqlite3"
 
     @property
+    def action_item_store_path(self) -> Path:
+        return self.provider_dir / "action_items.sqlite3"
+
+    @property
     def fetch_schedule_state_path(self) -> Path:
         return self.provider_dir / "fetch_schedule_state.json"
 
@@ -95,6 +99,8 @@ class GmailRuntimeLayout:
         self._set_mode(self.quota_usage_path, 0o600)
         if self.message_store_path.exists():
             self._set_mode(self.message_store_path, 0o600)
+        if self.action_item_store_path.exists():
+            self._set_mode(self.action_item_store_path, 0o600)
         if self.training_model_path.exists():
             self._set_mode(self.training_model_path, 0o600)
         if self.training_model_meta_path.exists():

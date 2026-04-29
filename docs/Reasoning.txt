@@ -409,3 +409,9 @@ Chosen fix: Publish one node-scoped `kind=event` notification request to `hexe/n
 What changed: Published the completion notification request for node `node-69ecb9b651bb77b4`, removed Task 347 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
 Verification: MQTT publish command completed successfully. No `notify/result` message arrived during the wait window, so completion is recorded as sent but not Core-confirmed.
 ###########
+Task #348
+Step objective: Add Action Required item data store.
+Chosen fix: Add a dedicated SQLite-backed Gmail action item store with typed item state and fields for source mail, extracted data, AI decision payloads, priority, snooze/reminder metadata, notes, grouping, review reasons, and timestamps.
+What changed: Added `GmailActionItem` and `GmailActionItemState`, added `GmailActionItemStore` using `runtime/providers/gmail/action_items.sqlite3`, exposed the store on `GmailProviderAdapter`, documented the store status, removed Task 348 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: `.venv/bin/python -m pytest -q tests/test_gmail_action_item_store.py`; `python -m compileall -q src`; `git diff --check`.
+###########

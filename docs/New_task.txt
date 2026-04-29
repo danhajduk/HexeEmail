@@ -48,7 +48,6 @@ Standards reference:
 Do not edit above this line:
 #######################################################################
 
-[TODO] Task 348: Add Action Required item data store
 [TODO] Task 349: Build Action Required item sync from classified mail
 [TODO] Task 350: Add Action Required backend API
 [TODO] Task 351: Add Action Required priority scoring

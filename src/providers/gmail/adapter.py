@@ -8,6 +8,7 @@ from pathlib import Path
 from logging_utils import get_logger
 from providers.base import EmailProviderAdapter
 from providers.gmail.account_store import GmailAccountStore
+from providers.gmail.action_item_store import GmailActionItemStore
 from providers.gmail.fetch_schedule_store import GmailFetchScheduleStore
 from providers.gmail.label_cache_store import GmailLabelCacheStore
 from providers.gmail.mailbox_client import GmailMailboxClient, GmailMailboxClientError
@@ -66,6 +67,7 @@ class GmailProviderAdapter(EmailProviderAdapter):
         self.token_store = GmailTokenStore(runtime_dir)
         self.mailbox_status_store = GmailMailboxStatusStore(runtime_dir)
         self.message_store = GmailMessageStore(runtime_dir)
+        self.action_item_store = GmailActionItemStore(runtime_dir)
         self.fetch_schedule_store = GmailFetchScheduleStore(runtime_dir)
         self.label_cache_store = GmailLabelCacheStore(runtime_dir)
         self.quota_tracker = GmailQuotaTracker(runtime_dir)

@@ -352,3 +352,4 @@ Task 344: Document all possible cross-family terminal outcomes and operator stat
 Task 345: Add concrete worked examples for representative emails across multiple families, showing phase-by-phase progression, confidence changes, fallback paths, and final action outcomes - Completed on 04/06/2026 03:56
 Task 346: Update repo documentation indexes so the new flow and action docs are discoverable from the main runtime, pipeline, and architecture docs - Completed on 04/06/2026 03:56
 Task 347: Send a completion user notification over MQTT using the Core-documented user-notification format after the scheduled-task and flow-family work is finished - Completed on 04/06/2026 03:59
+Task 348: Add Action Required item data store - Completed on 04/29/2026 09:26

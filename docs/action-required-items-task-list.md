@@ -78,6 +78,12 @@ Pickup and general:
 - Persist source Gmail message id, thread id, sender, subject, received time, state, profile, extracted fields, AI decision payload, confidence, priority score, snooze/reminder fields, operator notes, grouped message ids, and audit timestamps.
 - Keep Gmail message classification as source evidence, not the managed item state.
 
+Implementation status:
+
+- Done in `src/providers/gmail/action_item_store.py`.
+- Dedicated DB path: `runtime/providers/gmail/action_items.sqlite3`.
+- Owned by `GmailProviderAdapter.action_item_store`.
+
 ### AR-002: Build item sync from classified mail
 
 - Create or update action items when mail is classified as `action_required`.
