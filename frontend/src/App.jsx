@@ -3032,6 +3032,7 @@ export function App() {
                   liveTrackingPending={liveTrackingPending}
                   enableLiveTracking={runEnableShipmentLiveTracking}
                   refreshLiveTracking={runRefreshShipmentLiveTracking}
+                  showSeller={false}
                 />
               ) : dashboardSection === "review" ? (
                 <ReviewOutputsSection

@@ -195,6 +195,7 @@ describe("dashboard feature sections", () => {
         title="Tracked Shipments"
         description="Shipment-focused records"
         emptyMessage="No tracked shipment records are available yet."
+        showSeller={false}
       />,
     );
     const reviewHtml = render(
@@ -230,7 +231,10 @@ describe("dashboard feature sections", () => {
     expect(scheduledHtml).toContain("Provider");
     expect(scheduledHtml).toContain("background_task_manager");
     expect(ordersHtml).toContain("Tracked Orders");
+    expect(ordersHtml).toContain("Seller");
     expect(shipmentsHtml).toContain("Tracked Shipments");
+    expect(shipmentsHtml).not.toContain("Seller");
+    expect(shipmentsHtml).not.toContain("Amazon");
     expect(reviewHtml).toContain("Review Needed Outputs");
     expect(reviewHtml).toContain("no_structured_extraction");
     expect(reviewHtml).toContain("runtime/flow_families/shipment/outputs/review_needed/msg-1.json");

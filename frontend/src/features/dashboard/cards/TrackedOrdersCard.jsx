@@ -8,6 +8,7 @@ export function TrackedOrdersCard({
   liveTrackingPending = "",
   enableLiveTracking,
   refreshLiveTracking,
+  showSeller = true,
 }) {
   const track123 = trackingIntegrations?.track123 || {};
   const track123Ready = Boolean(track123.enabled && track123.configured);
@@ -22,7 +23,7 @@ export function TrackedOrdersCard({
           <table className="scheduled-tasks-table">
             <thead>
               <tr>
-                <th>Seller</th>
+                {showSeller ? <th>Seller</th> : null}
                 <th>Carrier</th>
                 <th>Order Number</th>
                 <th>Tracking Number</th>
@@ -35,7 +36,7 @@ export function TrackedOrdersCard({
             <tbody>
               {trackedOrdersSorted.map((record) => (
                 <tr key={`${record.account_id || "account"}:${record.record_id || record.order_number || record.tracking_number || "record"}`}>
-                  <td>{record.seller || "-"}</td>
+                  {showSeller ? <td>{record.seller || "-"}</td> : null}
                   <td>{record.carrier || "-"}</td>
                   <td><code>{record.order_number || "-"}</code></td>
                   <td><code>{record.tracking_number || "-"}</code></td>

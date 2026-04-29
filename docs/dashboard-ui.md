@@ -405,9 +405,19 @@ Purpose:
 - `#/dashboard/orders` shows order-linked records from the last four months, including shipments that are tied to an order
 - `#/dashboard/shipments` shows standalone shipment records that are not tied to an order
 
-Data shown:
+Orders data shown:
 
 - seller
+- carrier
+- order number
+- tracking number
+- status
+- live tracking state, provider status, and location when Track123 is configured
+- account
+- updated
+
+Shipments data shown:
+
 - carrier
 - order number
 - tracking number

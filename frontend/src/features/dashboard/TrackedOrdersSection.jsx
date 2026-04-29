@@ -10,6 +10,7 @@ export function TrackedOrdersSection({
   liveTrackingPending,
   enableLiveTracking,
   refreshLiveTracking,
+  showSeller,
 }) {
   return (
     <section className="grid scheduled-tasks-grid">
@@ -23,6 +24,7 @@ export function TrackedOrdersSection({
         liveTrackingPending={liveTrackingPending}
         enableLiveTracking={enableLiveTracking}
         refreshLiveTracking={refreshLiveTracking}
+        showSeller={showSeller}
       />
     </section>
   );
