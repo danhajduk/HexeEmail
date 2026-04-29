@@ -247,6 +247,12 @@ Implementation status:
 - Cover store behavior, item grouping, state transitions, snooze/reminder behavior, priority scoring, API contracts, and dashboard rendering.
 - Update dashboard, API, and action-required family docs with the final behavior.
 
+Implementation status:
+
+- Done with targeted backend coverage for the store, sync/grouping, priority/review state, snooze/reminder behavior, API mutations, grouped reclassification, notification resend, AI-decision regeneration, and sender/domain rule feedback.
+- Done with dashboard rendering coverage for the Action Required queue, detail panels, operator controls, and rule feedback controls.
+- Updated the API map, dashboard UI reference, and ACTION_REQUIRED family reference to describe the final item workspace behavior.
+
 ## MVP Build Order
 
 1. Data store and sync from classified messages.

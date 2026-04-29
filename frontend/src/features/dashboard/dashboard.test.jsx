@@ -255,6 +255,7 @@ describe("dashboard feature sections", () => {
         selectedActionItemError=""
         onSelectActionItem={() => {}}
         onRefreshActionItems={() => {}}
+        onApplyActionItemRuleFeedback={() => {}}
         formatScheduleTimestamp={(value) => value || "-"}
       />,
     );
@@ -314,5 +315,8 @@ describe("dashboard feature sections", () => {
     expect(actionHtml).toContain("Mail");
     expect(actionHtml).toContain("missing action url");
     expect(actionHtml).toContain("Pay invoice");
+    expect(actionHtml).toContain("Rule Feedback");
+    expect(actionHtml).toContain("Save Sender Rule");
+    expect(actionHtml).toContain("Never Domain");
   });
 });

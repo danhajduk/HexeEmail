@@ -16,6 +16,7 @@ The active dashboard view is selected by `dashboardSection`. The current section
 - `scheduled`
 - `orders`
 - `shipments`
+- `actions`
 - `review`
 
 These section wrappers now compose card components from:
@@ -59,6 +60,9 @@ Sidebar items:
 - `Runtime`
 - `Scheduled Tasks`
 - `Tracked Orders`
+- `Tracked Shipments`
+- `Action Required`
+- `Review Needed`
 - `Activity`
 - `Diagnostics`
 
@@ -435,6 +439,42 @@ Live tracking:
 - the same task runs every 5 minutes and queries Track123 through `POST /gateway/open-api/tk/v2.1/track/query` for all enabled live-tracking shipment records
 - delivered shipments older than 30 days are removed from Track123 through `POST /gateway/open-api/tk/v2.1/track/delete` while the local shipment record stays in the database
 - Track123 requests are throttled per endpoint and briefly retried when Track123 returns `A0706` or HTTP `429`
+
+## Action Required section
+
+Section wrapper:
+
+- `frontend/src/features/dashboard/ActionRequiredSection.jsx`
+
+Purpose:
+
+- `#/dashboard/actions` is the operator workspace for Gmail messages classified as `action_required`.
+- The page combines the queue list, selected-mail review, extracted family output, AI decision payload, and operator actions.
+
+List data shown:
+
+- state
+- priority
+- sender
+- subject and grouped thread count
+- profile/type
+- due, reminder, and snooze timing
+- confidence
+- review reasons
+- AI decision summary
+
+Detail panels:
+
+- `Operator Actions`: mark done, accept, needs review, ignore, open action URL, send notification, regenerate AI decision, snooze/remind, reclassify, save notes, and save sender/domain rule feedback.
+- `Mail`: message headers, Gmail labels, plain text body, sanitized HTML preview, and Gmail message link.
+- `Extracted Data`: profile, template, action URL, due time, review reasons, extracted fields, diagnostics, and raw flow output JSON.
+- `AI Decision`: primary label, recommended action, risk notes, deadline/calendar signals, recommended actions, and raw decision JSON.
+
+Rule feedback:
+
+- `Save Sender Rule` and `Save Domain Rule` write the selected label to Gmail runtime label override rules.
+- `Always Sender` and `Always Domain` save `action_required`.
+- `Never Sender` and `Never Domain` save `system`, causing future matching mail to avoid the Action Required queue.
 
 ## Review-needed outputs dashboard section
 

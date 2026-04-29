@@ -132,6 +132,8 @@ Notes:
 Current implemented Gmail API routes:
 
 - `GET /api/gmail/status`
+- `GET /api/gmail/rules`
+- `PUT /api/gmail/rules`
 - `POST /api/gmail/fetch/{window}`
 - `POST /api/gmail/spamhaus/check`
 - `POST /api/gmail/reputation/refresh`
@@ -145,6 +147,38 @@ Current implemented Gmail API routes:
 - `POST /api/gmail/training/semi-auto-batch`
 - `POST /api/gmail/training/classified-batch`
 - `POST /api/gmail/training/semi-auto-review`
+
+## Action Required items
+
+Current implemented Action Required item routes:
+
+- `GET /api/actions`
+- `GET /api/actions/{item_id}`
+- `PATCH /api/actions/{item_id}/state`
+- `PATCH /api/actions/{item_id}/snooze`
+- `PATCH /api/actions/{item_id}/note`
+- `PATCH /api/actions/{item_id}/classification`
+- `POST /api/actions/{item_id}/rule-feedback`
+- `POST /api/actions/{item_id}/notify`
+- `POST /api/actions/{item_id}/regenerate-ai-decision`
+
+Gmail-specific aliases:
+
+- `GET /api/gmail/action-items`
+- `GET /api/gmail/action-items/{item_id}`
+- `PATCH /api/gmail/action-items/{item_id}/state`
+- `PATCH /api/gmail/action-items/{item_id}/snooze`
+- `PATCH /api/gmail/action-items/{item_id}/note`
+- `PATCH /api/gmail/action-items/{item_id}/classification`
+- `POST /api/gmail/action-items/{item_id}/rule-feedback`
+- `POST /api/gmail/action-items/{item_id}/notify`
+- `POST /api/gmail/action-items/{item_id}/regenerate-ai-decision`
+
+Notes:
+
+- `/api/actions` is the dashboard-friendly canonical workspace API.
+- `/api/gmail/action-items` aliases exist for provider-scoped integrations and compatibility.
+- Rule feedback writes through to Gmail sender/domain label override settings exposed by `/api/gmail/rules`.
 
 ## Callback and compatibility endpoints
 

@@ -185,7 +185,10 @@ Persisted trust levels follow the shared model:
 
 ## Downstream Actions
 
-ACTION_REQUIRED currently has policy-driven intents but placeholder handlers.
+ACTION_REQUIRED now has two downstream surfaces:
+
+- family-flow persistence under `runtime/flow_families/action_required/outputs`
+- managed Action Required items in the local Gmail action-item database
 
 Configured decision intents:
 
@@ -200,17 +203,35 @@ Configured diagnostic token intents:
 
 Current runtime behavior:
 
-- `write_action_record(...)` returns a queued placeholder result when `store_action_record` is present
-- `build_user_notification(...)` returns a queued placeholder result when `user_notification` is present
-- `build_followup_action(...)` returns a queued placeholder result for:
-  - `queue_reminder`
-  - `mark_high_priority`
-  - `mark_for_manual_review`
+- when mail is classified as `action_required`, `NodeService` runs the family pipeline and action-decision prompt, then syncs or updates a `GmailActionItem`
+- the item is grouped by stable action fields such as action URL, document id, account/vendor, or subject fallback
+- the item stores source message metadata, extracted fields, flow output, AI decision payload, confidence, priority score, snooze/reminder metadata, review reasons, and operator note
+- default queue views hide terminal items and future-snoozed items
+- `process_due_action_item_reminders` wakes expired snoozes and sends reminder notifications once
+- operator actions can mark state, snooze/remind, add notes, reclassify grouped source messages, resend notification, regenerate the AI decision, and save sender/domain rule feedback
 
 Important nuance:
 
 - the shared action gate blocks `probation` decisions from downstream action execution
 - so `probation`-configured intents exist in policy but do not currently pass the gate
+
+## Action Required Item API
+
+Dashboard-friendly API:
+
+- `GET /api/actions`
+- `GET /api/actions/{item_id}`
+- `PATCH /api/actions/{item_id}/state`
+- `PATCH /api/actions/{item_id}/snooze`
+- `PATCH /api/actions/{item_id}/note`
+- `PATCH /api/actions/{item_id}/classification`
+- `POST /api/actions/{item_id}/rule-feedback`
+- `POST /api/actions/{item_id}/notify`
+- `POST /api/actions/{item_id}/regenerate-ai-decision`
+
+Provider-scoped aliases are available under `/api/gmail/action-items`.
+
+Rule feedback writes enabled sender/domain label overrides into the Gmail runtime rule settings exposed by `/api/gmail/rules`. Non-`action_required` rule feedback marks the current action item ignored because future matching mail should no longer remain in the Action Required queue.
 
 ## Runtime Switch Interaction
 

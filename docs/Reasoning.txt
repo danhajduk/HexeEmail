@@ -457,3 +457,15 @@ Chosen fix: Reuse existing action-item state, snooze, note, and regenerate endpo
 What changed: Added reclassify and notify action-item API routes and service methods, added grouped-message manual reclassification behavior, added manual notification resend with unique dedupe keys, added operator controls to `ActionRequiredSection`, documented AR-012 completion, removed Task 359 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
 Verification: `.venv/bin/python -m pytest -q tests/test_action_required_api.py`; `npm test -- --run src/features/dashboard/dashboard.test.jsx src/app/router.test.js`; `npm run build`; `.venv/bin/python -m compileall -q src/service.py src/api/routes/providers_gmail.py src/providers/gmail/models.py`; `git diff --check`.
 ###########
+Task #360
+Step objective: Add Action Required rule feedback actions.
+Chosen fix: Add an item-level rule-feedback endpoint that saves sender/domain Gmail label override rules, records the action in the item operator note, and exposes generic plus quick always/never controls in the dashboard.
+What changed: Added `GmailActionItemRuleFeedbackInput`, `POST /api/actions/{item_id}/rule-feedback` and Gmail alias routes, service logic to write Gmail sender/domain label override settings, dashboard rule-feedback controls, API coverage, documented AR-013 completion, removed Task 360 from `docs/New_task.txt`, and appended the completion entry to `docs/completed.txt`.
+Verification: `.venv/bin/python -m pytest -q tests/test_action_required_api.py`; `npm test -- --run src/features/dashboard/dashboard.test.jsx src/app/router.test.js`; `npm run build`; `.venv/bin/python -m compileall -q src/service.py src/api/routes/providers_gmail.py src/providers/gmail/models.py`; `git diff --check`.
+###########
+Task #361
+Step objective: Add Action Required item tests and docs.
+Chosen fix: Treat the existing targeted store/sync/API/dashboard coverage as the final workspace coverage baseline, add explicit dashboard assertions for rule-feedback controls, and update the API, dashboard, and family references with the implemented behavior.
+What changed: Added dashboard test assertions for the Action Required rule-feedback controls, updated the API map with `/api/actions` and `/api/gmail/action-items`, documented the dashboard Action Required section, updated the ACTION_REQUIRED family reference with the item store and API behavior, and documented AR-014 completion.
+Verification: `.venv/bin/python -m pytest -q tests/test_gmail_action_item_store.py tests/test_action_required_item_sync.py tests/test_action_required_api.py`; `npm test -- --run src/features/dashboard/dashboard.test.jsx src/app/router.test.js`; `npm run build`; `git diff --check`.
+###########
