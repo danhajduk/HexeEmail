@@ -34,6 +34,9 @@ DHL_TRACKING_PATTERN = re.compile(r"\b\d{10,11}\b")
 STATUS_PATTERNS = [
     (re.compile(r"\bout for delivery\b", re.IGNORECASE), "out for delivery"),
     (re.compile(r"\bdelivered\b", re.IGNORECASE), "delivered"),
+    (re.compile(r"\bon the way\b", re.IGNORECASE), "in transit"),
+    (re.compile(r"\bscheduled delivery\b", re.IGNORECASE), "scheduled delivery"),
+    (re.compile(r"\blabel created\b", re.IGNORECASE), "label created"),
     (re.compile(r"\barriving overnight\b", re.IGNORECASE), "arriving overnight"),
     (re.compile(r"\barriving today\b", re.IGNORECASE), "arriving today"),
     (re.compile(r"\barriving tomorrow\b", re.IGNORECASE), "arriving tomorrow"),
@@ -87,6 +90,19 @@ class GmailShipmentEmailReconciler:
             return result
 
         records = self.message_store.list_shipment_records(account_id)
+        if not records and source_type == "carrier":
+            if self._create_standalone_carrier_record(
+                account_id=account_id,
+                message=message,
+                sender_domain=sender_domain,
+                extracted_tracking_number=extracted_tracking_number,
+                result=result,
+            ):
+                self._log_decision(message, result)
+                return result
+            result.reason_code = "no_shipment_signal"
+            self._log_decision(message, result)
+            return result
         if not records:
             result.reason_code = "no_existing_order"
             self._log_decision(message, result)
@@ -100,6 +116,16 @@ class GmailShipmentEmailReconciler:
             extracted_tracking_number=extracted_tracking_number,
         )
         if matched_record is None:
+            if source_type == "carrier" and reason_code == "carrier_not_linked_to_existing_order":
+                if self._create_standalone_carrier_record(
+                    account_id=account_id,
+                    message=message,
+                    sender_domain=sender_domain,
+                    extracted_tracking_number=extracted_tracking_number,
+                    result=result,
+                ):
+                    self._log_decision(message, result)
+                    return result
             result.reason_code = reason_code
             self._log_decision(message, result)
             return result
@@ -265,6 +291,44 @@ class GmailShipmentEmailReconciler:
             applied = True
         updated_record = record.model_copy(update=updates)
         return updated_record, applied
+
+    def _create_standalone_carrier_record(
+        self,
+        *,
+        account_id: str,
+        message: GmailStoredMessage,
+        sender_domain: str | None,
+        extracted_tracking_number: str | None,
+        result: GmailShipmentScrubResult,
+    ) -> bool:
+        status = self._extract_status(message)
+        if not extracted_tracking_number and not status:
+            return False
+        carrier = CARRIER_DOMAINS.get(sender_domain or "")
+        record_id = f"tracking:{extracted_tracking_number}" if extracted_tracking_number else f"msg:{message.message_id}"
+        existing = self.message_store.get_shipment_record(account_id, record_id)
+        base_record = existing or GmailShipmentRecord(account_id=account_id, record_id=record_id)
+        record = base_record.model_copy(
+            update={
+                "carrier": carrier or base_record.carrier,
+                "tracking_number": extracted_tracking_number or base_record.tracking_number,
+                "domain": sender_domain or base_record.domain,
+                "last_known_status": status or base_record.last_known_status,
+                "last_seen_at": message.received_at or base_record.last_seen_at,
+                "status_updated_at": (
+                    message.received_at
+                    if status and status != base_record.last_known_status
+                    else base_record.status_updated_at
+                ),
+            }
+        )
+        self.message_store.upsert_shipment_record(record)
+        result.action = "created" if existing is None else "updated"
+        result.reason_code = "standalone_carrier_shipment_created" if existing is None else "standalone_carrier_shipment_updated"
+        result.matched_record_id = record_id
+        result.matched_by = "tracking_number" if extracted_tracking_number else None
+        result.status_update_applied = bool(status and status != base_record.last_known_status)
+        return True
 
     def _log_decision(self, message: GmailStoredMessage, result: GmailShipmentScrubResult) -> None:
         LOGGER.info(

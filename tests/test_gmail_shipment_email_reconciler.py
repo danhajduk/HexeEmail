@@ -7,7 +7,7 @@ from providers.gmail.models import GmailShipmentRecord, GmailStoredMessage
 from providers.gmail.shipment_email_reconciler import GmailShipmentEmailReconciler
 
 
-def test_shipment_scrubber_skips_when_no_existing_order(runtime_dir):
+def test_shipment_scrubber_creates_standalone_carrier_shipment_when_no_existing_order(runtime_dir):
     store = GmailMessageStore(runtime_dir)
     reconciler = GmailShipmentEmailReconciler(store)
 
@@ -22,12 +22,21 @@ def test_shipment_scrubber_skips_when_no_existing_order(runtime_dir):
             received_at=datetime(2026, 4, 3, 8, 0, 0),
         ),
     )
+    created = store.get_shipment_record("primary", "tracking:449044304137821")
 
-    assert result.action == "skipped"
-    assert result.reason_code == "no_existing_order"
+    assert result.action == "created"
+    assert result.reason_code == "standalone_carrier_shipment_created"
+    assert result.matched_record_id == "tracking:449044304137821"
+    assert result.matched_by == "tracking_number"
     assert result.sender_domain == "fedex.com"
     assert result.source_type == "carrier"
     assert result.extracted_tracking_number == "449044304137821"
+    assert created is not None
+    assert created.carrier == "fedex"
+    assert created.domain == "fedex.com"
+    assert created.tracking_number == "449044304137821"
+    assert created.last_known_status == "out for delivery"
+    assert created.last_seen_at == datetime(2026, 4, 3, 8, 0, 0)
 
 
 def test_shipment_scrubber_updates_existing_seller_order_by_order_number(runtime_dir):
@@ -69,7 +78,7 @@ def test_shipment_scrubber_updates_existing_seller_order_by_order_number(runtime
     assert updated.last_seen_at == datetime(2026, 4, 3, 9, 0, 0)
 
 
-def test_shipment_scrubber_skips_unlinked_carrier_mail(runtime_dir):
+def test_shipment_scrubber_creates_standalone_shipment_for_unlinked_carrier_mail(runtime_dir):
     store = GmailMessageStore(runtime_dir)
     reconciler = GmailShipmentEmailReconciler(store)
     store.upsert_shipment_record(
@@ -96,13 +105,19 @@ def test_shipment_scrubber_skips_unlinked_carrier_mail(runtime_dir):
         ),
     )
     unchanged = store.get_shipment_record("primary", "ship-1")
+    created = store.get_shipment_record("primary", "tracking:449044304137821")
 
-    assert result.action == "skipped"
-    assert result.reason_code == "carrier_not_linked_to_existing_order"
-    assert result.matched_record_id is None
+    assert result.action == "created"
+    assert result.reason_code == "standalone_carrier_shipment_created"
+    assert result.matched_record_id == "tracking:449044304137821"
+    assert result.matched_by == "tracking_number"
     assert unchanged is not None
     assert unchanged.last_known_status == "ordered"
     assert unchanged.last_seen_at is None
+    assert created is not None
+    assert created.carrier == "fedex"
+    assert created.tracking_number == "449044304137821"
+    assert created.last_known_status == "out for delivery"
 
 
 def test_shipment_scrubber_updates_linked_carrier_mail_by_tracking_number(runtime_dir):
@@ -143,6 +158,36 @@ def test_shipment_scrubber_updates_linked_carrier_mail_by_tracking_number(runtim
     assert updated.last_known_status == "delivered"
     assert updated.status_updated_at == datetime(2026, 4, 3, 11, 0, 0)
     assert updated.last_seen_at == datetime(2026, 4, 3, 11, 0, 0)
+
+
+def test_shipment_scrubber_creates_fedex_online_tracking_as_standalone_shipment(runtime_dir):
+    store = GmailMessageStore(runtime_dir)
+    reconciler = GmailShipmentEmailReconciler(store)
+
+    result = reconciler.process_message(
+        "primary",
+        GmailStoredMessage(
+            account_id="primary",
+            message_id="19dd8cd15efddc11",
+            subject="Online FedEx Tracking - 871180114438",
+            sender='"TrackingUpdates@fedex.com" <TrackingUpdates@fedex.com>',
+            snippet=(
+                "Online FedEx Tracking This tracking update has been requested by: "
+                "Ship date 4/28/2026 TORONTO, ON, CA On the way Scheduled delivery 4/29/2026"
+            ),
+            received_at=datetime(2026, 4, 29, 3, 33, 27),
+        ),
+    )
+    created = store.get_shipment_record("primary", "tracking:871180114438")
+
+    assert result.action == "created"
+    assert result.reason_code == "standalone_carrier_shipment_created"
+    assert result.extracted_tracking_number == "871180114438"
+    assert created is not None
+    assert created.carrier == "fedex"
+    assert created.domain == "fedex.com"
+    assert created.tracking_number == "871180114438"
+    assert created.last_known_status == "in transit"
 
 
 def test_shipment_scrubber_skips_unsupported_domains(runtime_dir):

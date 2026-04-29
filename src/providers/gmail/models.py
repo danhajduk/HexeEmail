@@ -768,7 +768,7 @@ class GmailShipmentRecord(BaseModel):
 class GmailShipmentScrubResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    action: Literal["skipped", "matched", "updated", "ignored"] = "skipped"
+    action: Literal["skipped", "matched", "updated", "created", "ignored"] = "skipped"
     reason_code: str
     matched_record_id: str | None = None
     matched_by: Literal["tracking_number", "order_number_domain", "order_number_seller"] | None = None

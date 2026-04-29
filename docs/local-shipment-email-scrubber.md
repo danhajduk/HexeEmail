@@ -1,11 +1,12 @@
 # Local Shipment Email Scrubber
 
-The Gmail local shipment email scrubber is a deterministic, local-only reconciler that updates existing shipment records from supported seller and carrier emails.
+The Gmail local shipment email scrubber is a deterministic, local-only reconciler that updates shipment records from supported seller and carrier emails.
 
 Scope:
 - no AI or external model calls
 - lightweight regex and exact-match rules only
-- existing-order-only processing
+- existing-order processing for seller mail
+- standalone shipment creation for supported carrier mail with a tracking number or status signal
 - explicit supported domains only
 
 Current supported sender domains:
@@ -18,10 +19,9 @@ Current supported sender domains:
 
 Boundary rules:
 - seller mail is only checked against that seller's existing orders
-- carrier mail is only checked when the existing record is already linked to that carrier or tracking number
+- carrier mail first updates an existing linked record when the tracking number matches
+- carrier mail creates a standalone shipment record when no linked order exists but the message has a tracking number or status signal
 - unsupported domains are skipped
-- if no existing shipment record exists, the scrubber skips processing
-- the scrubber does not create new shipment records from incoming email
 
 Matching priority:
 1. exact normalized `tracking_number`
@@ -31,10 +31,13 @@ Matching priority:
 Status extraction is intentionally simple and currently recognizes:
 - `out for delivery`
 - `delivered`
+- `on the way`
+- `scheduled delivery`
+- `label created`
 - `arriving overnight`
 - `arriving today`
 - `arriving tomorrow`
 - `in transit`
 - `shipped`
 
-This flow is intended as a low-cost enrichment pass for already-known orders, not as a general shipment parser or email classifier.
+This flow is intended as a low-cost enrichment pass for known orders and standalone carrier shipment notices, not as a general shipment parser or email classifier.
