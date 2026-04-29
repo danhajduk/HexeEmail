@@ -87,6 +87,7 @@ Examples:
 
 - `order` and `shipment` care about things like `order_number`, `tracking_number`, `status`, and action links
 - `action_required` cares about `action_url`, `verification_code`, `due_date`, and issue summary
+- Action Required template generation must include a standardized `due_date` extractor when the sample contains an explicit deadline, expiry, downgrade, cancellation, payment, or required-by date.
 - `security` may need verification or alert fields that do not belong in invoice-style templates
 - `financial` and `invoice` may overlap, but still differ in whether the main object is a statement, invoice, receipt, or billing notice
 

@@ -349,3 +349,35 @@ async def test_action_required_api_reruns_processing_without_changing_label(conf
     message = adapter.message_store.get_message("primary", "msg-action-1")
     assert message is not None
     assert message.local_label == GmailTrainingLabel.ACTION_REQUIRED.value
+
+
+@pytest.mark.asyncio
+async def test_action_required_api_uses_ai_deadline_fallback(config):
+    service = NodeService(config, mqtt_manager=FakeMQTTManager())
+    item_id = _seed_action_item(service)
+    adapter = service.provider_registry.get_provider("gmail")
+    item = adapter.action_item_store.get_item("primary", item_id)
+    assert item is not None
+    adapter.action_item_store.upsert_item(
+        item.model_copy(
+            update={
+                "extracted_fields": {},
+                "ai_decision_payload": {
+                    "summary": "Deadline exists in AI decision.",
+                    "time_signals": {
+                        "is_time_sensitive": True,
+                        "deadline_mentions": ["January 7, 2026", "today"],
+                        "time_window_mentions": [],
+                    },
+                },
+            }
+        )
+    )
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get(f"/api/actions/{item_id}")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["due_at"].startswith("2026-01-07")

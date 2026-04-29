@@ -6110,6 +6110,38 @@ class NodeService:
             or self._action_required_field_value(item.extracted_fields, "deadline")
             or self._action_required_field_value(item.extracted_fields, "deadline_at")
         )
+        parsed = self._parse_action_item_due_datetime(value, reference=item.received_at)
+        if parsed is not None:
+            return parsed
+        for value in self._action_item_ai_deadline_values(item.ai_decision_payload):
+            parsed = self._parse_action_item_due_datetime(value, reference=item.received_at)
+            if parsed is not None:
+                return parsed
+        return None
+
+    @staticmethod
+    def _action_item_ai_deadline_values(payload: dict[str, object] | None) -> list[object]:
+        if not isinstance(payload, dict):
+            return []
+        values: list[object] = []
+        for container_name in ("time_signals", "calendar_signals"):
+            container = payload.get(container_name)
+            if not isinstance(container, dict):
+                continue
+            for key in ("deadline_mentions", "time_mentions"):
+                raw_values = container.get(key)
+                if isinstance(raw_values, list):
+                    values.extend(raw_values)
+                elif raw_values:
+                    values.append(raw_values)
+        for key in ("deadline_at", "due_at", "deadline", "due_date"):
+            value = payload.get(key)
+            if value:
+                values.append(value)
+        return values
+
+    @staticmethod
+    def _parse_action_item_due_datetime(value: object, *, reference: datetime | None = None) -> datetime | None:
         if value is None:
             return None
         text = str(value).strip()
@@ -6118,7 +6150,21 @@ class NodeService:
         try:
             return datetime.fromisoformat(text)
         except ValueError:
-            return None
+            pass
+        for date_format in ("%B %d, %Y", "%b %d, %Y", "%m/%d/%Y", "%Y-%m-%d"):
+            try:
+                parsed = datetime.strptime(text, date_format)
+            except ValueError:
+                continue
+            if reference is not None and reference.tzinfo is not None:
+                return parsed.replace(tzinfo=reference.tzinfo)
+            return parsed
+        normalized = text.lower()
+        if reference is not None and normalized in {"today", "tomorrow"}:
+            offset_days = 1 if normalized == "tomorrow" else 0
+            base = reference + timedelta(days=offset_days)
+            return base.replace(hour=23, minute=59, second=59, microsecond=0)
+        return None
 
     async def gmail_fetch_messages(
         self,

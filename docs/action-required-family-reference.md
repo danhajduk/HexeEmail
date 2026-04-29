@@ -130,6 +130,7 @@ Template roots:
 Current template-generation prompt usage:
 
 - the family now participates in the shared multi-family prompt strategy through [prompt.email.family_pattern_template_creation.json](/home/dan/Projects/HexeEmail/runtime/prompts/prompt.email.family_pattern_template_creation.json)
+- template generation standardizes deadline extraction on `due_date`; when an ACTION_REQUIRED sample contains an explicit deadline-like date, the generated template should include a `due_date` extractor
 
 Current limitation:
 
@@ -235,6 +236,8 @@ Provider-scoped aliases are available under `/api/gmail/action-items`.
 Rule feedback writes enabled sender/domain label overrides into the Gmail runtime rule settings exposed by `/api/gmail/rules`. Non-`action_required` rule feedback marks the current action item ignored because future matching mail should no longer remain in the Action Required queue.
 
 `rerun-processing` keeps the source message's current classification label, reruns the Action Required family flow, forces a fresh AI action decision, and syncs the selected item from the new flow output.
+
+When family extraction has no `due_date`, `deadline`, or `deadline_at`, the item API falls back to parseable AI action-decision deadline mentions for `due_at`.
 
 ## Runtime Switch Interaction
 
