@@ -415,8 +415,6 @@ Data shown:
 - live tracking state, provider status, and location when Track123 is configured
 - domain
 - account
-- last seen
-- status updated
 - updated
 
 Live tracking:

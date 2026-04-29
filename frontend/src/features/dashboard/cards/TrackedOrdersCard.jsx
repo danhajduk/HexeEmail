@@ -30,8 +30,6 @@ export function TrackedOrdersCard({
                 <th>Live Tracking</th>
                 <th>Domain</th>
                 <th>Account</th>
-                <th>Last Seen</th>
-                <th>Status Updated</th>
                 <th>Updated</th>
               </tr>
             </thead>
@@ -58,8 +56,6 @@ export function TrackedOrdersCard({
                   </td>
                   <td>{record.domain || "-"}</td>
                   <td>{record.account_id || "-"}</td>
-                  <td>{formatScheduleTimestamp(record.last_seen_at)}</td>
-                  <td>{formatScheduleTimestamp(record.status_updated_at)}</td>
                   <td>{formatScheduleTimestamp(record.updated_at)}</td>
                 </tr>
               ))}
