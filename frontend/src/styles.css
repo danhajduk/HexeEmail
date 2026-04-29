@@ -344,6 +344,29 @@
   align-items: center;
 }
 
+.action-required-action-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.action-required-operator-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.action-required-inline-actions {
+  align-self: end;
+  padding-bottom: 2px;
+}
+
+.action-required-note-input {
+  min-height: 92px;
+}
+
 .action-required-meta-grid {
   margin: 0;
 }
@@ -1435,6 +1458,10 @@
   }
 
   .training-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .action-required-operator-grid {
     grid-template-columns: 1fr;
   }
 

@@ -48,6 +48,5 @@ Standards reference:
 Do not edit above this line:
 #######################################################################
 
-[TODO] Task 359: Add Action Required operator actions
 [TODO] Task 360: Add Action Required rule feedback actions
 [TODO] Task 361: Add Action Required item tests and docs

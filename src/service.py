@@ -94,9 +94,9 @@ from providers.gmail.config_store import GmailProviderConfigError, GmailProvider
 from providers.gmail.models import (
     GmailActionItem,
     GmailActionItemState,
-    GmailRulesInput,
     GmailManualClassificationBatchInput,
     GmailOAuthConfig,
+    GmailRulesInput,
     GmailSemiAutoClassificationBatchInput,
     GmailShipmentRecord,
     GmailTrainingLabel,
@@ -5614,6 +5614,118 @@ class NodeService:
         adapter = self.provider_registry.get_provider("gmail")
         updated = adapter.action_item_store.upsert_item(item.model_copy(update={"operator_note": operator_note}))
         return self._action_item_detail(updated)
+
+    async def gmail_reclassify_action_item(
+        self,
+        *,
+        account_id: str = "primary",
+        item_id: str,
+        label: GmailTrainingLabel,
+        confidence: float = 1.0,
+    ) -> dict[str, object]:
+        item = self._action_item_or_error(account_id=account_id, item_id=item_id)
+        adapter = self.provider_registry.get_provider("gmail")
+        message_ids = list(dict.fromkeys(item.grouped_message_ids or [item.source_message_id]))
+        for message_id in message_ids:
+            if adapter.message_store.get_message(account_id, message_id) is None:
+                continue
+            adapter.message_store.update_local_classification(
+                account_id,
+                message_id,
+                label=label,
+                confidence=confidence,
+                manual_classification=True,
+            )
+        if hasattr(adapter, "refresh_sender_reputations"):
+            await adapter.refresh_sender_reputations(account_id)
+
+        if label == GmailTrainingLabel.ACTION_REQUIRED:
+            refreshed = None
+            for message_id in message_ids:
+                message = adapter.message_store.get_message(account_id, message_id)
+                if message is None:
+                    continue
+                refreshed = self._sync_action_required_item_from_message(
+                    account_id=account_id,
+                    message=message,
+                    pipeline_result=None,
+                    action_decision=message.action_decision_payload,
+                )
+            if refreshed is not None:
+                detail = self._action_item_detail(refreshed)
+                detail["reclassification"] = {
+                    "label": label.value,
+                    "confidence": confidence,
+                    "message_ids": message_ids,
+                }
+                return detail
+
+        updated = adapter.action_item_store.upsert_item(
+            item.model_copy(update={"state": GmailActionItemState.IGNORED, "state_updated_at": None})
+        )
+        detail = self._action_item_detail(updated)
+        detail["reclassification"] = {
+            "label": label.value,
+            "confidence": confidence,
+            "message_ids": message_ids,
+        }
+        return detail
+
+    async def gmail_send_action_item_notification(
+        self,
+        *,
+        account_id: str = "primary",
+        item_id: str,
+    ) -> dict[str, object]:
+        item = self._action_item_or_error(account_id=account_id, item_id=item_id)
+        sender_reputation = self._sender_reputation_context(account_id, sender=item.sender)
+        confidence_text = f"{item.confidence:.2f}" if item.confidence is not None else "unknown"
+        action_decision = item.ai_decision_payload
+        message_lines = self._render_email_notification_message_lines(
+            classification_label=GmailTrainingLabel.ACTION_REQUIRED,
+            sender_text=(item.sender or "Unknown sender").strip() or "Unknown sender",
+            subject_text=(item.subject or "(no subject)").strip() or "(no subject)",
+            confidence_text=confidence_text,
+            sender_reputation_text=self._sender_reputation_notification_text(sender_reputation),
+            action_decision=action_decision,
+        )
+        severity, urgency = self._email_notification_delivery_profile(
+            classification_label=GmailTrainingLabel.ACTION_REQUIRED,
+            action_decision=action_decision,
+        )
+        sent = self.send_user_notification(
+            title=self._email_notification_title(
+                classification_label=GmailTrainingLabel.ACTION_REQUIRED,
+                action_decision=action_decision,
+            ),
+            message="\n".join(message_lines),
+            severity=severity,
+            urgency=urgency,
+            dedupe_key=f"action-item-manual-notify:{account_id}:{item.item_id}:{uuid.uuid4()}",
+            event_type="gmail_action_required_email",
+            summary=self._email_notification_summary(
+                classification_label=GmailTrainingLabel.ACTION_REQUIRED,
+                action_decision=action_decision,
+            ),
+            source_component="action_required_operator",
+            data={
+                "account_id": account_id,
+                "item_id": item.item_id,
+                "message_id": item.source_message_id,
+                "classification_label": GmailTrainingLabel.ACTION_REQUIRED.value,
+                "sender": item.sender,
+                "subject": item.subject,
+                "confidence": item.confidence,
+                "sender_reputation": sender_reputation,
+                "action_decision": action_decision,
+            },
+        )
+        detail = self._action_item_detail(item)
+        detail["notification"] = {
+            "sent": sent,
+            "status": "sent" if sent else "skipped",
+        }
+        return detail
 
     async def process_due_action_item_reminders(
         self,

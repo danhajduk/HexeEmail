@@ -6,7 +6,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from main import create_app
-from providers.gmail.models import GmailActionItem, GmailActionItemState, GmailStoredMessage
+from providers.gmail.models import GmailActionItem, GmailActionItemState, GmailStoredMessage, GmailTrainingLabel
 from service import NodeService
 from tests.helpers import FakeMQTTManager
 
@@ -119,6 +119,73 @@ async def test_action_required_api_lists_details_and_updates_items(config):
     assert snooze_response.status_code == 200
     assert snooze_response.json()["state"] == "snoozed"
     assert snooze_response.json()["reminder_at"] == reminder_at
+
+
+@pytest.mark.asyncio
+async def test_action_required_api_reclassifies_grouped_messages(config):
+    service = NodeService(config, mqtt_manager=FakeMQTTManager())
+    item_id = _seed_action_item(service)
+    adapter = service.provider_registry.get_provider("gmail")
+    adapter.message_store.upsert_messages(
+        [
+            GmailStoredMessage(
+                account_id="primary",
+                message_id="msg-action-2",
+                thread_id="thread-action-1",
+                subject="Please sign follow-up",
+                sender="Sender <sender@example.com>",
+                recipients=["user@example.com"],
+                snippet="Reminder to sign.",
+                label_ids=["INBOX"],
+                received_at=datetime(2026, 4, 29, 9, 30, 0).astimezone(),
+                raw_payload='{"body":"Reminder to sign."}',
+            )
+        ]
+    )
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.patch(
+            f"/api/actions/{item_id}/classification",
+            json={"label": "system", "confidence": 0.88},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["state"] == "ignored"
+    assert body["reclassification"]["label"] == "system"
+    assert body["reclassification"]["message_ids"] == ["msg-action-1", "msg-action-2"]
+    for message_id in ("msg-action-1", "msg-action-2"):
+        message = adapter.message_store.get_message("primary", message_id)
+        assert message is not None
+        assert message.local_label == GmailTrainingLabel.SYSTEM.value
+        assert message.local_label_confidence == 0.88
+        assert message.manual_classification is True
+
+
+@pytest.mark.asyncio
+async def test_action_required_api_resends_notification(config):
+    mqtt_manager = FakeMQTTManager()
+    service = NodeService(config, mqtt_manager=mqtt_manager)
+    service.state.trust_state = "trusted"
+    service.state.node_id = "node-1"
+    service.mqtt_manager.status.state = "connected"
+    item_id = _seed_action_item(service)
+    app = create_app(config=config, service=service)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(f"/api/actions/{item_id}/notify")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["notification"]["sent"] is True
+    assert len(mqtt_manager.notification_requests) == 1
+    request = mqtt_manager.notification_requests[0]
+    assert request.event is not None
+    assert request.event.event_type == "gmail_action_required_email"
+    assert request.delivery is not None
+    assert request.delivery.dedupe_key is not None
+    assert request.delivery.dedupe_key.startswith("action-item-manual-notify:primary:action:test-1:")
 
 
 @pytest.mark.asyncio

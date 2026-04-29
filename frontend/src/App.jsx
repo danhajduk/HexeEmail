@@ -922,6 +922,9 @@ export function App() {
   const [selectedActionItem, setSelectedActionItem] = useState(null);
   const [selectedActionItemLoading, setSelectedActionItemLoading] = useState(false);
   const [selectedActionItemError, setSelectedActionItemError] = useState("");
+  const [actionItemActionPending, setActionItemActionPending] = useState("");
+  const [actionItemActionNotice, setActionItemActionNotice] = useState("");
+  const [actionItemActionError, setActionItemActionError] = useState("");
   const [trainingStatus, setTrainingStatus] = useState(null);
   const [trainingLoading, setTrainingLoading] = useState(false);
   const [trainingError, setTrainingError] = useState("");
@@ -1178,6 +1181,91 @@ export function App() {
     } finally {
       setActionItemsLoading(false);
     }
+  }
+
+  async function mutateActionItem({ itemId, actionKey, path, method = "PATCH", body, notice }) {
+    if (!itemId || actionItemActionPending) {
+      return null;
+    }
+    setActionItemActionPending(actionKey);
+    setActionItemActionNotice("");
+    setActionItemActionError("");
+    try {
+      const payload = await fetchJson(path, {
+        method,
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
+      setSelectedActionItem(payload);
+      setSelectedActionItemId(payload.item_id || itemId);
+      await refreshActionItems();
+      setActionItemActionNotice(notice);
+      return payload;
+    } catch (mutationError) {
+      setActionItemActionError(mutationError.message);
+      return null;
+    } finally {
+      setActionItemActionPending("");
+    }
+  }
+
+  function setActionItemState(itemId, state) {
+    return mutateActionItem({
+      itemId,
+      actionKey: `state:${state}`,
+      path: `/api/actions/${encodeURIComponent(itemId)}/state`,
+      body: { state },
+      notice: `Action item marked ${state.replace(/_/g, " ")}.`,
+    });
+  }
+
+  function snoozeActionItem(itemId, payload) {
+    return mutateActionItem({
+      itemId,
+      actionKey: "snooze",
+      path: `/api/actions/${encodeURIComponent(itemId)}/snooze`,
+      body: payload,
+      notice: payload.snoozed_until || payload.reminder_at ? "Action item reminder updated." : "Action item snooze cleared.",
+    });
+  }
+
+  function saveActionItemNote(itemId, operatorNote) {
+    return mutateActionItem({
+      itemId,
+      actionKey: "note",
+      path: `/api/actions/${encodeURIComponent(itemId)}/note`,
+      body: { operator_note: operatorNote },
+      notice: "Action item note saved.",
+    });
+  }
+
+  function reclassifyActionItem(itemId, label, confidence) {
+    return mutateActionItem({
+      itemId,
+      actionKey: "reclassify",
+      path: `/api/actions/${encodeURIComponent(itemId)}/classification`,
+      body: { label, confidence },
+      notice: `Action item reclassified as ${label.replace(/_/g, " ")}.`,
+    });
+  }
+
+  function regenerateActionItemAiDecision(itemId) {
+    return mutateActionItem({
+      itemId,
+      actionKey: "regenerate",
+      path: `/api/actions/${encodeURIComponent(itemId)}/regenerate-ai-decision`,
+      method: "POST",
+      notice: "AI decision regenerated.",
+    });
+  }
+
+  function notifyActionItem(itemId) {
+    return mutateActionItem({
+      itemId,
+      actionKey: "notify",
+      path: `/api/actions/${encodeURIComponent(itemId)}/notify`,
+      method: "POST",
+      notice: "Action Required notification sent.",
+    });
   }
 
   useEffect(() => {
@@ -3126,8 +3214,17 @@ export function App() {
                   selectedActionItemId={selectedActionItemId}
                   selectedActionItemLoading={selectedActionItemLoading}
                   selectedActionItemError={selectedActionItemError}
+                  actionItemActionPending={actionItemActionPending}
+                  actionItemActionNotice={actionItemActionNotice}
+                  actionItemActionError={actionItemActionError}
                   onSelectActionItem={setSelectedActionItemId}
                   onRefreshActionItems={refreshActionItems}
+                  onSetActionItemState={setActionItemState}
+                  onSnoozeActionItem={snoozeActionItem}
+                  onSaveActionItemNote={saveActionItemNote}
+                  onReclassifyActionItem={reclassifyActionItem}
+                  onRegenerateActionItemAiDecision={regenerateActionItemAiDecision}
+                  onNotifyActionItem={notifyActionItem}
                   formatScheduleTimestamp={formatScheduleTimestamp}
                 />
               ) : dashboardSection === "review" ? (

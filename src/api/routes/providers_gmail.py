@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from providers.gmail.models import (
     GmailActionItemNoteInput,
+    GmailActionItemReclassifyInput,
     GmailActionItemSnoozeInput,
     GmailActionItemStateUpdateInput,
     GmailManualClassificationBatchInput,
@@ -207,6 +208,31 @@ def build_providers_gmail_router(node_service: NodeService) -> APIRouter:
                 item_id=item_id,
                 operator_note=payload.operator_note,
             )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @router.patch("/api/actions/{item_id}/classification")
+    @router.patch("/api/gmail/action-items/{item_id}/classification")
+    async def reclassify_gmail_action_item(
+        item_id: str,
+        payload: GmailActionItemReclassifyInput,
+        account_id: str = "primary",
+    ):
+        try:
+            return await node_service.gmail_reclassify_action_item(
+                account_id=account_id,
+                item_id=item_id,
+                label=payload.label,
+                confidence=payload.confidence,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @router.post("/api/actions/{item_id}/notify")
+    @router.post("/api/gmail/action-items/{item_id}/notify")
+    async def notify_gmail_action_item(item_id: str, account_id: str = "primary"):
+        try:
+            return await node_service.gmail_send_action_item_notification(account_id=account_id, item_id=item_id)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 

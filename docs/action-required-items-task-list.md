@@ -225,6 +225,11 @@ Implementation status:
 - Regenerate AI decision.
 - Send notification again.
 
+Implementation status:
+
+- Done with operator controls in the Action Required detail view and API support for state changes, snooze/reminder, notes, reclassification, notification resend, AI-decision regeneration, and opening the extracted action URL.
+- Reclassification updates grouped source messages as manual classifications; non-`action_required` reclassification moves the item to `ignored`.
+
 ### AR-013: Add rule feedback from item detail
 
 - Allow operator actions such as always action-required for this sender/domain or never action-required for this sender/domain.

@@ -894,6 +894,20 @@ class GmailActionItemNoteInput(BaseModel):
         return normalized or None
 
 
+class GmailActionItemReclassifyInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    label: GmailTrainingLabel
+    confidence: float = 1.0
+
+    @field_validator("confidence")
+    @classmethod
+    def validate_confidence(cls, value: float) -> float:
+        if value < 0 or value > 1:
+            raise ValueError("confidence must be between 0 and 1")
+        return value
+
+
 class GmailShipmentRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

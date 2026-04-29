@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const ACTIVE_STATES = new Set(["new", "ready", "review_needed", "waiting"]);
 const FINAL_STATES = new Set(["done", "ignored"]);
@@ -22,6 +22,20 @@ const FILTERS = [
   { key: "high_priority", label: "High Priority" },
 ];
 
+const CLASSIFICATION_LABELS = [
+  "action_required",
+  "direct_human",
+  "financial",
+  "order",
+  "invoice",
+  "shipment",
+  "security",
+  "system",
+  "newsletter",
+  "marketing",
+  "unknown",
+];
+
 export function ActionRequiredSection({
   actionItems,
   actionItemsLoading,
@@ -30,8 +44,17 @@ export function ActionRequiredSection({
   selectedActionItemId,
   selectedActionItemLoading,
   selectedActionItemError,
+  actionItemActionPending,
+  actionItemActionNotice,
+  actionItemActionError,
   onSelectActionItem,
   onRefreshActionItems,
+  onSetActionItemState,
+  onSnoozeActionItem,
+  onSaveActionItemNote,
+  onReclassifyActionItem,
+  onRegenerateActionItemAiDecision,
+  onNotifyActionItem,
   formatScheduleTimestamp,
 }) {
   const [filter, setFilter] = useState("active");
@@ -167,16 +190,212 @@ export function ActionRequiredSection({
           <p className="muted">{selectedDetail?.subject || "Select an item to inspect the mail, extracted data, and AI decision."}</p>
         </div>
         {selectedActionItemError ? <div className="callout callout-danger">{selectedActionItemError}</div> : null}
+        {actionItemActionError ? <div className="callout callout-danger">{actionItemActionError}</div> : null}
+        {actionItemActionNotice ? <div className="callout callout-success">{actionItemActionNotice}</div> : null}
         {selectedActionItemLoading ? <div className="callout">Loading selected item...</div> : null}
         {!selectedActionItemLoading && !selectedDetail ? <div className="callout">No Action Required item is selected.</div> : null}
         {selectedDetail ? (
           <div className="action-required-detail-panels">
+            <OperatorActionsPanel
+              item={selectedDetail}
+              pendingAction={actionItemActionPending}
+              onSetActionItemState={onSetActionItemState}
+              onSnoozeActionItem={onSnoozeActionItem}
+              onSaveActionItemNote={onSaveActionItemNote}
+              onReclassifyActionItem={onReclassifyActionItem}
+              onRegenerateActionItemAiDecision={onRegenerateActionItemAiDecision}
+              onNotifyActionItem={onNotifyActionItem}
+            />
             <MailReviewPanel item={selectedDetail} formatScheduleTimestamp={formatScheduleTimestamp} />
             <ExtractedDataPanel item={selectedDetail} formatScheduleTimestamp={formatScheduleTimestamp} />
             <AiDecisionPanel item={selectedDetail} formatScheduleTimestamp={formatScheduleTimestamp} />
           </div>
         ) : null}
       </article>
+    </section>
+  );
+}
+
+function OperatorActionsPanel({
+  item,
+  pendingAction,
+  onSetActionItemState,
+  onSnoozeActionItem,
+  onSaveActionItemNote,
+  onReclassifyActionItem,
+  onRegenerateActionItemAiDecision,
+  onNotifyActionItem,
+}) {
+  const [operatorNote, setOperatorNote] = useState(item.operator_note || "");
+  const [snoozedUntil, setSnoozedUntil] = useState(toDateTimeLocal(item.snoozed_until));
+  const [reminderAt, setReminderAt] = useState(toDateTimeLocal(item.reminder_at));
+  const [classificationLabel, setClassificationLabel] = useState("action_required");
+  const [classificationConfidence, setClassificationConfidence] = useState("1");
+  const disabled = Boolean(pendingAction);
+
+  useEffect(() => {
+    setOperatorNote(item.operator_note || "");
+    setSnoozedUntil(toDateTimeLocal(item.snoozed_until));
+    setReminderAt(toDateTimeLocal(item.reminder_at));
+    setClassificationLabel("action_required");
+    setClassificationConfidence("1");
+  }, [item.item_id, item.operator_note, item.reminder_at, item.snoozed_until]);
+
+  return (
+    <section className="action-required-panel">
+      <div className="action-required-panel-heading">
+        <h3>Operator Actions</h3>
+        {pendingAction ? <span className="status-pill tone-warning">Working...</span> : null}
+      </div>
+      <div className="action-required-action-row">
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={disabled}
+          onClick={() => onSetActionItemState(item.item_id, "done")}
+        >
+          Mark Done
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          disabled={disabled}
+          onClick={() => onSetActionItemState(item.item_id, "review_needed")}
+        >
+          Needs Review
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          disabled={disabled}
+          onClick={() => onSetActionItemState(item.item_id, "ready")}
+        >
+          Accept
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          disabled={disabled}
+          onClick={() => onSetActionItemState(item.item_id, "ignored")}
+        >
+          Ignore
+        </button>
+        {item.action_url ? (
+          <a className="btn btn-ghost" href={item.action_url} target="_blank" rel="noreferrer">
+            Open Action URL
+          </a>
+        ) : null}
+        <button type="button" className="btn btn-ghost" disabled={disabled} onClick={() => onNotifyActionItem(item.item_id)}>
+          Send Notification
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          disabled={disabled}
+          onClick={() => onRegenerateActionItemAiDecision(item.item_id)}
+        >
+          Regenerate AI
+        </button>
+      </div>
+
+      <div className="action-required-operator-grid">
+        <label className="field">
+          <span className="field-label">Snooze Until</span>
+          <input
+            className="form-input"
+            type="datetime-local"
+            value={snoozedUntil}
+            onChange={(event) => setSnoozedUntil(event.target.value)}
+          />
+        </label>
+        <label className="field">
+          <span className="field-label">Reminder At</span>
+          <input
+            className="form-input"
+            type="datetime-local"
+            value={reminderAt}
+            onChange={(event) => setReminderAt(event.target.value)}
+          />
+        </label>
+        <div className="actions action-required-inline-actions">
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={disabled}
+            onClick={() =>
+              onSnoozeActionItem(item.item_id, {
+                snoozed_until: fromDateTimeLocal(snoozedUntil),
+                reminder_at: fromDateTimeLocal(reminderAt),
+              })
+            }
+          >
+            Save Reminder
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            disabled={disabled}
+            onClick={() => onSnoozeActionItem(item.item_id, { snoozed_until: null, reminder_at: null })}
+          >
+            Clear Snooze
+          </button>
+        </div>
+      </div>
+
+      <div className="action-required-operator-grid">
+        <label className="field">
+          <span className="field-label">Reclassify Label</span>
+          <select className="form-input" value={classificationLabel} onChange={(event) => setClassificationLabel(event.target.value)}>
+            {CLASSIFICATION_LABELS.map((label) => (
+              <option key={label} value={label}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          <span className="field-label">Confidence</span>
+          <input
+            className="form-input"
+            type="number"
+            min="0"
+            max="1"
+            step="0.01"
+            value={classificationConfidence}
+            onChange={(event) => setClassificationConfidence(event.target.value)}
+          />
+        </label>
+        <div className="actions action-required-inline-actions">
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={disabled}
+            onClick={() => onReclassifyActionItem(item.item_id, classificationLabel, Number(classificationConfidence || 1))}
+          >
+            Reclassify
+          </button>
+        </div>
+      </div>
+
+      <label className="field">
+        <span className="field-label">Note</span>
+        <textarea
+          className="form-input form-textarea action-required-note-input"
+          value={operatorNote}
+          onChange={(event) => setOperatorNote(event.target.value)}
+          rows={3}
+        />
+      </label>
+      <div className="actions">
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={disabled}
+          onClick={() => onSaveActionItemNote(item.item_id, operatorNote)}
+        >
+          Save Note
+        </button>
+      </div>
     </section>
   );
 }
@@ -470,6 +689,26 @@ function formatRecommendedAction(action) {
   const confidence = Number(action.confidence);
   const confidenceText = Number.isFinite(confidence) ? ` (${Math.round(confidence * 100)}%)` : "";
   return `${formatToken(label)}${confidenceText}${reason ? `: ${reason}` : ""}`;
+}
+
+function toDateTimeLocal(value) {
+  if (!value) {
+    return "";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  const offsetMs = date.getTimezoneOffset() * 60 * 1000;
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
+}
+
+function fromDateTimeLocal(value) {
+  if (!value) {
+    return null;
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
 function extractTextBody(source) {
