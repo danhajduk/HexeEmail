@@ -313,6 +313,8 @@ describe("dashboard feature sections", () => {
     expect(actionHtml).toContain("AI Decision");
     expect(actionHtml).toContain("Extracted Data");
     expect(actionHtml).toContain("Mail");
+    expect(actionHtml).toContain("Mail ID");
+    expect(actionHtml).toContain("msg-1");
     expect(actionHtml).toContain("missing action url");
     expect(actionHtml).toContain("Pay invoice");
     expect(actionHtml).toContain("Rule Feedback");

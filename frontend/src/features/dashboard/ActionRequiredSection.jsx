@@ -483,6 +483,8 @@ function MailReviewPanel({ item, formatScheduleTimestamp }) {
         ) : null}
       </div>
       <dl className="state-grid action-required-meta-grid">
+        <dt>Mail ID</dt>
+        <dd>{source.message_id || item.source_message_id || "-"}</dd>
         <dt>Subject</dt>
         <dd>{source.subject || item.subject || "-"}</dd>
         <dt>From</dt>
