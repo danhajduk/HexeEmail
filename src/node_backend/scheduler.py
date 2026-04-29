@@ -1318,11 +1318,12 @@ class BackgroundTaskManager:
         result = await self.service.refresh_all_shipment_live_tracking()
         detail = (
             f"Scheduled shipment live tracking registered {result.get('registered', 0)} of "
-            f"{result.get('registration_total', 0)} new record(s) and refreshed {result.get('refreshed', 0)} of "
+            f"{result.get('registration_total', 0)} new record(s), removed {result.get('removed', 0)} of "
+            f"{result.get('remove_total', 0)} old delivered record(s) from Track123, and refreshed {result.get('refreshed', 0)} of "
             f"{result.get('total', 0)} enabled record(s); failures="
-            f"{int(result.get('registration_failed', 0) or 0) + int(result.get('failed', 0) or 0)}."
+            f"{int(result.get('registration_failed', 0) or 0) + int(result.get('remove_failed', 0) or 0) + int(result.get('failed', 0) or 0)}."
         )
-        if result.get("failed") or result.get("registration_failed"):
+        if result.get("failed") or result.get("registration_failed") or result.get("remove_failed"):
             self.mark_task_failure(
                 "shipment_live_tracking_refresh",
                 detail=detail,

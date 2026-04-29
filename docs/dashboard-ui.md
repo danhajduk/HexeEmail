@@ -413,7 +413,7 @@ Orders data shown:
 - tracking number
 - tracking status, expected delivery time, and latest tracking event
 - account
-- updated
+- added
 
 Shipments data shown:
 
@@ -422,7 +422,7 @@ Shipments data shown:
 - tracking number
 - tracking status, expected delivery time, and latest tracking event
 - account
-- updated
+- added
 
 Live tracking:
 
@@ -431,6 +431,7 @@ Live tracking:
 - `Shipment Live Tracking Refresh` validates mapped courier codes against Track123's courier list, then automatically registers untracked shipment numbers through `POST /gateway/open-api/tk/v2/track/import`
 - order-linked shipments include `orderNo` in the Track123 registration payload
 - the same task runs every 5 minutes and queries Track123 through `POST /gateway/open-api/tk/v2.1/track/query` for all enabled live-tracking shipment records
+- delivered shipments older than 30 days are removed from Track123 through `POST /gateway/open-api/tk/v2.1/track/delete` while the local shipment record stays in the database
 - Track123 requests are throttled per endpoint and briefly retried when Track123 returns `A0706` or HTTP `429`
 
 ## Review-needed outputs dashboard section

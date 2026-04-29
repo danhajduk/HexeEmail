@@ -174,6 +174,7 @@ The Gmail fetch scheduler currently owns three recurring windows:
 - Runtime behavior:
   - calls `NodeService.refresh_all_shipment_live_tracking()`
   - automatically registers recent shipment records that have a tracking number but are not live-tracked yet
+  - removes delivered shipments from Track123 after they have been delivered for 30 days, while retaining the local DB record
   - refreshes all shipment records that have live tracking enabled and a tracking number
 - Operator visibility:
   - surfaced in scheduled task snapshot output as `shipment_live_tracking_refresh`

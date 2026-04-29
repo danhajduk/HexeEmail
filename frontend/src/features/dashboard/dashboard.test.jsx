@@ -234,6 +234,7 @@ describe("dashboard feature sections", () => {
     expect(ordersHtml).toContain("Tracked Orders");
     expect(ordersHtml).toContain("Seller");
     expect(ordersHtml).toContain("Tracking");
+    expect(ordersHtml).toContain("Added");
     expect(ordersHtml).not.toContain("Live Tracking");
     expect(shipmentsHtml).toContain("Tracked Shipments");
     expect(shipmentsHtml).toContain("Departed FedEx hub");

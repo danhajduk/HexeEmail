@@ -2652,6 +2652,91 @@ async def test_shipment_live_tracking_refresh_all_registers_new_tracking_numbers
 
 
 @pytest.mark.asyncio
+async def test_shipment_live_tracking_refresh_all_removes_old_delivered_from_track123(config, core_client_factory, monkeypatch):
+    config.track123_enabled = True
+    config.track123_api_secret = "secret-test"
+    service = NodeService(config, core_client=core_client_factory(build_core_app()), mqtt_manager=FakeMQTTManager())
+    await service.start()
+    gmail_adapter = service.provider_registry.get_provider("gmail")
+    gmail_adapter.message_store.upsert_shipment_record(
+        GmailShipmentRecord(
+            account_id="primary",
+            record_id="tracking:OLDDELIVERED",
+            carrier="fedex",
+            order_number="ORDER-OLD",
+            tracking_number="OLDDELIVERED",
+            last_known_status="delivered",
+            status_updated_at=datetime(2020, 1, 2, 9, 0, 0).astimezone(),
+            last_seen_at=datetime(2020, 1, 1, 9, 0, 0).astimezone(),
+            live_tracking_enabled=True,
+            live_tracking_provider="track123",
+            live_tracking_status="delivered",
+            live_tracking_checked_at=datetime(2020, 1, 2, 9, 0, 0).astimezone(),
+            live_tracking_payload={
+                "code": "00000",
+                "normalized_status_code": "DELIVERED",
+                "normalized_status_label": "delivered",
+                "data": {
+                    "accepted": {
+                        "content": [
+                            {
+                                "trackNo": "OLDDELIVERED",
+                                "transitStatus": "DELIVERED",
+                                "localLogisticsInfo": {
+                                    "trackingDetails": [
+                                        {
+                                            "eventTime": "2020-01-02 09:00:00",
+                                            "eventDetail": "Delivered",
+                                            "transitSubStatus": "DELIVERED_01",
+                                        }
+                                    ]
+                                },
+                            }
+                        ]
+                    }
+                },
+            },
+        )
+    )
+
+    class FakeTrack123Client:
+        def __init__(self):
+            self.deletes = []
+            self.queries = []
+
+        async def delete_tracking(self, *, tracking_number, courier_code=None):
+            self.deletes.append({"tracking_number": tracking_number, "courier_code": courier_code})
+            return {"code": "00000", "data": {"deleted": [{"trackNo": tracking_number}]}}
+
+        async def query_tracking(self, *, tracking_number, courier_code=None):
+            self.queries.append({"tracking_number": tracking_number, "courier_code": courier_code})
+            raise AssertionError("old delivered shipments should not be queried after removal")
+
+        async def close(self):
+            return None
+
+    fake_track123_client = FakeTrack123Client()
+    monkeypatch.setattr(service, "_track123_client", lambda: fake_track123_client)
+
+    result = await service.refresh_all_shipment_live_tracking()
+    retained = gmail_adapter.message_store.get_shipment_record("primary", "tracking:OLDDELIVERED")
+
+    await service.stop()
+
+    assert result["status"] == "ok"
+    assert result["removed"] == 1
+    assert result["remove_total"] == 1
+    assert result["refreshed"] == 0
+    assert fake_track123_client.deletes == [{"tracking_number": "OLDDELIVERED", "courier_code": "fedex"}]
+    assert fake_track123_client.queries == []
+    assert retained is not None
+    assert retained.tracking_number == "OLDDELIVERED"
+    assert retained.live_tracking_enabled is True
+    assert retained.live_tracking_payload is not None
+    assert retained.live_tracking_payload["track123_remote_removed_at"]
+
+
+@pytest.mark.asyncio
 async def test_shipment_live_tracking_enable_rejects_unknown_track123_courier(config, core_client_factory, monkeypatch):
     config.track123_enabled = True
     config.track123_api_secret = "secret-test"

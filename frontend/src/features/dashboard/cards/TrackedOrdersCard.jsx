@@ -26,7 +26,7 @@ export function TrackedOrdersCard({
                 <th>Tracking Number</th>
                 <th>Tracking</th>
                 <th>Account</th>
-                <th>Updated</th>
+                <th>Added</th>
               </tr>
             </thead>
             <tbody>
@@ -44,7 +44,7 @@ export function TrackedOrdersCard({
                     />
                   </td>
                   <td>{record.account_id || "-"}</td>
-                  <td>{formatScheduleTimestamp(record.updated_at)}</td>
+                  <td>{formatScheduleTimestamp(record.last_seen_at || record.updated_at)}</td>
                 </tr>
               ))}
             </tbody>

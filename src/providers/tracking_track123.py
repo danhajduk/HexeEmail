@@ -71,6 +71,16 @@ class Track123Client:
         )
         return self.parse_tracking_update(payload, fallback_tracking_number=tracking_number, fallback_carrier=courier_code)
 
+    async def delete_tracking(self, *, tracking_number: str, courier_code: str | None = None) -> dict[str, object]:
+        tracking_info: dict[str, object] = {"trackNo": tracking_number}
+        if courier_code:
+            tracking_info["courierCode"] = courier_code
+        return await self._post_json(
+            "/gateway/open-api/tk/v2.1/track/delete",
+            {"trackNoInfos": [tracking_info]},
+            operation="track123_delete",
+        )
+
     async def _post_json(self, path: str, json_payload: object, *, operation: str) -> dict[str, object]:
         return await self._request_json("POST", path, operation=operation, json_payload=json_payload)
 

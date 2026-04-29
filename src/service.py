@@ -572,14 +572,15 @@ class NodeService:
 
     async def refresh_all_shipment_live_tracking(self, *, limit: int = 100) -> dict[str, object]:
         self._ensure_track123_configured()
+        now = datetime.now().astimezone()
         gmail_adapter = self.provider_registry.get_provider("gmail")
         registration_candidates = [
             record
             for record in gmail_adapter.message_store.list_all_shipment_records(
                 limit=limit,
-                since=self._tracked_orders_cutoff(datetime.now().astimezone()),
+                since=self._tracked_orders_cutoff(now),
             )
-            if record.tracking_number and not record.live_tracking_enabled
+            if self._should_register_shipment_live_tracking(record, now=now)
         ]
         registered = 0
         registration_failed = 0
@@ -601,6 +602,13 @@ class NodeService:
             else:
                 registered += 1
         records = gmail_adapter.message_store.list_live_tracking_records(limit=limit)
+        cleanup_result = await self._remove_delivered_track123_records(records, now=now)
+        records = [
+            record
+            for record in gmail_adapter.message_store.list_live_tracking_records(limit=limit)
+            if not self._track123_remote_removed(record)
+            and not self._shipment_delivered_beyond_track123_retention(record, now=now)
+        ]
         refreshed = 0
         failed = 0
         results: list[dict[str, object]] = []
@@ -620,16 +628,69 @@ class NodeService:
             else:
                 refreshed += 1
         return {
-            "status": "ok" if failed == 0 and registration_failed == 0 else "partial",
+            "status": "ok" if failed == 0 and registration_failed == 0 and cleanup_result["failed"] == 0 else "partial",
             "registered": registered,
             "registration_failed": registration_failed,
             "registration_total": len(registration_candidates),
+            "removed": cleanup_result["removed"],
+            "remove_failed": cleanup_result["failed"],
+            "remove_total": cleanup_result["total"],
+            "remove_results": cleanup_result["results"],
             "refreshed": refreshed,
             "failed": failed,
             "total": len(records),
             "registration_results": registration_results,
             "results": results,
         }
+
+    async def _remove_delivered_track123_records(
+        self,
+        records: list[GmailShipmentRecord],
+        *,
+        now: datetime,
+    ) -> dict[str, object]:
+        candidates = [
+            record
+            for record in records
+            if self._shipment_delivered_beyond_track123_retention(record, now=now)
+            and not self._track123_remote_removed(record)
+        ]
+        removed = 0
+        failed = 0
+        results: list[dict[str, object]] = []
+        for record in candidates:
+            client = self._track123_client()
+            try:
+                delete_payload = await client.delete_tracking(
+                    tracking_number=str(record.tracking_number or ""),
+                    courier_code=self._track123_courier_code(record.carrier),
+                )
+            except Track123ClientError as exc:
+                failed += 1
+                self._save_live_tracking_error(record, str(exc), provider=record.live_tracking_provider or "track123")
+                results.append(
+                    {
+                        "account_id": record.account_id,
+                        "record_id": record.record_id,
+                        "tracking_number": record.tracking_number,
+                        "status": "error",
+                        "detail": str(exc),
+                    }
+                )
+            else:
+                removed += 1
+                self._save_track123_remote_removed(record, delete_payload=delete_payload, removed_at=now)
+                results.append(
+                    {
+                        "account_id": record.account_id,
+                        "record_id": record.record_id,
+                        "tracking_number": record.tracking_number,
+                        "status": "removed",
+                    }
+                )
+            finally:
+                await client.close()
+        return {"removed": removed, "failed": failed, "total": len(candidates), "results": results}
 
     async def list_track123_couriers(self) -> dict[str, object]:
         self._ensure_track123_configured()
@@ -683,6 +744,59 @@ class NodeService:
         }
         return aliases.get(normalized) or normalized or None
 
+    def _should_register_shipment_live_tracking(self, record: GmailShipmentRecord, *, now: datetime) -> bool:
+        return bool(
+            record.tracking_number
+            and not record.live_tracking_enabled
+            and not self._track123_remote_removed(record)
+            and not self._shipment_delivered_beyond_track123_retention(record, now=now)
+        )
+
+    @staticmethod
+    def _track123_remote_removed(record: GmailShipmentRecord) -> bool:
+        payload = record.live_tracking_payload
+        return isinstance(payload, dict) and bool(payload.get("track123_remote_removed_at"))
+
+    def _shipment_delivered_beyond_track123_retention(self, record: GmailShipmentRecord, *, now: datetime) -> bool:
+        if not self._shipment_record_is_delivered(record):
+            return False
+        delivered_at = self._shipment_delivered_at(record)
+        if delivered_at is None:
+            return False
+        return delivered_at.astimezone() <= now - timedelta(days=30)
+
+    @staticmethod
+    def _shipment_record_is_delivered(record: GmailShipmentRecord) -> bool:
+        payload = record.live_tracking_payload if isinstance(record.live_tracking_payload, dict) else {}
+        status_values = [
+            record.live_tracking_status,
+            record.last_known_status,
+            payload.get("normalized_status_code"),
+            payload.get("normalized_status_label"),
+        ]
+        return any("delivered" in str(value or "").strip().lower() for value in status_values)
+
+    def _shipment_delivered_at(self, record: GmailShipmentRecord) -> datetime | None:
+        for event in Track123Client.tracking_events(record.live_tracking_payload, limit=100):
+            status_text = " ".join(str(event.get(key) or "") for key in ("status_code", "detail")).lower()
+            if "delivered" not in status_text:
+                continue
+            parsed = self._parse_tracking_timestamp(event.get("time_utc") or event.get("time"))
+            if parsed is not None:
+                return parsed
+        return record.status_updated_at or record.live_tracking_checked_at or record.last_seen_at
+
+    @staticmethod
+    def _parse_tracking_timestamp(value: object) -> datetime | None:
+        text = str(value or "").strip()
+        if not text:
+            return None
+        try:
+            parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+        return parsed.astimezone()
+
     def _apply_track123_tracking_update(
         self,
         record: GmailShipmentRecord,
@@ -711,6 +825,28 @@ class NodeService:
         )
         gmail_adapter = self.provider_registry.get_provider("gmail")
         return gmail_adapter.message_store.upsert_shipment_record(updated, now=checked_at)
+
+    def _save_track123_remote_removed(
+        self,
+        record: GmailShipmentRecord,
+        *,
+        delete_payload: dict[str, object],
+        removed_at: datetime,
+    ) -> GmailShipmentRecord:
+        payload = dict(record.live_tracking_payload or {})
+        payload["track123_remote_removed_at"] = removed_at.isoformat()
+        payload["track123_delete_payload"] = delete_payload
+        updated = record.model_copy(
+            update={
+                "live_tracking_enabled": True,
+                "live_tracking_provider": record.live_tracking_provider or "track123",
+                "live_tracking_checked_at": removed_at,
+                "live_tracking_error": None,
+                "live_tracking_payload": payload,
+            }
+        )
+        gmail_adapter = self.provider_registry.get_provider("gmail")
+        return gmail_adapter.message_store.upsert_shipment_record(updated, now=removed_at)
 
     def _save_live_tracking_update(
         self,

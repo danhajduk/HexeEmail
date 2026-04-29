@@ -59,6 +59,30 @@ async def test_track123_client_lists_couriers_with_user_supplied_shape():
 
 
 @pytest.mark.asyncio
+async def test_track123_client_deletes_tracking_with_v21_shape():
+    requests: list[httpx.Request] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json={"code": "00000", "data": {"deleted": [{"trackNo": "771700723045"}]}})
+
+    client = Track123Client(
+        api_secret="secret-test",
+        base_url="https://api.track123.test",
+        transport=httpx.MockTransport(handler),
+    )
+
+    response = await client.delete_tracking(tracking_number="771700723045", courier_code="fedex")
+    await client.close()
+
+    assert response["code"] == "00000"
+    assert requests[0].method == "POST"
+    assert requests[0].url.path == "/gateway/open-api/tk/v2.1/track/delete"
+    assert requests[0].headers["Track123-Api-Secret"] == "secret-test"
+    assert requests[0].read() == b'{"trackNoInfos":[{"trackNo":"771700723045","courierCode":"fedex"}]}'
+
+
+@pytest.mark.asyncio
 async def test_track123_client_accepts_base_url_with_api_prefix():
     requests: list[httpx.Request] = []
 
